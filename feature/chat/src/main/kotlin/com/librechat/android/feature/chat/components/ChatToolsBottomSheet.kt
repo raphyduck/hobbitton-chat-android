@@ -1,0 +1,435 @@
+package com.librechat.android.feature.chat.components
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AttachFile
+import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.Extension
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.FindInPage
+import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.SmartToy
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import com.librechat.android.core.common.ToolConstants
+import com.librechat.android.feature.chat.McpServerDisplayData
+import androidx.compose.ui.res.stringResource
+import com.librechat.android.feature.chat.R
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ChatToolsBottomSheet(
+    enabledTools: Set<String>,
+    onToggleTool: (String) -> Unit,
+    mcpServers: List<McpServerDisplayData>,
+    selectedMcpServerNames: Set<String>,
+    onToggleMcpServer: (String) -> Unit,
+    onAttachFiles: () -> Unit,
+    onTakePhoto: () -> Unit,
+    onPickPhotos: () -> Unit,
+    onOpenModelParameters: () -> Unit,
+    onOpenModelSelector: () -> Unit,
+    selectedModelDisplay: String?,
+    onDismiss: () -> Unit,
+    isCodeInterpreterAvailable: Boolean = true,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var showMcpServers by remember { mutableStateOf(false) }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 16.dp),
+        ) {
+            // Top section: Camera, Photos, Files cards
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                AttachmentOptionCard(
+                    icon = Icons.Default.PhotoCamera,
+                    label = stringResource(R.string.tool_camera),
+                    onClick = {
+                        onTakePhoto()
+                        onDismiss()
+                    },
+                )
+                AttachmentOptionCard(
+                    icon = Icons.Default.PhotoLibrary,
+                    label = stringResource(R.string.tool_photos),
+                    onClick = {
+                        onPickPhotos()
+                        onDismiss()
+                    },
+                )
+                AttachmentOptionCard(
+                    icon = Icons.Default.AttachFile,
+                    label = stringResource(R.string.tool_files),
+                    onClick = {
+                        onAttachFiles()
+                        onDismiss()
+                    },
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+            HorizontalDivider()
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Model selector row
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        onOpenModelSelector()
+                        onDismiss()
+                    }
+                    .padding(vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = Icons.Default.SmartToy,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(modifier = Modifier.width(16.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.tool_model),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                    Text(
+                        text = selectedModelDisplay ?: stringResource(R.string.select_model),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            // Model Parameters
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        onOpenModelParameters()
+                        onDismiss()
+                    }
+                    .padding(vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Tune,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(modifier = Modifier.width(16.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.tool_model_parameters),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                    Text(
+                        text = stringResource(R.string.tool_model_parameters_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            HorizontalDivider()
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Tool toggle items
+            ToolToggleRow(
+                icon = Icons.Default.Search,
+                title = stringResource(R.string.tool_web_search),
+                subtitle = stringResource(R.string.tool_web_search_desc),
+                isEnabled = ToolConstants.WEB_SEARCH in enabledTools,
+                onToggle = { onToggleTool(ToolConstants.WEB_SEARCH) },
+            )
+
+            if (isCodeInterpreterAvailable) {
+                ToolToggleRow(
+                    icon = Icons.Default.Code,
+                    title = stringResource(R.string.tool_code),
+                    subtitle = stringResource(R.string.tool_code_desc),
+                    isEnabled = ToolConstants.CODE_INTERPRETER in enabledTools,
+                    onToggle = { onToggleTool(ToolConstants.CODE_INTERPRETER) },
+                )
+            }
+
+            ToolToggleRow(
+                icon = Icons.Default.FindInPage,
+                title = stringResource(R.string.tool_file_search),
+                subtitle = stringResource(R.string.tool_file_search_desc),
+                isEnabled = ToolConstants.FILE_SEARCH in enabledTools,
+                onToggle = { onToggleTool(ToolConstants.FILE_SEARCH) },
+            )
+
+            // MCP section
+            if (mcpServers.isNotEmpty()) {
+                val anyMcpSelected = selectedMcpServerNames.isNotEmpty()
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showMcpServers = !showMcpServers }
+                        .padding(vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Extension,
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp),
+                        tint = if (anyMcpSelected) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.tool_mcp),
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                        Text(
+                            text = stringResource(R.string.tool_mcp_desc),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    if (anyMcpSelected) {
+                        Text(
+                            text = "${selectedMcpServerNames.size}",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(end = 8.dp),
+                        )
+                    }
+                }
+
+                // MCP server sub-list
+                if (showMcpServers) {
+                    Column(
+                        modifier = Modifier.padding(start = 40.dp),
+                    ) {
+                        mcpServers.forEach { server ->
+                            McpServerToggleRow(
+                                server = server,
+                                isSelected = server.name in selectedMcpServerNames,
+                                onToggle = { onToggleMcpServer(server.name) },
+                            )
+                        }
+                    }
+                }
+            }
+
+        }
+    }
+}
+
+@Composable
+private fun ToolToggleRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    isEnabled: Boolean,
+    onToggle: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onToggle)
+            .padding(vertical = 12.dp)
+            .semantics {
+                contentDescription = if (isEnabled) {
+                    "$title enabled"
+                } else {
+                    "$title disabled"
+                }
+                role = Role.Switch
+            },
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.size(24.dp),
+            tint = if (isEnabled) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
+        )
+        Spacer(modifier = Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Switch(
+            checked = isEnabled,
+            onCheckedChange = { onToggle() },
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = MaterialTheme.colorScheme.primary,
+                checkedTrackColor = MaterialTheme.colorScheme.primaryContainer,
+            ),
+        )
+    }
+}
+
+@Composable
+private fun AttachmentOptionCard(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit,
+) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier.size(80.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+        ),
+    ) {
+        Column(
+            modifier = Modifier
+                .size(80.dp)
+                .padding(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(28.dp),
+                tint = MaterialTheme.colorScheme.onSurface,
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        }
+    }
+}
+
+@Composable
+private fun McpServerToggleRow(
+    server: McpServerDisplayData,
+    isSelected: Boolean,
+    onToggle: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onToggle)
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        // Connection status indicator
+        Box(
+            modifier = Modifier
+                .size(8.dp)
+                .background(
+                    color = if (server.isConnected) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.error
+                    },
+                    shape = CircleShape,
+                ),
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = server.title ?: server.name,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            val description = server.description
+            if (!description.isNullOrBlank()) {
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        Checkbox(
+            checked = isSelected,
+            onCheckedChange = { onToggle() },
+        )
+    }
+}

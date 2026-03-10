@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Common actions -->
+    <string name="agents">Agents</string>
+    <string name="marketplace">Marketplace</string>
+    <string name="search_agents">Search agents\u2026</string>
+    <string name="start_chat">Start Chat</string>
+    <string name="edit">Edit</string>
+    <string name="delete">Delete</string>
+    <string name="cancel">Cancel</string>
+    <string name="duplicate">Duplicate</string>
+    <string name="save">Save</string>
+    <string name="create">Create</string>
+    <string name="apply">Apply</string>
+    <string name="add">Add</string>
+    <string name="remove">Remove</string>
+    <string name="revert">Revert</string>
+    <string name="close">Close</string>
+
+    <!-- Content descriptions -->
+    <string name="cd_create_agent">Create Agent</string>
+    <string name="cd_search">Search</string>
+    <string name="cd_back">Back</string>
+    <string name="cd_more_actions">More actions</string>
+    <string name="cd_more_options">More options</string>
+    <string name="cd_collapse">Collapse</string>
+    <string name="cd_expand">Expand</string>
+    <string name="cd_remove_item">Remove %1$s</string>
+    <string name="cd_edit_action">Edit action</string>
+    <string name="cd_delete_action">Delete action</string>
+    <string name="cd_add_starter">Add starter</string>
+    <string name="cd_agent_avatar_tap">Agent avatar. Tap to change.</string>
+    <string name="cd_agent_avatar_name">%1$s avatar</string>
+    <string name="cd_tool_icon">%1$s icon</string>
+
+    <!-- Marketplace screen -->
+    <string name="search_agents_hint">Search agents\u2026</string>
+    <string name="no_agents_found">No agents found</string>
+    <string name="no_agents_available">No agents available</string>
+    <string name="try_different_search">Try a different search term</string>
+    <string name="check_back_later">Check back later for new agents</string>
+    <string name="error_unknown">An unknown error occurred</string>
+    <string name="unknown_author">Unknown</string>
+
+    <!-- Detail screen -->
+    <string name="agent_title">Agent</string>
+    <string name="delete_agent">Delete Agent</string>
+    <string name="delete_agent_confirm">Are you sure you want to delete \"%1$s\"? This cannot be undone.</string>
+    <string name="delete_this_agent">this agent</string>
+    <string name="by_author">by %1$s</string>
+    <string name="label_description">Description</string>
+    <string name="no_description">No description</string>
+    <string name="label_category">Category</string>
+    <string name="label_model">Model</string>
+    <string name="default_value">Default</string>
+    <string name="label_tools">Tools</string>
+    <string name="label_conversation_starters">Conversation Starters</string>
+
+    <!-- Editor screen -->
+    <string name="edit_agent">Edit Agent</string>
+    <string name="create_agent">Create Agent</string>
+    <string name="duplicate_agent">Duplicate Agent</string>
+    <string name="delete_agent_editor_confirm">Are you sure you want to delete this agent? This action cannot be undone.</string>
+    <string name="duplicate_agent_confirm">Create a copy of this agent?</string>
+    <string name="version_history">Version History</string>
+    <string name="tap_to_change_avatar">Tap to change avatar</string>
+    <string name="agent_name_label">Name *</string>
+    <string name="agent_name_placeholder">Optional: The name of the agent</string>
+    <string name="agent_description_label">Description</string>
+    <string name="agent_description_placeholder">Optional: Describe your Agent here</string>
+    <string name="agent_instructions_label">Instructions</string>
+    <string name="agent_instructions_placeholder">The system instructions that the agent uses</string>
+    <string name="label_capabilities">Capabilities</string>
+    <string name="label_tools_and_actions">Tools &amp; Actions</string>
+    <string name="add_tools">Add Tools</string>
+    <string name="add_starter_hint">Add starter\u2026</string>
+    <string name="save_changes">Save Changes</string>
+
+    <!-- Actions panel -->
+    <string name="openapi_actions_count">OpenAPI Actions (%1$d)</string>
+    <string name="no_actions_configured">No actions configured. Add an OpenAPI action to connect external APIs.</string>
+    <string name="add_action">Add Action</string>
+    <string name="edit_action">Edit Action</string>
+    <string name="auth_api_key">API Key</string>
+    <string name="auth_oauth">OAuth</string>
+    <string name="auth_none">None</string>
+    <string name="action_auth_info">Auth: %1$s | %2$d function(s)</string>
+    <string name="label_action">Action</string>
+
+    <!-- Action editor dialog -->
+    <string name="label_authentication">Authentication</string>
+    <string name="auth_api_key_full">API Key Authentication</string>
+    <string name="auth_oauth_full">OAuth Authentication</string>
+    <string name="auth_no_auth">No Authentication</string>
+    <string name="label_openapi_schema">OpenAPI Schema</string>
+    <string name="openapi_schema_hint">Paste your OpenAPI specification in JSON or YAML format.</string>
+    <string name="label_openapi_spec">OpenAPI Spec (JSON or YAML)</string>
+    <string name="validating">Validating\u2026</string>
+    <string name="domain_prefix">Domain: %1$s</string>
+    <string name="available_actions_count">Available Actions (%1$d)</string>
+    <string name="label_privacy_policy_url">Privacy Policy URL</string>
+    <string name="label_save_or_create">%1$s</string>
+
+    <!-- Auth config dialog -->
+    <string name="label_authentication_type">Authentication Type</string>
+    <string name="label_api_key_settings">API Key Settings</string>
+    <string name="label_api_key">API Key</string>
+    <string name="label_authorization_type">Authorization Type</string>
+    <string name="auth_basic">Basic</string>
+    <string name="auth_bearer">Bearer</string>
+    <string name="auth_custom">Custom</string>
+    <string name="label_custom_auth_header">Custom Auth Header</string>
+    <string name="label_oauth_settings">OAuth Settings</string>
+    <string name="label_client_id">Client ID</string>
+    <string name="label_client_secret">Client Secret</string>
+    <string name="label_authorization_url">Authorization URL</string>
+    <string name="label_token_url">Token URL</string>
+    <string name="label_scope">Scope</string>
+    <string name="label_token_exchange_method">Token Exchange Method</string>
+    <string name="token_default_post">Default (POST)</string>
+    <string name="token_basic_auth_header">Basic Auth Header</string>
+
+    <!-- Function table -->
+    <string name="table_name">Name</string>
+    <string name="table_method">Method</string>
+    <string name="table_path">Path</string>
+
+    <!-- Advanced panel -->
+    <string name="advanced_settings">Advanced Settings</string>
+    <string name="label_temperature">Temperature</string>
+    <string name="temperature_description">Controls randomness. Lower = more focused.</string>
+    <string name="label_top_p">Top P</string>
+    <string name="top_p_description">Nucleus sampling cutoff.</string>
+    <string name="label_max_tokens">Max Tokens</string>
+    <string name="max_tokens_description">Maximum tokens in the response. Leave empty for default.</string>
+
+    <!-- Avatar picker -->
+    <!-- (content descriptions above) -->
+
+    <!-- Capabilities section -->
+    <string name="label_artifacts">Artifacts</string>
+    <string name="artifacts_description">Enable artifact generation</string>
+    <string name="label_end_after_tools">End After Tools</string>
+    <string name="end_after_tools_description">Stop after tool execution completes</string>
+    <string name="label_hide_sequential_outputs">Hide Sequential Outputs</string>
+    <string name="hide_sequential_description">Hide intermediate tool outputs</string>
+    <string name="label_recursion_limit">Recursion Limit</string>
+    <string name="recursion_limit_description">Maximum number of recursive tool calls</string>
+
+    <!-- Category selector -->
+    <string name="general">General</string>
+
+    <!-- Code Interpreter section -->
+    <string name="label_code_interpreter">Code Interpreter</string>
+    <string name="code_interpreter_description">Allow the agent to write and execute code to solve problems</string>
+
+    <!-- File Search section -->
+    <string name="label_file_search">File Search</string>
+    <string name="file_search_description">Enable the agent to search through uploaded files and documents</string>
+
+    <!-- Handoff config -->
+    <string name="handoff_agents_count">Handoff Agents (%1$d)</string>
+    <string name="handoff_description">Agents this agent can hand conversations off to</string>
+    <string name="no_handoff_agents">No handoff agents configured.</string>
+    <string name="add_handoff_agent">Add Handoff Agent</string>
+    <string name="no_more_agents">No more agents available to add.</string>
+    <string name="select_agent">Select Agent</string>
+
+    <!-- MCP Tools selector -->
+    <string name="mcp_tools_count">MCP Tools (%1$d selected)</string>
+    <string name="no_mcp_tools">No MCP tools available. Configure MCP servers in settings.</string>
+    <string name="unknown_server">Unknown Server</string>
+
+    <!-- Model picker -->
+    <string name="model_required_label">Model *</string>
+    <string name="select_model_hint">Select a model\u2026</string>
+    <string name="no_models_found">No models found</string>
+
+    <!-- Sharing section -->
+    <string name="sharing_and_permissions">Sharing &amp; Permissions</string>
+    <string name="label_visibility">Visibility</string>
+    <string name="label_collaborative">Collaborative</string>
+    <string name="collaborative_description">Allow other users to modify this agent</string>
+
+    <!-- Visibility labels -->
+    <string name="visibility_private">Private</string>
+    <string name="visibility_team">Team</string>
+    <string name="visibility_public">Public</string>
+
+    <!-- Support contact section -->
+    <string name="label_support_contact">Support Contact</string>
+    <string name="label_name">Name</string>
+    <string name="support_contact_placeholder">Support contact name</string>
+    <string name="label_email">Email</string>
+
+    <!-- Version history -->
+    <string name="no_version_history">No version history available</string>
+    <string name="version_number">Version %1$d</string>
+    <string name="version_current">Current</string>
+
+    <!-- Tool select dialog -->
+    <string name="agent_tools_title">Agent Tools</string>
+    <string name="select_tools_description">Select tools for your agent to use</string>
+    <string name="search_tools_hint">Search tools\u2026</string>
+    <string name="no_tools_matching">No tools matching \"%1$s\"</string>
+    <string name="no_tools_available">No tools available</string>
+</resources>

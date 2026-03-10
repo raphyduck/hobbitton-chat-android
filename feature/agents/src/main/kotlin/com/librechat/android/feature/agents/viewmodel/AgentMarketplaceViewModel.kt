@@ -1,0 +1,208 @@
+package com.librechat.android.feature.agents.viewmodel
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import androidx.compose.runtime.Immutable
+import com.librechat.android.core.common.result.Result
+import com.librechat.android.core.data.datastore.ServerDataStore
+import com.librechat.android.core.data.repository.AgentRepository
+import com.librechat.android.core.model.Agent
+import com.librechat.android.feature.agents.AgentCardDisplayData
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+@Immutable
+data class AgentMarketplaceUiState(
+    val agents: List<AgentCardDisplayData> = emptyList(),
+    val filteredAgents: List<AgentCardDisplayData> = emptyList(),
+    val isLoading: Boolean = false,
+    val isLoadingMore: Boolean = false,
+    val isRefreshing: Boolean = false,
+    val error: String? = null,
+    val selectedCategory: String? = null,
+    val searchQuery: String = "",
+    val categories: List<String> = emptyList(),
+    val hasMore: Boolean = true,
+    val currentPage: Int = 1,
+)
+
+@HiltViewModel
+class AgentMarketplaceViewModel @Inject constructor(
+    private val agentRepository: AgentRepository,
+    private val serverDataStore: ServerDataStore,
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow(AgentMarketplaceUiState())
+    val uiState: StateFlow<AgentMarketplaceUiState> = _uiState.asStateFlow()
+
+    private var searchJob: Job? = null
+
+    companion object {
+        private const val PAGE_SIZE = 10
+        private const val SEARCH_DEBOUNCE_MS = 500L
+    }
+
+    private fun Agent.toCardDisplayData(): AgentCardDisplayData {
+        val resolvedUrl = avatarUrl?.let { url ->
+            if (url.startsWith("http")) url
+            else "${serverDataStore.getBaseUrl()}$url"
+        }
+        return AgentCardDisplayData(
+            id = id,
+            name = name ?: "Unnamed Agent",
+            description = description,
+            avatarUrl = resolvedUrl,
+            author = author,
+            authorName = authorName,
+        )
+    }
+
+    init {
+        loadAgents()
+        loadCategories()
+    }
+
+    fun loadAgents() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(
+                isLoading = true,
+                error = null,
+                currentPage = 1,
+                hasMore = true,
+            )
+            val state = _uiState.value
+            when (val result = agentRepository.getAgentsPaginated(
+                page = 1,
+                limit = PAGE_SIZE,
+                search = state.searchQuery.ifBlank { null },
+                category = state.selectedCategory,
+            )) {
+                is Result.Success -> {
+                    val displayAgents = result.data.agents.map { it.toCardDisplayData() }
+                    _uiState.value = _uiState.value.copy(
+                        agents = displayAgents,
+                        filteredAgents = displayAgents,
+                        isLoading = false,
+                        hasMore = result.data.hasMore,
+                        currentPage = 1,
+                    )
+                }
+                is Result.Error -> {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        error = result.message ?: "Failed to load agents",
+                    )
+                }
+                is Result.Loading -> { /* no-op */ }
+            }
+        }
+    }
+
+    /** Fetches the next page and appends results. No-ops if already loading or no more pages. */
+    fun loadMore() {
+        val state = _uiState.value
+        if (!state.hasMore || state.isLoadingMore || state.isLoading) return
+
+        viewModelScope.launch {
+            val nextPage = state.currentPage + 1
+            _uiState.value = state.copy(isLoadingMore = true)
+            when (val result = agentRepository.getAgentsPaginated(
+                page = nextPage,
+                limit = PAGE_SIZE,
+                search = state.searchQuery.ifBlank { null },
+                category = state.selectedCategory,
+            )) {
+                is Result.Success -> {
+                    val currentAgents = _uiState.value.agents
+                    val newAgents = currentAgents + result.data.agents.map { it.toCardDisplayData() }
+                    _uiState.value = _uiState.value.copy(
+                        agents = newAgents,
+                        filteredAgents = newAgents,
+                        isLoadingMore = false,
+                        hasMore = result.data.hasMore,
+                        currentPage = nextPage,
+                    )
+                }
+                is Result.Error -> {
+                    _uiState.value = _uiState.value.copy(
+                        isLoadingMore = false,
+                        error = result.message ?: "Failed to load more agents",
+                    )
+                }
+                is Result.Loading -> { /* no-op */ }
+            }
+        }
+    }
+
+    fun refresh() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isRefreshing = true)
+            val state = _uiState.value
+            when (val result = agentRepository.getAgentsPaginated(
+                page = 1,
+                limit = PAGE_SIZE,
+                search = state.searchQuery.ifBlank { null },
+                category = state.selectedCategory,
+            )) {
+                is Result.Success -> {
+                    val displayAgents = result.data.agents.map { it.toCardDisplayData() }
+                    _uiState.value = _uiState.value.copy(
+                        agents = displayAgents,
+                        filteredAgents = displayAgents,
+                        isRefreshing = false,
+                        hasMore = result.data.hasMore,
+                        currentPage = 1,
+                    )
+                }
+                is Result.Error -> {
+                    _uiState.value = _uiState.value.copy(
+                        isRefreshing = false,
+                        error = result.message ?: "Failed to refresh agents",
+                    )
+                }
+                is Result.Loading -> { /* no-op */ }
+            }
+            loadCategories()
+        }
+    }
+
+    fun onSearchQueryChanged(query: String) {
+        _uiState.value = _uiState.value.copy(searchQuery = query)
+        searchJob?.cancel()
+        searchJob = viewModelScope.launch {
+            delay(SEARCH_DEBOUNCE_MS)
+            loadAgents()
+        }
+    }
+
+    fun onCategorySelected(category: String?) {
+        _uiState.value = _uiState.value.copy(
+            selectedCategory = if (_uiState.value.selectedCategory == category) null else category,
+        )
+        loadAgents()
+    }
+
+    fun dismissError() {
+        _uiState.value = _uiState.value.copy(error = null)
+    }
+
+    private fun loadCategories() {
+        viewModelScope.launch {
+            when (val result = agentRepository.getAgentCategories()) {
+                is Result.Success -> {
+                    _uiState.value = _uiState.value.copy(
+                        categories = result.data.map { it.value },
+                    )
+                }
+                is Result.Error -> { /* categories are non-critical */ }
+                is Result.Loading -> { /* no-op */ }
+            }
+        }
+    }
+}

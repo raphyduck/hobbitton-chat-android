@@ -1,0 +1,80 @@
+package com.librechat.android.core.data.repository
+
+import com.librechat.android.core.common.result.Result
+import com.librechat.android.core.common.result.safeApiCall
+import com.librechat.android.core.model.Prompt
+import com.librechat.android.core.model.PromptGroup
+import com.librechat.android.core.model.request.AddPromptToGroupRequest
+import com.librechat.android.core.model.request.CreatePromptRequest
+import com.librechat.android.core.model.request.UpdatePromptGroupRequest
+import com.librechat.android.core.model.request.UpdatePromptTagRequest
+import com.librechat.android.core.model.response.PromptGroupListResponse
+import com.librechat.android.core.network.api.PromptsApi
+import javax.inject.Inject
+import javax.inject.Singleton
+
+@Singleton
+class PromptRepositoryImpl @Inject constructor(
+    private val promptsApi: PromptsApi,
+) : PromptRepository {
+
+    override suspend fun getGroups(pageSize: Int, cursor: String?): Result<PromptGroupListResponse> {
+        return safeApiCall {
+            promptsApi.getPromptGroups(pageSize = pageSize, cursor = cursor)
+        }
+    }
+
+    override suspend fun getGroup(groupId: String): Result<PromptGroup> {
+        return safeApiCall {
+            promptsApi.getPromptGroup(groupId)
+        }
+    }
+
+    override suspend fun create(request: CreatePromptRequest): Result<PromptGroup> {
+        return safeApiCall {
+            promptsApi.createPrompt(request)
+        }
+    }
+
+    override suspend fun update(groupId: String, request: UpdatePromptGroupRequest): Result<PromptGroup> {
+        return safeApiCall {
+            promptsApi.updatePromptGroup(groupId, request)
+        }
+    }
+
+    override suspend fun delete(groupId: String): Result<Unit> {
+        return safeApiCall {
+            promptsApi.deletePromptGroup(groupId)
+        }
+    }
+
+    override suspend fun getPrompt(promptId: String): Result<Prompt> {
+        return safeApiCall {
+            promptsApi.getPrompt(promptId)
+        }
+    }
+
+    override suspend fun deletePrompt(promptId: String): Result<Unit> {
+        return safeApiCall {
+            promptsApi.deletePrompt(promptId)
+        }
+    }
+
+    override suspend fun addPromptToGroup(groupId: String, request: AddPromptToGroupRequest): Result<Prompt> {
+        return safeApiCall {
+            promptsApi.addPromptToGroup(groupId, request)
+        }
+    }
+
+    override suspend fun updatePromptProductionTag(promptId: String, request: UpdatePromptTagRequest): Result<Prompt> {
+        return safeApiCall {
+            promptsApi.updatePromptProductionTag(promptId, request)
+        }
+    }
+
+    override suspend fun getPromptsByGroupId(groupId: String): Result<List<Prompt>> {
+        return safeApiCall {
+            promptsApi.getPromptsByGroupId(groupId)
+        }
+    }
+}

@@ -1,0 +1,356 @@
+package com.librechat.android.feature.settings.screen
+
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Tablet
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.librechat.android.feature.settings.R
+import com.librechat.android.core.data.datastore.ThemeMode
+import com.librechat.android.feature.settings.viewmodel.SettingsViewModel
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun GeneralSettingsScreen(
+    onNavigateBack: () -> Unit,
+    modifier: Modifier = Modifier,
+    viewModel: SettingsViewModel = hiltViewModel(),
+) {
+    Scaffold(
+        modifier = modifier,
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.title_general)) },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.cd_back),
+                        )
+                    }
+                },
+            )
+        },
+    ) { innerPadding ->
+        GeneralSettingsContent(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+            viewModel = viewModel,
+        )
+    }
+}
+
+/**
+ * Reusable General settings content (without Scaffold/TopAppBar).
+ * Used by both the standalone screen and the tabbed settings screen.
+ */
+@Composable
+fun GeneralSettingsContent(
+    modifier: Modifier = Modifier,
+    viewModel: SettingsViewModel = hiltViewModel(),
+) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+    ) {
+        // Appearance section
+        item(key = "appearance_header") {
+            SectionHeader(stringResource(R.string.section_appearance))
+        }
+        item(key = "theme_selector") {
+            ThemeSelector(
+                selected = uiState.themeMode,
+                onSelect = viewModel::setThemeMode,
+            )
+        }
+
+        // Language
+        item(key = "general_header") {
+            SectionHeader(stringResource(R.string.section_language))
+        }
+        item(key = "language_row") {
+            GeneralSettingsRow(
+                icon = Icons.Default.Language,
+                title = stringResource(R.string.language),
+                subtitle = uiState.selectedLanguage.uppercase(),
+                onClick = viewModel::showLanguageDialog,
+            )
+        }
+
+        // Tablet section
+        item(key = "tablet_header") {
+            SectionHeader(stringResource(R.string.section_layout))
+        }
+        item(key = "tablet_sidebar_gesture") {
+            TabletSidebarGestureToggle(
+                gestureEnabled = uiState.tabletSidebarGestureEnabled,
+                onGestureEnabledChange = viewModel::setTabletSidebarGestureEnabled,
+            )
+        }
+
+        // Personalization
+        item(key = "personalization_header") {
+            SectionHeader(stringResource(R.string.section_personalization))
+        }
+        item(key = "personalization_row") {
+            GeneralSettingsRow(
+                icon = Icons.Default.Person,
+                title = stringResource(R.string.personalization),
+                subtitle = if (uiState.personalizationEnabled) stringResource(R.string.status_enabled) else stringResource(R.string.status_disabled),
+                onClick = viewModel::showPersonalizationDialog,
+            )
+        }
+
+        // About section
+        item(key = "about_header") {
+            SectionHeader(stringResource(R.string.section_about))
+        }
+        item(key = "about_info") {
+            AboutInfo(serverUrl = uiState.serverUrl)
+        }
+
+        // Bottom spacing
+        item { Spacer(modifier = Modifier.height(32.dp)) }
+    }
+
+    // Language selector dialog
+    if (uiState.showLanguageDialog) {
+        LanguageSelectorDialog(
+            selectedLanguage = uiState.selectedLanguage,
+            onLanguageSelected = viewModel::setLanguage,
+            onDismiss = viewModel::dismissLanguageDialog,
+        )
+    }
+
+    // Personalization dialog
+    if (uiState.showPersonalizationDialog) {
+        PersonalizationDialog(
+            aboutUser = uiState.aboutUser,
+            responseStyle = uiState.responseStyle,
+            enabled = uiState.personalizationEnabled,
+            onSave = viewModel::savePersonalization,
+            onDismiss = viewModel::dismissPersonalizationDialog,
+        )
+    }
+}
+
+@Composable
+private fun SectionHeader(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .semantics { heading() },
+    )
+}
+
+@Composable
+private fun ThemeSelector(
+    selected: ThemeMode,
+    onSelect: (ThemeMode) -> Unit,
+) {
+    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+        ThemeMode.entries.forEach { mode ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .selectable(
+                        selected = selected == mode,
+                        onClick = { onSelect(mode) },
+                        role = Role.RadioButton,
+                    )
+                    .padding(vertical = 8.dp, horizontal = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                RadioButton(
+                    selected = selected == mode,
+                    onClick = null,
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = when (mode) {
+                        ThemeMode.SYSTEM -> stringResource(R.string.theme_system)
+                        ThemeMode.LIGHT -> stringResource(R.string.theme_light)
+                        ThemeMode.DARK -> stringResource(R.string.theme_dark)
+                    },
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+            }
+        }
+    }
+    HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
+}
+
+@Composable
+private fun TabletSidebarGestureToggle(
+    gestureEnabled: Boolean,
+    onGestureEnabledChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = Icons.Default.Tablet,
+                contentDescription = null,
+                modifier = Modifier.size(24.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.sidebar_swipe_gesture),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+                Text(
+                    text = stringResource(R.string.sidebar_swipe_gesture_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Switch(
+                checked = gestureEnabled,
+                onCheckedChange = onGestureEnabledChange,
+            )
+        }
+    }
+    HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
+}
+
+@Composable
+private fun AboutInfo(serverUrl: String) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
+        ) {
+            Text(
+                text = stringResource(R.string.app_version_label),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Text(
+                text = stringResource(R.string.app_version_value),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
+        ) {
+            Text(
+                text = stringResource(R.string.server_label),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Text(
+                text = serverUrl.ifBlank { stringResource(R.string.server_not_configured) },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false),
+            )
+        }
+    }
+    HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
+}
+
+@Composable
+private fun GeneralSettingsRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    androidx.compose.material3.Surface(
+        modifier = modifier.fillMaxWidth(),
+        onClick = onClick,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(24.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+    HorizontalDivider()
+}

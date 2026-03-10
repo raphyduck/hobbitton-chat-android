@@ -1,0 +1,28 @@
+package com.librechat.android.feature.conversations.export
+
+import com.librechat.android.core.common.result.Result
+import com.librechat.android.core.model.ConversationExport
+import kotlinx.serialization.json.Json
+import javax.inject.Inject
+
+class ConversationImporter @Inject constructor() {
+    private val json = Json {
+        ignoreUnknownKeys = true
+        isLenient = true
+    }
+
+    fun parseJson(jsonString: String): Result<ConversationExport> {
+        return try {
+            val export = json.decodeFromString(ConversationExport.serializer(), jsonString)
+            if (export.conversation.conversationId == null) {
+                return Result.Error(message = "Invalid export: missing conversation ID")
+            }
+            if (export.messages.isEmpty()) {
+                return Result.Error(message = "Invalid export: no messages found")
+            }
+            Result.Success(export)
+        } catch (e: Exception) {
+            Result.Error(e, "Failed to parse conversation file: ${e.message}")
+        }
+    }
+}

@@ -1,0 +1,59 @@
+package com.librechat.android.feature.auth.viewmodel
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.librechat.android.core.common.result.Result
+import androidx.compose.runtime.Immutable
+import com.librechat.android.core.data.repository.AuthRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+@Immutable
+data class ForgotPasswordUiState(
+    val email: String = "",
+    val isLoading: Boolean = false,
+    val error: String? = null,
+    val isSent: Boolean = false,
+)
+
+@HiltViewModel
+class ForgotPasswordViewModel @Inject constructor(
+    private val authRepository: AuthRepository,
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow(ForgotPasswordUiState())
+    val uiState: StateFlow<ForgotPasswordUiState> = _uiState.asStateFlow()
+
+    fun onEmailChanged(email: String) {
+        _uiState.value = _uiState.value.copy(email = email, error = null)
+    }
+
+    fun requestReset() {
+        val email = _uiState.value.email.trim()
+        if (email.isBlank()) {
+            _uiState.value = _uiState.value.copy(error = "Please enter your email")
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            when (val result = authRepository.requestPasswordReset(email)) {
+                is Result.Success -> {
+                    _uiState.value = _uiState.value.copy(isLoading = false, isSent = true)
+                }
+                is Result.Error -> {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        error = result.message
+                            ?: "Could not send reset email. Please check your connection and try again.",
+                    )
+                }
+                is Result.Loading -> { /* no-op */ }
+            }
+        }
+    }
+}

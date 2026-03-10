@@ -1,0 +1,36 @@
+package com.librechat.android.core.data.repository
+
+import com.librechat.android.core.common.result.Result
+import com.librechat.android.core.common.result.safeApiCall
+import com.librechat.android.core.model.speech.SpeechConfig
+import com.librechat.android.core.model.speech.SpeechToTextResponse
+import com.librechat.android.core.model.speech.TextToSpeechRequest
+import com.librechat.android.core.model.speech.TtsVoice
+import com.librechat.android.core.network.api.SpeechApi
+import javax.inject.Inject
+import javax.inject.Singleton
+
+@Singleton
+class SpeechRepositoryImpl @Inject constructor(
+    private val speechApi: SpeechApi,
+) : SpeechRepository {
+
+    override suspend fun transcribeAudio(
+        audioData: ByteArray,
+        mimeType: String,
+    ): Result<SpeechToTextResponse> =
+        safeApiCall { speechApi.speechToText(audioData, mimeType) }
+
+    override suspend fun synthesizeSpeech(
+        text: String,
+        voice: String?,
+        model: String?,
+    ): Result<ByteArray> =
+        safeApiCall { speechApi.textToSpeechManual(TextToSpeechRequest(text, voice, model)) }
+
+    override suspend fun getVoices(): Result<List<TtsVoice>> =
+        safeApiCall { speechApi.getVoices() }
+
+    override suspend fun getSpeechConfig(): Result<SpeechConfig> =
+        safeApiCall { speechApi.getSpeechConfig() }
+}

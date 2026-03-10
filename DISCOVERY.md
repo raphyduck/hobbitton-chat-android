@@ -1,0 +1,292 @@
+# LibreChat Android - Discovery & Context Document
+
+## Project Goal
+Build a native Android app (LibreChat-Android) with full feature parity to the LibreChat web application. The app must connect to an existing LibreChat backend server (no backend changes). Users specify the server URL during onboarding.
+
+## Tech Stack (Mandated)
+- **UI**: Jetpack Compose + Compose Navigation
+- **DI**: Hilt
+- **Network**: Ktor Client
+- **Serialization**: Kotlinx Serialization
+- **Min SDK**: TBD (recommend 26+)
+
+---
+
+## LibreChat Web Application Overview
+
+### Architecture
+- Monorepo: `/api` (Express/Node backend), `/client` (React/Vite frontend), `/packages` (shared libs)
+- MongoDB database, optional Redis, optional Meilisearch
+- JWT-based auth with refresh tokens
+
+### Core Features (Full Parity Required)
+
+#### 1. Authentication & Onboarding
+- **Server URL entry** (Android-only: user specifies their LibreChat server)
+- Local login (email/password)
+- OAuth2 social logins (Google, GitHub, Discord, Facebook, Apple, OpenID, SAML)
+- Registration with email verification
+- Password reset flow
+- Two-factor authentication (TOTP + backup codes)
+- Terms of service acceptance
+
+#### 2. Chat (Primary Experience)
+- Conversation list in sidebar (cursor-paginated, sorted by updatedAt)
+- Create new conversations
+- Send messages, receive streaming AI responses via SSE
+- Message tree with parent/child relationships and branching
+- Sibling message navigation (e.g., "1/3" switcher for regenerated responses)
+- Edit user messages (creates new branch)
+- Regenerate AI responses
+- Continue incomplete responses
+- Stop generation mid-stream
+- Fork conversations from any message
+- Duplicate conversations
+- Markdown rendering with syntax highlighting
+- LaTeX/math rendering
+- Code blocks with copy button and language badge
+- Image display (inline + expandable)
+- File attachments in messages
+- Tool call display (expandable cards showing input/output)
+- Message feedback (thumbs up/down with optional comment)
+- Typing/streaming indicator
+- Time-based greeting on landing ("Good morning", etc.)
+- Custom welcome messages from server config
+
+#### 3. Model/Endpoint Selection
+- Multiple AI providers: OpenAI, Anthropic, Azure, Google, Groq, Mistral, Ollama, custom
+- Model selector dropdown with search
+- Endpoint icons (branded)
+- Model parameters (temperature, top_p, frequency_penalty, etc.)
+- Model specs from server config
+
+#### 4. Agents & Assistants
+- Agent marketplace (grid of cards with avatar, name, description, category)
+- Agent chat with tool calling
+- OpenAI Assistants integration
+- Agent/assistant selection UI
+
+#### 5. File Management
+- Upload files (images, PDFs, documents, code)
+- Drag-and-drop (not applicable on Android, use file picker)
+- File preview in messages
+- File download
+- Image generation display
+- Audio recording for voice input (STT)
+- Text-to-speech playback (TTS)
+
+#### 6. Conversation Management
+- Rename conversations (inline)
+- Archive/unarchive
+- Delete (single + bulk)
+- Share (generate public link)
+- Export (JSON, markdown)
+- Import conversations
+- Tags for organization
+- Bookmarks/favorites
+- Search conversations (full-text via Meilisearch)
+
+#### 7. Presets
+- Save chat configurations as presets
+- Load presets
+- Delete presets
+
+#### 8. Prompts Library
+- Create/edit/delete prompts
+- Share prompts
+- Prompt versioning
+- @mentions for prompts in chat input
+- Prompt variables
+
+#### 9. User Settings
+- Theme (dark/light)
+- Language selection (46+ languages)
+- Font size
+- Speech settings
+- Data export
+- Account management (profile, delete account)
+- Balance/credits display
+
+#### 10. Artifacts
+- Split-pane code preview/editor
+- Tabs: Preview, Code, Info
+- Live editing
+
+---
+
+## API Endpoints (Key Routes)
+
+### Authentication
+```
+POST /api/auth/login        → { token, user } or { twoFAPending, tempToken }
+POST /api/auth/register     → { status, message }
+POST /api/auth/logout       → { status }
+POST /api/auth/refresh      → { token, user } (refresh token in cookies)
+POST /api/auth/requestPasswordReset
+POST /api/auth/resetPassword
+GET  /api/auth/2fa/enable   → { secret, qrCode }
+POST /api/auth/2fa/verify
+POST /api/auth/2fa/confirm  → { confirmed, backupCodes }
+POST /api/auth/2fa/disable
+POST /api/auth/2fa/verify-temp → { token, user }
+```
+
+### Configuration
+```
+GET /api/config             → startup config (models, features, auth methods, interface config)
+GET /api/endpoints          → available AI providers and models
+```
+
+### Conversations
+```
+GET    /api/convos                          → { conversations, nextCursor }
+GET    /api/convos/:conversationId          → single conversation
+POST   /api/convos/update                   → update title
+POST   /api/convos/archive                  → archive/unarchive
+DELETE /api/convos                           → delete conversation(s)
+POST   /api/convos/fork                     → fork from message
+POST   /api/convos/duplicate                → duplicate conversation
+POST   /api/convos/import                   → import (multipart)
+GET    /api/convos/gen_title/:conversationId → generated title
+```
+
+### Messages
+```
+GET    /api/messages/:conversationId           → messages for conversation
+GET    /api/messages/:conversationId/:messageId
+POST   /api/messages/:conversationId           → save message
+PUT    /api/messages/:conversationId/:messageId → update message
+DELETE /api/messages/:conversationId/:messageId
+PUT    /api/messages/:conversationId/:messageId/feedback
+```
+
+### Chat (Streaming)
+```
+POST /api/agents/chat         → { streamId } (start generation)
+GET  /api/agents/chat/stream/:streamId?resume=true → SSE stream
+POST /api/agents/chat/abort   → abort generation
+GET  /api/agents/chat/active  → { activeJobIds }
+GET  /api/agents/chat/status/:conversationId → job status
+```
+
+### Files
+```
+GET    /api/files              → user's files
+POST   /api/files              → upload (multipart)
+GET    /api/files/download/:userId/:file_id
+DELETE /api/files              → delete file(s)
+POST   /api/files/speech/stt   → speech-to-text
+POST   /api/files/speech/tts   → text-to-speech
+```
+
+### Other
+```
+GET/POST/DELETE /api/presets
+GET/POST/PUT/DELETE /api/prompts
+GET/POST/DELETE /api/tags
+GET/POST/PATCH/DELETE /api/share
+GET /api/balance
+GET /api/search
+GET /api/user
+GET /api/banner
+```
+
+---
+
+## Data Models
+
+### User
+- id, name, email, username, avatar, role, provider
+- emailVerified, twoFactorEnabled
+- favorites, termsAccepted
+
+### Conversation
+- conversationId (UUID), title, user, endpoint, model
+- agent_id, assistant_id, tags, isArchived
+- Model parameters (temperature, top_p, etc.)
+
+### Message
+- messageId (UUID), conversationId, parentMessageId
+- user, sender, text, content (structured parts)
+- isCreatedByUser, model, endpoint
+- files, attachments, feedback
+- error, unfinished, finish_reason, tokenCount
+
+### File
+- file_id, filename, filepath, type, bytes, source
+- user, conversationId, messageId
+
+---
+
+## SSE Streaming Protocol
+
+### Flow
+1. POST to `/api/agents/chat` with message payload → returns `{ streamId }`
+2. Connect SSE to `GET /api/agents/chat/stream/:streamId`
+3. Receive events: message, step, created, attachment, final, sync, error
+4. On disconnect: reconnect with `?resume=true` for sync event
+
+### SSE Event Format
+```
+event: message
+data: {"type":"content","chunk":"...","status":"streaming"}
+
+event: message
+data: {"type":"tool_call","toolName":"...","input":{...}}
+
+event: message
+data: {"sync":true,"resumeState":{"runSteps":[...],"aggregatedContent":[...]}}
+```
+
+### Reconnection
+- Exponential backoff: 1s, 2s, 4s, 8s... max 30s
+- Max 5 retries
+- Resume preserves state via sync event
+
+---
+
+## Authentication Details
+
+### Token Management
+- JWT access token in `Authorization: Bearer <token>` header
+- Refresh token stored as HTTP-only cookie (for web; Android should store securely)
+- Access token expiry: ~15 minutes
+- Refresh token expiry: ~24 hours
+- Auto-refresh on 401 response
+
+### OAuth Flow (Android)
+- Open browser/Custom Chrome Tab for OAuth provider
+- Callback redirect to app via deep link
+- Exchange code for token
+
+---
+
+## UI/UX Reference (from Web App)
+
+### Theme
+- Light: White bg (#fff), text #212121, surface hover #e3e3e3
+- Dark: #0d0d0d bg, text #ececf1, surface hover #424242
+- Material 3 equivalents should be used on Android
+
+### Key Screens
+1. **Server URL Entry** (Android-only onboarding)
+2. **Login/Register** with social login buttons
+3. **Chat List** (sidebar on web → drawer or dedicated screen on Android)
+4. **Chat View** (messages + input)
+5. **Landing/New Chat** (greeting + model icon)
+6. **Model Selector** (dropdown → bottom sheet on Android)
+7. **Settings** (tabbed → Material 3 navigation)
+8. **Agent Marketplace** (grid of cards)
+9. **Search** (full-text search)
+10. **File Viewer/Picker**
+
+### Navigation Patterns (Android Adaptation)
+- Web sidebar → Navigation drawer or bottom navigation
+- Web modals → Bottom sheets or new screens
+- Web dropdowns → Material 3 menus or bottom sheets
+- Web hover actions → Long-press menus or always-visible icons
+
+### Responsive Behavior
+- Single-pane on phones (chat list or chat view, not both)
+- Potential dual-pane on tablets
+- Bottom navigation for primary actions
