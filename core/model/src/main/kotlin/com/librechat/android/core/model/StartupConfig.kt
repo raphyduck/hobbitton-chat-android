@@ -91,6 +91,7 @@ data class InterfaceConfig(
     val fileSearch: Boolean = true,
     val fileCitations: Boolean = true,
     val customWelcome: String? = null,
+    val remoteAgents: JsonElement? = null,
 )
 
 @Serializable

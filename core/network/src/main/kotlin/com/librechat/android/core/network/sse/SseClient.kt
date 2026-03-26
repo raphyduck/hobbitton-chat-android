@@ -12,6 +12,7 @@ import io.ktor.http.isSuccess
 import io.ktor.http.path
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.json.Json
 import timber.log.Timber
@@ -24,10 +25,16 @@ class SseClient @Inject constructor(
     private val mapper = SseEventMapper(json)
     private val lineParser = SseLineParser()
 
+    /**
+     * @param connectivityFlow Optional flow of network connectivity state. When provided,
+     *   retries will wait for the network to become available before attempting reconnection,
+     *   avoiding wasted retry attempts while offline.
+     */
     fun connect(
         client: HttpClient,
         streamPath: String,
         resume: Boolean = false,
+        connectivityFlow: Flow<Boolean>? = null,
     ): Flow<StreamEvent> = flow {
         mapper.resetState()
         var attempt = 0
@@ -88,7 +95,7 @@ class SseClient @Inject constructor(
                 Timber.w(e, "SSE I/O error (attempt $attempt)")
                 attempt++
                 if (attempt > maxRetries) {
-                    emit(StreamEvent.Error(message = "Connection lost. Please check your network and try again."))
+                    emit(StreamEvent.Error(message = "Connection lost. Please check your network and try again.", isNetworkError = true))
                     done = true
                 }
             } catch (e: Exception) {
@@ -101,6 +108,25 @@ class SseClient @Inject constructor(
             }
 
             if (!done) {
+                emit(StreamEvent.Retrying(attempt = attempt, maxAttempts = maxRetries))
+
+                // If we have connectivity info and network is down, wait for it
+                // to come back instead of burning through retry delays blindly.
+                // Note: Each .first() call creates a new ConnectivityManager callback registration.
+                // Consider using a shared StateFlow if retry frequency becomes a concern.
+                if (connectivityFlow != null) {
+                    try {
+                        val isConnected = connectivityFlow.first()
+                        if (!isConnected) {
+                            Timber.d("SSE: network is down, waiting for connectivity before retry $attempt")
+                            connectivityFlow.first { it }
+                            Timber.d("SSE: network restored, proceeding with retry $attempt")
+                        }
+                    } catch (e: Exception) {
+                        Timber.w(e, "SSE: error checking connectivity, falling back to delay")
+                    }
+                }
+
                 val delayMs = min(initialDelayMs * (1L shl (attempt - 1)), maxDelayMs)
                 delay(delayMs)
                 shouldResume = true

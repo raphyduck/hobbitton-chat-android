@@ -1,5 +1,6 @@
 package com.librechat.android.core.data.repository
 
+import com.librechat.android.core.common.network.ConnectivityObserver
 import com.librechat.android.core.common.result.Result
 import com.librechat.android.core.common.result.safeApiCall
 import com.librechat.android.core.model.FileReference
@@ -16,7 +17,6 @@ import io.ktor.client.HttpClient
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
-import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -25,6 +25,7 @@ class ChatRepositoryImpl @Inject constructor(
     private val chatApi: ChatApi,
     private val sseClient: SseClient,
     @StreamingClient private val sseHttpClient: HttpClient,
+    private val connectivityObserver: ConnectivityObserver,
 ) : ChatRepository {
 
     override fun startChat(
@@ -62,9 +63,6 @@ class ChatRepositoryImpl @Inject constructor(
             addedConvo = addedConvo,
             ephemeralAgent = ephemeralAgent,
         )
-
-        Timber.d("[Comparison] startChat: POST addedConvo=%s, endpoint=%s", if (addedConvo != null) "present" else "null", endpoint)
-
         val startResponse = chatApi.startChat(endpoint, request)
         val streamId = startResponse.conversationId
 
@@ -78,7 +76,7 @@ class ChatRepositoryImpl @Inject constructor(
 
         // Phase 2: GET the SSE stream using the streamId
         val streamUrl = "api/agents/chat/stream/$streamId"
-        emitAll(sseClient.connect(sseHttpClient, streamUrl))
+        emitAll(sseClient.connect(sseHttpClient, streamUrl, connectivityFlow = connectivityObserver.isConnected))
     }
 
     override suspend fun abortChat(streamId: String): Result<Unit> = safeApiCall {
@@ -91,6 +89,6 @@ class ChatRepositoryImpl @Inject constructor(
 
     override fun resumeStream(conversationId: String): Flow<StreamEvent> = flow {
         val streamUrl = "api/agents/chat/stream/$conversationId"
-        emitAll(sseClient.connect(sseHttpClient, streamUrl, resume = true))
+        emitAll(sseClient.connect(sseHttpClient, streamUrl, resume = true, connectivityFlow = connectivityObserver.isConnected))
     }
 }

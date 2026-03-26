@@ -40,6 +40,7 @@ data class Agent(
     val updatedAt: String? = null,
     val createdAt: String? = null,
     @SerialName("support_contact") val supportContact: JsonElement? = null,
+    @SerialName("tool_options") val toolOptions: JsonObject? = null,
     val mcpServerNames: List<String>? = null,
 ) {
     val avatarUrl: String?

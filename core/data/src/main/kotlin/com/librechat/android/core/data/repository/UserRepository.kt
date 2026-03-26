@@ -7,7 +7,7 @@ import com.librechat.android.core.model.response.TermsResponse
 
 interface UserRepository {
     suspend fun getUser(): Result<User>
-    suspend fun deleteUser(): Result<Unit>
+    suspend fun deleteUser(token: String? = null, backupCode: String? = null): Result<Unit>
     suspend fun uploadAvatar(imageBytes: ByteArray): Result<User>
     suspend fun verifyEmail(token: String): Result<Unit>
     suspend fun resendVerification(email: String): Result<Unit>

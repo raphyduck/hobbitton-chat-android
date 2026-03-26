@@ -2,7 +2,7 @@ package com.librechat.android.feature.settings.viewmodel
 
 import android.content.Context
 import android.net.Uri
-import android.util.Log
+import timber.log.Timber
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -44,6 +44,7 @@ import com.librechat.android.feature.settings.viewmodel.delegate.McpServerDelega
 import com.librechat.android.feature.settings.viewmodel.delegate.MemoryManagementDelegate
 import com.librechat.android.feature.settings.viewmodel.delegate.SpeechSettingsDelegate
 import com.librechat.android.feature.settings.viewmodel.delegate.TwoFactorSecurityDelegate
+import com.librechat.android.feature.settings.viewmodel.delegate.isHttpStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -96,6 +97,9 @@ data class SettingsUiState(
     val showBackupCodesDialog: Boolean = false,
     val backupCodes: List<String> = emptyList(),
     val showDisableTwoFactorDialog: Boolean = false,
+    val showEnableTwoFactorOtpDialog: Boolean = false,
+    val showBackupCodesOtpDialog: Boolean = false,
+    val showDeleteAccountOtpDialog: Boolean = false,
     // MCP
     val mcpServers: List<McpServer> = emptyList(),
     val mcpConnectionStatus: Map<String, McpServerStatus> = emptyMap(),
@@ -509,7 +513,7 @@ class SettingsViewModel @Inject constructor(
                     _uiState.update { it.copy(tokenCredits = result.data.tokenCredits, isBalanceLoading = false) }
                 }
                 is Result.Error -> {
-                    Log.d("SettingsViewModel", "Failed to load balance: ${result.message}", result.exception)
+                    Timber.d(result.exception, "Failed to load balance: ${result.message}")
                     _uiState.update { it.copy(isBalanceLoading = false) }
                 }
                 is Result.Loading -> { /* no-op */ }
@@ -596,22 +600,32 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun deleteAccount() {
+    fun deleteAccount(token: String? = null, backupCode: String? = null) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            when (val result = userRepository.deleteUser()) {
+            when (val result = userRepository.deleteUser(token = token, backupCode = backupCode)) {
                 is Result.Success -> {
                     authRepository.logout()
-                    _uiState.update { it.copy(isLoading = false, isAccountDeleted = true) }
+                    _uiState.update { it.copy(isLoading = false, isAccountDeleted = true, showDeleteAccountOtpDialog = false) }
                 }
                 is Result.Error -> {
+                    val needsOtp = token == null && backupCode == null &&
+                        result.isHttpStatus(403)
                     _uiState.update {
-                        it.copy(isLoading = false, error = result.message ?: "Failed to delete account")
+                        it.copy(
+                            isLoading = false,
+                            showDeleteAccountOtpDialog = if (needsOtp) true else it.showDeleteAccountOtpDialog,
+                            error = if (needsOtp) null else (result.message ?: "Failed to delete account"),
+                        )
                     }
                 }
                 is Result.Loading -> { /* no-op */ }
             }
         }
+    }
+
+    fun dismissDeleteAccountOtpDialog() {
+        _uiState.update { it.copy(showDeleteAccountOtpDialog = false) }
     }
 
     fun retry() {
@@ -644,12 +658,16 @@ class SettingsViewModel @Inject constructor(
 
     // Two-factor security
     fun toggleTwoFactor() = twoFactorDelegate.toggleTwoFactor()
+    fun enableTwoFactorWithOtp(token: String?, backupCode: String?) = twoFactorDelegate.enableTwoFactor(token = token, backupCode = backupCode)
+    fun dismissEnableTwoFactorOtpDialog() = twoFactorDelegate.dismissEnableTwoFactorOtpDialog()
     fun confirmEnableTwoFactor(code: String) = twoFactorDelegate.confirmEnableTwoFactor(code)
     fun confirmDisableTwoFactor(code: String) = twoFactorDelegate.confirmDisableTwoFactor(code)
     fun dismissTwoFactorSetupDialog() = twoFactorDelegate.dismissTwoFactorSetupDialog()
     fun dismissDisableTwoFactorDialog() = twoFactorDelegate.dismissDisableTwoFactorDialog()
     fun dismissBackupCodesDialog() = twoFactorDelegate.dismissBackupCodesDialog()
     fun viewBackupCodes() = twoFactorDelegate.viewBackupCodes()
+    fun viewBackupCodesWithOtp(token: String?, backupCode: String?) = twoFactorDelegate.viewBackupCodes(token = token, backupCode = backupCode)
+    fun dismissBackupCodesOtpDialog() = twoFactorDelegate.dismissBackupCodesOtpDialog()
 
     // Data management
     fun clearAllChats() = dataDelegate.clearAllChats()

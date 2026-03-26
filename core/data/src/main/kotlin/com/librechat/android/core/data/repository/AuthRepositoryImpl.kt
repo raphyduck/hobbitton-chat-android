@@ -75,17 +75,6 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun verifyTempToken(tempToken: String, code: String): Result<User> {
-        return safeApiCall {
-            val result = authApi.verifyTempToken(tempToken = tempToken, totpCode = code)
-            tokenManager.setTokens(
-                accessToken = result.response.token ?: "",
-                refreshToken = result.refreshToken ?: "",
-            )
-            result.response.user ?: throw IllegalStateException("No user in 2FA temp response")
-        }
-    }
-
     override suspend fun register(
         name: String,
         email: String,
@@ -129,9 +118,9 @@ class AuthRepositoryImpl @Inject constructor(
         return tokenManager.getAccessToken() != null
     }
 
-    override suspend fun enableTwoFactor(): Result<TwoFactorSetupResponse> {
+    override suspend fun enableTwoFactor(token: String?, backupCode: String?): Result<TwoFactorSetupResponse> {
         return safeApiCall {
-            authApi.enableTwoFactor()
+            authApi.enableTwoFactor(token = token, backupCode = backupCode)
         }
     }
 
@@ -147,9 +136,9 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun regenerateBackupCodes(): Result<TwoFactorSetupResponse> {
+    override suspend fun regenerateBackupCodes(token: String?, backupCode: String?): Result<TwoFactorSetupResponse> {
         return safeApiCall {
-            authApi.regenerateBackupCodes()
+            authApi.regenerateBackupCodes(token = token, backupCode = backupCode)
         }
     }
 

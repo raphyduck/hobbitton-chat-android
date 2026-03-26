@@ -29,6 +29,8 @@ data class ChatRequest(
     val maxContextTokens: Int? = null,
     val system: String? = null,
     @SerialName("reasoning_effort") val reasoningEffort: String? = null,
+    val effort: String? = null,
+    @SerialName("thinkingLevel") val thinkingLevel: String? = null,
     val stop: List<String>? = null,
     val tools: List<String>? = null,
     val iconURL: String? = null,

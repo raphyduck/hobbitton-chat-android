@@ -40,6 +40,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.librechat.android.core.ui.components.ErrorBanner
 import com.librechat.android.core.ui.components.LoadingIndicator
+import com.librechat.android.core.ui.components.OtpVerificationDialog
 import com.librechat.android.feature.settings.R
 import com.librechat.android.feature.settings.screen.sections.AboutInfo
 import com.librechat.android.feature.settings.screen.sections.AccountInfo
@@ -567,6 +568,60 @@ fun SettingsScreen(
                     Text(stringResource(R.string.action_cancel))
                 }
             },
+        )
+    }
+
+    // OTP dialog for account deletion when 2FA is enabled
+    if (uiState.showDeleteAccountOtpDialog) {
+        OtpVerificationDialog(
+            title = stringResource(R.string.otp_title_verify_identity),
+            description = stringResource(R.string.otp_desc_delete_account),
+            isLoading = uiState.isLoading,
+            onVerify = { token, backupCode ->
+                viewModel.deleteAccount(token = token, backupCode = backupCode)
+            },
+            onDismiss = viewModel::dismissDeleteAccountOtpDialog,
+            verifyLabel = stringResource(R.string.otp_verify),
+            cancelLabel = stringResource(R.string.otp_cancel),
+            backupCodeLabel = stringResource(R.string.otp_backup_code_label),
+            useBackupToggleLabel = stringResource(R.string.otp_use_backup_code),
+            useOtpToggleLabel = stringResource(R.string.otp_use_otp_code),
+        )
+    }
+
+    // OTP dialog for enabling 2FA when re-enrolling
+    if (uiState.showEnableTwoFactorOtpDialog) {
+        OtpVerificationDialog(
+            title = stringResource(R.string.otp_title_verify_identity),
+            description = stringResource(R.string.otp_desc_reenroll_2fa),
+            isLoading = uiState.isTwoFactorLoading,
+            onVerify = { token, backupCode ->
+                viewModel.enableTwoFactorWithOtp(token = token, backupCode = backupCode)
+            },
+            onDismiss = viewModel::dismissEnableTwoFactorOtpDialog,
+            verifyLabel = stringResource(R.string.otp_verify),
+            cancelLabel = stringResource(R.string.otp_cancel),
+            backupCodeLabel = stringResource(R.string.otp_backup_code_label),
+            useBackupToggleLabel = stringResource(R.string.otp_use_backup_code),
+            useOtpToggleLabel = stringResource(R.string.otp_use_otp_code),
+        )
+    }
+
+    // OTP dialog for regenerating backup codes
+    if (uiState.showBackupCodesOtpDialog) {
+        OtpVerificationDialog(
+            title = stringResource(R.string.otp_title_verify_identity),
+            description = stringResource(R.string.otp_desc_regenerate_backup_codes),
+            isLoading = uiState.isTwoFactorLoading,
+            onVerify = { token, backupCode ->
+                viewModel.viewBackupCodesWithOtp(token = token, backupCode = backupCode)
+            },
+            onDismiss = viewModel::dismissBackupCodesOtpDialog,
+            verifyLabel = stringResource(R.string.otp_verify),
+            cancelLabel = stringResource(R.string.otp_cancel),
+            backupCodeLabel = stringResource(R.string.otp_backup_code_label),
+            useBackupToggleLabel = stringResource(R.string.otp_use_backup_code),
+            useOtpToggleLabel = stringResource(R.string.otp_use_otp_code),
         )
     }
 

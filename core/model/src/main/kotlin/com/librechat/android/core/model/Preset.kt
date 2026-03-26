@@ -24,6 +24,8 @@ data class Preset(
     val iconURL: String? = null,
     val greeting: String? = null,
     val stop: List<String>? = null,
+    val effort: String? = null,
+    @SerialName("thinkingLevel") val thinkingLevel: String? = null,
     @SerialName("web_search") val webSearch: Boolean? = null,
     val createdAt: String? = null,
     val updatedAt: String? = null,

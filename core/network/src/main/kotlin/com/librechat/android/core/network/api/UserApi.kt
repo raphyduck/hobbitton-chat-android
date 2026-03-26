@@ -2,6 +2,7 @@ package com.librechat.android.core.network.api
 
 import com.librechat.android.core.model.User
 import com.librechat.android.core.model.UserFavorite
+import com.librechat.android.core.model.request.OtpVerificationRequest
 import com.librechat.android.core.model.request.ResendVerificationRequest
 import com.librechat.android.core.model.request.VerifyEmailRequest
 import com.librechat.android.core.model.response.TermsResponse
@@ -49,9 +50,12 @@ class UserApi @Inject constructor(
             setBody(update)
         }.body()
 
-    suspend fun deleteUser() {
+    suspend fun deleteUser(token: String? = null, backupCode: String? = null) {
         client.delete {
             url { path("api/user/delete") }
+            if (token != null || backupCode != null) {
+                setBody(OtpVerificationRequest(token = token, backupCode = backupCode))
+            }
         }
     }
 

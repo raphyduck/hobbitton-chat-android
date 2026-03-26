@@ -24,4 +24,5 @@ data class CreateAgentRequest(
     val isCollaborative: Boolean? = null,
     @SerialName("projectIds") val projectIds: List<String>? = null,
     @SerialName("support_contact") val supportContact: SupportContact? = null,
+    @SerialName("tool_options") val toolOptions: JsonObject? = null,
 )

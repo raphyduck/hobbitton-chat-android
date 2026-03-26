@@ -32,6 +32,9 @@ import timber.log.Timber
  * {"created":{"message":{...}}}
  * {"sync":true,"resumeState":{...}}
  * ```
+ *
+ * NOTE: This class holds mutable state that is reset per-connection via [resetState].
+ * It is NOT thread-safe. Only use from a single coroutine (as done in [SseClient.connect]).
  */
 class SseEventMapper(private val json: Json) {
 
@@ -195,8 +198,35 @@ class SseEventMapper(private val json: Json) {
     }
 
     private fun mapSyncEvent(root: JsonObject): StreamEvent? {
-        // TODO: Parse resumeState.aggregatedContent for full sync support
-        return null
+        val resumeState = root["resumeState"]?.jsonObject ?: return null
+
+        // Replay run steps as individual events first — the caller will handle them
+        // The web client replays these as on_run_step events; for our mapper we
+        // focus on the aggregatedContent snapshot that replaces current message state.
+        val runSteps = resumeState["runSteps"]?.jsonArray
+
+        // Parse aggregatedContent — this is the full content array that replaces
+        // whatever the client currently has for this response message.
+        val aggregatedContent = resumeState["aggregatedContent"]?.jsonArray
+        if (aggregatedContent == null && runSteps == null) return null
+
+        val contentParts = if (aggregatedContent != null) {
+            aggregatedContent.mapNotNull { element ->
+                try {
+                    json.decodeFromJsonElement(
+                        com.librechat.android.core.model.MessageContentPart.serializer(),
+                        element,
+                    )
+                } catch (e: Exception) {
+                    Timber.w(e, "Failed to parse sync aggregatedContent part")
+                    null
+                }
+            }
+        } else {
+            emptyList()
+        }
+
+        return StreamEvent.Sync(aggregatedContent = contentParts)
     }
 
     // --- LangGraph events ---
@@ -221,8 +251,6 @@ class SseEventMapper(private val json: Json) {
         // Resolve: use event-level values if present, otherwise fall back to tracked state
         val agentId = eventAgentId ?: activeAgentId
         val groupId = eventGroupId ?: activeGroupId
-
-        Timber.d("[Comparison] mapLangGraphEvent: type=%s, agentId=%s, groupId=%s", eventType, agentId, groupId)
 
         return when (eventType) {
             "on_message_delta" -> mapMessageDelta(data, agentId, groupId)

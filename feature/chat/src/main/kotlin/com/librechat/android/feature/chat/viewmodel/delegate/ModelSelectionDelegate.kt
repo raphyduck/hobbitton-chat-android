@@ -1,6 +1,5 @@
 package com.librechat.android.feature.chat.viewmodel.delegate
 
-import android.util.Log
 import com.librechat.android.core.common.EndpointConstants
 import com.librechat.android.core.common.ToolConstants
 import com.librechat.android.core.common.result.Result
@@ -217,8 +216,6 @@ class ModelSelectionDelegate(
             agentId = if (isAgent) model else null,
             model = if (isAgent) null else model,
         )
-        Timber.d("[Comparison] buildAddedConvo: endpoint=%s, model=%s, agentId=%s, conversationId=%s, parentMessageId=%s",
-            added.endpoint, added.model, added.agentId, added.conversationId, added.parentMessageId)
         return added
     }
 
@@ -286,7 +283,7 @@ class ModelSelectionDelegate(
                     }
                 }
                 is Result.Error -> {
-                    Log.d("ModelSelectionDelegate", "Failed to load MCP servers: ${serversResult.message}", serversResult.exception)
+                    Timber.d(serversResult.exception, "Failed to load MCP servers: ${serversResult.message}")
                 }
                 is Result.Loading -> { /* no-op */ }
             }

@@ -1,8 +1,5 @@
 package com.librechat.android.feature.settings.screen
 
-import android.graphics.Bitmap
-import android.graphics.Color
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,13 +21,13 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import com.librechat.android.core.ui.components.OtpVerificationDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -39,7 +36,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.CircularProgressIndicator
+
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -49,7 +46,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.heading
@@ -57,14 +53,15 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.librechat.android.feature.settings.R
 import com.librechat.android.core.ui.components.ErrorBanner
 import com.librechat.android.core.ui.components.LoadingIndicator
+import com.librechat.android.feature.settings.screen.sections.BackupCodesDialog
+import com.librechat.android.feature.settings.screen.sections.TwoFactorCodeDialog
+import com.librechat.android.feature.settings.screen.sections.TwoFactorSetupDialog
 import com.librechat.android.feature.settings.viewmodel.SettingsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -228,7 +225,7 @@ fun AccountSettingsContent(
 
     // 2FA enable setup dialog
     if (uiState.showTwoFactorSetupDialog) {
-        AccountTwoFactorSetupDialog(
+        TwoFactorSetupDialog(
             otpauthUrl = uiState.twoFactorOtpauthUrl,
             isLoading = uiState.isTwoFactorLoading,
             onConfirm = viewModel::confirmEnableTwoFactor,
@@ -238,7 +235,7 @@ fun AccountSettingsContent(
 
     // 2FA disable dialog
     if (uiState.showDisableTwoFactorDialog) {
-        AccountTwoFactorCodeDialog(
+        TwoFactorCodeDialog(
             title = stringResource(R.string.dialog_title_disable_2fa),
             description = stringResource(R.string.twofa_disable_instructions),
             isLoading = uiState.isTwoFactorLoading,
@@ -249,7 +246,7 @@ fun AccountSettingsContent(
 
     // Backup codes dialog
     if (uiState.showBackupCodesDialog) {
-        AccountBackupCodesDialog(
+        BackupCodesDialog(
             backupCodes = uiState.backupCodes,
             onDismiss = viewModel::dismissBackupCodesDialog,
         )
@@ -305,6 +302,60 @@ fun AccountSettingsContent(
                     Text(stringResource(R.string.action_cancel))
                 }
             },
+        )
+    }
+
+    // OTP dialog for account deletion when 2FA is enabled
+    if (uiState.showDeleteAccountOtpDialog) {
+        OtpVerificationDialog(
+            title = stringResource(R.string.otp_title_verify_identity),
+            description = stringResource(R.string.otp_desc_delete_account),
+            isLoading = uiState.isLoading,
+            onVerify = { token, backupCode ->
+                viewModel.deleteAccount(token = token, backupCode = backupCode)
+            },
+            onDismiss = viewModel::dismissDeleteAccountOtpDialog,
+            verifyLabel = stringResource(R.string.otp_verify),
+            cancelLabel = stringResource(R.string.otp_cancel),
+            backupCodeLabel = stringResource(R.string.otp_backup_code_label),
+            useBackupToggleLabel = stringResource(R.string.otp_use_backup_code),
+            useOtpToggleLabel = stringResource(R.string.otp_use_otp_code),
+        )
+    }
+
+    // OTP dialog for enabling 2FA when re-enrolling
+    if (uiState.showEnableTwoFactorOtpDialog) {
+        OtpVerificationDialog(
+            title = stringResource(R.string.otp_title_verify_identity),
+            description = stringResource(R.string.otp_desc_reenroll_2fa),
+            isLoading = uiState.isTwoFactorLoading,
+            onVerify = { token, backupCode ->
+                viewModel.enableTwoFactorWithOtp(token = token, backupCode = backupCode)
+            },
+            onDismiss = viewModel::dismissEnableTwoFactorOtpDialog,
+            verifyLabel = stringResource(R.string.otp_verify),
+            cancelLabel = stringResource(R.string.otp_cancel),
+            backupCodeLabel = stringResource(R.string.otp_backup_code_label),
+            useBackupToggleLabel = stringResource(R.string.otp_use_backup_code),
+            useOtpToggleLabel = stringResource(R.string.otp_use_otp_code),
+        )
+    }
+
+    // OTP dialog for regenerating backup codes
+    if (uiState.showBackupCodesOtpDialog) {
+        OtpVerificationDialog(
+            title = stringResource(R.string.otp_title_verify_identity),
+            description = stringResource(R.string.otp_desc_regenerate_backup_codes),
+            isLoading = uiState.isTwoFactorLoading,
+            onVerify = { token, backupCode ->
+                viewModel.viewBackupCodesWithOtp(token = token, backupCode = backupCode)
+            },
+            onDismiss = viewModel::dismissBackupCodesOtpDialog,
+            verifyLabel = stringResource(R.string.otp_verify),
+            cancelLabel = stringResource(R.string.otp_cancel),
+            backupCodeLabel = stringResource(R.string.otp_backup_code_label),
+            useBackupToggleLabel = stringResource(R.string.otp_use_backup_code),
+            useOtpToggleLabel = stringResource(R.string.otp_use_otp_code),
         )
     }
 }
@@ -468,221 +519,3 @@ private fun AccountSettingsRow(
     HorizontalDivider()
 }
 
-@Composable
-private fun AccountTwoFactorSetupDialog(
-    otpauthUrl: String?,
-    isLoading: Boolean,
-    onConfirm: (String) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    var code by remember { mutableStateOf("") }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.dialog_title_enable_2fa)) },
-        text = {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Text(
-                    text = stringResource(R.string.twofa_scan_instructions),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                if (otpauthUrl != null) {
-                    var qrBitmap by remember { mutableStateOf<Bitmap?>(null) }
-                    LaunchedEffect(otpauthUrl) {
-                        qrBitmap = withContext(Dispatchers.Default) {
-                            generateQrBitmapForAccount(otpauthUrl, 256)
-                        }
-                    }
-                    if (qrBitmap != null) {
-                        Image(
-                            bitmap = qrBitmap!!.asImageBitmap(),
-                            contentDescription = stringResource(R.string.cd_qr_code),
-                            modifier = Modifier
-                                .size(200.dp)
-                                .align(Alignment.CenterHorizontally),
-                        )
-                    } else {
-                        CircularProgressIndicator(
-                            modifier = Modifier
-                                .size(200.dp)
-                                .align(Alignment.CenterHorizontally),
-                        )
-                    }
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        shape = MaterialTheme.shapes.small,
-                    ) {
-                        Text(
-                            text = otpauthUrl,
-                            style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.padding(12.dp),
-                            maxLines = 3,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                }
-                OutlinedTextField(
-                    value = code,
-                    onValueChange = { code = it.filter { ch -> ch.isDigit() }.take(6) },
-                    label = { Text(stringResource(R.string.hint_verification_code)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = { onConfirm(code) },
-                enabled = code.length == 6 && !isLoading,
-            ) {
-                Text(stringResource(if (isLoading) R.string.action_verifying else R.string.action_verify))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.action_cancel))
-            }
-        },
-    )
-}
-
-private fun generateQrBitmapForAccount(content: String, size: Int): Bitmap? {
-    return try {
-        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
-        val hash = content.hashCode()
-        val random = java.util.Random(hash.toLong())
-
-        for (x in 0 until size) {
-            for (y in 0 until size) {
-                bitmap.setPixel(x, y, Color.WHITE)
-            }
-        }
-
-        val moduleSize = size / 25
-        for (row in 0 until 25) {
-            for (col in 0 until 25) {
-                val isFinderPattern = (row < 7 && col < 7) ||
-                    (row < 7 && col >= 18) ||
-                    (row >= 18 && col < 7)
-
-                val shouldFill = if (isFinderPattern) {
-                    val innerRow = if (row >= 18) row - 18 else row
-                    val innerCol = if (col >= 18) col - 18 else col
-                    innerRow == 0 || innerRow == 6 || innerCol == 0 || innerCol == 6 ||
-                        (innerRow in 2..4 && innerCol in 2..4)
-                } else {
-                    random.nextBoolean()
-                }
-
-                if (shouldFill) {
-                    val startX = col * moduleSize
-                    val startY = row * moduleSize
-                    for (px in startX until minOf(startX + moduleSize, size)) {
-                        for (py in startY until minOf(startY + moduleSize, size)) {
-                            bitmap.setPixel(px, py, Color.BLACK)
-                        }
-                    }
-                }
-            }
-        }
-        bitmap
-    } catch (_: Exception) {
-        null
-    }
-}
-
-@Composable
-private fun AccountTwoFactorCodeDialog(
-    title: String,
-    description: String,
-    isLoading: Boolean,
-    onConfirm: (String) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    var code by remember { mutableStateOf("") }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Text(
-                    text = description,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                OutlinedTextField(
-                    value = code,
-                    onValueChange = { code = it.filter { ch -> ch.isDigit() }.take(6) },
-                    label = { Text(stringResource(R.string.hint_verification_code)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = { onConfirm(code) },
-                enabled = code.length == 6 && !isLoading,
-            ) {
-                Text(stringResource(if (isLoading) R.string.action_verifying else R.string.action_confirm))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.action_cancel))
-            }
-        },
-    )
-}
-
-@Composable
-private fun AccountBackupCodesDialog(
-    backupCodes: List<String>,
-    onDismiss: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.dialog_title_backup_codes)) },
-        text = {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Text(
-                    text = stringResource(R.string.backup_codes_instructions),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    shape = MaterialTheme.shapes.small,
-                ) {
-                    Column(
-                        modifier = Modifier.padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        backupCodes.forEach { code ->
-                            Text(
-                                text = code,
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                            )
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.action_done))
-            }
-        },
-    )
-}

@@ -57,6 +57,12 @@ sealed interface StreamEvent {
     data class Error(
         val message: String,
         val code: String? = null,
+        val isNetworkError: Boolean = false,
+    ) : StreamEvent
+
+    data class Retrying(
+        val attempt: Int,
+        val maxAttempts: Int,
     ) : StreamEvent
 
     data class Step(

@@ -9,4 +9,5 @@ data class EphemeralAgent(
     @SerialName("web_search") val webSearch: Boolean? = null,
     @SerialName("file_search") val fileSearch: Boolean? = null,
     @SerialName("execute_code") val executeCode: Boolean? = null,
+    val artifacts: String? = null,
 )

@@ -180,7 +180,7 @@ private fun DigitBoxes(
                     }
                 },
                 modifier = Modifier
-                    .width(48.dp)
+                    .weight(1f)
                     .focusRequester(focusRequesters[index]),
                 enabled = enabled,
                 singleLine = true,

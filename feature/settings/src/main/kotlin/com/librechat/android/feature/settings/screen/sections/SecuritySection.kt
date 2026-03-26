@@ -1,15 +1,11 @@
 package com.librechat.android.feature.settings.screen.sections
 
-import android.graphics.Bitmap
-import android.graphics.Color
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -20,11 +16,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.librechat.android.feature.settings.R
 
@@ -49,18 +42,6 @@ internal fun TwoFactorSetupDialog(
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 if (otpauthUrl != null) {
-                    val qrBitmap = remember(otpauthUrl) {
-                        generateQrBitmap(otpauthUrl, 256)
-                    }
-                    if (qrBitmap != null) {
-                        Image(
-                            bitmap = qrBitmap.asImageBitmap(),
-                            contentDescription = stringResource(R.string.cd_qr_code),
-                            modifier = Modifier
-                                .size(200.dp)
-                                .align(Alignment.CenterHorizontally),
-                        )
-                    }
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -68,13 +49,13 @@ internal fun TwoFactorSetupDialog(
                         color = MaterialTheme.colorScheme.surfaceVariant,
                         shape = MaterialTheme.shapes.small,
                     ) {
-                        Text(
-                            text = otpauthUrl,
-                            style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.padding(12.dp),
-                            maxLines = 3,
-                            overflow = TextOverflow.Ellipsis,
-                        )
+                        androidx.compose.foundation.text.selection.SelectionContainer {
+                            Text(
+                                text = otpauthUrl,
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.padding(12.dp),
+                            )
+                        }
                     }
                 }
                 androidx.compose.material3.OutlinedTextField(
@@ -102,55 +83,6 @@ internal fun TwoFactorSetupDialog(
     )
 }
 
-/**
- * Generate a simple QR code bitmap from a string.
- * Uses a basic implementation that encodes the URL into a visual pattern.
- * For production use, integrate a proper QR library like ZXing.
- */
-internal fun generateQrBitmap(content: String, size: Int): Bitmap? {
-    return try {
-        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
-        val hash = content.hashCode()
-        val random = java.util.Random(hash.toLong())
-
-        for (x in 0 until size) {
-            for (y in 0 until size) {
-                bitmap.setPixel(x, y, Color.WHITE)
-            }
-        }
-
-        val moduleSize = size / 25
-        for (row in 0 until 25) {
-            for (col in 0 until 25) {
-                val isFinderPattern = (row < 7 && col < 7) ||
-                    (row < 7 && col >= 18) ||
-                    (row >= 18 && col < 7)
-
-                val shouldFill = if (isFinderPattern) {
-                    val innerRow = if (row >= 18) row - 18 else row
-                    val innerCol = if (col >= 18) col - 18 else col
-                    innerRow == 0 || innerRow == 6 || innerCol == 0 || innerCol == 6 ||
-                        (innerRow in 2..4 && innerCol in 2..4)
-                } else {
-                    random.nextBoolean()
-                }
-
-                if (shouldFill) {
-                    val startX = col * moduleSize
-                    val startY = row * moduleSize
-                    for (px in startX until minOf(startX + moduleSize, size)) {
-                        for (py in startY until minOf(startY + moduleSize, size)) {
-                            bitmap.setPixel(px, py, Color.BLACK)
-                        }
-                    }
-                }
-            }
-        }
-        bitmap
-    } catch (_: Exception) {
-        null
-    }
-}
 
 @Composable
 internal fun TwoFactorCodeDialog(

@@ -5,6 +5,7 @@ import com.librechat.android.core.model.request.PasswordResetRequest
 import com.librechat.android.core.model.request.RegisterRequest
 import com.librechat.android.core.model.request.ResetPasswordRequest
 import com.librechat.android.core.model.request.TwoFactorDisableRequest
+import com.librechat.android.core.model.request.OtpVerificationRequest
 import com.librechat.android.core.model.request.TwoFactorVerifyRequest
 import com.librechat.android.core.model.request.TwoFactorVerifyTempRequest
 import com.librechat.android.core.model.response.LoginResponse
@@ -120,9 +121,12 @@ class AuthApi @Inject constructor(
         return LoginResult(body, refreshToken)
     }
 
-    suspend fun enableTwoFactor(): TwoFactorSetupResponse =
-        client.get {
+    suspend fun enableTwoFactor(token: String? = null, backupCode: String? = null): TwoFactorSetupResponse =
+        client.post {
             url { path("api/auth/2fa/enable") }
+            if (token != null || backupCode != null) {
+                setBody(OtpVerificationRequest(token = token, backupCode = backupCode))
+            }
         }.body()
 
     suspend fun confirmTwoFactor(code: String): TwoFactorSetupResponse =
@@ -151,9 +155,12 @@ class AuthApi @Inject constructor(
         return LoginResult(body, refreshToken)
     }
 
-    suspend fun regenerateBackupCodes(): TwoFactorSetupResponse =
+    suspend fun regenerateBackupCodes(token: String? = null, backupCode: String? = null): TwoFactorSetupResponse =
         client.post {
             url { path("api/auth/2fa/backup/regenerate") }
+            if (token != null || backupCode != null) {
+                setBody(OtpVerificationRequest(token = token, backupCode = backupCode))
+            }
         }.body()
 
     suspend fun disableTwoFactor(code: String) {

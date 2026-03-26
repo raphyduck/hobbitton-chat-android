@@ -333,6 +333,14 @@ object EndpointParameterRegistry {
             description = "Max tokens for thinking (-1 = dynamic, up to 32000).",
         ),
         ParameterDefinition(
+            key = "thinkingLevel",
+            label = "Thinking Level",
+            type = ParameterType.DROPDOWN,
+            options = listOf("", "none", "low", "medium", "high"),
+            default = "",
+            description = "Controls how much thinking the model performs.",
+        ),
+        ParameterDefinition(
             key = "web_search",
             label = "Grounding with Google Search",
             type = ParameterType.SWITCH,

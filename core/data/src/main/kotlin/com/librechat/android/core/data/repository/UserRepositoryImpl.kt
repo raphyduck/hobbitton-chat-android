@@ -20,8 +20,8 @@ class UserRepositoryImpl @Inject constructor(
         userApi.getUser()
     }
 
-    override suspend fun deleteUser(): Result<Unit> = safeApiCall {
-        userApi.deleteUser()
+    override suspend fun deleteUser(token: String?, backupCode: String?): Result<Unit> = safeApiCall {
+        userApi.deleteUser(token = token, backupCode = backupCode)
     }
 
     override suspend fun uploadAvatar(imageBytes: ByteArray): Result<User> = safeApiCall {

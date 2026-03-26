@@ -745,6 +745,8 @@ class AgentEditorViewModel @Inject constructor(
             "web_search",
             "end_after_tools",
             "hide_sequential_outputs",
+            "programmatic_tools",
+            "deferred_tools",
         )
 
         // MCP server marker prefix: tools starting with "sys__server__sys" or containing "_mcp_"

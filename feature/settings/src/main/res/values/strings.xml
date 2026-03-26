@@ -168,9 +168,20 @@
     <!-- 2FA setup dialog -->
     <string name="dialog_title_enable_2fa">Enable Two-Factor Authentication</string>
     <string name="dialog_title_disable_2fa">Disable Two-Factor Authentication</string>
-    <string name="twofa_scan_instructions">Scan the QR code below with your authenticator app (e.g. Google Authenticator, Authy), then enter the verification code.</string>
+    <string name="twofa_scan_instructions">Copy the URI below and paste it into your authenticator app (e.g. Google Authenticator, Authy), then enter the verification code.</string>
     <string name="twofa_disable_instructions">Enter your authenticator code to disable 2FA.</string>
     <string name="hint_verification_code">Verification code</string>
+
+    <!-- OTP verification dialogs -->
+    <string name="otp_title_verify_identity">Verify Identity</string>
+    <string name="otp_desc_delete_account">Enter your 2FA code to delete your account.</string>
+    <string name="otp_desc_reenroll_2fa">Enter your current 2FA code to re-enroll.</string>
+    <string name="otp_desc_regenerate_backup_codes">Enter your 2FA code to regenerate backup codes.</string>
+    <string name="otp_verify">Verify</string>
+    <string name="otp_cancel">Cancel</string>
+    <string name="otp_backup_code_label">Backup Code</string>
+    <string name="otp_use_backup_code">Use a backup code instead</string>
+    <string name="otp_use_otp_code">Use OTP code instead</string>
 
     <!-- Backup codes dialog -->
     <string name="dialog_title_backup_codes">Backup Codes</string>

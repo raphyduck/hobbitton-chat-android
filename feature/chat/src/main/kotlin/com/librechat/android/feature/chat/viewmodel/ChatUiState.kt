@@ -45,6 +45,12 @@ data class SearchMatch(
 )
 
 @androidx.compose.runtime.Immutable
+data class RetryInfo(
+    val attempt: Int,
+    val maxAttempts: Int,
+)
+
+@androidx.compose.runtime.Immutable
 data class ActiveToolCall(
     val id: String,
     val name: String,
@@ -99,6 +105,8 @@ data class ChatUiState(
     // MCP server state
     val mcpServers: List<McpServerDisplayData> = emptyList(),
     val selectedMcpServerNames: Set<String> = emptySet(),
+    // SSE reconnection retry state (null when not retrying)
+    val retryInfo: RetryInfo? = null,
     // Pull-to-refresh state
     val isRefreshingMessages: Boolean = false,
     // Merged from separate StateFlows

@@ -5,11 +5,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import android.content.Context
 import android.net.Uri
-import android.util.Log
 import timber.log.Timber
 import com.librechat.android.feature.chat.util.NEW_CHAT_DRAFT_KEY
 import com.librechat.android.core.common.EndpointConstants
 import com.librechat.android.core.common.ToolConstants
+import com.librechat.android.core.common.network.ConnectivityObserver
 import com.librechat.android.core.common.result.Result
 import com.librechat.android.core.common.result.getOrNull
 import com.librechat.android.core.data.datastore.LatexRenderer
@@ -56,7 +56,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
@@ -81,6 +84,7 @@ class ChatViewModel @Inject constructor(
     private val speechRepository: SpeechRepository,
     mcpRepository: McpRepository,
     private val userRepository: UserRepository,
+    private val connectivityObserver: ConnectivityObserver,
     serverDataStore: ServerDataStore,
     private val settingsDataStore: SettingsDataStore,
 ) : ViewModel() {
@@ -146,6 +150,10 @@ class ChatViewModel @Inject constructor(
     private val streamingBuffer = StringBuilder()
     private var streamingBufferDirty = false
     private var wasStreaming = false
+    /** Tracks whether the last stream failure was a network error, to enable auto-reconnect. */
+    private var lastErrorWasNetwork = false
+    /** Job for the connectivity observer; started lazily only when a network error occurs. */
+    private var connectivityJob: Job? = null
 
     companion object {
         /** Minimum interval between streaming UI state updates to avoid recomposition spam. */
@@ -274,6 +282,7 @@ class ChatViewModel @Inject constructor(
         modelDelegate.loadAgents()
         loadSharedLinksEnabled()
         voiceDelegate.loadSpeechConfig()
+
     }
 
     // ── Core chat flow ──────────────────────────────────────────────
@@ -508,11 +517,6 @@ class ChatViewModel @Inject constructor(
         val effectiveEndpoint = _uiState.value.selectedEndpoint
         val effectiveAgentId = if (isAgent) _uiState.value.selectedModel else null
         val effectiveAddedConvo = addedConvo  // null when no comparison
-        if (addedConvo != null) {
-            Timber.d("[Comparison] endpoint=%s, agentId=%s, addedConvo.endpoint=%s, addedConvo.agentId=%s",
-                effectiveEndpoint, effectiveAgentId, addedConvo.endpoint, addedConvo.agentId)
-        }
-
         // If comparison enabled, prepare comparison streaming state
         if (addedConvo != null) {
             modelDelegate.primaryComparisonBuffer.clear()
@@ -746,15 +750,26 @@ class ChatViewModel @Inject constructor(
         } catch (e: Exception) {
             Timber.e(e, "Stream collection failed")
             stopStreamingUpdater()
-            streamingBuffer.clear()
-            streamingBufferDirty = false
+            // Preserve partial content so users can read/copy what was received
+            val partialContent = streamingBuffer.toString()
             _uiState.value = _uiState.value.copy(
                 isStreaming = false,
-                streamingContent = "",
+                streamingContent = partialContent,
                 activeToolCalls = emptyList(),
                 streamingAttachments = emptyList(),
                 error = e.message ?: "Chat request failed",
+                comparisonState = _uiState.value.comparisonState.copy(
+                    primaryIsStreaming = false,
+                    secondaryIsStreaming = false,
+                    primaryActiveToolCalls = emptyList(),
+                    secondaryActiveToolCalls = emptyList(),
+                ),
             )
+            // If the server already created a conversation, fetch whatever it persisted
+            val conversationId = _uiState.value.conversationId
+            if (conversationId != null) {
+                loadConversation(conversationId)
+            }
         }
     }
 
@@ -770,9 +785,16 @@ class ChatViewModel @Inject constructor(
                         }
                     }
                 }
-                _uiState.value = _uiState.value.copy(
-                    conversationId = event.conversationId,
-                )
+                if (lastErrorWasNetwork) {
+                    lastErrorWasNetwork = false
+                    cancelConnectivityObserver()
+                }
+                val createdCopy = if (_uiState.value.retryInfo != null) {
+                    _uiState.value.copy(conversationId = event.conversationId, retryInfo = null)
+                } else {
+                    _uiState.value.copy(conversationId = event.conversationId)
+                }
+                _uiState.value = createdCopy
                 if (isNewConversation && event.conversationId != null &&
                     _uiState.value.pendingNavigationConversationId == null &&
                     !_uiState.value.comparisonState.isEnabled
@@ -781,12 +803,16 @@ class ChatViewModel @Inject constructor(
                         pendingNavigationConversationId = event.conversationId,
                     )
                 }
+                // Eagerly fetch and cache the conversation the server just created,
+                // so it appears in the conversation list even if the stream fails later
+                if (event.conversationId != null) {
+                    viewModelScope.launch {
+                        conversationRepository.getConversation(event.conversationId)
+                    }
+                }
             }
             is StreamEvent.ContentDelta -> {
                 val isComparison = _uiState.value.comparisonState.isEnabled
-                Timber.d("[Comparison] ContentDelta: agentId=%s, groupId=%s, isComparison=%s, buffer=%s",
-                    event.agentId, event.groupId, isComparison,
-                    if (isComparison && modelDelegate.isSecondaryEvent(event.agentId)) "secondary" else "primary")
                 if (isComparison && modelDelegate.isSecondaryEvent(event.agentId)) {
                     modelDelegate.secondaryComparisonBuffer.append(event.chunk)
                     _uiState.update {
@@ -815,9 +841,6 @@ class ChatViewModel @Inject constructor(
             }
             is StreamEvent.ThinkingDelta -> {
                 val isComparison = _uiState.value.comparisonState.isEnabled
-                Timber.d("[Comparison] ThinkingDelta: agentId=%s, groupId=%s, isComparison=%s, buffer=%s",
-                    event.agentId, event.groupId, isComparison,
-                    if (isComparison && modelDelegate.isSecondaryEvent(event.agentId)) "secondary" else "primary")
                 if (isComparison && modelDelegate.isSecondaryEvent(event.agentId)) {
                     modelDelegate.secondaryComparisonBuffer.append(event.chunk)
                     _uiState.update {
@@ -847,13 +870,6 @@ class ChatViewModel @Inject constructor(
             is StreamEvent.Final -> {
                 stopStreamingUpdater()
                 val isComparison = _uiState.value.comparisonState.isEnabled
-                Timber.d("[Comparison] Final: isComparison=%s, parallelMessageId=%s, primaryBuf=%d, secondaryBuf=%d, primaryAgentId=%s, secondaryAgentId=%s",
-                    isComparison,
-                    (event.responseMessage ?: event.message)?.messageId,
-                    modelDelegate.primaryComparisonBuffer.length,
-                    modelDelegate.secondaryComparisonBuffer.length,
-                    _uiState.value.comparisonState.primaryAgentId,
-                    _uiState.value.comparisonState.secondaryAgentId)
                 val conversationId = _uiState.value.conversationId
                     ?: event.conversation?.conversationId
                 val completedResponseText = if (isComparison) {
@@ -918,12 +934,18 @@ class ChatViewModel @Inject constructor(
             }
             is StreamEvent.Error -> {
                 stopStreamingUpdater()
-                streamingBuffer.clear()
-                streamingBufferDirty = false
+                // Track network errors so auto-reconnect can kick in when connectivity returns
+                lastErrorWasNetwork = event.isNetworkError
+                if (event.isNetworkError) {
+                    startConnectivityObserver()
+                }
+                // Preserve partial content so users can read/copy what was received
+                val partialContent = streamingBuffer.toString()
                 _uiState.value = _uiState.value.copy(
                     isStreaming = false,
-                    streamingContent = "",
+                    streamingContent = partialContent,
                     error = event.message,
+                    retryInfo = null,
                     activeToolCalls = emptyList(),
                     streamingAttachments = emptyList(),
                     comparisonState = _uiState.value.comparisonState.copy(
@@ -931,6 +953,19 @@ class ChatViewModel @Inject constructor(
                         secondaryIsStreaming = false,
                         primaryActiveToolCalls = emptyList(),
                         secondaryActiveToolCalls = emptyList(),
+                    ),
+                )
+                // If the server already created a conversation, fetch whatever it persisted
+                val conversationId = _uiState.value.conversationId
+                if (conversationId != null) {
+                    loadConversation(conversationId)
+                }
+            }
+            is StreamEvent.Retrying -> {
+                _uiState.value = _uiState.value.copy(
+                    retryInfo = RetryInfo(
+                        attempt = event.attempt,
+                        maxAttempts = event.maxAttempts,
                     ),
                 )
             }
@@ -999,9 +1034,24 @@ class ChatViewModel @Inject constructor(
                     streamingAttachments = _uiState.value.streamingAttachments + attachment,
                 )
             }
-            is StreamEvent.Sync,
-            is StreamEvent.Step,
-            -> { /* no-op */ }
+            is StreamEvent.Sync -> {
+                // State-snapshot protocol: replace streaming buffer with synced content
+                if (lastErrorWasNetwork) {
+                    lastErrorWasNetwork = false
+                    cancelConnectivityObserver()
+                }
+                if (_uiState.value.retryInfo != null) {
+                    _uiState.value = _uiState.value.copy(retryInfo = null)
+                }
+                val textContent = event.aggregatedContent
+                    .mapNotNull { it.text }
+                    .joinToString("")
+                streamingBuffer.clear()
+                streamingBuffer.append(textContent)
+                streamingBufferDirty = true
+                flushStreamingBuffer()
+            }
+            is StreamEvent.Step -> { /* no-op */ }
         }
     }
 
@@ -1100,13 +1150,7 @@ class ChatViewModel @Inject constructor(
                 val status = chatRepository.checkStreamStatus(conversationId)
                 if (status.active) {
                     _uiState.value = _uiState.value.copy(isStreaming = true)
-                    streamingBuffer.clear()
-                    streamingBufferDirty = false
-                    startStreamingUpdater()
-                    streamJob?.cancel()
-                    streamJob = viewModelScope.launch {
-                        collectStreamSafely(chatRepository.resumeStream(conversationId))
-                    }
+                    resumeStream(conversationId)
                 } else {
                     _uiState.value = _uiState.value.copy(
                         isStreaming = false,
@@ -1124,6 +1168,21 @@ class ChatViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Shared resume logic: clears the buffer, starts the updater, and launches
+     * stream collection. Caller is responsible for setting any UI state fields
+     * (e.g. isStreaming, error) before calling this.
+     */
+    private fun resumeStream(conversationId: String) {
+        streamingBuffer.clear()
+        streamingBufferDirty = false
+        startStreamingUpdater()
+        streamJob?.cancel()
+        streamJob = viewModelScope.launch {
+            collectStreamSafely(chatRepository.resumeStream(conversationId))
+        }
+    }
+
     private fun resumeActiveStreamIfNeeded(conversationId: String) {
         viewModelScope.launch {
             try {
@@ -1133,16 +1192,73 @@ class ChatViewModel @Inject constructor(
                         isStreaming = true,
                         screenState = ChatScreenState.ACTIVE,
                     )
-                    streamingBuffer.clear()
-                    streamingBufferDirty = false
-                    startStreamingUpdater()
-                    streamJob?.cancel()
-                    streamJob = viewModelScope.launch {
-                        collectStreamSafely(chatRepository.resumeStream(conversationId))
-                    }
+                    resumeStream(conversationId)
                 }
             } catch (e: Exception) {
                 Timber.d(e, "No active stream to resume for $conversationId")
+            }
+        }
+    }
+
+    /**
+     * Starts observing connectivity for auto-reconnect after a network error.
+     * Cancels any existing observer first. The observer self-cancels after recovery fires.
+     */
+    private fun startConnectivityObserver() {
+        connectivityJob?.cancel()
+        connectivityJob = viewModelScope.launch {
+            var wasConnected = true
+            connectivityObserver.isConnected.collect { connected ->
+                val recovered = !wasConnected && connected
+                wasConnected = connected
+                if (recovered) {
+                    attemptNetworkRecovery()
+                }
+            }
+        }
+    }
+
+    /** Cancels the connectivity observer and clears the network-error flag. */
+    private fun cancelConnectivityObserver() {
+        connectivityJob?.cancel()
+        connectivityJob = null
+    }
+
+    /**
+     * Called when network connectivity transitions from offline to online.
+     * If the last stream ended due to a network error, attempts to resume it
+     * or falls back to reloading the conversation from the server.
+     */
+    private fun attemptNetworkRecovery() {
+        if (!lastErrorWasNetwork) return
+        val state = _uiState.value
+        val conversationId = state.conversationId ?: return
+        if (state.isStreaming) return
+
+        lastErrorWasNetwork = false
+        cancelConnectivityObserver()
+        Timber.d("Network recovered, attempting to resume conversation $conversationId")
+
+        viewModelScope.launch {
+            try {
+                val status = chatRepository.checkStreamStatus(conversationId)
+                if (status.active) {
+                    _uiState.value = _uiState.value.copy(
+                        isStreaming = true,
+                        error = null,
+                        retryInfo = null,
+                    )
+                    resumeStream(conversationId)
+                } else {
+                    // Stream expired while offline — reload conversation from server
+                    _uiState.value = _uiState.value.copy(
+                        error = null,
+                        retryInfo = null,
+                    )
+                    loadConversation(conversationId)
+                }
+            } catch (e: Exception) {
+                Timber.w(e, "Network recovery: could not check stream status")
             }
         }
     }
@@ -1255,7 +1371,7 @@ class ChatViewModel @Inject constructor(
                     )
                 }
                 is Result.Error -> {
-                    Log.d("ChatViewModel", "Failed to load user profile: ${result.message}", result.exception)
+                    Timber.d(result.exception, "Failed to load user profile: ${result.message}")
                 }
                 is Result.Loading -> { /* no-op */ }
             }

@@ -6,7 +6,6 @@ import com.librechat.android.core.model.request.AddedConversation
 import com.librechat.android.core.model.request.ChatRequest
 import com.librechat.android.core.model.request.EphemeralAgent
 import com.librechat.android.core.model.request.NO_PARENT
-import timber.log.Timber
 
 object ChatPayloadBuilder {
 
@@ -34,10 +33,6 @@ object ChatPayloadBuilder {
         }
 
         val resolvedParentMessageId = parentMessageId ?: NO_PARENT
-
-        Timber.d("[Comparison] ChatPayloadBuilder.build: addedConvo=%s, endpoint=%s, model=%s, agentId=%s",
-            if (addedConvo != null) "present(endpoint=${addedConvo.endpoint}, model=${addedConvo.model}, agentId=${addedConvo.agentId})" else "null",
-            resolvedEndpoint, model, agentId)
 
         return ChatRequest(
             text = text,

@@ -9,6 +9,8 @@ object ToolConstants {
     const val CODE_INTERPRETER = "code_interpreter"
     const val FILE_SEARCH = "file_search"
     const val EXECUTE_CODE = "execute_code"
+    const val PROGRAMMATIC_TOOLS = "programmatic_tools"
+    const val DEFERRED_TOOLS = "deferred_tools"
 }
 
 object ChatLayoutConstants {
