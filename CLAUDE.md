@@ -47,4 +47,11 @@ Each module has its own `CLAUDE.md` with specific guidance.
 - ua-parser-js middleware rejects non-browser User-Agents with 403 (workaround: Chrome UA string)
 - Refresh token sent via request body (not HTTP-only cookies)
 
+## Upstream Sync
+
+- **`upstream/`** — Git submodule of the [official LibreChat repo](https://github.com/danny-avila/LibreChat). Read-only reference for API and web app parity. Do not modify.
+- **`UPSTREAM_VERSION`** — Tracks which official tag/commit this Android build is based on. Updated by the `/sync-upstream` skill.
+- **`BackendVersion.kt`** (`core/common/`) — `SUPPORTED_BACKEND_VERSION` constant must match the tag in `UPSTREAM_VERSION` (without `v` prefix).
+- **`/sync-upstream`** — Claude Code skill to diff upstream releases, identify gaps, propose changes, and implement them with user approval. Uses Agent Teams (investigator, android-expert, implementer, verifier).
+
 @~/.claude/librechat-android-local.md
