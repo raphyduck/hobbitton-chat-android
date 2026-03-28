@@ -3,7 +3,7 @@ package com.librechat.android.feature.chat.audio
 import android.content.Context
 import android.media.MediaRecorder
 import android.os.Build
-import android.util.Log
+import timber.log.Timber
 import java.io.File
 
 /**
@@ -12,10 +12,6 @@ import java.io.File
  * the raw bytes when stopped. Uses OGG/Opus on API 29+ and 3GP/AMR_NB on older devices.
  */
 class VoiceRecorder(private val context: Context) {
-
-    companion object {
-        private const val TAG = "VoiceRecorder"
-    }
 
     private var mediaRecorder: MediaRecorder? = null
     private var outputFile: File? = null
@@ -64,7 +60,7 @@ class VoiceRecorder(private val context: Context) {
             mediaRecorder = recorder
             isCurrentlyRecording = true
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to start voice recording", e)
+            Timber.e(e, "Failed to start voice recording")
             cleanup()
             throw e
         }
@@ -87,7 +83,7 @@ class VoiceRecorder(private val context: Context) {
             outputFile = null
             bytes
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to stop voice recording", e)
+            Timber.e(e, "Failed to stop voice recording")
             cleanup()
             null
         }

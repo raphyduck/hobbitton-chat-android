@@ -1,7 +1,6 @@
 package com.librechat.android.feature.chat.components
 
 import android.media.MediaPlayer
-import android.util.Log
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -33,12 +32,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.librechat.android.feature.chat.R
 import kotlinx.coroutines.delay
+import timber.log.Timber
 import java.io.File
 import java.util.Locale
-import androidx.compose.ui.res.stringResource
-import com.librechat.android.feature.chat.R
 
 /** Plays audio via MediaPlayer with play/pause and seekbar. Polls progress every 250ms. Releases on dispose. */
 @Composable
@@ -66,7 +66,7 @@ fun AudioContentPlayer(
                 durationMs = it.duration
             }
             setOnErrorListener { _, what, extra ->
-                Log.e("AudioContentPlayer", "MediaPlayer error: what=$what, extra=$extra")
+                Timber.e("MediaPlayer error: what=$what, extra=$extra")
                 isPlaying = false
                 true
             }
@@ -81,7 +81,7 @@ fun AudioContentPlayer(
             mediaPlayer.setDataSource(audioUrl)
             mediaPlayer.prepareAsync()
         } catch (e: Exception) {
-            Log.e("AudioContentPlayer", "Failed to set data source", e)
+            Timber.e(e, "Failed to set data source")
         }
     }
 

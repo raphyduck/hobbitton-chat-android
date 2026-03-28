@@ -21,12 +21,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.res.stringResource
 import com.librechat.android.feature.chat.R
 
 /**
@@ -48,7 +48,8 @@ fun AgentHandoffCard(
     modifier: Modifier = Modifier,
 ) {
     val unknownAgent = stringResource(R.string.agent_unknown)
-    val handoffCd = stringResource(R.string.cd_agent_handoff, handoff.fromAgent ?: unknownAgent, handoff.toAgent ?: unknownAgent)
+    val handoffCd =
+        stringResource(R.string.cd_agent_handoff, handoff.fromAgent ?: unknownAgent, handoff.toAgent ?: unknownAgent)
     Card(
         modifier = modifier
             .fillMaxWidth()

@@ -1,6 +1,6 @@
 package com.librechat.android.feature.files.viewmodel
 
-import android.content.Context
+import android.app.Application
 import android.net.Uri
 import android.provider.OpenableColumns
 import android.text.format.Formatter
@@ -69,7 +69,7 @@ data class FilesUiState(
 
 class FilesViewModel(
     private val fileRepository: FileRepository,
-    private val context: Context,
+    private val context: Application,
     private val serverDataStore: ServerDataStore,
 ) : ViewModel() {
 
@@ -457,7 +457,7 @@ class FilesViewModel(
             filepath
         } else if (filepath.isNotBlank()) {
             // Relative path from server (e.g. /images/userId/file.webp)
-            "$baseUrl${filepath}"
+            "$baseUrl$filepath"
         } else {
             // Fallback: use the download endpoint
             "$baseUrl/api/files/download/${user ?: ""}/$fileId"
@@ -501,7 +501,9 @@ class FilesViewModel(
             if (it.moveToFirst()) {
                 val nameIndex = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
                 if (nameIndex >= 0) it.getString(nameIndex) else null
-            } else null
+            } else {
+                null
+            }
         }
     }
 }

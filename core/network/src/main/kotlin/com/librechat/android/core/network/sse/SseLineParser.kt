@@ -23,8 +23,8 @@ class SseLineParser(
                         channel.readUTF8Line()
                     }
                 } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
-                    Timber.w("SSE stream stalled: no data for ${lineReadTimeoutMs / 1000}s")
-                    throw IOException("Stream stalled: no data received for ${lineReadTimeoutMs / 1000}s")
+                    Timber.w(e, "SSE stream stalled: no data for ${lineReadTimeoutMs / 1000}s")
+                    throw IOException("Stream stalled: no data received for ${lineReadTimeoutMs / 1000}s", e)
                 } ?: break
 
                 when {

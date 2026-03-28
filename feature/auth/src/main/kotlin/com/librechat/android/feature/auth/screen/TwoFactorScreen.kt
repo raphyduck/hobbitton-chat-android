@@ -31,16 +31,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.librechat.android.feature.auth.viewmodel.TwoFactorViewModel
 import com.librechat.android.feature.auth.R
-import androidx.compose.ui.res.stringResource
+import com.librechat.android.feature.auth.viewmodel.TwoFactorViewModel
+import org.koin.compose.viewmodel.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -81,7 +81,11 @@ fun TwoFactorScreen(
             verticalArrangement = Arrangement.Center,
         ) {
             Text(
-                text = if (uiState.isBackupMode) stringResource(R.string.enter_backup_code) else stringResource(R.string.enter_verification_code),
+                text = if (uiState.isBackupMode) {
+                    stringResource(R.string.enter_backup_code)
+                } else {
+                    stringResource(R.string.enter_verification_code)
+                },
                 style = MaterialTheme.typography.headlineSmall,
                 modifier = Modifier.semantics { heading() },
             )

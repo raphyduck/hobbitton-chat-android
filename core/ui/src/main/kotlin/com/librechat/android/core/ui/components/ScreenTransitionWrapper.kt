@@ -28,6 +28,7 @@ private const val FALLBACK_CORNER_RADIUS_DP = 24f
 @Composable
 fun ScreenTransitionWrapper(
     transition: Transition<EnterExitState>,
+    modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
     val screenCornerRadiusDp = rememberScreenCornerRadiusDp()
@@ -43,7 +44,7 @@ fun ScreenTransitionWrapper(
         }
     }
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
             .clip(RoundedCornerShape(cornerRadius.dp)),
     ) {

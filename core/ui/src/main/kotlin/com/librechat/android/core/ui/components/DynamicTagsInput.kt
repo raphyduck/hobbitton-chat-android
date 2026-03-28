@@ -24,11 +24,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.librechat.android.core.ui.R
-import androidx.compose.ui.res.stringResource
 
 /** Tag input that renders chips and allows adding/removing text tags up to a max count. */
 @OptIn(ExperimentalLayoutApi::class)

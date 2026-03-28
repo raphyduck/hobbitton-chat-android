@@ -35,18 +35,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.librechat.android.feature.conversations.ArchivedConversationDisplayData
 import com.librechat.android.core.ui.components.EmptyState
 import com.librechat.android.core.ui.components.ErrorBanner
 import com.librechat.android.core.ui.components.LoadingIndicator
+import com.librechat.android.feature.conversations.ArchivedConversationDisplayData
+import com.librechat.android.feature.conversations.R
 import com.librechat.android.feature.conversations.viewmodel.ArchivedConversationsEvent
 import com.librechat.android.feature.conversations.viewmodel.ArchivedConversationsViewModel
-import com.librechat.android.feature.conversations.R
-import androidx.compose.ui.res.stringResource
+import org.koin.compose.viewmodel.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -146,7 +146,10 @@ fun ArchivedConversationsScreen(
             title = { Text(stringResource(R.string.delete_conversation)) },
             text = {
                 Text(
-                    text = stringResource(R.string.delete_confirmation_message, deleteConfirmation?.title ?: stringResource(R.string.this_conversation)),
+                    text = stringResource(
+                        R.string.delete_confirmation_message,
+                        deleteConfirmation?.title ?: stringResource(R.string.this_conversation),
+                    ),
                     style = MaterialTheme.typography.bodyMedium,
                 )
             },

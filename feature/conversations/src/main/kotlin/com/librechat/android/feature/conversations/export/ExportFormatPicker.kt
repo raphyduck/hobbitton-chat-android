@@ -20,9 +20,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.librechat.android.feature.conversations.R
-import androidx.compose.ui.res.stringResource
 
 enum class ExportFormat {
     JSON,
@@ -34,11 +34,13 @@ enum class ExportFormat {
 fun ExportFormatPicker(
     onFormatSelected: (ExportFormat) -> Unit,
     onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val sheetState = rememberModalBottomSheetState()
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
+        modifier = modifier,
         sheetState = sheetState,
     ) {
         Column(

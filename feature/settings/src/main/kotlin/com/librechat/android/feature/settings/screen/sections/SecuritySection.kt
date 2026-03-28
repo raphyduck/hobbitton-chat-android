@@ -83,7 +83,6 @@ internal fun TwoFactorSetupDialog(
     )
 }
 
-
 @Composable
 internal fun TwoFactorCodeDialog(
     title: String,

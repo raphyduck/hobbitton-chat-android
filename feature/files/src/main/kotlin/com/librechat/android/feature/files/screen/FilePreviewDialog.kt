@@ -56,6 +56,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -64,19 +65,18 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 import coil.compose.AsyncImagePainter
-import timber.log.Timber
 import com.librechat.android.feature.files.FilePreviewDisplayData
-import java.io.File
 import com.librechat.android.feature.files.R
-import androidx.compose.ui.res.stringResource
+import timber.log.Timber
+import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FilePreviewDialog(
     file: FilePreviewDisplayData,
     onDismiss: () -> Unit,
-    onDownloadFile: (suspend (fileId: String, userId: String?) -> ByteArray?)? = null,
     modifier: Modifier = Modifier,
+    onDownloadFile: (suspend (fileId: String, userId: String?) -> ByteArray?)? = null,
 ) {
     Dialog(
         onDismissRequest = onDismiss,

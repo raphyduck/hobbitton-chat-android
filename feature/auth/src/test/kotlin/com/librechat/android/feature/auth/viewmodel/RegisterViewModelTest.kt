@@ -228,7 +228,7 @@ class RegisterViewModelTest {
         viewModel.onNameChanged("Test")
         viewModel.onEmailChanged("test@test.com")
         viewModel.onUsernameChanged("testuser")
-        viewModel.onPasswordChanged("short1234")  // 9 chars, less than 12
+        viewModel.onPasswordChanged("short1234") // 9 chars, less than 12
         viewModel.onConfirmPasswordChanged("short1234")
         viewModel.register()
         advanceUntilIdle()

@@ -21,8 +21,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import com.librechat.android.feature.settings.R
 import androidx.compose.ui.unit.dp
+import com.librechat.android.feature.settings.R
 
 /** "About you" and "Response style" text areas with enable toggle; fields disabled when off. */
 @Composable

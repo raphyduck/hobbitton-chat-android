@@ -1,7 +1,5 @@
 package com.librechat.android.feature.settings.screen
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -9,7 +7,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -38,16 +35,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.librechat.android.feature.settings.R
 import com.librechat.android.core.ui.components.EmptyState
 import com.librechat.android.core.ui.components.LoadingIndicator
 import com.librechat.android.feature.settings.PresetManagerDisplayData
+import com.librechat.android.feature.settings.R
 import com.librechat.android.feature.settings.viewmodel.PresetManagerViewModel
+import org.koin.compose.viewmodel.koinViewModel
 
 /** Lists saved presets with delete-only management; editing reuses SavePresetDialog in chat. */
 @OptIn(ExperimentalMaterial3Api::class)

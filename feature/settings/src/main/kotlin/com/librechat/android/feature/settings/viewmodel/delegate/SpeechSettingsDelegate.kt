@@ -3,7 +3,6 @@ package com.librechat.android.feature.settings.viewmodel.delegate
 import android.content.Context
 import android.media.MediaPlayer
 import android.speech.tts.TextToSpeech
-import android.util.Log
 import com.librechat.android.core.common.result.Result
 import com.librechat.android.core.data.datastore.SettingsDataStore
 import com.librechat.android.core.data.repository.SpeechRepository
@@ -11,6 +10,7 @@ import com.librechat.android.core.model.speech.TtsVoice
 import com.librechat.android.feature.settings.screen.DeviceVoiceInfo
 import com.librechat.android.feature.settings.viewmodel.SettingsStateHandle
 import kotlinx.coroutines.launch
+import timber.log.Timber
 
 /**
  * Handles TTS voice selection, test playback, device voice loading, and MediaPlayer lifecycle.
@@ -32,7 +32,7 @@ class SpeechSettingsDelegate(
                     stateHandle.update { copy(availableVoices = result.data) }
                 }
                 is Result.Error -> {
-                    Log.d("SettingsViewModel", "Failed to load voices: ${result.message}", result.exception)
+                    Timber.d(result.exception, "Failed to load voices: ${result.message}")
                 }
                 is Result.Loading -> { /* no-op */ }
             }
@@ -107,6 +107,7 @@ class SpeechSettingsDelegate(
             override fun onDone(utteranceId: String?) {
                 stateHandle.update { copy(isTtsPreviewPlaying = false) }
             }
+
             @Deprecated("Deprecated in Java")
             override fun onError(utteranceId: String?) {
                 stateHandle.update { copy(isTtsPreviewPlaying = false) }
@@ -176,7 +177,15 @@ class SpeechSettingsDelegate(
         stateHandle.update { copy(showTtsDetailDialog = false) }
     }
 
-    fun saveTtsSettings(engine: String, voice: String, rate: Float, pitch: Float, deviceVoiceName: String, caching: Boolean, source: String) {
+    fun saveTtsSettings(
+        engine: String,
+        voice: String,
+        rate: Float,
+        pitch: Float,
+        deviceVoiceName: String,
+        caching: Boolean,
+        source: String,
+    ) {
         stateHandle.update {
             copy(
                 ttsEngine = engine,
@@ -225,7 +234,7 @@ class SpeechSettingsDelegate(
                 }
             }
             mediaPlayer.setOnErrorListener { mp, what, extra ->
-                Log.e("SettingsViewModel", "MediaPlayer error: what=$what, extra=$extra")
+                Timber.e("MediaPlayer error: what=$what, extra=$extra")
                 mp.release()
                 currentMediaPlayer = null
                 tempFile.delete()
@@ -246,7 +255,7 @@ class SpeechSettingsDelegate(
 
             currentMediaPlayer = mediaPlayer
         } catch (e: Exception) {
-            Log.e("SettingsViewModel", "Failed to play audio", e)
+            Timber.e(e, "Failed to play audio")
             stateHandle.update {
                 copy(
                     error = "Audio playback failed: ${e.localizedMessage}",

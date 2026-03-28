@@ -5,7 +5,7 @@ import com.librechat.android.feature.settings.viewmodel.McpViewModel
 import com.librechat.android.feature.settings.viewmodel.MemoriesViewModel
 import com.librechat.android.feature.settings.viewmodel.PresetManagerViewModel
 import com.librechat.android.feature.settings.viewmodel.SettingsViewModel
-import org.koin.android.ext.koin.androidContext
+import org.koin.android.ext.koin.androidApplication
 import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
@@ -13,7 +13,7 @@ import org.koin.dsl.module
 val settingsModule = module {
     viewModel {
         SettingsViewModel(
-            context = androidContext(),
+            context = androidApplication(),
             userRepository = get(),
             authRepository = get(),
             conversationRepository = get(),

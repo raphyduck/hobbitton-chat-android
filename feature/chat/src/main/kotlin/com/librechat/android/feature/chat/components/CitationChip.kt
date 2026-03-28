@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.ClickableText
-import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material3.Icon
@@ -24,6 +23,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -35,7 +35,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
-import androidx.compose.ui.res.stringResource
 import com.librechat.android.feature.chat.R
 
 /**
@@ -135,8 +134,8 @@ fun parseCitations(text: String): Pair<AnnotatedString, List<Citation>> {
 @Composable
 fun CitationText(
     text: String,
-    fontSizeMultiplier: Float = 1.0f,
     modifier: Modifier = Modifier,
+    fontSizeMultiplier: Float = 1.0f,
 ) {
     val (annotatedString, citations) = remember(text) { parseCitations(text) }
     var activeCitation by remember { mutableStateOf<Citation?>(null) }
@@ -160,11 +159,14 @@ fun CitationText(
     }
 
     val baseStyle = MaterialTheme.typography.bodyLarge.let { style ->
-        if (fontSizeMultiplier == 1.0f) style
-        else style.copy(
-            fontSize = (style.fontSize.value * fontSizeMultiplier).sp,
-            lineHeight = (style.lineHeight.value * fontSizeMultiplier).sp,
-        )
+        if (fontSizeMultiplier == 1.0f) {
+            style
+        } else {
+            style.copy(
+                fontSize = (style.fontSize.value * fontSizeMultiplier).sp,
+                lineHeight = (style.lineHeight.value * fontSizeMultiplier).sp,
+            )
+        }
     }
 
     if (citations.isEmpty()) {

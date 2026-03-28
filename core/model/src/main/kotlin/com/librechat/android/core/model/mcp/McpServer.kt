@@ -25,11 +25,20 @@ data class McpServer(
 
 @Serializable
 enum class McpServerType {
-    @SerialName("sse") SSE,
-    @SerialName("streamable-http") STREAMABLE_HTTP,
-    @SerialName("http") HTTP,
-    @SerialName("stdio") STDIO,
-    @SerialName("websocket") WEBSOCKET,
+    @SerialName("sse")
+    SSE,
+
+    @SerialName("streamable-http")
+    STREAMABLE_HTTP,
+
+    @SerialName("http")
+    HTTP,
+
+    @SerialName("stdio")
+    STDIO,
+
+    @SerialName("websocket")
+    WEBSOCKET,
 }
 
 /** Auth mode for the MCP server add/edit dialog. */
@@ -47,15 +56,23 @@ data class McpApiKeyConfig(
 
 @Serializable
 enum class McpApiKeySource {
-    @SerialName("admin") ADMIN,
-    @SerialName("user") USER,
+    @SerialName("admin")
+    ADMIN,
+
+    @SerialName("user")
+    USER,
 }
 
 @Serializable
 enum class McpAuthorizationType {
-    @SerialName("bearer") BEARER,
-    @SerialName("basic") BASIC,
-    @SerialName("custom") CUSTOM,
+    @SerialName("bearer")
+    BEARER,
+
+    @SerialName("basic")
+    BASIC,
+
+    @SerialName("custom")
+    CUSTOM,
 }
 
 /** Maps to backend oauth object. Only the most common fields are exposed in the UI. */

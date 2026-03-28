@@ -33,7 +33,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
@@ -59,29 +58,29 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.core.content.ContextCompat
-import androidx.core.content.FileProvider
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import com.librechat.android.feature.chat.McpServerDisplayData
-import java.io.File
 import com.librechat.android.feature.chat.PromptMentionDisplayData
-import androidx.compose.ui.res.stringResource
 import com.librechat.android.feature.chat.R
+import java.io.File
 
 data class AttachedFile(
     val uri: Uri,
@@ -212,7 +211,6 @@ fun ChatInput(
     }
 
     val focusRequester = remember { FocusRequester() }
-    val clipboardManager = LocalClipboardManager.current
     var showToolsSheet by remember { mutableStateOf(false) }
 
     // Use TextFieldValue internally so we can control cursor position.
@@ -256,10 +254,8 @@ fun ChatInput(
                 attachedFiles = attachedFiles,
                 enabledTools = enabledTools,
                 onRemoveFile = onRemoveFile,
-                onToggleTool = onToggleTool,
                 mcpServers = mcpServers,
                 selectedMcpServerNames = selectedMcpServerNames,
-                onToggleMcpServer = onToggleMcpServer,
             )
 
             Row(
@@ -327,7 +323,9 @@ fun ChatInput(
                             val afterAt = inputText.substring(atIndex + 1)
                             // Only show suggestions if there's no space after @ (still typing the mention)
                             if (!afterAt.contains(' ')) afterAt else null
-                        } else null
+                        } else {
+                            null
+                        }
                     }
                 }
 
@@ -339,7 +337,9 @@ fun ChatInput(
                                 group.name.contains(query, ignoreCase = true) ||
                                     group.command?.contains(query, ignoreCase = true) == true
                             }.take(5)
-                        } else emptyList()
+                        } else {
+                            emptyList()
+                        }
                     }
                 }
 
@@ -350,7 +350,9 @@ fun ChatInput(
                             val afterSlash = inputText.substring(1)
                             // Only show suggestions if there's no space (still typing the command)
                             if (!afterSlash.contains(' ')) afterSlash else null
-                        } else null
+                        } else {
+                            null
+                        }
                     }
                 }
 
@@ -362,7 +364,9 @@ fun ChatInput(
                                 val cmd = group.command
                                 cmd != null && cmd.contains(query, ignoreCase = true)
                             }.take(5)
-                        } else emptyList()
+                        } else {
+                            emptyList()
+                        }
                     }
                 }
 

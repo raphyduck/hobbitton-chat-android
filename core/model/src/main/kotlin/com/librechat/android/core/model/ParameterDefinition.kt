@@ -22,11 +22,24 @@ data class ParameterDefinition(
 
 @Serializable
 enum class ParameterType {
-    @SerialName("slider") SLIDER,
-    @SerialName("dropdown") DROPDOWN,
-    @SerialName("checkbox") CHECKBOX,
-    @SerialName("text") TEXT,
-    @SerialName("switch") SWITCH,
-    @SerialName("textarea") TEXTAREA,
-    @SerialName("tags") TAGS,
+    @SerialName("slider")
+    SLIDER,
+
+    @SerialName("dropdown")
+    DROPDOWN,
+
+    @SerialName("checkbox")
+    CHECKBOX,
+
+    @SerialName("text")
+    TEXT,
+
+    @SerialName("switch")
+    SWITCH,
+
+    @SerialName("textarea")
+    TEXTAREA,
+
+    @SerialName("tags")
+    TAGS,
 }

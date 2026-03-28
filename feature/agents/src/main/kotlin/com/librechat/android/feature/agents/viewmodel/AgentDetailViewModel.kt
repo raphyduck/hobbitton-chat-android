@@ -130,8 +130,11 @@ class AgentDetailViewModel(
 
     private fun Agent.toDetailDisplayData(): AgentDetailDisplayData {
         val resolvedUrl = avatarUrl?.let { url ->
-            if (url.startsWith("http")) url
-            else "${serverDataStore.getBaseUrl()}$url"
+            if (url.startsWith("http")) {
+                url
+            } else {
+                "${serverDataStore.getBaseUrl()}$url"
+            }
         }
         return AgentDetailDisplayData(
             id = id,

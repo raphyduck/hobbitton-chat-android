@@ -1,7 +1,6 @@
 package com.librechat.android.feature.settings.viewmodel.delegate
 
 import android.content.Context
-import android.util.Log
 import com.librechat.android.core.common.result.Result
 import com.librechat.android.core.data.repository.ConversationRepository
 import com.librechat.android.core.data.repository.KeyRepository

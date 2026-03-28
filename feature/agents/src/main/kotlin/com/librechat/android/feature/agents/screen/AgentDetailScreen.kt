@@ -42,20 +42,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.librechat.android.core.ui.R as CoreUiR
 import com.librechat.android.core.ui.components.AvatarImage
 import com.librechat.android.core.ui.components.ErrorBanner
 import com.librechat.android.core.ui.components.LoadingIndicator
-import com.librechat.android.feature.agents.AgentDetailDisplayData
+import com.librechat.android.feature.agents.R
 import com.librechat.android.feature.agents.viewmodel.AgentDetailEvent
 import com.librechat.android.feature.agents.viewmodel.AgentDetailViewModel
-import com.librechat.android.feature.agents.R
-import androidx.compose.ui.res.stringResource
+import org.koin.compose.viewmodel.koinViewModel
+import com.librechat.android.core.ui.R as CoreUiR
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -228,7 +227,11 @@ fun AgentDetailScreen(
                     Spacer(modifier = Modifier.height(4.dp))
 
                     Text(
-                        text = stringResource(R.string.by_author, agent.authorName ?: agent.author ?: stringResource(R.string.unknown_author)),
+                        text = stringResource(
+                            R.string.by_author,
+                            agent.authorName ?: agent.author
+                                ?: stringResource(R.string.unknown_author),
+                        ),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -354,9 +357,11 @@ private fun AgentDetailSection(
         Text(
             text = content,
             style = MaterialTheme.typography.bodyLarge,
-            color = if (dimContent) MaterialTheme.colorScheme.onSurfaceVariant
-                    else MaterialTheme.colorScheme.onSurface,
+            color = if (dimContent) {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            },
         )
     }
 }
-

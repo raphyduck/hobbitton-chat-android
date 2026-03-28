@@ -6,8 +6,6 @@ import com.librechat.android.core.common.result.safeApiCall
 import com.librechat.android.core.model.FileReference
 import com.librechat.android.core.model.StreamEvent
 import com.librechat.android.core.model.request.AddedConversation
-import com.librechat.android.core.model.request.ChatAbortRequest
-import com.librechat.android.core.model.request.ChatRequest
 import com.librechat.android.core.model.request.EphemeralAgent
 import com.librechat.android.core.model.response.ChatStatusResponse
 import com.librechat.android.core.network.api.ChatApi

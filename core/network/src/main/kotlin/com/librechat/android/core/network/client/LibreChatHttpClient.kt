@@ -35,7 +35,6 @@ object LibreChatHttpClient {
         cacheDir: File? = null,
         debug: Boolean = false,
     ): HttpClient = HttpClient(OkHttp) {
-
         engine {
             if (cacheDir != null) {
                 config {

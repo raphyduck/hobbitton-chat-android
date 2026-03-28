@@ -23,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.librechat.android.core.common.extensions.toInstantOrNull
@@ -30,12 +31,11 @@ import com.librechat.android.core.model.Conversation
 import com.librechat.android.core.model.EModelEndpoint
 import com.librechat.android.core.ui.components.isMonochromeIcon
 import com.librechat.android.core.ui.components.toIconRes
+import com.librechat.android.feature.conversations.R
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
-import com.librechat.android.feature.conversations.R
-import androidx.compose.ui.res.stringResource
 
 /**
  * Lightweight snapshot of the fields ConversationItem actually renders.
@@ -87,97 +87,97 @@ fun ConversationItem(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-            if (endpointIconRes != null) {
-                val isMonochrome = data.endpoint?.isMonochromeIcon() == true
-                Icon(
-                    painter = painterResource(id = endpointIconRes),
-                    contentDescription = endpointLabel,
-                    modifier = Modifier.size(24.dp),
-                    tint = if (isMonochrome) {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    } else {
-                        Color.Unspecified
-                    },
-                )
-            } else {
-                Icon(
-                    imageVector = Icons.Default.SmartToy,
-                    contentDescription = endpointLabel,
-                    modifier = Modifier.size(24.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+        if (endpointIconRes != null) {
+            val isMonochrome = data.endpoint?.isMonochromeIcon() == true
+            Icon(
+                painter = painterResource(id = endpointIconRes),
+                contentDescription = endpointLabel,
+                modifier = Modifier.size(24.dp),
+                tint = if (isMonochrome) {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                } else {
+                    Color.Unspecified
+                },
+            )
+        } else {
+            Icon(
+                imageVector = Icons.Default.SmartToy,
+                contentDescription = endpointLabel,
+                modifier = Modifier.size(24.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
 
-            Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(12.dp))
 
-            Column(
-                modifier = Modifier.weight(1f),
+        Column(
+            modifier = Modifier.weight(1f),
+        ) {
+            Text(
+                text = data.title,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = data.title,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                    text = endpointLabel,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
 
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
+                val modelName = data.model
+                if (modelName != null) {
                     Text(
-                        text = endpointLabel,
+                        text = " \u00B7 ",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.outline,
+                    )
+                    Text(
+                        text = modelName,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
                     )
+                }
 
-                    val modelName = data.model
-                    if (modelName != null) {
-                        Text(
-                            text = " \u00B7 ",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.outline,
-                        )
-                        Text(
-                            text = modelName,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f, fill = false),
-                        )
-                    }
-
-                    if (relativeTime.isNotEmpty()) {
-                        Text(
-                            text = " \u00B7 ",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.outline,
-                        )
-                        Text(
-                            text = relativeTime,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.outline,
-                        )
-                    }
+                if (relativeTime.isNotEmpty()) {
+                    Text(
+                        text = " \u00B7 ",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.outline,
+                    )
+                    Text(
+                        text = relativeTime,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.outline,
+                    )
                 }
             }
+        }
 
-            if (data.isBookmarked) {
-                Icon(
-                    imageVector = Icons.Default.Bookmark,
-                    contentDescription = stringResource(R.string.cd_bookmarked),
-                    modifier = Modifier.size(16.dp),
-                    tint = MaterialTheme.colorScheme.primary,
-                )
-            }
+        if (data.isBookmarked) {
+            Icon(
+                imageVector = Icons.Default.Bookmark,
+                contentDescription = stringResource(R.string.cd_bookmarked),
+                modifier = Modifier.size(16.dp),
+                tint = MaterialTheme.colorScheme.primary,
+            )
+        }
 
-            IconButton(onClick = onActionsClick) {
-                Icon(
-                    imageVector = Icons.Default.MoreVert,
-                    contentDescription = stringResource(R.string.cd_conversation_actions),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+        IconButton(onClick = onActionsClick) {
+            Icon(
+                imageVector = Icons.Default.MoreVert,
+                contentDescription = stringResource(R.string.cd_conversation_actions),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 

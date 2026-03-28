@@ -42,13 +42,14 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.librechat.android.core.model.Conversation
 import com.librechat.android.core.ui.components.EmptyState
 import com.librechat.android.core.ui.components.ErrorBanner
 import com.librechat.android.core.ui.components.LoadingIndicator
+import com.librechat.android.feature.conversations.R
 import com.librechat.android.feature.conversations.components.ConversationActions
 import com.librechat.android.feature.conversations.components.ConversationItem
 import com.librechat.android.feature.conversations.components.ConversationSearchBar
@@ -59,8 +60,7 @@ import com.librechat.android.feature.conversations.export.ExportFormat
 import com.librechat.android.feature.conversations.export.ExportFormatPicker
 import com.librechat.android.feature.conversations.viewmodel.ConversationListEvent
 import com.librechat.android.feature.conversations.viewmodel.ConversationListViewModel
-import com.librechat.android.feature.conversations.R
-import androidx.compose.ui.res.stringResource
+import org.koin.compose.viewmodel.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -102,24 +102,6 @@ fun ConversationListScreen(
             }
         }
         pendingExportContent = null
-    }
-
-    // SAF launcher for importing a JSON file
-    val importFileLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument(),
-    ) { uri ->
-        if (uri != null) {
-            try {
-                val jsonContent = context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                    inputStream.bufferedReader().readText()
-                }
-                if (jsonContent != null) {
-                    viewModel.importConversation(jsonContent)
-                }
-            } catch (e: Exception) {
-                Toast.makeText(context, context.getString(R.string.import_failed, e.message ?: ""), Toast.LENGTH_SHORT).show()
-            }
-        }
     }
 
     // Collect one-shot events
@@ -377,11 +359,6 @@ fun ConversationListScreen(
                 selectedConversation?.conversationId?.let { id ->
                     viewModel.shareConversation(id)
                 }
-                selectedConversation = null
-            },
-            onFork = {
-                // Fork is a message-level action (requires a specific messageId).
-                // Use Duplicate for conversation-level copying.
                 selectedConversation = null
             },
             onDuplicate = {

@@ -15,8 +15,8 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
@@ -33,9 +33,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.librechat.android.feature.settings.R
 
@@ -173,7 +173,6 @@ internal fun SttDetailDialog(
                         }
                     }
                 }
-
             }
         },
         confirmButton = {
@@ -207,12 +206,13 @@ internal fun TtsDetailDialog(
     availableEngines: List<String>,
     availableVoices: List<String>,
     availableDeviceVoices: List<DeviceVoiceInfo>,
+    onConfirm:
+    (engine: String, voice: String, rate: Float, pitch: Float, deviceVoiceName: String, caching: Boolean, source: String) -> Unit,
+    onDismiss: () -> Unit,
     isPreviewPlaying: Boolean = false,
     onPreviewDevice: (text: String, rate: Float, pitch: Float, voiceName: String?) -> Unit = { _, _, _, _ -> },
     onPreviewServer: (text: String, voice: String?, model: String?) -> Unit = { _, _, _ -> },
     onStopPreview: () -> Unit = {},
-    onConfirm: (engine: String, voice: String, rate: Float, pitch: Float, deviceVoiceName: String, caching: Boolean, source: String) -> Unit,
-    onDismiss: () -> Unit,
 ) {
     var engine by remember { mutableStateOf(selectedEngine) }
     var voice by remember { mutableStateOf(selectedVoice) }
@@ -455,7 +455,8 @@ internal fun TtsDetailDialog(
 
                 // Preview button
                 val previewText = stringResource(R.string.tts_preview_text)
-                val previewCd = stringResource(if (isPreviewPlaying) R.string.cd_stop_voice_preview else R.string.cd_preview_voice)
+                val previewCd =
+                    stringResource(if (isPreviewPlaying) R.string.cd_stop_voice_preview else R.string.cd_preview_voice)
                 FilledTonalButton(
                     onClick = {
                         if (isPreviewPlaying) {

@@ -16,8 +16,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.librechat.android.feature.settings.R
 import com.librechat.android.core.model.Memory
+import com.librechat.android.feature.settings.R
 
 /** Add/edit memory dialog; key field is immutable when editing an existing memory. */
 @Composable

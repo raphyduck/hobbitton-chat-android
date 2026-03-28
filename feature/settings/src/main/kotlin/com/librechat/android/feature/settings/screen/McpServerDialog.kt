@@ -26,10 +26,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import com.librechat.android.feature.settings.R
 import com.librechat.android.core.model.mcp.McpApiKeyConfig
 import com.librechat.android.core.model.mcp.McpApiKeySource
 import com.librechat.android.core.model.mcp.McpAuthMode
@@ -37,6 +36,7 @@ import com.librechat.android.core.model.mcp.McpAuthorizationType
 import com.librechat.android.core.model.mcp.McpOAuthConfig
 import com.librechat.android.core.model.mcp.McpServer
 import com.librechat.android.core.model.mcp.McpServerType
+import com.librechat.android.feature.settings.R
 
 /** Add/edit MCP server dialog with server type dropdown and auth configuration. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -44,7 +44,8 @@ import com.librechat.android.core.model.mcp.McpServerType
 internal fun McpServerDialog(
     editingServer: McpServer?,
     onDismiss: () -> Unit,
-    onSave: (name: String, description: String?, url: String, type: McpServerType, apiKey: McpApiKeyConfig?, oauth: McpOAuthConfig?) -> Unit,
+    onSave:
+    (name: String, description: String?, url: String, type: McpServerType, apiKey: McpApiKeyConfig?, oauth: McpOAuthConfig?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var name by remember { mutableStateOf(editingServer?.title ?: editingServer?.name ?: "") }

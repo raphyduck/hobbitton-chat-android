@@ -15,11 +15,11 @@ class SafeApiCallTest {
 
     @Test
     fun `safeApiCall returns Error on exception`() = runTest {
-        val result = safeApiCall<String> { throw RuntimeException("boom") }
+        val result = safeApiCall<String> { throw IllegalStateException("boom") }
         assertThat(result).isInstanceOf(Result.Error::class.java)
         val error = result as Result.Error
         assertThat(error.message).isEqualTo("boom")
-        assertThat(error.exception).isInstanceOf(RuntimeException::class.java)
+        assertThat(error.exception).isInstanceOf(IllegalStateException::class.java)
     }
 
     @Test

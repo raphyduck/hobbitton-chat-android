@@ -19,12 +19,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Code
-import androidx.compose.material.icons.filled.FindInPage
-import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.Extension
+import androidx.compose.material.icons.filled.FindInPage
 import androidx.compose.material.icons.filled.TravelExplore
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
@@ -43,6 +43,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
@@ -52,7 +53,6 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.librechat.android.core.common.ToolConstants
 import com.librechat.android.feature.chat.McpServerDisplayData
-import androidx.compose.ui.res.stringResource
 import com.librechat.android.feature.chat.R
 
 /**
@@ -65,11 +65,9 @@ fun AttachmentChipsRow(
     attachedFiles: List<AttachedFile>,
     enabledTools: Set<String>,
     onRemoveFile: (AttachedFile) -> Unit,
-    onToggleTool: (String) -> Unit,
     modifier: Modifier = Modifier,
     mcpServers: List<McpServerDisplayData> = emptyList(),
     selectedMcpServerNames: Set<String> = emptySet(),
-    onToggleMcpServer: (String) -> Unit = {},
 ) {
     val hasFiles = attachedFiles.isNotEmpty()
     val hasWebSearch = ToolConstants.WEB_SEARCH in enabledTools

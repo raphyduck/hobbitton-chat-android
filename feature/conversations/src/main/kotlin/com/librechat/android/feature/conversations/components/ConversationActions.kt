@@ -34,10 +34,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.librechat.android.core.model.Conversation
 import com.librechat.android.feature.conversations.R
-import androidx.compose.ui.res.stringResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,9 +47,9 @@ fun ConversationActions(
     onRename: (String) -> Unit,
     onArchive: () -> Unit,
     onDelete: () -> Unit,
+    modifier: Modifier = Modifier,
     onTags: () -> Unit = {},
     onShare: () -> Unit = {},
-    onFork: () -> Unit = {},
     onDuplicate: () -> Unit = {},
     onExport: () -> Unit = {},
     onBookmarkToggle: () -> Unit = {},
@@ -63,6 +63,7 @@ fun ConversationActions(
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
+        modifier = modifier,
         sheetState = sheetState,
     ) {
         Column(

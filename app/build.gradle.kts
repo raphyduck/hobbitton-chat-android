@@ -39,6 +39,8 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.timber)
 
+    debugImplementation(libs.leakcanary)
+
     androidTestImplementation(libs.compose.ui.test)
     debugImplementation(libs.compose.ui.test.manifest)
 }

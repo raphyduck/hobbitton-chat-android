@@ -15,14 +15,13 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.librechat.android.feature.settings.R
 import com.librechat.android.core.model.mcp.McpTool
+import com.librechat.android.feature.settings.R
 
 /** Bottom sheet listing MCP tools grouped by server; optional serverFilter narrows to one server. */
 @OptIn(ExperimentalMaterial3Api::class)

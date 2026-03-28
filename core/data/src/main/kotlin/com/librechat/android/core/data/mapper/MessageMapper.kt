@@ -1,9 +1,9 @@
 package com.librechat.android.core.data.mapper
 
 import com.librechat.android.core.data.db.entity.MessageEntity
+import com.librechat.android.core.model.Attachment
 import com.librechat.android.core.model.Feedback
 import com.librechat.android.core.model.FileReference
-import com.librechat.android.core.model.Attachment
 import com.librechat.android.core.model.Message
 import com.librechat.android.core.model.MessageContentPart
 import kotlinx.serialization.builtins.ListSerializer

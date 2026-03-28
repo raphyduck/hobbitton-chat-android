@@ -25,15 +25,15 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import com.librechat.android.feature.chat.R
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.filter
-import androidx.compose.ui.res.stringResource
-import com.librechat.android.feature.chat.R
 
 /**
  * Search overlay bar for finding text within the current conversation.
@@ -80,7 +80,7 @@ fun InConvoSearchBar(
                 modifier = Modifier
                     .weight(1f)
                     .height(48.dp)
-.semantics {
+                    .semantics {
                         contentDescription = searchCd
                     },
                 placeholder = {

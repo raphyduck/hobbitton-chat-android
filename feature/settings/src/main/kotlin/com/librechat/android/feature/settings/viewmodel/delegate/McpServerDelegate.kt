@@ -1,6 +1,5 @@
 package com.librechat.android.feature.settings.viewmodel.delegate
 
-import android.util.Log
 import com.librechat.android.core.common.result.Result
 import com.librechat.android.core.data.repository.McpRepository
 import com.librechat.android.core.model.mcp.McpApiKeyConfig
@@ -9,6 +8,7 @@ import com.librechat.android.core.model.mcp.McpServer
 import com.librechat.android.core.model.mcp.McpServerType
 import com.librechat.android.feature.settings.viewmodel.SettingsStateHandle
 import kotlinx.coroutines.launch
+import timber.log.Timber
 
 /**
  * Handles MCP server management, connection status, and reinitialization.
@@ -25,7 +25,7 @@ class McpServerDelegate(
                     stateHandle.update { copy(mcpServers = result.data, mcpError = null) }
                 }
                 is Result.Error -> {
-                    Log.d("SettingsViewModel", "Failed to load MCP servers: ${result.message}", result.exception)
+                    Timber.d(result.exception, "Failed to load MCP servers: ${result.message}")
                     stateHandle.update { copy(mcpError = result.message ?: "MCP not available on this server") }
                 }
                 is Result.Loading -> { /* no-op */ }
@@ -37,7 +37,7 @@ class McpServerDelegate(
                     stateHandle.update { copy(mcpConnectionStatus = result.data) }
                 }
                 is Result.Error -> {
-                    Log.d("SettingsViewModel", "Failed to load MCP connection status: ${result.message}", result.exception)
+                    Timber.d(result.exception, "Failed to load MCP connection status: ${result.message}")
                 }
                 is Result.Loading -> { /* no-op */ }
             }

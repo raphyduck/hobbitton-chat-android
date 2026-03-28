@@ -1,12 +1,12 @@
 package com.librechat.android.feature.chat.components
 
+import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -39,17 +39,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.annotation.DrawableRes
 import com.librechat.android.core.common.ChatLayoutConstants
 import com.librechat.android.core.model.Message
 import com.librechat.android.core.ui.components.AvatarImage
-import kotlinx.coroutines.delay
-import androidx.compose.ui.res.stringResource
 import com.librechat.android.feature.chat.R
+import kotlinx.coroutines.delay
 
 internal val BubbleShape = RoundedCornerShape(16.dp)
 
@@ -278,7 +277,11 @@ private fun ThreadMessageBubble(
             if (showAvatars) {
                 AvatarImage(
                     imageUrl = if (isUser) userAvatarUrl else message.iconURL,
-                    fallbackText = if (isUser) (userName ?: stringResource(R.string.sender_you)) else (message.sender ?: stringResource(R.string.sender_assistant)),
+                    fallbackText = if (isUser) {
+                        userName ?: stringResource(R.string.sender_you)
+                    } else {
+                        message.sender ?: stringResource(R.string.sender_assistant)
+                    },
                     fallbackIconRes = if (!isUser && message.iconURL == null) endpointIconRes else null,
                     showPersonIcon = isUser && userAvatarUrl == null,
                     tintIcon = if (!isUser && message.iconURL == null) tintEndpointIcon else false,
@@ -287,7 +290,11 @@ private fun ThreadMessageBubble(
                 Spacer(modifier = Modifier.width(8.dp))
             }
             Text(
-                text = if (isUser) (userName ?: stringResource(R.string.sender_you)) else (message.sender ?: stringResource(R.string.sender_assistant)),
+                text = if (isUser) {
+                    userName ?: stringResource(R.string.sender_you)
+                } else {
+                    message.sender ?: stringResource(R.string.sender_assistant)
+                },
                 style = MaterialTheme.typography.titleSmall.copy(
                     fontWeight = FontWeight.SemiBold,
                 ),
@@ -526,7 +533,11 @@ private fun TwoSidedMessageBubble(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = if (isUser) (userName ?: stringResource(R.string.sender_you)) else (message.sender ?: stringResource(R.string.sender_assistant)),
+                    text = if (isUser) {
+                        userName ?: stringResource(R.string.sender_you)
+                    } else {
+                        message.sender ?: stringResource(R.string.sender_assistant)
+                    },
                     style = MaterialTheme.typography.labelSmall.copy(
                         fontWeight = FontWeight.SemiBold,
                     ),
@@ -848,4 +859,3 @@ private fun MessageContentAndActions(
         }
     }
 }
-

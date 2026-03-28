@@ -18,8 +18,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -53,34 +53,37 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import com.librechat.android.core.model.ContentType
-import com.librechat.android.core.model.MessageContentPart
-import com.librechat.android.feature.chat.util.MessageNode
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import android.content.res.Configuration
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.librechat.android.core.common.EndpointConstants
+import com.librechat.android.core.data.datastore.ChatFontSize
+import com.librechat.android.core.data.datastore.LatexRenderer
+import com.librechat.android.core.model.ContentType
+import com.librechat.android.core.model.MessageContentPart
 import com.librechat.android.core.ui.components.LoadingIndicator
+import com.librechat.android.core.ui.components.ModelParameterSheet
+import com.librechat.android.core.ui.components.endpointIconRes
+import com.librechat.android.core.ui.components.isMonochromeEndpointIcon
+import com.librechat.android.feature.chat.R
 import com.librechat.android.feature.chat.components.ChatInput
 import com.librechat.android.feature.chat.components.ComparisonDualPane
 import com.librechat.android.feature.chat.components.ComparisonTabBar
 import com.librechat.android.feature.chat.components.ForkOptionsBottomSheet
-import com.librechat.android.feature.chat.components.TempChatToggle
 import com.librechat.android.feature.chat.components.InConvoSearchBar
 import com.librechat.android.feature.chat.components.LandingContent
 import com.librechat.android.feature.chat.components.MessageList
@@ -89,16 +92,12 @@ import com.librechat.android.feature.chat.components.ModelSelectorSheet
 import com.librechat.android.feature.chat.components.PresetPicker
 import com.librechat.android.feature.chat.components.SavePresetDialog
 import com.librechat.android.feature.chat.components.SecondaryMessageList
-import com.librechat.android.core.ui.components.ModelParameterSheet
-import com.librechat.android.core.data.datastore.ChatFontSize
-import com.librechat.android.core.data.datastore.LatexRenderer
-import com.librechat.android.core.ui.components.endpointIconRes
-import com.librechat.android.core.ui.components.isMonochromeEndpointIcon
+import com.librechat.android.feature.chat.components.TempChatToggle
+import com.librechat.android.feature.chat.util.MessageNode
 import com.librechat.android.feature.chat.viewmodel.ChatScreenState
 import com.librechat.android.feature.chat.viewmodel.ChatViewModel
 import kotlinx.coroutines.launch
-import androidx.compose.ui.res.stringResource
-import com.librechat.android.feature.chat.R
+import org.koin.compose.viewmodel.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -422,8 +421,16 @@ fun ChatScreen(
                                 MessageList(
                                     displayMessages = primaryDisplayMessages,
                                     isStreaming = comparisonState.primaryIsStreaming || uiState.isStreaming,
-                                    streamingContent = if (comparisonState.primaryIsStreaming) comparisonState.primaryStreamingContent else uiState.streamingContent,
-                                    activeToolCalls = if (comparisonState.primaryIsStreaming) comparisonState.primaryActiveToolCalls else uiState.activeToolCalls,
+                                    streamingContent = if (comparisonState.primaryIsStreaming) {
+                                        comparisonState.primaryStreamingContent
+                                    } else {
+                                        uiState.streamingContent
+                                    },
+                                    activeToolCalls = if (comparisonState.primaryIsStreaming) {
+                                        comparisonState.primaryActiveToolCalls
+                                    } else {
+                                        uiState.activeToolCalls
+                                    },
                                     onSiblingNavigation = viewModel::switchBranch,
                                     onEditMessage = viewModel::startEditing,
                                     onRegenerateMessage = viewModel::regenerateMessage,
@@ -760,6 +767,7 @@ private fun ChatTopBar(
     onLoadPreset: () -> Unit,
     onSavePreset: () -> Unit,
     onOpenDrawer: (() -> Unit)?,
+    modifier: Modifier = Modifier,
     onOpenSearch: () -> Unit = {},
     onOpenPromptsLibrary: (() -> Unit)? = null,
     isTemporaryChat: Boolean = false,
@@ -775,7 +783,6 @@ private fun ChatTopBar(
     onDuplicate: () -> Unit = {},
     onArchive: () -> Unit = {},
     onDelete: () -> Unit = {},
-    modifier: Modifier = Modifier,
 ) {
     var showOverflowMenu by remember { mutableStateOf(false) }
 
@@ -976,7 +983,6 @@ private fun ChatTopBar(
             }
         }
     }
-
 }
 
 @Composable
@@ -1116,4 +1122,3 @@ private fun buildComparisonDisplayMessages(
         }
     }
 }
-

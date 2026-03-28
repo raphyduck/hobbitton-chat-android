@@ -31,10 +31,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
-import com.librechat.android.feature.chat.viewmodel.ActiveToolCall
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import com.librechat.android.feature.chat.R
+import com.librechat.android.feature.chat.viewmodel.ActiveToolCall
 
 @Composable
 fun StreamingToolCallCard(
@@ -56,8 +56,11 @@ fun StreamingToolCallCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .then(
-                        if (canExpand) Modifier.clickable { isExpanded = !isExpanded }
-                        else Modifier,
+                        if (canExpand) {
+                            Modifier.clickable { isExpanded = !isExpanded }
+                        } else {
+                            Modifier
+                        },
                     ),
                 verticalAlignment = Alignment.CenterVertically,
             ) {

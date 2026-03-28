@@ -1,5 +1,6 @@
 package com.librechat.android.feature.chat.components
 
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,7 +16,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.annotation.DrawableRes
 import com.librechat.android.core.common.ChatLayoutConstants
 import com.librechat.android.feature.chat.R
 import com.librechat.android.feature.chat.util.MessageNode
@@ -31,6 +31,7 @@ fun SecondaryMessageList(
     displayMessages: List<MessageNode>,
     isStreaming: Boolean,
     streamingContent: String,
+    modifier: Modifier = Modifier,
     activeToolCalls: List<ActiveToolCall> = emptyList(),
     error: String? = null,
     baseUrl: String = "",
@@ -43,7 +44,6 @@ fun SecondaryMessageList(
     showAvatars: Boolean = true,
     showBubbles: Boolean = false,
     useKatex: Boolean = false,
-    modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()
     val totalItemCount = displayMessages.size +

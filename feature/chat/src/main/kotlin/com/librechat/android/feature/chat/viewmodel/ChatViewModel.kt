@@ -1,12 +1,10 @@
 package com.librechat.android.feature.chat.viewmodel
 
+import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import android.content.Context
-import android.net.Uri
-import timber.log.Timber
-import com.librechat.android.feature.chat.util.NEW_CHAT_DRAFT_KEY
 import com.librechat.android.core.common.EndpointConstants
 import com.librechat.android.core.common.ToolConstants
 import com.librechat.android.core.common.network.ConnectivityObserver
@@ -28,17 +26,17 @@ import com.librechat.android.core.data.repository.PromptRepository
 import com.librechat.android.core.data.repository.ShareRepository
 import com.librechat.android.core.data.repository.SpeechRepository
 import com.librechat.android.core.data.repository.UserRepository
-import com.librechat.android.feature.chat.components.AttachedFile
 import com.librechat.android.core.model.EModelEndpoint
-import com.librechat.android.core.model.request.AddedConversation
-import com.librechat.android.core.model.request.EphemeralAgent
 import com.librechat.android.core.model.Preset
 import com.librechat.android.core.model.StreamEvent
+import com.librechat.android.core.model.request.EphemeralAgent
 import com.librechat.android.core.ui.components.ModelParameters
 import com.librechat.android.feature.chat.PresetDisplayData
 import com.librechat.android.feature.chat.PromptMentionDisplayData
-import com.librechat.android.feature.chat.util.buildActiveMessagePath
 import com.librechat.android.feature.chat.ShareIntentConsumer
+import com.librechat.android.feature.chat.components.AttachedFile
+import com.librechat.android.feature.chat.util.NEW_CHAT_DRAFT_KEY
+import com.librechat.android.feature.chat.util.buildActiveMessagePath
 import com.librechat.android.feature.chat.viewmodel.delegate.ConversationActionsDelegate
 import com.librechat.android.feature.chat.viewmodel.delegate.FileAttachmentDelegate
 import com.librechat.android.feature.chat.viewmodel.delegate.InConversationSearchDelegate
@@ -54,14 +52,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import java.util.UUID
 class ChatViewModel(
     savedStateHandle: SavedStateHandle,
@@ -90,12 +87,21 @@ class ChatViewModel(
 
     // --- Delegates ---
     private val searchDelegate = InConversationSearchDelegate(stateHandle)
-    private val conversationActionsDelegate = ConversationActionsDelegate(stateHandle, conversationRepository, shareRepository)
-    private val ttsDelegate = TextToSpeechDelegate(stateHandle, appContext, speechRepository, settingsDataStore, ::getMessageText)
-    private val voiceDelegate = VoiceInputDelegate(stateHandle, appContext, speechRepository, autoSendAfterStt = settingsDataStore.autoSendAfterStt.stateIn(viewModelScope, SharingStarted.Eagerly, false), onTranscriptionComplete = ::sendMessage)
+    private val conversationActionsDelegate =
+        ConversationActionsDelegate(stateHandle, conversationRepository, shareRepository)
+    private val ttsDelegate =
+        TextToSpeechDelegate(stateHandle, appContext, speechRepository, settingsDataStore, ::getMessageText)
+    private val voiceDelegate =
+        VoiceInputDelegate(
+            stateHandle, appContext, speechRepository,
+            autoSendAfterStt = settingsDataStore.autoSendAfterStt
+                .stateIn(viewModelScope, SharingStarted.Eagerly, false),
+            onTranscriptionComplete = ::sendMessage,
+        )
     private val fileDelegate = FileAttachmentDelegate(stateHandle, appContext, fileRepository)
     private val presetPromptDelegate = PresetPromptDelegate(stateHandle, presetRepository, promptRepository)
-    private val modelDelegate = ModelSelectionDelegate(stateHandle, configRepository, agentRepository, mcpRepository, settingsDataStore, chatRepository)
+    private val modelDelegate =
+        ModelSelectionDelegate(stateHandle, configRepository, agentRepository, mcpRepository, settingsDataStore)
 
     // --- Delegate-owned flows exposed to the UI ---
     val attachedFiles: StateFlow<List<AttachedFile>> get() = fileDelegate.attachedFiles
@@ -145,8 +151,10 @@ class ChatViewModel(
     private val streamingBuffer = StringBuilder()
     private var streamingBufferDirty = false
     private var wasStreaming = false
+
     /** Tracks whether the last stream failure was a network error, to enable auto-reconnect. */
     private var lastErrorWasNetwork = false
+
     /** Job for the connectivity observer; started lazily only when a network error occurs. */
     private var connectivityJob: Job? = null
 
@@ -160,6 +168,7 @@ class ChatViewModel(
 
     /** True when this ViewModel was opened for a brand-new chat (no conversationId from navigation). */
     private val isNewConversation: Boolean
+
     /** Guard to ensure we only attempt title generation once per conversation. */
     private var titleGenerationRequested = false
 
@@ -277,7 +286,6 @@ class ChatViewModel(
         modelDelegate.loadAgents()
         loadSharedLinksEnabled()
         voiceDelegate.loadSpeechConfig()
-
     }
 
     // ── Core chat flow ──────────────────────────────────────────────
@@ -333,8 +341,16 @@ class ChatViewModel(
                     model
                 }
                 _uiState.value = _uiState.value.copy(
-                    selectedEndpoint = if (endpoint != null && (resolvedModel != null || isAgentConversation)) endpoint else _uiState.value.selectedEndpoint,
-                    selectedModel = if (endpoint != null && resolvedModel != null) resolvedModel else _uiState.value.selectedModel,
+                    selectedEndpoint = if (endpoint != null && (resolvedModel != null || isAgentConversation)) {
+                        endpoint
+                    } else {
+                        _uiState.value.selectedEndpoint
+                    },
+                    selectedModel = if (endpoint != null && resolvedModel != null) {
+                        resolvedModel
+                    } else {
+                        _uiState.value.selectedModel
+                    },
                     conversationTitle = conversation.title,
                 )
             }
@@ -498,12 +514,18 @@ class ChatViewModel(
         val isAgent = _uiState.value.selectedEndpoint == EndpointConstants.AGENTS
         val webSearchEnabled = _uiState.value.modelParameters.webSearch
         val ephemeralAgent = buildEphemeralAgent()
-        Timber.d("sendMessage: webSearch=%s, endpoint=%s, model=%s, files=%d, ephemeralAgent=%s", webSearchEnabled, _uiState.value.selectedEndpoint, _uiState.value.selectedModel, fileRefs.size, ephemeralAgent)
+        Timber.d(
+            "sendMessage: webSearch=%s, endpoint=%s, model=%s, files=%d, ephemeralAgent=%s",
+            webSearchEnabled, _uiState.value.selectedEndpoint,
+            _uiState.value.selectedModel, fileRefs.size, ephemeralAgent,
+        )
 
         // Build addedConvo if comparison mode is enabled
         val addedConvo = if (_uiState.value.comparisonState.isEnabled) {
             modelDelegate.buildAddedConvo(parentMessageId = lastMessageId)
-        } else null
+        } else {
+            null
+        }
 
         // Resolve effective endpoint/agentId for comparison mode.
         // All requests go through api/agents/chat/{endpoint} — the server's
@@ -511,7 +533,7 @@ class ChatViewModel(
         // swapping is needed. Just keep the primary's original endpoint.
         val effectiveEndpoint = _uiState.value.selectedEndpoint
         val effectiveAgentId = if (isAgent) _uiState.value.selectedModel else null
-        val effectiveAddedConvo = addedConvo  // null when no comparison
+        val effectiveAddedConvo = addedConvo // null when no comparison
         // If comparison enabled, prepare comparison streaming state
         if (addedConvo != null) {
             modelDelegate.primaryComparisonBuffer.clear()
@@ -1154,6 +1176,7 @@ class ChatViewModel(
                     loadConversation(conversationId)
                 }
             } catch (e: Exception) {
+                Timber.e(e, "Could not resume stream")
                 _uiState.value = _uiState.value.copy(
                     isStreaming = false,
                     streamingContent = "",

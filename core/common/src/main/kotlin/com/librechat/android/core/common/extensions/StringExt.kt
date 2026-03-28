@@ -12,5 +12,8 @@ fun String.ensureHttps(): String = when {
 }
 
 fun String.truncate(maxLength: Int, ellipsis: String = "..."): String =
-    if (length <= maxLength) this
-    else take(maxLength - ellipsis.length) + ellipsis
+    if (length <= maxLength) {
+        this
+    } else {
+        take(maxLength - ellipsis.length) + ellipsis
+    }

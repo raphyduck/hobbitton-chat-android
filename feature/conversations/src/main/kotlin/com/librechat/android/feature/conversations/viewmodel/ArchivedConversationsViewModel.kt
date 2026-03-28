@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import timber.log.Timber
 
 @Immutable
 data class ArchivedConversationsUiState(
@@ -113,6 +114,7 @@ class ArchivedConversationsViewModel(
             try {
                 conversationRepository.archive(id, false)
             } catch (e: Exception) {
+                Timber.e(e, "Failed to unarchive conversation")
                 _events.emit(ArchivedConversationsEvent.ShowError("Failed to unarchive conversation"))
             }
         }
@@ -123,6 +125,7 @@ class ArchivedConversationsViewModel(
             try {
                 conversationRepository.delete(id)
             } catch (e: Exception) {
+                Timber.e(e, "Failed to delete conversation")
                 _events.emit(ArchivedConversationsEvent.ShowError("Failed to delete conversation"))
             }
         }

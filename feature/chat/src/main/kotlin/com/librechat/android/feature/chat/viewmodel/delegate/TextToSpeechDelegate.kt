@@ -32,10 +32,11 @@ class TextToSpeechDelegate(
             ttsReady = status == TextToSpeech.SUCCESS
             if (ttsReady) {
                 ttsEngine?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-                    override fun onStart(utteranceId: String?) {}
+                    override fun onStart(utteranceId: String?) = Unit
                     override fun onDone(utteranceId: String?) {
                         stateHandle.update { copy(currentlyReadingMessageId = null) }
                     }
+
                     @Deprecated("Deprecated in Java")
                     override fun onError(utteranceId: String?) {
                         stateHandle.update {
@@ -76,7 +77,7 @@ class TextToSpeechDelegate(
         stateHandle.scope.launch {
             val source = settingsDataStore.ttsSource.first()
             if (source == "server") {
-                readAloudViaServer(messageId, text)
+                readAloudViaServer(text)
             } else {
                 val rate = settingsDataStore.ttsSpeechRate.first()
                 val pitch = settingsDataStore.ttsPitch.first()
@@ -107,7 +108,7 @@ class TextToSpeechDelegate(
         }
     }
 
-    internal suspend fun readAloudViaServer(messageId: String, text: String) {
+    internal suspend fun readAloudViaServer(text: String) {
         when (val result = speechRepository.synthesizeSpeech(text)) {
             is Result.Success -> {
                 try {
@@ -192,7 +193,7 @@ class TextToSpeechDelegate(
 
             val source = settingsDataStore.ttsSource.first()
             if (source == "server") {
-                readAloudViaServer(syntheticId, responseText)
+                readAloudViaServer(responseText)
             } else {
                 val rate = settingsDataStore.ttsSpeechRate.first()
                 val pitch = settingsDataStore.ttsPitch.first()

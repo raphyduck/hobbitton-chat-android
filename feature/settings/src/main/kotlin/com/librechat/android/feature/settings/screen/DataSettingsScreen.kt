@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -36,14 +35,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.librechat.android.feature.settings.R
 import com.librechat.android.feature.settings.viewmodel.SettingsViewModel
+import org.koin.compose.viewmodel.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -121,133 +120,135 @@ fun DataSettingsContent(
         viewModel.dismissMcpReinitializeMessage()
     }
 
-    LazyColumn(
-        modifier = modifier.fillMaxSize(),
-    ) {
-        // Conversations section
-        item(key = "conversations_header") {
-            SectionHeader(stringResource(R.string.section_conversations))
+    Column {
+        LazyColumn(
+            modifier = modifier.fillMaxSize(),
+        ) {
+            // Conversations section
+            item(key = "conversations_header") {
+                SectionHeader(stringResource(R.string.section_conversations))
+            }
+            item(key = "data_settings") {
+                DataSettingsSection(
+                    archivedCount = uiState.archivedCount,
+                    isClearing = uiState.isClearing,
+                    onClearAllChats = viewModel::clearAllChats,
+                    onViewArchived = onNavigateToArchived,
+                    onExportAllData = viewModel::exportAllData,
+                )
+            }
+            item(key = "data_extra_actions") {
+                DataExtraActions(
+                    onSharedLinksClick = onNavigateToSharedLinks,
+                    onClearCacheClick = { showClearCacheDialog = true },
+                    isCacheClearing = uiState.isCacheClearing,
+                    onRevokeKeysClick = { showRevokeKeysDialog = true },
+                    isKeyRevoking = uiState.isKeyRevoking,
+                )
+            }
+
+            // Memories section
+            item(key = "memories_header") {
+                SectionHeader(stringResource(R.string.section_memories))
+            }
+            item(key = "memories_settings") {
+                MemoriesSettingsSection(
+                    memories = uiState.memories,
+                    memoriesEnabled = uiState.memoriesEnabled,
+                    showMemoryDialog = uiState.showMemoryDialog,
+                    editingMemory = uiState.editingMemory,
+                    onToggleEnabled = viewModel::toggleMemoriesEnabled,
+                    onAddMemory = viewModel::showAddMemoryDialog,
+                    onEditMemory = viewModel::showEditMemoryDialog,
+                    onDeleteMemory = viewModel::deleteMemory,
+                    onDismissDialog = viewModel::dismissMemoryDialog,
+                    onSaveMemory = viewModel::saveMemory,
+                )
+            }
+
+            // MCP section
+            item(key = "mcp_header") {
+                SectionHeader(stringResource(R.string.section_mcp_servers))
+            }
+            item(key = "mcp_settings") {
+                McpSettingsSection(
+                    servers = uiState.mcpServers,
+                    connectionStatus = uiState.mcpConnectionStatus,
+                    reinitializingServers = uiState.mcpReinitializingServers,
+                    error = uiState.mcpError,
+                    onAddServer = viewModel::showAddMcpServerDialog,
+                    onEditServer = viewModel::showEditMcpServerDialog,
+                    onDeleteServer = viewModel::deleteMcpServer,
+                    onReinitialize = viewModel::reinitializeMcpServer,
+                )
+            }
+
+            // Bottom spacing
+            item { Spacer(modifier = Modifier.height(32.dp)) }
         }
-        item(key = "data_settings") {
-            DataSettingsSection(
-                archivedCount = uiState.archivedCount,
-                isClearing = uiState.isClearing,
-                onClearAllChats = viewModel::clearAllChats,
-                onViewArchived = onNavigateToArchived,
-                onExportAllData = viewModel::exportAllData,
+
+        // MCP server add/edit dialog
+        if (uiState.showMcpServerDialog) {
+            McpServerDialog(
+                editingServer = uiState.editingMcpServer,
+                onDismiss = viewModel::dismissMcpServerDialog,
+                onSave = { name, description, url, type, apiKey, oauth ->
+                    viewModel.saveMcpServer(name, description, url, type, apiKey, oauth)
+                },
             )
         }
-        item(key = "data_extra_actions") {
-            DataExtraActions(
-                onSharedLinksClick = onNavigateToSharedLinks,
-                onClearCacheClick = { showClearCacheDialog = true },
-                isCacheClearing = uiState.isCacheClearing,
-                onRevokeKeysClick = { showRevokeKeysDialog = true },
-                isKeyRevoking = uiState.isKeyRevoking,
+
+        // Clear cache confirmation
+        if (showClearCacheDialog) {
+            AlertDialog(
+                onDismissRequest = { showClearCacheDialog = false },
+                title = { Text(stringResource(R.string.dialog_title_clear_cache)) },
+                text = { Text(stringResource(R.string.dialog_clear_cache_message)) },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showClearCacheDialog = false
+                            viewModel.clearCache()
+                        },
+                    ) {
+                        Text(stringResource(R.string.action_clear))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showClearCacheDialog = false }) {
+                        Text(stringResource(R.string.action_cancel))
+                    }
+                },
             )
         }
 
-        // Memories section
-        item(key = "memories_header") {
-            SectionHeader(stringResource(R.string.section_memories))
-        }
-        item(key = "memories_settings") {
-            MemoriesSettingsSection(
-                memories = uiState.memories,
-                memoriesEnabled = uiState.memoriesEnabled,
-                showMemoryDialog = uiState.showMemoryDialog,
-                editingMemory = uiState.editingMemory,
-                onToggleEnabled = viewModel::toggleMemoriesEnabled,
-                onAddMemory = viewModel::showAddMemoryDialog,
-                onEditMemory = viewModel::showEditMemoryDialog,
-                onDeleteMemory = viewModel::deleteMemory,
-                onDismissDialog = viewModel::dismissMemoryDialog,
-                onSaveMemory = viewModel::saveMemory,
+        // Revoke keys confirmation
+        if (showRevokeKeysDialog) {
+            AlertDialog(
+                onDismissRequest = { showRevokeKeysDialog = false },
+                title = { Text(stringResource(R.string.dialog_title_revoke_keys)) },
+                text = { Text(stringResource(R.string.dialog_revoke_keys_message)) },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showRevokeKeysDialog = false
+                            viewModel.revokeAllKeys()
+                        },
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error,
+                        ),
+                    ) {
+                        Text(stringResource(R.string.action_revoke_all))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showRevokeKeysDialog = false }) {
+                        Text(stringResource(R.string.action_cancel))
+                    }
+                },
             )
         }
-
-        // MCP section
-        item(key = "mcp_header") {
-            SectionHeader(stringResource(R.string.section_mcp_servers))
-        }
-        item(key = "mcp_settings") {
-            McpSettingsSection(
-                servers = uiState.mcpServers,
-                connectionStatus = uiState.mcpConnectionStatus,
-                reinitializingServers = uiState.mcpReinitializingServers,
-                error = uiState.mcpError,
-                onAddServer = viewModel::showAddMcpServerDialog,
-                onEditServer = viewModel::showEditMcpServerDialog,
-                onDeleteServer = viewModel::deleteMcpServer,
-                onReinitialize = viewModel::reinitializeMcpServer,
-            )
-        }
-
-        // Bottom spacing
-        item { Spacer(modifier = Modifier.height(32.dp)) }
-    }
-
-    // MCP server add/edit dialog
-    if (uiState.showMcpServerDialog) {
-        McpServerDialog(
-            editingServer = uiState.editingMcpServer,
-            onDismiss = viewModel::dismissMcpServerDialog,
-            onSave = { name, description, url, type, apiKey, oauth ->
-                viewModel.saveMcpServer(name, description, url, type, apiKey, oauth)
-            },
-        )
-    }
-
-    // Clear cache confirmation
-    if (showClearCacheDialog) {
-        AlertDialog(
-            onDismissRequest = { showClearCacheDialog = false },
-            title = { Text(stringResource(R.string.dialog_title_clear_cache)) },
-            text = { Text(stringResource(R.string.dialog_clear_cache_message)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showClearCacheDialog = false
-                        viewModel.clearCache()
-                    },
-                ) {
-                    Text(stringResource(R.string.action_clear))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showClearCacheDialog = false }) {
-                    Text(stringResource(R.string.action_cancel))
-                }
-            },
-        )
-    }
-
-    // Revoke keys confirmation
-    if (showRevokeKeysDialog) {
-        AlertDialog(
-            onDismissRequest = { showRevokeKeysDialog = false },
-            title = { Text(stringResource(R.string.dialog_title_revoke_keys)) },
-            text = { Text(stringResource(R.string.dialog_revoke_keys_message)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showRevokeKeysDialog = false
-                        viewModel.revokeAllKeys()
-                    },
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error,
-                    ),
-                ) {
-                    Text(stringResource(R.string.action_revoke_all))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showRevokeKeysDialog = false }) {
-                    Text(stringResource(R.string.action_cancel))
-                }
-            },
-        )
-    }
+    } // Column
 }
 
 @Composable
@@ -270,51 +271,53 @@ private fun DataExtraActions(
     onRevokeKeysClick: () -> Unit,
     isKeyRevoking: Boolean,
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        // Shared Links
-        OutlinedButton(
-            onClick = onSharedLinksClick,
-            modifier = Modifier.fillMaxWidth(),
+    Column {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Row(
+            // Shared Links
+            OutlinedButton(
+                onClick = onSharedLinksClick,
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(stringResource(R.string.shared_links))
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(stringResource(R.string.shared_links))
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+            }
+
+            // Clear cache
+            OutlinedButton(
+                onClick = onClearCacheClick,
+                enabled = !isCacheClearing,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(stringResource(if (isCacheClearing) R.string.clearing else R.string.clear_cache))
+            }
+
+            // Revoke API keys
+            OutlinedButton(
+                onClick = onRevokeKeysClick,
+                enabled = !isKeyRevoking,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error,
+                ),
+            ) {
+                Text(stringResource(if (isKeyRevoking) R.string.revoking else R.string.revoke_all_api_keys))
             }
         }
-
-        // Clear cache
-        OutlinedButton(
-            onClick = onClearCacheClick,
-            enabled = !isCacheClearing,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(stringResource(if (isCacheClearing) R.string.clearing else R.string.clear_cache))
-        }
-
-        // Revoke API keys
-        OutlinedButton(
-            onClick = onRevokeKeysClick,
-            enabled = !isKeyRevoking,
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.outlinedButtonColors(
-                contentColor = MaterialTheme.colorScheme.error,
-            ),
-        ) {
-            Text(stringResource(if (isKeyRevoking) R.string.revoking else R.string.revoke_all_api_keys))
-        }
+        HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
     }
-    HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
 }

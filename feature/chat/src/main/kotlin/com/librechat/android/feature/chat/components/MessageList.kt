@@ -1,5 +1,6 @@
 package com.librechat.android.feature.chat.components
 
+import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -28,24 +29,23 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.annotation.DrawableRes
 import com.librechat.android.core.common.ChatLayoutConstants
 import com.librechat.android.core.model.FeedbackRating
+import com.librechat.android.feature.chat.R
 import com.librechat.android.feature.chat.util.MessageNode
 import com.librechat.android.feature.chat.viewmodel.ActiveToolCall
 import com.librechat.android.feature.chat.viewmodel.SearchMatch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import androidx.compose.ui.input.pointer.PointerEventPass
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.runtime.snapshotFlow
-import androidx.compose.ui.res.stringResource
-import com.librechat.android.feature.chat.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,11 +53,12 @@ fun MessageList(
     displayMessages: List<MessageNode>,
     isStreaming: Boolean,
     streamingContent: String,
-    activeToolCalls: List<ActiveToolCall> = emptyList(),
     onSiblingNavigation: (parentMessageId: String, siblingIndex: Int) -> Unit,
     onEditMessage: (messageId: String) -> Unit,
     onRegenerateMessage: (messageId: String) -> Unit,
     onCopyMessage: (messageId: String) -> Unit,
+    modifier: Modifier = Modifier,
+    activeToolCalls: List<ActiveToolCall> = emptyList(),
     onFeedback: (messageId: String, rating: String?) -> Unit = { _, _ -> },
     onContinue: (messageId: String) -> Unit = {},
     onReadAloud: (messageId: String) -> Unit = {},
@@ -88,7 +89,6 @@ fun MessageList(
     currentSearchMatchIndex: Int = 0,
     searchScrollToIndex: Int? = null,
     onSearchScrollHandled: () -> Unit = {},
-    modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
@@ -111,9 +111,12 @@ fun MessageList(
             val info = listState.layoutInfo
             val lastItem = info.visibleItemsInfo.lastOrNull()
             val itemCount = info.totalItemsCount
-            if (lastItem == null || itemCount == 0) true
-            else lastItem.index >= itemCount - 2 &&
-                (lastItem.offset + lastItem.size - info.viewportEndOffset) < nearBottomThresholdPx
+            if (lastItem == null || itemCount == 0) {
+                true
+            } else {
+                lastItem.index >= itemCount - 2 &&
+                    (lastItem.offset + lastItem.size - info.viewportEndOffset) < nearBottomThresholdPx
+            }
         }
     }
 
@@ -314,7 +317,7 @@ fun MessageList(
                 key = { _, node -> node.message.messageId },
                 contentType = { _, node ->
                     val role = if (node.message.isCreatedByUser) "user" else "assistant"
-                    "${chatLayoutStyle}_${role}"
+                    "${chatLayoutStyle}_$role"
                 },
             ) { index, node ->
                 val feedbackRating = node.message.feedback?.rating
@@ -384,24 +387,26 @@ fun MessageList(
                     isSearchMatch = isMatch,
                     isCurrentSearchMatch = isCurrent,
                     searchFocusedOccurrence = focusedOccurrenceInMessage,
-                    onFocusedOccurrencePositioned = if (isCurrent) { coordinates ->
-                        if (!pendingFineTuneScroll) return@MessageBubble
-                        pendingFineTuneScroll = false
+                    onFocusedOccurrencePositioned = if (isCurrent) {
+                        { coordinates ->
+                            if (!pendingFineTuneScroll) return@MessageBubble
+                            pendingFineTuneScroll = false
 
-                        val layoutInfo = listState.layoutInfo
-                        val viewportTop = layoutInfo.viewportStartOffset.toFloat()
-                        val viewportBottom = layoutInfo.viewportEndOffset.toFloat()
+                            val layoutInfo = listState.layoutInfo
+                            val viewportTop = layoutInfo.viewportStartOffset.toFloat()
+                            val viewportBottom = layoutInfo.viewportEndOffset.toFloat()
 
-                        val segmentBounds = coordinates.boundsInRoot()
-                        val padding = 80f // Extra padding so the highlight isn't flush against edges
+                            val segmentBounds = coordinates.boundsInRoot()
+                            val padding = 80f // Extra padding so the highlight isn't flush against edges
 
-                        coroutineScope.launch {
-                            if (segmentBounds.top < viewportTop + padding) {
-                                // Segment is above or too close to the top of the viewport
-                                listState.animateScrollBy(segmentBounds.top - viewportTop - padding)
-                            } else if (segmentBounds.bottom > viewportBottom - padding) {
-                                // Segment is below or too close to the bottom of the viewport
-                                listState.animateScrollBy(segmentBounds.bottom - viewportBottom + padding)
+                            coroutineScope.launch {
+                                if (segmentBounds.top < viewportTop + padding) {
+                                    // Segment is above or too close to the top of the viewport
+                                    listState.animateScrollBy(segmentBounds.top - viewportTop - padding)
+                                } else if (segmentBounds.bottom > viewportBottom - padding) {
+                                    // Segment is below or too close to the bottom of the viewport
+                                    listState.animateScrollBy(segmentBounds.bottom - viewportBottom + padding)
+                                }
                             }
                         }
                     } else {

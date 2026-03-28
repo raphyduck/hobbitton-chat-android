@@ -39,17 +39,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.unit.dp
 import coil.compose.SubcomposeAsyncImage
 import com.librechat.android.core.common.ToolConstants
 import com.librechat.android.core.model.AgentToolCall
 import com.librechat.android.core.model.ContentType
 import com.librechat.android.core.model.MessageContentPart
+import com.librechat.android.feature.chat.R
 import com.librechat.android.feature.chat.components.artifact.ArtifactButton
 import com.librechat.android.feature.chat.components.artifact.ArtifactPanel
 import com.librechat.android.feature.chat.components.artifact.ArtifactSegment
@@ -63,14 +65,13 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import androidx.compose.ui.res.stringResource
-import com.librechat.android.feature.chat.R
 
 private val lenientJson = Json { ignoreUnknownKeys = true; isLenient = true }
 
 @Composable
 fun ContentPartRenderer(
     part: MessageContentPart,
+    modifier: Modifier = Modifier,
     baseUrl: String = "",
     fontSizeMultiplier: Float = 1.0f,
     useKatex: Boolean = false,
@@ -79,7 +80,6 @@ fun ContentPartRenderer(
     searchQuery: String? = null,
     searchFocusedOccurrence: Int = -1,
     onFocusedOccurrencePositioned: ((LayoutCoordinates) -> Unit)? = null,
-    modifier: Modifier = Modifier,
 ) {
     val constrainedModifier = modifier.fillMaxWidth()
     when (part.type) {
@@ -282,85 +282,84 @@ fun ContentPartRenderer(
 @Composable
 private fun TextContentPart(
     text: String,
+    modifier: Modifier = Modifier,
     fontSizeMultiplier: Float = 1.0f,
     useKatex: Boolean = false,
     searchQuery: String? = null,
     searchFocusedOccurrence: Int = -1,
     onFocusedOccurrencePositioned: ((LayoutCoordinates) -> Unit)? = null,
-    modifier: Modifier = Modifier,
 ) {
     if (text.isBlank()) return
 
     val segments = remember(text) { detectArtifacts(text) }
     val hasArtifacts = remember(segments) { segments.any { it is ArtifactSegment.ArtifactReference } }
 
-    if (!hasArtifacts) {
-        MarkdownContent(
-            text = text,
-            modifier = modifier,
-            fontSizeMultiplier = fontSizeMultiplier,
-            useKatex = useKatex,
-            searchQuery = searchQuery,
-            searchFocusedOccurrence = searchFocusedOccurrence,
-            onFocusedOccurrencePositioned = onFocusedOccurrencePositioned,
-        )
-        return
-    }
-
-    val versionMap = remember(segments) { groupArtifactVersions(segments) }
-    var activeArtifact by remember {
-        mutableStateOf<com.librechat.android.feature.chat.components.artifact.Artifact?>(null)
-    }
-
     Column(modifier = modifier) {
-        segments.forEach { segment ->
-            when (segment) {
-                is ArtifactSegment.Text -> {
-                    MarkdownContent(
-                        text = segment.text,
-                        fontSizeMultiplier = fontSizeMultiplier,
-                        useKatex = useKatex,
-                        searchQuery = searchQuery,
-                        searchFocusedOccurrence = searchFocusedOccurrence,
-                        onFocusedOccurrencePositioned = onFocusedOccurrencePositioned,
-                    )
-                }
-                is ArtifactSegment.ArtifactReference -> {
-                    val versions = versionMap[segment.artifact.identifier] ?: listOf(segment.artifact)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    ArtifactButton(
-                        artifact = segment.artifact,
-                        onClick = { activeArtifact = segment.artifact },
-                        versionCount = versions.size,
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
+        if (!hasArtifacts) {
+            MarkdownContent(
+                text = text,
+                fontSizeMultiplier = fontSizeMultiplier,
+                useKatex = useKatex,
+                searchQuery = searchQuery,
+                searchFocusedOccurrence = searchFocusedOccurrence,
+                onFocusedOccurrencePositioned = onFocusedOccurrencePositioned,
+            )
+        } else {
+            val versionMap = remember(segments) { groupArtifactVersions(segments) }
+            var activeArtifact by remember {
+                mutableStateOf<com.librechat.android.feature.chat.components.artifact.Artifact?>(null)
+            }
+
+            segments.forEach { segment ->
+                when (segment) {
+                    is ArtifactSegment.Text -> {
+                        MarkdownContent(
+                            text = segment.text,
+                            fontSizeMultiplier = fontSizeMultiplier,
+                            useKatex = useKatex,
+                            searchQuery = searchQuery,
+                            searchFocusedOccurrence = searchFocusedOccurrence,
+                            onFocusedOccurrencePositioned = onFocusedOccurrencePositioned,
+                        )
+                    }
+                    is ArtifactSegment.ArtifactReference -> {
+                        val versions = versionMap[segment.artifact.identifier] ?: listOf(segment.artifact)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        ArtifactButton(
+                            artifact = segment.artifact,
+                            onClick = { activeArtifact = segment.artifact },
+                            versionCount = versions.size,
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
                 }
             }
-        }
-    }
 
-    activeArtifact?.let { artifact ->
-        val versions = versionMap[artifact.identifier] ?: listOf(artifact)
-        ArtifactPanel(
-            artifact = artifact,
-            onDismiss = { activeArtifact = null },
-            versions = versions,
-        )
+            activeArtifact?.let { artifact ->
+                val versions = versionMap[artifact.identifier] ?: listOf(artifact)
+                ArtifactPanel(
+                    artifact = artifact,
+                    onDismiss = { activeArtifact = null },
+                    versions = versions,
+                )
+            }
+        }
     }
 }
 
 @Composable
 private fun ThinkingContentPart(
     thinkingText: String,
+    modifier: Modifier = Modifier,
     fontSizeMultiplier: Float = 1.0f,
     useKatex: Boolean = false,
     searchQuery: String? = null,
     searchFocusedOccurrence: Int = -1,
     onFocusedOccurrencePositioned: ((LayoutCoordinates) -> Unit)? = null,
-    modifier: Modifier = Modifier,
 ) {
     var isExpanded by remember { mutableStateOf(false) }
-    val thinkingToggleCd = stringResource(if (isExpanded) R.string.cd_collapse_thinking else R.string.cd_expand_thinking)
+    val thinkingToggleCd =
+        stringResource(if (isExpanded) R.string.cd_collapse_thinking else R.string.cd_expand_thinking)
 
     Column(
         modifier = modifier
@@ -438,7 +437,8 @@ private fun ToolCallContentPart(
         shape = RoundedCornerShape(8.dp),
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
-            val toolCallCd = stringResource(if (isExpanded) R.string.cd_collapse_tool_call else R.string.cd_expand_tool_call, toolName)
+            val toolCallCd =
+                stringResource(if (isExpanded) R.string.cd_collapse_tool_call else R.string.cd_expand_tool_call, toolName)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()

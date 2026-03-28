@@ -35,62 +35,64 @@ internal fun AccountInfo(
     avatarUrl: String? = null,
     onAvatarClick: () -> Unit = {},
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Surface(
+    Column {
+        Row(
             modifier = Modifier
-                .size(48.dp)
-                .clip(CircleShape),
-            color = MaterialTheme.colorScheme.primaryContainer,
-            onClick = onAvatarClick,
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (avatarUrl != null) {
-                AsyncImage(
-                    model = avatarUrl,
-                    contentDescription = stringResource(R.string.cd_user_avatar),
-                    modifier = Modifier.size(48.dp),
-                    contentScale = ContentScale.Crop,
-                )
-            } else {
+            Surface(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape),
+                color = MaterialTheme.colorScheme.primaryContainer,
+                onClick = onAvatarClick,
+            ) {
+                if (avatarUrl != null) {
+                    AsyncImage(
+                        model = avatarUrl,
+                        contentDescription = stringResource(R.string.cd_user_avatar),
+                        modifier = Modifier.size(48.dp),
+                        contentScale = ContentScale.Crop,
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = null,
+                        modifier = Modifier.padding(12.dp),
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                if (name.isNotBlank()) {
+                    Text(
+                        text = name,
+                        style = MaterialTheme.typography.bodyLarge,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                if (email.isNotBlank()) {
+                    Text(
+                        text = email,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+            IconButton(onClick = onAvatarClick) {
                 Icon(
-                    imageVector = Icons.Default.Person,
-                    contentDescription = null,
-                    modifier = Modifier.padding(12.dp),
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    imageVector = Icons.Default.CameraAlt,
+                    contentDescription = stringResource(R.string.cd_change_avatar),
+                    modifier = Modifier.size(20.dp),
                 )
             }
         }
-        Spacer(modifier = Modifier.width(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            if (name.isNotBlank()) {
-                Text(
-                    text = name,
-                    style = MaterialTheme.typography.bodyLarge,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            if (email.isNotBlank()) {
-                Text(
-                    text = email,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
-        IconButton(onClick = onAvatarClick) {
-            Icon(
-                imageVector = Icons.Default.CameraAlt,
-                contentDescription = stringResource(R.string.cd_change_avatar),
-                modifier = Modifier.size(20.dp),
-            )
-        }
+        HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
     }
-    HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
 }

@@ -31,13 +31,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.librechat.android.feature.settings.R
 import com.librechat.android.core.model.Memory
+import com.librechat.android.feature.settings.R
 
 @Composable
 internal fun MemoriesSettingsSection(
@@ -53,85 +53,87 @@ internal fun MemoriesSettingsSection(
     onSaveMemory: (key: String, value: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        // Enable/disable toggle
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
+    Column(modifier = modifier) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(R.string.enable_memories),
-                    style = MaterialTheme.typography.bodyLarge,
+            // Enable/disable toggle
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.enable_memories),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                    Text(
+                        text = stringResource(R.string.enable_memories_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Spacer(modifier = Modifier.width(16.dp))
+                val toggleMemoriesCd = stringResource(R.string.cd_toggle_memories)
+                Switch(
+                    checked = memoriesEnabled,
+                    onCheckedChange = onToggleEnabled,
+                    modifier = Modifier.semantics {
+                        contentDescription = toggleMemoriesCd
+                    },
                 )
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Memory list
+            if (memories.isEmpty()) {
                 Text(
-                    text = stringResource(R.string.enable_memories_desc),
-                    style = MaterialTheme.typography.bodySmall,
+                    text = stringResource(R.string.no_memories_saved),
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            } else {
+                memories.forEach { memory ->
+                    MemoryItem(
+                        memory = memory,
+                        onEdit = { onEditMemory(memory) },
+                        onDelete = { onDeleteMemory(memory.key) },
+                    )
+                }
             }
-            Spacer(modifier = Modifier.width(16.dp))
-            val toggleMemoriesCd = stringResource(R.string.cd_toggle_memories)
-            Switch(
-                checked = memoriesEnabled,
-                onCheckedChange = onToggleEnabled,
-                modifier = Modifier.semantics {
-                    contentDescription = toggleMemoriesCd
-                },
-            )
-        }
 
-        Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
-        // Memory list
-        if (memories.isEmpty()) {
-            Text(
-                text = stringResource(R.string.no_memories_saved),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        } else {
-            memories.forEach { memory ->
-                MemoryItem(
-                    memory = memory,
-                    onEdit = { onEditMemory(memory) },
-                    onDelete = { onDeleteMemory(memory.key) },
+            OutlinedButton(
+                onClick = onAddMemory,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
                 )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(stringResource(R.string.add_memory))
             }
         }
+        HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
 
-        Spacer(modifier = Modifier.height(4.dp))
-
-        OutlinedButton(
-            onClick = onAddMemory,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Icon(
-                imageVector = Icons.Default.Add,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp),
+        // Create/edit dialog
+        if (showMemoryDialog) {
+            MemoryDialog(
+                editingMemory = editingMemory,
+                onDismiss = onDismissDialog,
+                onSave = onSaveMemory,
             )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(stringResource(R.string.add_memory))
         }
-    }
-    HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
 
-    // Create/edit dialog
-    if (showMemoryDialog) {
-        MemoryDialog(
-            editingMemory = editingMemory,
-            onDismiss = onDismissDialog,
-            onSave = onSaveMemory,
-        )
+        // Delete confirmation is handled inline via the delete icon
     }
-
-    // Delete confirmation is handled inline via the delete icon
 }
 
 @Composable

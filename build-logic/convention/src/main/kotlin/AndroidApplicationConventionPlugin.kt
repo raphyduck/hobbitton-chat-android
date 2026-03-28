@@ -8,6 +8,8 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
         with(target) {
             pluginManager.apply("com.android.application")
             pluginManager.apply("org.jetbrains.kotlin.android")
+            pluginManager.apply("librechat.android.detekt")
+            pluginManager.apply("org.jetbrains.kotlinx.kover")
 
             extensions.configure<ApplicationExtension> {
                 compileSdk = 35
@@ -22,6 +24,9 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
                     sourceCompatibility = org.gradle.api.JavaVersion.VERSION_17
                     targetCompatibility = org.gradle.api.JavaVersion.VERSION_17
                     isCoreLibraryDesugaringEnabled = true
+                }
+                lint {
+                    disable += "NullSafeMutableLiveData"
                 }
                 buildTypes {
                     release {

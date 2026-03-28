@@ -8,6 +8,8 @@ class AndroidLibraryConventionPlugin : Plugin<Project> {
         with(target) {
             pluginManager.apply("com.android.library")
             pluginManager.apply("org.jetbrains.kotlin.android")
+            pluginManager.apply("librechat.android.detekt")
+            pluginManager.apply("org.jetbrains.kotlinx.kover")
 
             extensions.configure<LibraryExtension> {
                 compileSdk = 35
@@ -19,6 +21,11 @@ class AndroidLibraryConventionPlugin : Plugin<Project> {
                     sourceCompatibility = org.gradle.api.JavaVersion.VERSION_17
                     targetCompatibility = org.gradle.api.JavaVersion.VERSION_17
                     isCoreLibraryDesugaringEnabled = true
+                }
+                lint {
+                    // Workaround: NonNullableMutableLiveDataDetector crashes with
+                    // IncompatibleClassChangeError on AGP 8.7.x + Kotlin 2.1.x
+                    disable += "NullSafeMutableLiveData"
                 }
                 testOptions {
                     unitTests.isReturnDefaultValues = true

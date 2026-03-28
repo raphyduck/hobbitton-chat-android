@@ -120,8 +120,7 @@ class SseEventMapper(private val json: Json) {
         val parseErrors = mutableListOf<String>()
 
         val conversation = root["conversation"]?.let {
-            try { json.decodeFromJsonElement(Conversation.serializer(), it) }
-            catch (e: Exception) {
+            try { json.decodeFromJsonElement(Conversation.serializer(), it) } catch (e: Exception) {
                 val msg = "Failed to parse final conversation: ${e.message}"
                 Timber.w(e, msg)
                 parseErrors.add(msg)
@@ -129,8 +128,7 @@ class SseEventMapper(private val json: Json) {
             }
         }
         val requestMessage = root["requestMessage"]?.let {
-            try { json.decodeFromJsonElement(Message.serializer(), it) }
-            catch (e: Exception) {
+            try { json.decodeFromJsonElement(Message.serializer(), it) } catch (e: Exception) {
                 val msg = "Failed to parse final requestMessage: ${e.message}"
                 Timber.w(e, msg)
                 parseErrors.add(msg)
@@ -138,8 +136,7 @@ class SseEventMapper(private val json: Json) {
             }
         }
         val responseMessage = root["responseMessage"]?.let {
-            try { json.decodeFromJsonElement(Message.serializer(), it) }
-            catch (e: Exception) {
+            try { json.decodeFromJsonElement(Message.serializer(), it) } catch (e: Exception) {
                 val msg = "Failed to parse final responseMessage: ${e.message}"
                 Timber.w(e, msg)
                 parseErrors.add(msg)
@@ -148,8 +145,7 @@ class SseEventMapper(private val json: Json) {
         }
         // Legacy: some events use "message" instead of "responseMessage"
         val legacyMessage = root["message"]?.let {
-            try { json.decodeFromJsonElement(Message.serializer(), it) }
-            catch (e: Exception) {
+            try { json.decodeFromJsonElement(Message.serializer(), it) } catch (e: Exception) {
                 val msg = "Failed to parse final legacy message: ${e.message}"
                 Timber.w(e, msg)
                 parseErrors.add(msg)
@@ -158,8 +154,8 @@ class SseEventMapper(private val json: Json) {
         }
 
         // If ALL critical fields failed to parse, emit an Error instead
-        val allFieldsNull = conversation == null && requestMessage == null
-            && responseMessage == null && legacyMessage == null
+        val allFieldsNull = conversation == null && requestMessage == null &&
+            responseMessage == null && legacyMessage == null
         if (allFieldsNull && parseErrors.isNotEmpty()) {
             Timber.e("Final event: all fields failed to parse -- %s", parseErrors)
             return StreamEvent.Error(
@@ -256,7 +252,7 @@ class SseEventMapper(private val json: Json) {
             "on_message_delta" -> mapMessageDelta(data, agentId, groupId)
             "on_reasoning_delta" -> mapReasoningDelta(data, agentId, groupId)
             "on_run_step" -> mapRunStep(data, agentId, groupId)
-            "on_run_step_delta" -> mapRunStepDelta(data)
+            "on_run_step_delta" -> null // Tool call argument streaming - not currently tracked
             "on_run_step_completed" -> mapRunStepCompleted(data, agentId, groupId)
             "on_chat_model_end" -> null
             "on_agent_update" -> null
@@ -345,11 +341,6 @@ class SseEventMapper(private val json: Json) {
             agentId = agentId,
             groupId = groupId,
         )
-    }
-
-    private fun mapRunStepDelta(data: JsonObject): StreamEvent? {
-        // Tool call argument streaming - not currently tracked
-        return null
     }
 
     private fun mapRunStepCompleted(

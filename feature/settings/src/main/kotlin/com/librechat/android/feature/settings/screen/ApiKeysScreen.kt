@@ -42,14 +42,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.librechat.android.feature.settings.R
 import com.librechat.android.core.model.ApiKey
+import com.librechat.android.feature.settings.R
 import com.librechat.android.feature.settings.viewmodel.ApiKeysViewModel
+import org.koin.compose.viewmodel.koinViewModel
 
 /** Lists user API keys with create (FAB), delete, and pull-to-refresh. */
 @OptIn(ExperimentalMaterial3Api::class)

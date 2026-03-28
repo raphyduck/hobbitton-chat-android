@@ -21,13 +21,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.librechat.android.core.model.ParameterDefinition
 import com.librechat.android.core.model.ParameterType
 import com.librechat.android.core.ui.R
-import androidx.compose.ui.res.stringResource
 
 @Stable
 data class ModelParameters(
@@ -174,7 +174,9 @@ fun ModelParameterContent(
                         onValueChange = { newValue ->
                             onParametersChanged(parameters.withUpdatedKey(definition.key, newValue))
                         },
-                        placeholder = definition.default?.ifEmpty { stringResource(R.string.default_placeholder) } ?: stringResource(R.string.default_placeholder),
+                        placeholder = definition.default?.ifEmpty {
+                            stringResource(R.string.default_placeholder)
+                        } ?: stringResource(R.string.default_placeholder),
                         description = definition.description,
                     )
                 }
@@ -243,8 +245,11 @@ fun ModelParameterContent(
                 }
 
                 ParameterType.TAGS -> {
-                    val tags = if (currentValue.isBlank()) emptyList()
-                    else currentValue.split("\n").filter { it.isNotBlank() }
+                    val tags = if (currentValue.isBlank()) {
+                        emptyList()
+                    } else {
+                        currentValue.split("\n").filter { it.isNotBlank() }
+                    }
 
                     DynamicTagsInput(
                         label = definition.label,

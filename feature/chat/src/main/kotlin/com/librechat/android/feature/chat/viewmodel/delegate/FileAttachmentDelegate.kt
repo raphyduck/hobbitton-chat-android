@@ -83,7 +83,8 @@ class FileAttachmentDelegate(
                 val detectedMimeType = detectMimeTypeFromBytes(bytes)
                 var mimeType = if (detectedMimeType != null && detectedMimeType != preliminaryMimeType) {
                     Timber.w(
-                        "uploadFile: MIME type mismatch for %s -- ContentResolver reported '%s' but actual content is '%s'. Using detected type.",
+                        "uploadFile: MIME type mismatch for %s -- ContentResolver " +
+                            "reported '%s' but actual content is '%s'. Using detected type.",
                         filename, preliminaryMimeType, detectedMimeType,
                     )
                     detectedMimeType
@@ -210,12 +211,15 @@ class FileAttachmentDelegate(
                         // Atomically mark failed and remove from list in one update
                         _attachedFiles.update { currentList ->
                             currentList.map { f ->
-                                if (f.uri == uri) f.copy(uploadFailed = true, uploadProgress = null)
-                                else f
+                                if (f.uri == uri) {
+                                    f.copy(uploadFailed = true, uploadProgress = null)
+                                } else {
+                                    f
+                                }
                             }
                         }
                         stateHandle.update {
-                            copy(error = "Failed to upload ${filename}: ${result.message ?: "Unknown error"}")
+                            copy(error = "Failed to upload $filename: ${result.message ?: "Unknown error"}")
                         }
                     }
                     is Result.Loading -> {

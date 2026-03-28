@@ -1,6 +1,5 @@
 package com.librechat.android.feature.settings.viewmodel.delegate
 
-import android.util.Log
 import com.librechat.android.core.common.result.Result
 import com.librechat.android.core.data.repository.MemoryRepository
 import com.librechat.android.core.model.Memory
@@ -9,6 +8,7 @@ import com.librechat.android.core.model.request.UpdateMemoryPreferencesRequest
 import com.librechat.android.core.model.request.UpdateMemoryRequest
 import com.librechat.android.feature.settings.viewmodel.SettingsStateHandle
 import kotlinx.coroutines.launch
+import timber.log.Timber
 
 /**
  * Handles memory CRUD operations and memory preferences.
@@ -25,7 +25,7 @@ class MemoryManagementDelegate(
                     stateHandle.update { copy(memories = result.data) }
                 }
                 is Result.Error -> {
-                    Log.d("SettingsViewModel", "Failed to load memories: ${result.message}", result.exception)
+                    Timber.d(result.exception, "Failed to load memories: ${result.message}")
                 }
                 is Result.Loading -> { /* no-op */ }
             }

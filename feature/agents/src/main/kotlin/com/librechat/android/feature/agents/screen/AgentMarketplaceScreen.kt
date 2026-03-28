@@ -41,20 +41,20 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.librechat.android.core.ui.R as CoreUiR
 import com.librechat.android.core.ui.components.AvatarImage
 import com.librechat.android.core.ui.components.EmptyState
 import com.librechat.android.core.ui.components.ErrorBanner
 import com.librechat.android.core.ui.components.LibreChatTopBar
 import com.librechat.android.core.ui.components.LoadingIndicator
 import com.librechat.android.feature.agents.AgentCardDisplayData
-import com.librechat.android.feature.agents.viewmodel.AgentMarketplaceViewModel
 import com.librechat.android.feature.agents.R
-import androidx.compose.ui.res.stringResource
+import com.librechat.android.feature.agents.viewmodel.AgentMarketplaceViewModel
+import org.koin.compose.viewmodel.koinViewModel
+import com.librechat.android.core.ui.R as CoreUiR
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import timber.log.Timber
 
 @Immutable
 data class PromptsUiState(
@@ -204,6 +205,7 @@ class PromptsViewModel(
                 promptRepository.create(request)
                 refresh()
             } catch (e: Exception) {
+                Timber.e(e, "Failed to create prompt")
                 _uiState.value = _uiState.value.copy(
                     error = "Failed to create prompt",
                 )
@@ -222,6 +224,7 @@ class PromptsViewModel(
                 promptRepository.update(groupId, request)
                 refresh()
             } catch (e: Exception) {
+                Timber.e(e, "Failed to update prompt")
                 _uiState.value = _uiState.value.copy(
                     error = "Failed to update prompt",
                 )
@@ -236,6 +239,7 @@ class PromptsViewModel(
                 _uiState.value = _uiState.value.copy(selectedGroup = null)
                 refresh()
             } catch (e: Exception) {
+                Timber.e(e, "Failed to delete prompt")
                 _uiState.value = _uiState.value.copy(
                     error = "Failed to delete prompt",
                 )

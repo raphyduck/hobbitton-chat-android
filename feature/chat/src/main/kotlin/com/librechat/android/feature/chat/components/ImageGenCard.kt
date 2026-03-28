@@ -31,13 +31,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import coil.compose.SubcomposeAsyncImage
-import androidx.compose.ui.res.stringResource
 import com.librechat.android.feature.chat.R
 
 data class ImageGenResult(
@@ -50,8 +50,8 @@ data class ImageGenResult(
 @Composable
 fun ImageGenCard(
     result: ImageGenResult,
-    showDescription: Boolean = true,
     modifier: Modifier = Modifier,
+    showDescription: Boolean = true,
 ) {
     var showFullscreen by remember { mutableStateOf(false) }
 

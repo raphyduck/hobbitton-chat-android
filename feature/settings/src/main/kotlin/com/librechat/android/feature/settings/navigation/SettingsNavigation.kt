@@ -1,6 +1,5 @@
 package com.librechat.android.feature.settings.navigation
 
-import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
@@ -14,6 +13,7 @@ import com.librechat.android.feature.settings.screen.PresetManagerScreen
 import com.librechat.android.feature.settings.screen.SharedLinksScreen
 import com.librechat.android.feature.settings.screen.TabbedSettingsScreen
 import com.librechat.android.feature.settings.viewmodel.SettingsViewModel
+import org.koin.compose.viewmodel.koinViewModel
 
 const val SETTINGS_TABBED_ROUTE = "settings"
 const val SETTINGS_GENERAL_ROUTE = "settings/general"

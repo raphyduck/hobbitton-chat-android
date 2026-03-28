@@ -1,0 +1,10 @@
+version: 2
+updates:
+  - package-ecosystem: "gradle"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+# Security scanning: Consider adding Snyk (https://snyk.io) for vulnerability
+# detection. Snyk provides deeper analysis than Dependabot for transitive
+# dependencies and can be integrated via GitHub Actions or the Snyk GitHub App.

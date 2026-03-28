@@ -44,30 +44,26 @@ import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.withStyle
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.librechat.android.feature.chat.R
 import com.mikepenz.markdown.m3.Markdown
 import com.mikepenz.markdown.m3.markdownColor
 import com.mikepenz.markdown.m3.markdownTypography
-import androidx.compose.ui.res.stringResource
-import com.librechat.android.feature.chat.R
 
 /**
  * Markdown content rendering with full CommonMark support. Uses a hybrid approach:
@@ -238,8 +234,8 @@ fun MarkdownContent(
 private fun HighlightedTextSegment(
     content: String,
     searchQuery: String,
-    focusedOccurrence: Int = -1,
     modifier: Modifier = Modifier,
+    focusedOccurrence: Int = -1,
     fontSizeMultiplier: Float = 1.0f,
     onPositioned: ((LayoutCoordinates) -> Unit)? = null,
 ) {
@@ -595,8 +591,11 @@ internal fun parseMarkdownSegments(text: String): List<MarkdownSegment> {
                 // \(...\) is always LaTeX; $...$ needs heuristic check
                 val dollarContent = match.groupValues[1]
                 val parenContent = match.groupValues[2]
-                if (parenContent.isNotBlank()) true
-                else dollarContent.isNotBlank() && looksLikeLatex(dollarContent)
+                if (parenContent.isNotBlank()) {
+                    true
+                } else {
+                    dollarContent.isNotBlank() && looksLikeLatex(dollarContent)
+                }
             }
             .toList()
 

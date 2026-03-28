@@ -1,6 +1,5 @@
 package com.librechat.android.feature.chat.viewmodel.delegate
 
-import android.util.Log
 import com.librechat.android.core.common.result.Result
 import com.librechat.android.core.data.repository.PresetRepository
 import com.librechat.android.core.data.repository.PromptRepository
@@ -11,6 +10,7 @@ import com.librechat.android.feature.chat.PresetDisplayData
 import com.librechat.android.feature.chat.PromptMentionDisplayData
 import com.librechat.android.feature.chat.viewmodel.ChatStateHandle
 import kotlinx.coroutines.launch
+import timber.log.Timber
 
 class PresetPromptDelegate(
     private val stateHandle: ChatStateHandle,
@@ -33,7 +33,7 @@ class PresetPromptDelegate(
                 }
                 is Result.Error -> {
                     // Presets are non-critical; don't block the user
-                    Log.d("PresetPromptDelegate", "Failed to load presets: ${result.message}", result.exception)
+                    Timber.d(result.exception, "Failed to load presets: ${result.message}")
                 }
                 is Result.Loading -> { /* no-op */ }
             }
@@ -51,7 +51,7 @@ class PresetPromptDelegate(
                 }
                 is Result.Error -> {
                     // Prompts are non-critical; don't block the user
-                    Log.d("PresetPromptDelegate", "Failed to load prompts: ${result.message}", result.exception)
+                    Timber.d(result.exception, "Failed to load prompts: ${result.message}")
                 }
                 is Result.Loading -> { /* no-op */ }
             }
@@ -74,6 +74,7 @@ class PresetPromptDelegate(
                 presetRepository.create(preset)
                 loadPresets()
             } catch (e: Exception) {
+                Timber.e(e, "Could not save preset")
                 stateHandle.update { copy(error = "Could not save preset") }
             }
         }

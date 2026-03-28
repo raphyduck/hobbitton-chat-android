@@ -3,22 +3,16 @@ package com.librechat.android.navigation
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.librechat.android.core.common.extensions.toInstantOrNull
+import com.librechat.android.core.common.extensions.toRelativeDateGroup
+import com.librechat.android.core.common.result.Result
 import com.librechat.android.core.data.repository.AuthRepository
 import com.librechat.android.core.data.repository.BannerRepository
 import com.librechat.android.core.data.repository.ConfigRepository
 import com.librechat.android.core.data.repository.ConversationRepository
-import com.librechat.android.core.data.repository.VersionCheckResult
-import com.librechat.android.core.common.result.Result
-import com.librechat.android.core.common.extensions.toInstantOrNull
-import com.librechat.android.core.common.extensions.toRelativeDateGroup
 import com.librechat.android.core.model.Banner
 import com.librechat.android.core.model.Conversation
-import com.librechat.android.core.model.EModelEndpoint
 import com.librechat.android.core.network.client.TokenManager
-import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.time.temporal.ChronoUnit
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,6 +26,10 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import timber.log.Timber
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 
 /**
  * Combined UI state for the drawer sidebar. A single emission replaces
@@ -155,7 +153,13 @@ class NavHostViewModel(
      * not the entire PhoneLayout/TabletLayout.
      */
     val drawerUiState: StateFlow<DrawerUiState> = combine(
-        combine(_groupedConversations, _activeConversationId, _favorites, _favoriteConversations, _searchQuery) { grouped, activeId, favIds, favConvos, query ->
+        combine(
+            _groupedConversations,
+            _activeConversationId,
+            _favorites,
+            _favoriteConversations,
+            _searchQuery,
+        ) { grouped, activeId, favIds, favConvos, query ->
             DrawerDataSnapshot(grouped, activeId, favIds, favConvos, query)
         },
         combine(_isRefreshing, _isLoadingMore, _hasMore) { refreshing, loadingMore, hasMore ->

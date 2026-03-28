@@ -54,7 +54,8 @@ class FilesApi constructor(
         height: Int? = null,
     ): FileObject {
         Timber.d(
-            "uploadFile: filename=%s, type=%s, size=%d bytes, fileId=%s, endpoint=%s, model=%s, agentId=%s, messageFile=%s, width=%s, height=%s",
+            "uploadFile: filename=%s, type=%s, size=%d bytes, fileId=%s, " +
+                "endpoint=%s, model=%s, agentId=%s, messageFile=%s, width=%s, height=%s",
             filename, type, bytes.size, fileId, endpoint, model, agentId, messageFile, width, height,
         )
 

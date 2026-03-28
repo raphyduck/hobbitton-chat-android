@@ -1,8 +1,6 @@
 package com.librechat.android.navigation
 
 import android.net.Uri
-import com.librechat.android.MainActivity
-import timber.log.Timber
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.Animatable
@@ -23,7 +21,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.ui.layout.Layout
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
@@ -35,12 +32,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
+import com.librechat.android.MainActivity
 import com.librechat.android.core.ui.components.BannerDisplay
 import com.librechat.android.feature.agents.navigation.AGENT_EDITOR_CREATE_ROUTE
 import com.librechat.android.feature.agents.navigation.agentsGraph
@@ -59,6 +58,7 @@ import com.librechat.android.feature.settings.navigation.SETTINGS_TABBED_ROUTE
 import com.librechat.android.feature.settings.navigation.SHARED_LINKS_ROUTE
 import com.librechat.android.feature.settings.navigation.settingsGraph
 import kotlinx.coroutines.launch
+import timber.log.Timber
 
 private val SidebarWidth = 320.dp
 
@@ -73,8 +73,8 @@ fun TabletLayout(
     isInAuthFlow: Boolean,
     deepLinkUri: Uri?,
     onDeepLinkConsumed: () -> Unit,
-    shareNavigationTrigger: Int = 0,
     modifier: Modifier = Modifier,
+    shareNavigationTrigger: Int = 0,
 ) {
     // Banner state only -- drawer state is collected inside DrawerContent itself
     val banners by navHostViewModel.banners.collectAsStateWithLifecycle()

@@ -36,19 +36,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.withStyle
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.delay
-import androidx.compose.ui.res.stringResource
 import com.librechat.android.feature.chat.R
+import kotlinx.coroutines.delay
 
 @Composable
 fun CodeBlock(
@@ -232,7 +232,6 @@ private val keywordStyle = SpanStyle(color = Color(0xFF569CD6))
 private val numberStyle = SpanStyle(color = Color(0xFFB5CEA8))
 private val typeStyle = SpanStyle(color = Color(0xFF4EC9B0))
 private val functionStyle = SpanStyle(color = Color(0xFFDCDCAA))
-private val punctuationStyle = SpanStyle(color = Color(0xFFD4D4D4))
 private val annotationStyle = SpanStyle(color = Color(0xFFD7BA7D))
 private val constantStyle = SpanStyle(color = Color(0xFF4FC1FF))
 

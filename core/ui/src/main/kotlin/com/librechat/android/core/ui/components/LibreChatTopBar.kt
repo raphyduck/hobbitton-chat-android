@@ -12,8 +12,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import com.librechat.android.core.ui.R
 import androidx.compose.ui.res.stringResource
+import com.librechat.android.core.ui.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

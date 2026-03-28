@@ -5,7 +5,6 @@ import com.librechat.android.core.common.ToolConstants
 import com.librechat.android.core.common.result.Result
 import com.librechat.android.core.data.datastore.SettingsDataStore
 import com.librechat.android.core.data.repository.AgentRepository
-import com.librechat.android.core.data.repository.ChatRepository
 import com.librechat.android.core.data.repository.ConfigRepository
 import com.librechat.android.core.data.repository.McpRepository
 import com.librechat.android.core.model.EModelEndpoint
@@ -13,7 +12,6 @@ import com.librechat.android.core.model.mcp.McpServer
 import com.librechat.android.core.model.request.AddedConversation
 import com.librechat.android.core.ui.components.ModelParameters
 import com.librechat.android.feature.chat.McpServerDisplayData
-import com.librechat.android.feature.chat.viewmodel.ActiveToolCall
 import com.librechat.android.feature.chat.viewmodel.ChatScreenState
 import com.librechat.android.feature.chat.viewmodel.ChatStateHandle
 import com.librechat.android.feature.chat.viewmodel.ComparisonState
@@ -26,7 +24,6 @@ class ModelSelectionDelegate(
     private val agentRepository: AgentRepository,
     private val mcpRepository: McpRepository,
     private val settingsDataStore: SettingsDataStore,
-    private val chatRepository: ChatRepository,
 ) {
 
     // --- Model Comparison ---

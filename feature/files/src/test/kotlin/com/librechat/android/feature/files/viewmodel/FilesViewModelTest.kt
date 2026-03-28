@@ -1,6 +1,6 @@
 package com.librechat.android.feature.files.viewmodel
 
-import android.content.Context
+import android.app.Application
 import android.text.format.Formatter
 import com.google.common.truth.Truth.assertThat
 import com.librechat.android.core.common.result.Result
@@ -30,7 +30,7 @@ class FilesViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
 
     private val fileRepository = mockk<FileRepository>(relaxed = true)
-    private val context = mockk<Context>(relaxed = true)
+    private val context = mockk<Application>(relaxed = true)
     private val serverDataStore = mockk<ServerDataStore>(relaxed = true)
 
     private lateinit var viewModel: FilesViewModel

@@ -21,8 +21,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import com.librechat.android.feature.settings.R
 import androidx.compose.ui.unit.dp
+import com.librechat.android.feature.settings.R
 
 @Composable
 internal fun SecuritySection(
@@ -32,72 +32,74 @@ internal fun SecuritySection(
     onViewBackupCodes: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        // 2FA status indicator
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
+    Column(modifier = modifier) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Icon(
-                imageVector = if (isTwoFactorEnabled) {
-                    Icons.Default.CheckCircle
-                } else {
-                    Icons.Default.Warning
-                },
-                contentDescription = null,
-                modifier = Modifier.size(20.dp),
-                tint = if (isTwoFactorEnabled) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            Column {
-                Text(
-                    text = stringResource(R.string.two_factor_auth),
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-                Text(
-                    text = stringResource(if (isTwoFactorEnabled) R.string.status_enabled else R.string.status_disabled),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (isTwoFactorEnabled) {
+            // 2FA status indicator
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = if (isTwoFactorEnabled) {
+                        Icons.Default.CheckCircle
+                    } else {
+                        Icons.Default.Warning
+                    },
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    tint = if (isTwoFactorEnabled) {
                         MaterialTheme.colorScheme.primary
                     } else {
                         MaterialTheme.colorScheme.onSurfaceVariant
                     },
                 )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Text(
+                        text = stringResource(R.string.two_factor_auth),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                    Text(
+                        text = stringResource(if (isTwoFactorEnabled) R.string.status_enabled else R.string.status_disabled),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (isTwoFactorEnabled) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                    )
+                }
             }
-        }
 
-        // Enable/Disable 2FA button
-        OutlinedButton(
-            onClick = onToggleTwoFactor,
-            enabled = !isLoading,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(
-                stringResource(if (isTwoFactorEnabled) R.string.disable_two_factor else R.string.enable_two_factor),
-            )
-        }
-
-        // View backup codes (only when 2FA is enabled)
-        if (isTwoFactorEnabled) {
+            // Enable/Disable 2FA button
             OutlinedButton(
-                onClick = onViewBackupCodes,
+                onClick = onToggleTwoFactor,
                 enabled = !isLoading,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text(stringResource(R.string.view_backup_codes))
+                Text(
+                    stringResource(if (isTwoFactorEnabled) R.string.disable_two_factor else R.string.enable_two_factor),
+                )
             }
-        }
 
-        Spacer(modifier = Modifier.height(0.dp))
+            // View backup codes (only when 2FA is enabled)
+            if (isTwoFactorEnabled) {
+                OutlinedButton(
+                    onClick = onViewBackupCodes,
+                    enabled = !isLoading,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.view_backup_codes))
+                }
+            }
+
+            Spacer(modifier = Modifier.height(0.dp))
+        }
+        HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
     }
-    HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
 }

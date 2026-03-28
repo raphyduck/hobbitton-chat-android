@@ -29,8 +29,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.librechat.android.feature.settings.R
 import com.librechat.android.core.model.mcp.McpTool
+import com.librechat.android.feature.settings.R
 
 @Composable
 internal fun McpToolList(

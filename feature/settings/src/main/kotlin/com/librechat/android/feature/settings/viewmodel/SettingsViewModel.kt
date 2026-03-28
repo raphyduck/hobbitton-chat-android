@@ -1,8 +1,7 @@
 package com.librechat.android.feature.settings.viewmodel
 
-import android.content.Context
+import android.app.Application
 import android.net.Uri
-import timber.log.Timber
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -15,26 +14,22 @@ import com.librechat.android.core.data.datastore.SettingsDataStore
 import com.librechat.android.core.data.datastore.ThemeDataStore
 import com.librechat.android.core.data.datastore.ThemeMode
 import com.librechat.android.core.data.repository.AuthRepository
+import com.librechat.android.core.data.repository.BalanceRepository
 import com.librechat.android.core.data.repository.ConversationRepository
+import com.librechat.android.core.data.repository.KeyRepository
 import com.librechat.android.core.data.repository.McpRepository
 import com.librechat.android.core.data.repository.MemoryRepository
+import com.librechat.android.core.data.repository.ShareRepository
 import com.librechat.android.core.data.repository.SpeechRepository
 import com.librechat.android.core.data.repository.UserRepository
 import com.librechat.android.core.model.Memory
-import com.librechat.android.core.model.SharedLink
 import com.librechat.android.core.model.User
 import com.librechat.android.core.model.mcp.McpApiKeyConfig
 import com.librechat.android.core.model.mcp.McpOAuthConfig
 import com.librechat.android.core.model.mcp.McpServer
 import com.librechat.android.core.model.mcp.McpServerStatus
 import com.librechat.android.core.model.mcp.McpServerType
-import com.librechat.android.core.model.request.CreateMemoryRequest
-import com.librechat.android.core.model.request.UpdateMemoryPreferencesRequest
-import com.librechat.android.core.model.request.UpdateMemoryRequest
 import com.librechat.android.core.model.speech.TtsVoice
-import com.librechat.android.core.data.repository.BalanceRepository
-import com.librechat.android.core.data.repository.KeyRepository
-import com.librechat.android.core.data.repository.ShareRepository
 import com.librechat.android.feature.settings.SharedLinkDisplayData
 import com.librechat.android.feature.settings.UserDisplayData
 import com.librechat.android.feature.settings.screen.DeviceVoiceInfo
@@ -51,6 +46,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import timber.log.Timber
 
 data class SettingsCommand(
     val name: String,
@@ -186,7 +182,7 @@ private data class DataStorePreferences(
 )
 
 class SettingsViewModel(
-    private val context: Context,
+    private val context: Application,
     private val userRepository: UserRepository,
     private val authRepository: AuthRepository,
     conversationRepository: ConversationRepository,
@@ -210,7 +206,8 @@ class SettingsViewModel(
     private val memoryDelegate = MemoryManagementDelegate(stateHandle, memoryRepository)
     private val mcpDelegate = McpServerDelegate(stateHandle, mcpRepository)
     private val twoFactorDelegate = TwoFactorSecurityDelegate(stateHandle, authRepository)
-    private val dataDelegate = DataManagementDelegate(stateHandle, context, conversationRepository, shareRepository, keyRepository)
+    private val dataDelegate =
+        DataManagementDelegate(stateHandle, context, conversationRepository, shareRepository, keyRepository)
     private val speechDelegate = SpeechSettingsDelegate(stateHandle, context, speechRepository, settingsDataStore)
 
     /** Combined DataStore preferences flow. */
@@ -646,15 +643,22 @@ class SettingsViewModel(
     fun showAddMcpServerDialog() = mcpDelegate.showAddMcpServerDialog()
     fun showEditMcpServerDialog(server: McpServer) = mcpDelegate.showEditMcpServerDialog(server)
     fun dismissMcpServerDialog() = mcpDelegate.dismissMcpServerDialog()
-    fun saveMcpServer(name: String, description: String? = null, url: String, type: McpServerType, apiKey: McpApiKeyConfig? = null, oauth: McpOAuthConfig? = null) =
-        mcpDelegate.saveMcpServer(name, description, url, type, apiKey, oauth)
+    fun saveMcpServer(
+        name: String,
+        description: String? = null,
+        url: String,
+        type: McpServerType,
+        apiKey: McpApiKeyConfig? = null,
+        oauth: McpOAuthConfig? = null,
+    ) = mcpDelegate.saveMcpServer(name, description, url, type, apiKey, oauth)
     fun deleteMcpServer(serverName: String) = mcpDelegate.deleteMcpServer(serverName)
     fun reinitializeMcpServer(serverName: String) = mcpDelegate.reinitializeMcpServer(serverName)
     fun dismissMcpReinitializeMessage() = mcpDelegate.dismissMcpReinitializeMessage()
 
     // Two-factor security
     fun toggleTwoFactor() = twoFactorDelegate.toggleTwoFactor()
-    fun enableTwoFactorWithOtp(token: String?, backupCode: String?) = twoFactorDelegate.enableTwoFactor(token = token, backupCode = backupCode)
+    fun enableTwoFactorWithOtp(token: String?, backupCode: String?) =
+        twoFactorDelegate.enableTwoFactor(token = token, backupCode = backupCode)
     fun dismissEnableTwoFactorOtpDialog() = twoFactorDelegate.dismissEnableTwoFactorOtpDialog()
     fun confirmEnableTwoFactor(code: String) = twoFactorDelegate.confirmEnableTwoFactor(code)
     fun confirmDisableTwoFactor(code: String) = twoFactorDelegate.confirmDisableTwoFactor(code)
@@ -662,7 +666,8 @@ class SettingsViewModel(
     fun dismissDisableTwoFactorDialog() = twoFactorDelegate.dismissDisableTwoFactorDialog()
     fun dismissBackupCodesDialog() = twoFactorDelegate.dismissBackupCodesDialog()
     fun viewBackupCodes() = twoFactorDelegate.viewBackupCodes()
-    fun viewBackupCodesWithOtp(token: String?, backupCode: String?) = twoFactorDelegate.viewBackupCodes(token = token, backupCode = backupCode)
+    fun viewBackupCodesWithOtp(token: String?, backupCode: String?) =
+        twoFactorDelegate.viewBackupCodes(token = token, backupCode = backupCode)
     fun dismissBackupCodesOtpDialog() = twoFactorDelegate.dismissBackupCodesOtpDialog()
 
     // Data management
@@ -681,16 +686,25 @@ class SettingsViewModel(
     fun setAutoReadEnabled(enabled: Boolean) = speechDelegate.setAutoReadEnabled(enabled)
     fun selectVoice(voice: TtsVoice) = speechDelegate.selectVoice(voice)
     fun testVoice() = speechDelegate.testVoice()
-    fun previewDeviceTts(text: String, rate: Float, pitch: Float, voiceName: String?) = speechDelegate.previewDeviceTts(text, rate, pitch, voiceName)
-    fun previewServerTts(text: String, voice: String?, model: String?) = speechDelegate.previewServerTts(text, voice, model)
+    fun previewDeviceTts(text: String, rate: Float, pitch: Float, voiceName: String?) =
+        speechDelegate.previewDeviceTts(text, rate, pitch, voiceName)
+    fun previewServerTts(text: String, voice: String?, model: String?) =
+        speechDelegate.previewServerTts(text, voice, model)
     fun stopTtsPreview() = speechDelegate.stopTtsPreview()
     fun showSttDetailDialog() = speechDelegate.showSttDetailDialog()
     fun dismissSttDetailDialog() = speechDelegate.dismissSttDetailDialog()
     fun saveSttSettings(engine: String, language: String) = speechDelegate.saveSttSettings(engine, language)
     fun showTtsDetailDialog() = speechDelegate.showTtsDetailDialog()
     fun dismissTtsDetailDialog() = speechDelegate.dismissTtsDetailDialog()
-    fun saveTtsSettings(engine: String, voice: String, rate: Float, pitch: Float, deviceVoiceName: String, caching: Boolean, source: String) =
-        speechDelegate.saveTtsSettings(engine, voice, rate, pitch, deviceVoiceName, caching, source)
+    fun saveTtsSettings(
+        engine: String,
+        voice: String,
+        rate: Float,
+        pitch: Float,
+        deviceVoiceName: String,
+        caching: Boolean,
+        source: String,
+    ) = speechDelegate.saveTtsSettings(engine, voice, rate, pitch, deviceVoiceName, caching, source)
 
     override fun onCleared() {
         super.onCleared()

@@ -1,8 +1,8 @@
 package com.librechat.android.feature.agents.viewmodel
 
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.compose.runtime.Immutable
 import com.librechat.android.core.common.result.Result
 import com.librechat.android.core.data.datastore.ServerDataStore
 import com.librechat.android.core.data.repository.AgentRepository
@@ -47,8 +47,11 @@ class AgentMarketplaceViewModel(
 
     private fun Agent.toCardDisplayData(): AgentCardDisplayData {
         val resolvedUrl = avatarUrl?.let { url ->
-            if (url.startsWith("http")) url
-            else "${serverDataStore.getBaseUrl()}$url"
+            if (url.startsWith("http")) {
+                url
+            } else {
+                "${serverDataStore.getBaseUrl()}$url"
+            }
         }
         return AgentCardDisplayData(
             id = id,

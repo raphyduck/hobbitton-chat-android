@@ -1,19 +1,18 @@
 package com.librechat.android.feature.chat.prompts
 
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.librechat.android.core.common.result.Result
 import com.librechat.android.core.data.repository.PromptRepository
 import com.librechat.android.core.model.Prompt
-import com.librechat.android.core.model.PromptGroup
 import com.librechat.android.core.model.request.AddPromptToGroupRequest
 import com.librechat.android.core.model.request.CreatePromptData
 import com.librechat.android.core.model.request.CreatePromptGroupData
 import com.librechat.android.core.model.request.CreatePromptRequest
 import com.librechat.android.core.model.request.UpdatePromptGroupRequest
 import com.librechat.android.core.model.request.UpdatePromptTagRequest
-import androidx.compose.runtime.Immutable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

@@ -11,6 +11,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
@@ -18,7 +19,6 @@ import androidx.compose.ui.unit.dp
 import com.librechat.android.core.model.ParameterDefinition
 import com.librechat.android.core.model.ParameterType
 import com.librechat.android.core.ui.R
-import androidx.compose.ui.res.stringResource
 
 /** Dispatches a list of ParameterDefinitions to typed controls (slider, dropdown, checkbox, input, textarea) by ParameterType. */
 @Composable
@@ -113,8 +113,11 @@ fun DynamicParameterPanel(
                 ParameterType.TAGS -> {
                     DynamicTagsInput(
                         label = definition.label,
-                        tags = if (currentValue.isBlank()) emptyList()
-                            else currentValue.split("\n").filter { it.isNotBlank() },
+                        tags = if (currentValue.isBlank()) {
+                            emptyList()
+                        } else {
+                            currentValue.split("\n").filter { it.isNotBlank() }
+                        },
                         onTagsChanged = { tags ->
                             onValueChanged(definition.key, tags.joinToString("\n"))
                         },

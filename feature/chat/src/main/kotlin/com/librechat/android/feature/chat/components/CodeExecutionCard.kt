@@ -15,8 +15,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
@@ -35,13 +35,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.res.stringResource
 import com.librechat.android.feature.chat.R
 
 /**
@@ -118,7 +118,14 @@ fun CodeExecutionCard(
                     val isSuccess = exitCode == 0
                     Icon(
                         imageVector = if (isSuccess) Icons.Default.CheckCircle else Icons.Default.Cancel,
-                        contentDescription = stringResource(if (isSuccess) R.string.cd_exit_code_success else R.string.cd_exit_code_failure, exitCode),
+                        contentDescription = stringResource(
+                            if (isSuccess) {
+                                R.string.cd_exit_code_success
+                            } else {
+                                R.string.cd_exit_code_failure
+                            },
+                            exitCode,
+                        ),
                         modifier = Modifier.size(18.dp),
                         tint = if (isSuccess) {
                             MaterialTheme.colorScheme.primary

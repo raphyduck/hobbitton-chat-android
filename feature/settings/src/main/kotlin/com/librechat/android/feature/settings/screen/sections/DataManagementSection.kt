@@ -29,51 +29,53 @@ internal fun DataExtraActions(
     onRevokeKeysClick: () -> Unit,
     isKeyRevoking: Boolean,
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        // Shared Links
-        OutlinedButton(
-            onClick = onSharedLinksClick,
-            modifier = Modifier.fillMaxWidth(),
+    Column {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Row(
+            // Shared Links
+            OutlinedButton(
+                onClick = onSharedLinksClick,
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(stringResource(R.string.shared_links))
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(stringResource(R.string.shared_links))
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+            }
+
+            // Clear cache
+            OutlinedButton(
+                onClick = onClearCacheClick,
+                enabled = !isCacheClearing,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(stringResource(if (isCacheClearing) R.string.clearing else R.string.clear_cache))
+            }
+
+            // Revoke API keys
+            OutlinedButton(
+                onClick = onRevokeKeysClick,
+                enabled = !isKeyRevoking,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error,
+                ),
+            ) {
+                Text(stringResource(if (isKeyRevoking) R.string.revoking else R.string.revoke_all_api_keys))
             }
         }
-
-        // Clear cache
-        OutlinedButton(
-            onClick = onClearCacheClick,
-            enabled = !isCacheClearing,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(stringResource(if (isCacheClearing) R.string.clearing else R.string.clear_cache))
-        }
-
-        // Revoke API keys
-        OutlinedButton(
-            onClick = onRevokeKeysClick,
-            enabled = !isKeyRevoking,
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.outlinedButtonColors(
-                contentColor = MaterialTheme.colorScheme.error,
-            ),
-        ) {
-            Text(stringResource(if (isKeyRevoking) R.string.revoking else R.string.revoke_all_api_keys))
-        }
+        HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
     }
-    HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
 }

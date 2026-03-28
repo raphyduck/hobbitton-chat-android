@@ -49,6 +49,7 @@ class AndroidComposeConventionPlugin : Plugin<Project> {
                 add("debugImplementation", libs.findLibrary("compose-ui-tooling").get())
                 add("androidTestImplementation", platform(bom))
                 add("androidTestImplementation", libs.findLibrary("compose-ui-test").get())
+                add("lintChecks", libs.findLibrary("compose-lint-checks").get())
             }
         }
     }

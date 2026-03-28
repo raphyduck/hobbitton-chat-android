@@ -163,7 +163,6 @@ class TwoFactorSecurityDelegate(
     fun dismissBackupCodesOtpDialog() {
         stateHandle.update { copy(showBackupCodesOtpDialog = false) }
     }
-
 }
 
 /**

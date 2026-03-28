@@ -15,7 +15,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import android.util.Log
+import timber.log.Timber
 
 @Immutable
 data class McpUiState(
@@ -76,7 +76,7 @@ class McpViewModel(
                     _uiState.value = _uiState.value.copy(connectionStatus = result.data)
                 }
                 is Result.Error -> {
-                    Log.d("McpViewModel", "Failed to load connection status: ${result.message}", result.exception)
+                    Timber.d(result.exception, "Failed to load connection status: ${result.message}")
                 }
                 is Result.Loading -> { /* no-op */ }
             }
@@ -90,7 +90,7 @@ class McpViewModel(
                     _uiState.value = _uiState.value.copy(tools = result.data)
                 }
                 is Result.Error -> {
-                    Log.d("McpViewModel", "Failed to load tools: ${result.message}", result.exception)
+                    Timber.d(result.exception, "Failed to load tools: ${result.message}")
                 }
                 is Result.Loading -> { /* no-op */ }
             }

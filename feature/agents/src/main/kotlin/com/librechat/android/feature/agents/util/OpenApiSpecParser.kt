@@ -366,6 +366,7 @@ object OpenApiSpecParser {
                 "Not valid JSON or YAML.\n" +
                     "JSON error: ${jsonError.message}\n" +
                     "YAML error: ${yamlError.message}",
+                yamlError,
             )
         }
     }

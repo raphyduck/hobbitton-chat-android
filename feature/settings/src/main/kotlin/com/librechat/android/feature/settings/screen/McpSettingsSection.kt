@@ -25,76 +25,78 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.librechat.android.feature.settings.R
 import com.librechat.android.core.model.mcp.McpServer
 import com.librechat.android.core.model.mcp.McpServerStatus
+import com.librechat.android.feature.settings.R
 
 @Composable
 internal fun McpSettingsSection(
     servers: List<McpServer>,
     connectionStatus: Map<String, McpServerStatus>,
-    reinitializingServers: Set<String> = emptySet(),
-    error: String? = null,
     onAddServer: () -> Unit,
     onEditServer: (McpServer) -> Unit,
     onDeleteServer: (String) -> Unit,
     onReinitialize: (String) -> Unit,
     modifier: Modifier = Modifier,
+    reinitializingServers: Set<String> = emptySet(),
+    error: String? = null,
 ) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        if (error != null) {
-            Text(
-                text = stringResource(R.string.mcp_not_available),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        } else if (servers.isEmpty()) {
-            Text(
-                text = stringResource(R.string.no_mcp_servers),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        } else {
-            servers.forEach { server ->
-                McpServerItem(
-                    server = server,
-                    serverStatus = connectionStatus[server.name],
-                    isReinitializing = server.name in reinitializingServers,
-                    onEdit = { onEditServer(server) },
-                    onDelete = { onDeleteServer(server.name) },
-                    onReinitialize = { onReinitialize(server.name) },
+    Column(modifier = modifier) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            if (error != null) {
+                Text(
+                    text = stringResource(R.string.mcp_not_available),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            } else if (servers.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.no_mcp_servers),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                servers.forEach { server ->
+                    McpServerItem(
+                        server = server,
+                        serverStatus = connectionStatus[server.name],
+                        isReinitializing = server.name in reinitializingServers,
+                        onEdit = { onEditServer(server) },
+                        onDelete = { onDeleteServer(server.name) },
+                        onReinitialize = { onReinitialize(server.name) },
+                    )
+                }
+            }
+
+            if (error == null) {
+                Spacer(modifier = Modifier.height(4.dp))
+            }
+
+            if (error == null) {
+                OutlinedButton(
+                    onClick = onAddServer,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(stringResource(R.string.add_mcp_server))
+                }
             }
         }
-
-        if (error == null) {
-            Spacer(modifier = Modifier.height(4.dp))
-        }
-
-        if (error == null) {
-            OutlinedButton(
-                onClick = onAddServer,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(stringResource(R.string.add_mcp_server))
-            }
-        }
+        HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
     }
-    HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
 }
 
 @Composable

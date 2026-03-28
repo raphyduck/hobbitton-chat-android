@@ -45,6 +45,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -56,11 +57,10 @@ import com.librechat.android.core.model.ActionAuth
 import com.librechat.android.core.model.ActionMetadata
 import com.librechat.android.core.model.request.FunctionTool
 import com.librechat.android.feature.agents.AgentActionDisplayData
+import com.librechat.android.feature.agents.R
 import com.librechat.android.feature.agents.util.OpenApiSpecParser
 import com.librechat.android.feature.agents.util.ParsedFunctionInfo
 import kotlinx.coroutines.delay
-import com.librechat.android.feature.agents.R
-import androidx.compose.ui.res.stringResource
 
 private const val VALIDATION_DEBOUNCE_MS = 800L
 private const val HIDDEN_PLACEHOLDER = "<HIDDEN>"
@@ -313,17 +313,29 @@ private fun ActionEditorDialog(
                                         domain = parsedDomain,
                                         auth = auth,
                                         rawSpec = rawSpec,
-                                        apiKey = if (authType == "service_http" && apiKey.isNotBlank() && apiKey != HIDDEN_PLACEHOLDER) {
+                                        apiKey = if (
+                                            authType == "service_http" &&
+                                            apiKey.isNotBlank() &&
+                                            apiKey != HIDDEN_PLACEHOLDER
+                                        ) {
                                             apiKey
                                         } else {
                                             null
                                         },
-                                        oauthClientId = if (authType == "oauth" && oauthClientId.isNotBlank() && oauthClientId != HIDDEN_PLACEHOLDER) {
+                                        oauthClientId = if (
+                                            authType == "oauth" &&
+                                            oauthClientId.isNotBlank() &&
+                                            oauthClientId != HIDDEN_PLACEHOLDER
+                                        ) {
                                             oauthClientId
                                         } else {
                                             null
                                         },
-                                        oauthClientSecret = if (authType == "oauth" && oauthClientSecret.isNotBlank() && oauthClientSecret != HIDDEN_PLACEHOLDER) {
+                                        oauthClientSecret = if (
+                                            authType == "oauth" &&
+                                            oauthClientSecret.isNotBlank() &&
+                                            oauthClientSecret != HIDDEN_PLACEHOLDER
+                                        ) {
                                             oauthClientSecret
                                         } else {
                                             null
@@ -373,7 +385,8 @@ private fun ActionEditorDialog(
                     label = { Text(stringResource(R.string.label_openapi_spec)) },
                     placeholder = {
                         Text(
-                            text = "{\n  \"openapi\": \"3.0.0\",\n  \"info\": { ... },\n  \"servers\": [{ \"url\": \"...\" }],\n  \"paths\": { ... }\n}",
+                            text = "{\n  \"openapi\": \"3.0.0\",\n" +
+                                "  \"info\": { ... },\n  \"paths\": { ... }\n}",
                             fontFamily = FontFamily.Monospace,
                         )
                     },

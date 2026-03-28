@@ -1,6 +1,5 @@
 package com.librechat.android.feature.conversations.viewmodel
 
-import android.util.Log
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -28,6 +27,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import timber.log.Timber
 
 @Immutable
 data class ConversationListUiState(
@@ -211,7 +211,7 @@ class ConversationListViewModel(
                 }
                 is Result.Error -> {
                     // Tags are non-critical, silently fail
-                    Log.d("ConversationListVM", "Failed to load tags: ${result.message}", result.exception)
+                    Timber.d(result.exception, "Failed to load tags: ${result.message}")
                 }
                 is Result.Loading -> { /* no-op */ }
             }
@@ -285,6 +285,7 @@ class ConversationListViewModel(
             try {
                 conversationRepository.updateTitle(id, newTitle)
             } catch (e: Exception) {
+                Timber.e(e, "Failed to rename conversation")
                 _events.emit(ConversationListEvent.ShowError("Failed to rename conversation"))
             }
         }
@@ -295,6 +296,7 @@ class ConversationListViewModel(
             try {
                 conversationRepository.archive(id, true)
             } catch (e: Exception) {
+                Timber.e(e, "Failed to archive conversation")
                 _events.emit(ConversationListEvent.ShowError("Failed to archive conversation"))
             }
         }
@@ -305,6 +307,7 @@ class ConversationListViewModel(
             try {
                 conversationRepository.delete(id)
             } catch (e: Exception) {
+                Timber.e(e, "Failed to delete conversation")
                 _events.emit(ConversationListEvent.ShowError("Failed to delete conversation"))
             }
         }

@@ -7,6 +7,7 @@ android {
 }
 
 dependencies {
+    implementation(libs.timber)
     implementation(libs.paging.runtime)
     implementation(libs.paging.compose)
     implementation(libs.kotlinx.serialization.json)

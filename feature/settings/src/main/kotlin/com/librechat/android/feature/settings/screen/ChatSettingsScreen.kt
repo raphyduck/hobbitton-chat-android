@@ -32,14 +32,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.librechat.android.feature.settings.R
 import com.librechat.android.feature.settings.viewmodel.SettingsViewModel
+import org.koin.compose.viewmodel.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -87,159 +87,161 @@ fun ChatSettingsContent(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    LazyColumn(
-        modifier = modifier.fillMaxSize(),
-    ) {
-        // Chat Preferences section
-        item(key = "chat_header") {
-            SectionHeader(stringResource(R.string.section_chat_preferences))
-        }
-        item(key = "chat_settings") {
-            ChatSettingsSection(
-                fontSize = uiState.chatFontSize,
-                autoScrollEnabled = uiState.autoScrollEnabled,
-                showThinkingBlocks = uiState.showThinkingBlocks,
-                showImageDescriptions = uiState.showImageDescriptions,
-                dismissKeyboardOnSend = uiState.dismissKeyboardOnSend,
-                chatLayoutStyle = uiState.chatLayoutStyle,
-                showAvatars = uiState.showAvatars,
-                showBubbles = uiState.showBubbles,
-                latexRenderer = uiState.latexRenderer,
-                onFontSizeChange = viewModel::setChatFontSize,
-                onAutoScrollChange = viewModel::setAutoScrollEnabled,
-                onShowThinkingChange = viewModel::setShowThinkingBlocks,
-                onShowImageDescriptionsChange = viewModel::setShowImageDescriptions,
-                onDismissKeyboardOnSendChange = viewModel::setDismissKeyboardOnSend,
-                onChatLayoutStyleChange = viewModel::setChatLayoutStyle,
-                onShowAvatarsChange = viewModel::setShowAvatars,
-                onShowBubblesChange = viewModel::setShowBubbles,
-                onLatexRendererChange = viewModel::setLatexRenderer,
-            )
-        }
-
-        // Presets section
-        item(key = "presets_header") {
-            SectionHeader(stringResource(R.string.section_presets))
-        }
-        item(key = "presets_row") {
-            ChatSettingsRow(
-                icon = Icons.Default.Brush,
-                title = stringResource(R.string.presets),
-                subtitle = stringResource(R.string.presets_subtitle),
-                onClick = onNavigateToPresets,
-            )
-        }
-
-        // Advanced section
-        item(key = "advanced_header") {
-            SectionHeader(stringResource(R.string.section_advanced))
-        }
-        item(key = "fork_settings_row") {
-            ChatSettingsRow(
-                icon = Icons.AutoMirrored.Filled.Chat,
-                title = stringResource(R.string.fork_behavior),
-                subtitle = ForkMode.fromApiValue(uiState.forkMode).label,
-                onClick = viewModel::showForkSettingsDialog,
-            )
-        }
-        item(key = "commands_row") {
-            ChatSettingsRow(
-                icon = Icons.Default.Terminal,
-                title = stringResource(R.string.commands),
-                subtitle = stringResource(R.string.commands_enabled_count, uiState.commands.count { it.enabled }),
-                onClick = viewModel::showCommandsScreen,
-            )
-        }
-
-        // Speech section
-        item(key = "speech_header") {
-            SectionHeader(stringResource(R.string.section_speech))
-        }
-        item(key = "speech_settings") {
-            SpeechSettingsSection(
-                autoSendAfterSttEnabled = uiState.sttAutoSend,
-                autoReadEnabled = uiState.autoReadEnabled,
-                selectedVoice = uiState.selectedVoice,
-                availableVoices = uiState.availableVoices,
-                ttsSource = uiState.ttsSource,
-                onAutoSendAfterSttChange = viewModel::setAutoSendAfterStt,
-                onAutoReadChange = viewModel::setAutoReadEnabled,
-                onVoiceSelected = viewModel::selectVoice,
-                onTestVoice = viewModel::testVoice,
-            )
-        }
-        item(key = "speech_detail_buttons") {
-            SpeechDetailButtons(
-                onSttDetailClick = viewModel::showSttDetailDialog,
-                onTtsDetailClick = viewModel::showTtsDetailDialog,
-            )
-        }
-
-        // Bottom spacing
-        item { Spacer(modifier = Modifier.height(32.dp)) }
-    }
-
-    // Fork settings dialog
-    if (uiState.showForkSettingsDialog) {
-        ForkSettingsDialog(
-            selectedMode = ForkMode.fromApiValue(uiState.forkMode),
-            onModeSelected = { mode ->
-                viewModel.setForkMode(mode.apiValue)
-            },
-            onDismiss = viewModel::dismissForkSettingsDialog,
-        )
-    }
-
-    // STT detail dialog
-    if (uiState.showSttDetailDialog) {
-        SttDetailDialog(
-            selectedEngine = uiState.sttEngine,
-            selectedLanguage = uiState.sttLanguage,
-            availableEngines = listOf("Default", "Whisper", "Google"),
-            availableLanguages = listOf("Auto-detect", "English", "Spanish", "French", "German", "Japanese", "Chinese"),
-            onConfirm = viewModel::saveSttSettings,
-            onDismiss = viewModel::dismissSttDetailDialog,
-        )
-    }
-
-    // TTS detail dialog
-    if (uiState.showTtsDetailDialog) {
-        TtsDetailDialog(
-            selectedEngine = uiState.ttsEngine,
-            selectedVoice = uiState.ttsVoice,
-            speechRate = uiState.ttsSpeechRate,
-            pitch = uiState.ttsPitch,
-            deviceVoiceName = uiState.ttsDeviceVoiceName,
-            cachingEnabled = uiState.ttsCaching,
-            ttsSource = uiState.ttsSource,
-            availableEngines = listOf("Default", "ElevenLabs", "OpenAI"),
-            availableVoices = uiState.availableVoices.map { it.name }.ifEmpty {
-                listOf("Default", "Alloy", "Echo", "Fable", "Onyx", "Nova", "Shimmer")
-            },
-            availableDeviceVoices = uiState.availableDeviceVoices,
-            isPreviewPlaying = uiState.isTtsPreviewPlaying,
-            onPreviewDevice = viewModel::previewDeviceTts,
-            onPreviewServer = viewModel::previewServerTts,
-            onStopPreview = viewModel::stopTtsPreview,
-            onConfirm = viewModel::saveTtsSettings,
-            onDismiss = viewModel::dismissTtsDetailDialog,
-        )
-    }
-
-    // Commands screen (full screen overlay)
-    if (uiState.showCommandsScreen) {
-        CommandsConfigScreen(
-            commands = uiState.commands.map { cmd ->
-                CommandConfig(
-                    name = cmd.name,
-                    description = cmd.description,
-                    enabled = cmd.enabled,
+    Column {
+        LazyColumn(
+            modifier = modifier.fillMaxSize(),
+        ) {
+            // Chat Preferences section
+            item(key = "chat_header") {
+                SectionHeader(stringResource(R.string.section_chat_preferences))
+            }
+            item(key = "chat_settings") {
+                ChatSettingsSection(
+                    fontSize = uiState.chatFontSize,
+                    autoScrollEnabled = uiState.autoScrollEnabled,
+                    showThinkingBlocks = uiState.showThinkingBlocks,
+                    showImageDescriptions = uiState.showImageDescriptions,
+                    dismissKeyboardOnSend = uiState.dismissKeyboardOnSend,
+                    chatLayoutStyle = uiState.chatLayoutStyle,
+                    showAvatars = uiState.showAvatars,
+                    showBubbles = uiState.showBubbles,
+                    latexRenderer = uiState.latexRenderer,
+                    onFontSizeChange = viewModel::setChatFontSize,
+                    onAutoScrollChange = viewModel::setAutoScrollEnabled,
+                    onShowThinkingChange = viewModel::setShowThinkingBlocks,
+                    onShowImageDescriptionsChange = viewModel::setShowImageDescriptions,
+                    onDismissKeyboardOnSendChange = viewModel::setDismissKeyboardOnSend,
+                    onChatLayoutStyleChange = viewModel::setChatLayoutStyle,
+                    onShowAvatarsChange = viewModel::setShowAvatars,
+                    onShowBubblesChange = viewModel::setShowBubbles,
+                    onLatexRendererChange = viewModel::setLatexRenderer,
                 )
-            },
-            onToggleCommand = viewModel::toggleCommand,
-            onNavigateBack = viewModel::hideCommandsScreen,
-        )
-    }
+            }
+
+            // Presets section
+            item(key = "presets_header") {
+                SectionHeader(stringResource(R.string.section_presets))
+            }
+            item(key = "presets_row") {
+                ChatSettingsRow(
+                    icon = Icons.Default.Brush,
+                    title = stringResource(R.string.presets),
+                    subtitle = stringResource(R.string.presets_subtitle),
+                    onClick = onNavigateToPresets,
+                )
+            }
+
+            // Advanced section
+            item(key = "advanced_header") {
+                SectionHeader(stringResource(R.string.section_advanced))
+            }
+            item(key = "fork_settings_row") {
+                ChatSettingsRow(
+                    icon = Icons.AutoMirrored.Filled.Chat,
+                    title = stringResource(R.string.fork_behavior),
+                    subtitle = ForkMode.fromApiValue(uiState.forkMode).label,
+                    onClick = viewModel::showForkSettingsDialog,
+                )
+            }
+            item(key = "commands_row") {
+                ChatSettingsRow(
+                    icon = Icons.Default.Terminal,
+                    title = stringResource(R.string.commands),
+                    subtitle = stringResource(R.string.commands_enabled_count, uiState.commands.count { it.enabled }),
+                    onClick = viewModel::showCommandsScreen,
+                )
+            }
+
+            // Speech section
+            item(key = "speech_header") {
+                SectionHeader(stringResource(R.string.section_speech))
+            }
+            item(key = "speech_settings") {
+                SpeechSettingsSection(
+                    autoSendAfterSttEnabled = uiState.sttAutoSend,
+                    autoReadEnabled = uiState.autoReadEnabled,
+                    selectedVoice = uiState.selectedVoice,
+                    availableVoices = uiState.availableVoices,
+                    ttsSource = uiState.ttsSource,
+                    onAutoSendAfterSttChange = viewModel::setAutoSendAfterStt,
+                    onAutoReadChange = viewModel::setAutoReadEnabled,
+                    onVoiceSelected = viewModel::selectVoice,
+                    onTestVoice = viewModel::testVoice,
+                )
+            }
+            item(key = "speech_detail_buttons") {
+                SpeechDetailButtons(
+                    onSttDetailClick = viewModel::showSttDetailDialog,
+                    onTtsDetailClick = viewModel::showTtsDetailDialog,
+                )
+            }
+
+            // Bottom spacing
+            item { Spacer(modifier = Modifier.height(32.dp)) }
+        }
+
+        // Fork settings dialog
+        if (uiState.showForkSettingsDialog) {
+            ForkSettingsDialog(
+                selectedMode = ForkMode.fromApiValue(uiState.forkMode),
+                onModeSelected = { mode ->
+                    viewModel.setForkMode(mode.apiValue)
+                },
+                onDismiss = viewModel::dismissForkSettingsDialog,
+            )
+        }
+
+        // STT detail dialog
+        if (uiState.showSttDetailDialog) {
+            SttDetailDialog(
+                selectedEngine = uiState.sttEngine,
+                selectedLanguage = uiState.sttLanguage,
+                availableEngines = listOf("Default", "Whisper", "Google"),
+                availableLanguages = listOf("Auto-detect", "English", "Spanish", "French", "German", "Japanese", "Chinese"),
+                onConfirm = viewModel::saveSttSettings,
+                onDismiss = viewModel::dismissSttDetailDialog,
+            )
+        }
+
+        // TTS detail dialog
+        if (uiState.showTtsDetailDialog) {
+            TtsDetailDialog(
+                selectedEngine = uiState.ttsEngine,
+                selectedVoice = uiState.ttsVoice,
+                speechRate = uiState.ttsSpeechRate,
+                pitch = uiState.ttsPitch,
+                deviceVoiceName = uiState.ttsDeviceVoiceName,
+                cachingEnabled = uiState.ttsCaching,
+                ttsSource = uiState.ttsSource,
+                availableEngines = listOf("Default", "ElevenLabs", "OpenAI"),
+                availableVoices = uiState.availableVoices.map { it.name }.ifEmpty {
+                    listOf("Default", "Alloy", "Echo", "Fable", "Onyx", "Nova", "Shimmer")
+                },
+                availableDeviceVoices = uiState.availableDeviceVoices,
+                isPreviewPlaying = uiState.isTtsPreviewPlaying,
+                onPreviewDevice = viewModel::previewDeviceTts,
+                onPreviewServer = viewModel::previewServerTts,
+                onStopPreview = viewModel::stopTtsPreview,
+                onConfirm = viewModel::saveTtsSettings,
+                onDismiss = viewModel::dismissTtsDetailDialog,
+            )
+        }
+
+        // Commands screen (full screen overlay)
+        if (uiState.showCommandsScreen) {
+            CommandsConfigScreen(
+                commands = uiState.commands.map { cmd ->
+                    CommandConfig(
+                        name = cmd.name,
+                        description = cmd.description,
+                        enabled = cmd.enabled,
+                    )
+                },
+                onToggleCommand = viewModel::toggleCommand,
+                onNavigateBack = viewModel::hideCommandsScreen,
+            )
+        }
+    } // Column
 }
 
 @Composable
@@ -259,48 +261,50 @@ private fun SpeechDetailButtons(
     onSttDetailClick: () -> Unit,
     onTtsDetailClick: () -> Unit,
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        OutlinedButton(
-            onClick = onSttDetailClick,
-            modifier = Modifier.fillMaxWidth(),
+    Column {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Row(
+            OutlinedButton(
+                onClick = onSttDetailClick,
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(stringResource(R.string.speech_to_text_settings))
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(stringResource(R.string.speech_to_text_settings))
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+            }
+            OutlinedButton(
+                onClick = onTtsDetailClick,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(stringResource(R.string.text_to_speech_settings))
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
             }
         }
-        OutlinedButton(
-            onClick = onTtsDetailClick,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(stringResource(R.string.text_to_speech_settings))
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                )
-            }
-        }
+        HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
     }
-    HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
 }
 
 @Composable
@@ -311,41 +315,43 @@ private fun ChatSettingsRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        onClick = onClick,
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
+    Column(modifier = modifier) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            onClick = onClick,
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                modifier = Modifier.size(24.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.bodyLarge,
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                Spacer(modifier = Modifier.width(16.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                modifier = Modifier.size(20.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
         }
+        HorizontalDivider()
     }
-    HorizontalDivider()
 }

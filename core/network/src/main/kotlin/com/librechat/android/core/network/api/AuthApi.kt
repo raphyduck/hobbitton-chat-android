@@ -1,11 +1,11 @@
 package com.librechat.android.core.network.api
 
 import com.librechat.android.core.model.request.LoginRequest
+import com.librechat.android.core.model.request.OtpVerificationRequest
 import com.librechat.android.core.model.request.PasswordResetRequest
 import com.librechat.android.core.model.request.RegisterRequest
 import com.librechat.android.core.model.request.ResetPasswordRequest
 import com.librechat.android.core.model.request.TwoFactorDisableRequest
-import com.librechat.android.core.model.request.OtpVerificationRequest
 import com.librechat.android.core.model.request.TwoFactorVerifyRequest
 import com.librechat.android.core.model.request.TwoFactorVerifyTempRequest
 import com.librechat.android.core.model.response.LoginResponse

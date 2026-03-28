@@ -14,9 +14,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import com.librechat.android.core.model.AgentCategory
 import com.librechat.android.feature.agents.R
-import androidx.compose.ui.res.stringResource
 
 /**
  * Maps category values to human-readable English labels.

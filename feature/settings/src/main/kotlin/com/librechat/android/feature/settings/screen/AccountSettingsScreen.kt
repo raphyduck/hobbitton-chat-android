@@ -21,7 +21,6 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import com.librechat.android.core.ui.components.OtpVerificationDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -36,7 +35,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
-
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -48,21 +46,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
-import com.librechat.android.feature.settings.R
 import com.librechat.android.core.ui.components.ErrorBanner
 import com.librechat.android.core.ui.components.LoadingIndicator
+import com.librechat.android.core.ui.components.OtpVerificationDialog
+import com.librechat.android.feature.settings.R
 import com.librechat.android.feature.settings.screen.sections.BackupCodesDialog
 import com.librechat.android.feature.settings.screen.sections.TwoFactorCodeDialog
 import com.librechat.android.feature.settings.screen.sections.TwoFactorSetupDialog
 import com.librechat.android.feature.settings.viewmodel.SettingsViewModel
+import org.koin.compose.viewmodel.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -139,225 +138,227 @@ fun AccountSettingsContent(
         }
     }
 
-    if (uiState.isLoading && uiState.user == null) {
-        LoadingIndicator()
-    } else if (uiState.error != null && uiState.user == null) {
-        ErrorBanner(
-            message = uiState.error ?: stringResource(R.string.error_could_not_load_settings),
-            modifier = modifier,
-            onRetry = { viewModel.retry() },
-        )
-    } else {
-        LazyColumn(
-            modifier = modifier.fillMaxSize(),
-        ) {
-            // Account section
-            item(key = "account_header") {
-                SectionHeader(stringResource(R.string.section_profile))
-            }
-            item(key = "account_info") {
-                AccountInfo(
-                    name = uiState.user?.name ?: "",
-                    email = uiState.user?.email ?: "",
-                    avatarUrl = uiState.user?.avatar,
-                    onAvatarClick = viewModel::showAvatarDialog,
-                )
-            }
+    Column {
+        if (uiState.isLoading && uiState.user == null) {
+            LoadingIndicator()
+        } else if (uiState.error != null && uiState.user == null) {
+            ErrorBanner(
+                message = uiState.error ?: stringResource(R.string.error_could_not_load_settings),
+                modifier = modifier,
+                onRetry = { viewModel.retry() },
+            )
+        } else {
+            LazyColumn(
+                modifier = modifier.fillMaxSize(),
+            ) {
+                // Account section
+                item(key = "account_header") {
+                    SectionHeader(stringResource(R.string.section_profile))
+                }
+                item(key = "account_info") {
+                    AccountInfo(
+                        name = uiState.user?.name ?: "",
+                        email = uiState.user?.email ?: "",
+                        avatarUrl = uiState.user?.avatar,
+                        onAvatarClick = viewModel::showAvatarDialog,
+                    )
+                }
 
-            // Balance section
-            item(key = "balance_header") {
-                SectionHeader(stringResource(R.string.section_balance))
-            }
-            item(key = "balance_section") {
-                BalanceSection(
-                    tokenCredits = uiState.tokenCredits,
-                    isLoading = uiState.isBalanceLoading,
-                )
-            }
+                // Balance section
+                item(key = "balance_header") {
+                    SectionHeader(stringResource(R.string.section_balance))
+                }
+                item(key = "balance_section") {
+                    BalanceSection(
+                        tokenCredits = uiState.tokenCredits,
+                        isLoading = uiState.isBalanceLoading,
+                    )
+                }
 
-            // Security section
-            item(key = "security_header") {
-                SectionHeader(stringResource(R.string.section_security))
-            }
-            item(key = "security_settings") {
-                SecuritySection(
-                    isTwoFactorEnabled = uiState.isTwoFactorEnabled,
-                    isLoading = uiState.isTwoFactorLoading,
-                    onToggleTwoFactor = viewModel::toggleTwoFactor,
-                    onViewBackupCodes = viewModel::viewBackupCodes,
-                )
-            }
-            item(key = "api_keys_row") {
-                AccountSettingsRow(
-                    icon = Icons.Default.Key,
-                    title = stringResource(R.string.api_keys),
-                    subtitle = stringResource(R.string.api_keys_subtitle),
-                    onClick = onNavigateToApiKeys,
-                )
-            }
+                // Security section
+                item(key = "security_header") {
+                    SectionHeader(stringResource(R.string.section_security))
+                }
+                item(key = "security_settings") {
+                    SecuritySection(
+                        isTwoFactorEnabled = uiState.isTwoFactorEnabled,
+                        isLoading = uiState.isTwoFactorLoading,
+                        onToggleTwoFactor = viewModel::toggleTwoFactor,
+                        onViewBackupCodes = viewModel::viewBackupCodes,
+                    )
+                }
+                item(key = "api_keys_row") {
+                    AccountSettingsRow(
+                        icon = Icons.Default.Key,
+                        title = stringResource(R.string.api_keys),
+                        subtitle = stringResource(R.string.api_keys_subtitle),
+                        onClick = onNavigateToApiKeys,
+                    )
+                }
 
-            // Danger zone
-            item(key = "danger_header") {
-                SectionHeader(stringResource(R.string.section_danger_zone))
-            }
-            item(key = "danger_actions") {
-                DangerZone(
-                    isLoading = uiState.isLoading,
-                    onLogoutClick = { showLogoutDialog = true },
-                    onDeleteClick = { showDeleteDialog = true },
-                )
-            }
+                // Danger zone
+                item(key = "danger_header") {
+                    SectionHeader(stringResource(R.string.section_danger_zone))
+                }
+                item(key = "danger_actions") {
+                    DangerZone(
+                        isLoading = uiState.isLoading,
+                        onLogoutClick = { showLogoutDialog = true },
+                        onDeleteClick = { showDeleteDialog = true },
+                    )
+                }
 
-            // Bottom spacing
-            item { Spacer(modifier = Modifier.height(32.dp)) }
+                // Bottom spacing
+                item { Spacer(modifier = Modifier.height(32.dp)) }
+            }
         }
-    }
 
-    // Avatar upload dialog
-    if (uiState.showAvatarDialog) {
-        AvatarUploadDialog(
-            currentAvatarUrl = uiState.user?.avatar,
-            isUploading = uiState.isAvatarUploading,
-            onPickImage = viewModel::uploadAvatar,
-            onDismiss = viewModel::dismissAvatarDialog,
-        )
-    }
+        // Avatar upload dialog
+        if (uiState.showAvatarDialog) {
+            AvatarUploadDialog(
+                currentAvatarUrl = uiState.user?.avatar,
+                isUploading = uiState.isAvatarUploading,
+                onPickImage = viewModel::uploadAvatar,
+                onDismiss = viewModel::dismissAvatarDialog,
+            )
+        }
 
-    // 2FA enable setup dialog
-    if (uiState.showTwoFactorSetupDialog) {
-        TwoFactorSetupDialog(
-            otpauthUrl = uiState.twoFactorOtpauthUrl,
-            isLoading = uiState.isTwoFactorLoading,
-            onConfirm = viewModel::confirmEnableTwoFactor,
-            onDismiss = viewModel::dismissTwoFactorSetupDialog,
-        )
-    }
+        // 2FA enable setup dialog
+        if (uiState.showTwoFactorSetupDialog) {
+            TwoFactorSetupDialog(
+                otpauthUrl = uiState.twoFactorOtpauthUrl,
+                isLoading = uiState.isTwoFactorLoading,
+                onConfirm = viewModel::confirmEnableTwoFactor,
+                onDismiss = viewModel::dismissTwoFactorSetupDialog,
+            )
+        }
 
-    // 2FA disable dialog
-    if (uiState.showDisableTwoFactorDialog) {
-        TwoFactorCodeDialog(
-            title = stringResource(R.string.dialog_title_disable_2fa),
-            description = stringResource(R.string.twofa_disable_instructions),
-            isLoading = uiState.isTwoFactorLoading,
-            onConfirm = viewModel::confirmDisableTwoFactor,
-            onDismiss = viewModel::dismissDisableTwoFactorDialog,
-        )
-    }
+        // 2FA disable dialog
+        if (uiState.showDisableTwoFactorDialog) {
+            TwoFactorCodeDialog(
+                title = stringResource(R.string.dialog_title_disable_2fa),
+                description = stringResource(R.string.twofa_disable_instructions),
+                isLoading = uiState.isTwoFactorLoading,
+                onConfirm = viewModel::confirmDisableTwoFactor,
+                onDismiss = viewModel::dismissDisableTwoFactorDialog,
+            )
+        }
 
-    // Backup codes dialog
-    if (uiState.showBackupCodesDialog) {
-        BackupCodesDialog(
-            backupCodes = uiState.backupCodes,
-            onDismiss = viewModel::dismissBackupCodesDialog,
-        )
-    }
+        // Backup codes dialog
+        if (uiState.showBackupCodesDialog) {
+            BackupCodesDialog(
+                backupCodes = uiState.backupCodes,
+                onDismiss = viewModel::dismissBackupCodesDialog,
+            )
+        }
 
-    // Logout confirmation dialog
-    if (showLogoutDialog) {
-        AlertDialog(
-            onDismissRequest = { showLogoutDialog = false },
-            title = { Text(stringResource(R.string.dialog_title_sign_out)) },
-            text = { Text(stringResource(R.string.dialog_sign_out_message)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showLogoutDialog = false
-                        viewModel.logout()
-                    },
-                ) {
-                    Text(stringResource(R.string.action_sign_out))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showLogoutDialog = false }) {
-                    Text(stringResource(R.string.action_cancel))
-                }
-            },
-        )
-    }
+        // Logout confirmation dialog
+        if (showLogoutDialog) {
+            AlertDialog(
+                onDismissRequest = { showLogoutDialog = false },
+                title = { Text(stringResource(R.string.dialog_title_sign_out)) },
+                text = { Text(stringResource(R.string.dialog_sign_out_message)) },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showLogoutDialog = false
+                            viewModel.logout()
+                        },
+                    ) {
+                        Text(stringResource(R.string.action_sign_out))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showLogoutDialog = false }) {
+                        Text(stringResource(R.string.action_cancel))
+                    }
+                },
+            )
+        }
 
-    // Delete account confirmation dialog
-    if (showDeleteDialog) {
-        AlertDialog(
-            onDismissRequest = { showDeleteDialog = false },
-            title = { Text(stringResource(R.string.dialog_title_delete_account)) },
-            text = {
-                Text(stringResource(R.string.dialog_delete_account_message))
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showDeleteDialog = false
-                        viewModel.deleteAccount()
-                    },
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error,
-                    ),
-                ) {
-                    Text(stringResource(R.string.action_delete))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) {
-                    Text(stringResource(R.string.action_cancel))
-                }
-            },
-        )
-    }
+        // Delete account confirmation dialog
+        if (showDeleteDialog) {
+            AlertDialog(
+                onDismissRequest = { showDeleteDialog = false },
+                title = { Text(stringResource(R.string.dialog_title_delete_account)) },
+                text = {
+                    Text(stringResource(R.string.dialog_delete_account_message))
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showDeleteDialog = false
+                            viewModel.deleteAccount()
+                        },
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error,
+                        ),
+                    ) {
+                        Text(stringResource(R.string.action_delete))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeleteDialog = false }) {
+                        Text(stringResource(R.string.action_cancel))
+                    }
+                },
+            )
+        }
 
-    // OTP dialog for account deletion when 2FA is enabled
-    if (uiState.showDeleteAccountOtpDialog) {
-        OtpVerificationDialog(
-            title = stringResource(R.string.otp_title_verify_identity),
-            description = stringResource(R.string.otp_desc_delete_account),
-            isLoading = uiState.isLoading,
-            onVerify = { token, backupCode ->
-                viewModel.deleteAccount(token = token, backupCode = backupCode)
-            },
-            onDismiss = viewModel::dismissDeleteAccountOtpDialog,
-            verifyLabel = stringResource(R.string.otp_verify),
-            cancelLabel = stringResource(R.string.otp_cancel),
-            backupCodeLabel = stringResource(R.string.otp_backup_code_label),
-            useBackupToggleLabel = stringResource(R.string.otp_use_backup_code),
-            useOtpToggleLabel = stringResource(R.string.otp_use_otp_code),
-        )
-    }
+        // OTP dialog for account deletion when 2FA is enabled
+        if (uiState.showDeleteAccountOtpDialog) {
+            OtpVerificationDialog(
+                title = stringResource(R.string.otp_title_verify_identity),
+                description = stringResource(R.string.otp_desc_delete_account),
+                isLoading = uiState.isLoading,
+                onVerify = { token, backupCode ->
+                    viewModel.deleteAccount(token = token, backupCode = backupCode)
+                },
+                onDismiss = viewModel::dismissDeleteAccountOtpDialog,
+                verifyLabel = stringResource(R.string.otp_verify),
+                cancelLabel = stringResource(R.string.otp_cancel),
+                backupCodeLabel = stringResource(R.string.otp_backup_code_label),
+                useBackupToggleLabel = stringResource(R.string.otp_use_backup_code),
+                useOtpToggleLabel = stringResource(R.string.otp_use_otp_code),
+            )
+        }
 
-    // OTP dialog for enabling 2FA when re-enrolling
-    if (uiState.showEnableTwoFactorOtpDialog) {
-        OtpVerificationDialog(
-            title = stringResource(R.string.otp_title_verify_identity),
-            description = stringResource(R.string.otp_desc_reenroll_2fa),
-            isLoading = uiState.isTwoFactorLoading,
-            onVerify = { token, backupCode ->
-                viewModel.enableTwoFactorWithOtp(token = token, backupCode = backupCode)
-            },
-            onDismiss = viewModel::dismissEnableTwoFactorOtpDialog,
-            verifyLabel = stringResource(R.string.otp_verify),
-            cancelLabel = stringResource(R.string.otp_cancel),
-            backupCodeLabel = stringResource(R.string.otp_backup_code_label),
-            useBackupToggleLabel = stringResource(R.string.otp_use_backup_code),
-            useOtpToggleLabel = stringResource(R.string.otp_use_otp_code),
-        )
-    }
+        // OTP dialog for enabling 2FA when re-enrolling
+        if (uiState.showEnableTwoFactorOtpDialog) {
+            OtpVerificationDialog(
+                title = stringResource(R.string.otp_title_verify_identity),
+                description = stringResource(R.string.otp_desc_reenroll_2fa),
+                isLoading = uiState.isTwoFactorLoading,
+                onVerify = { token, backupCode ->
+                    viewModel.enableTwoFactorWithOtp(token = token, backupCode = backupCode)
+                },
+                onDismiss = viewModel::dismissEnableTwoFactorOtpDialog,
+                verifyLabel = stringResource(R.string.otp_verify),
+                cancelLabel = stringResource(R.string.otp_cancel),
+                backupCodeLabel = stringResource(R.string.otp_backup_code_label),
+                useBackupToggleLabel = stringResource(R.string.otp_use_backup_code),
+                useOtpToggleLabel = stringResource(R.string.otp_use_otp_code),
+            )
+        }
 
-    // OTP dialog for regenerating backup codes
-    if (uiState.showBackupCodesOtpDialog) {
-        OtpVerificationDialog(
-            title = stringResource(R.string.otp_title_verify_identity),
-            description = stringResource(R.string.otp_desc_regenerate_backup_codes),
-            isLoading = uiState.isTwoFactorLoading,
-            onVerify = { token, backupCode ->
-                viewModel.viewBackupCodesWithOtp(token = token, backupCode = backupCode)
-            },
-            onDismiss = viewModel::dismissBackupCodesOtpDialog,
-            verifyLabel = stringResource(R.string.otp_verify),
-            cancelLabel = stringResource(R.string.otp_cancel),
-            backupCodeLabel = stringResource(R.string.otp_backup_code_label),
-            useBackupToggleLabel = stringResource(R.string.otp_use_backup_code),
-            useOtpToggleLabel = stringResource(R.string.otp_use_otp_code),
-        )
-    }
+        // OTP dialog for regenerating backup codes
+        if (uiState.showBackupCodesOtpDialog) {
+            OtpVerificationDialog(
+                title = stringResource(R.string.otp_title_verify_identity),
+                description = stringResource(R.string.otp_desc_regenerate_backup_codes),
+                isLoading = uiState.isTwoFactorLoading,
+                onVerify = { token, backupCode ->
+                    viewModel.viewBackupCodesWithOtp(token = token, backupCode = backupCode)
+                },
+                onDismiss = viewModel::dismissBackupCodesOtpDialog,
+                verifyLabel = stringResource(R.string.otp_verify),
+                cancelLabel = stringResource(R.string.otp_cancel),
+                backupCodeLabel = stringResource(R.string.otp_backup_code_label),
+                useBackupToggleLabel = stringResource(R.string.otp_use_backup_code),
+                useOtpToggleLabel = stringResource(R.string.otp_use_otp_code),
+            )
+        }
+    } // Column
 }
 
 @Composable
@@ -379,64 +380,66 @@ private fun AccountInfo(
     avatarUrl: String? = null,
     onAvatarClick: () -> Unit = {},
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Surface(
+    Column {
+        Row(
             modifier = Modifier
-                .size(48.dp)
-                .clip(CircleShape),
-            color = MaterialTheme.colorScheme.primaryContainer,
-            onClick = onAvatarClick,
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (avatarUrl != null) {
-                AsyncImage(
-                    model = avatarUrl,
-                    contentDescription = stringResource(R.string.cd_user_avatar),
-                    modifier = Modifier.size(48.dp),
-                    contentScale = ContentScale.Crop,
-                )
-            } else {
+            Surface(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape),
+                color = MaterialTheme.colorScheme.primaryContainer,
+                onClick = onAvatarClick,
+            ) {
+                if (avatarUrl != null) {
+                    AsyncImage(
+                        model = avatarUrl,
+                        contentDescription = stringResource(R.string.cd_user_avatar),
+                        modifier = Modifier.size(48.dp),
+                        contentScale = ContentScale.Crop,
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = null,
+                        modifier = Modifier.padding(12.dp),
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                if (name.isNotBlank()) {
+                    Text(
+                        text = name,
+                        style = MaterialTheme.typography.bodyLarge,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                if (email.isNotBlank()) {
+                    Text(
+                        text = email,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+            IconButton(onClick = onAvatarClick) {
                 Icon(
-                    imageVector = Icons.Default.Person,
-                    contentDescription = null,
-                    modifier = Modifier.padding(12.dp),
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    imageVector = Icons.Default.CameraAlt,
+                    contentDescription = stringResource(R.string.cd_change_avatar),
+                    modifier = Modifier.size(20.dp),
                 )
             }
         }
-        Spacer(modifier = Modifier.width(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            if (name.isNotBlank()) {
-                Text(
-                    text = name,
-                    style = MaterialTheme.typography.bodyLarge,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            if (email.isNotBlank()) {
-                Text(
-                    text = email,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
-        IconButton(onClick = onAvatarClick) {
-            Icon(
-                imageVector = Icons.Default.CameraAlt,
-                contentDescription = stringResource(R.string.cd_change_avatar),
-                modifier = Modifier.size(20.dp),
-            )
-        }
-    }
-    HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
+        HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
+    } // Column
 }
 
 @Composable
@@ -518,4 +521,3 @@ private fun AccountSettingsRow(
     }
     HorizontalDivider()
 }
-

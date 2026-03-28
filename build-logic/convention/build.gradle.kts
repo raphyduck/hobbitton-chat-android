@@ -8,6 +8,8 @@ dependencies {
     compileOnly(libs.compose.gradlePlugin)
     compileOnly(libs.ksp.gradlePlugin)
     compileOnly(libs.room.gradlePlugin)
+    compileOnly(libs.detekt.gradlePlugin)
+    compileOnly(libs.kover.gradlePlugin)
 }
 
 gradlePlugin {
@@ -39,6 +41,10 @@ gradlePlugin {
         register("kotlinSerialization") {
             id = "librechat.kotlin.serialization"
             implementationClass = "KotlinSerializationConventionPlugin"
+        }
+        register("androidDetekt") {
+            id = "librechat.android.detekt"
+            implementationClass = "AndroidDetektConventionPlugin"
         }
     }
 }

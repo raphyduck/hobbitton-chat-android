@@ -28,9 +28,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.librechat.android.core.model.request.ForkOption
-import androidx.compose.ui.res.stringResource
 import com.librechat.android.feature.chat.R
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -38,12 +38,14 @@ import com.librechat.android.feature.chat.R
 fun ForkOptionsBottomSheet(
     onDismiss: () -> Unit,
     onFork: (option: String, splitAtTarget: Boolean) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val sheetState = rememberModalBottomSheetState()
     var splitAtTarget by remember { mutableStateOf(false) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
+        modifier = modifier,
         sheetState = sheetState,
     ) {
         Column(

@@ -28,10 +28,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.librechat.android.core.model.ConversationTag
 import com.librechat.android.feature.conversations.R
-import androidx.compose.ui.res.stringResource
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -40,6 +40,7 @@ fun TagPicker(
     currentTags: List<String>,
     onTagsChanged: (List<String>) -> Unit,
     onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val sheetState = rememberModalBottomSheetState()
     var selectedTags by remember { mutableStateOf(currentTags.toSet()) }
@@ -50,6 +51,7 @@ fun TagPicker(
             onTagsChanged(selectedTags.toList())
             onDismiss()
         },
+        modifier = modifier,
         sheetState = sheetState,
     ) {
         Column(

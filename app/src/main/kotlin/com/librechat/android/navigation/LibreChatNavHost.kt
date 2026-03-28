@@ -1,8 +1,6 @@
 package com.librechat.android.navigation
 
 import android.net.Uri
-import com.librechat.android.MainActivity
-import timber.log.Timber
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
@@ -15,7 +13,6 @@ import androidx.compose.animation.slideOut
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.ui.unit.dp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.MaterialTheme
@@ -31,12 +28,16 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntOffset
-import org.koin.compose.viewmodel.koinViewModel
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.librechat.android.MainActivity
+import com.librechat.android.R
+import com.librechat.android.core.ui.components.BannerDisplay
 import com.librechat.android.feature.agents.navigation.AGENT_EDITOR_CREATE_ROUTE
 import com.librechat.android.feature.agents.navigation.agentsGraph
 import com.librechat.android.feature.auth.navigation.AUTH_GRAPH_ROUTE
@@ -50,7 +51,6 @@ import com.librechat.android.feature.conversations.navigation.conversationsGraph
 import com.librechat.android.feature.files.navigation.filesGraph
 import com.librechat.android.feature.settings.navigation.API_KEYS_ROUTE
 import com.librechat.android.feature.settings.navigation.PRESET_MANAGER_ROUTE
-import com.librechat.android.core.ui.components.BannerDisplay
 import com.librechat.android.feature.settings.navigation.SETTINGS_ACCOUNT_ROUTE
 import com.librechat.android.feature.settings.navigation.SETTINGS_CHAT_ROUTE
 import com.librechat.android.feature.settings.navigation.SETTINGS_DATA_ROUTE
@@ -59,8 +59,8 @@ import com.librechat.android.feature.settings.navigation.SETTINGS_TABBED_ROUTE
 import com.librechat.android.feature.settings.navigation.SHARED_LINKS_ROUTE
 import com.librechat.android.feature.settings.navigation.settingsGraph
 import kotlinx.coroutines.launch
-import com.librechat.android.R
-import androidx.compose.ui.res.stringResource
+import org.koin.compose.viewmodel.koinViewModel
+import timber.log.Timber
 
 /** Maps a [SettingsCategory] to its corresponding navigation route. */
 fun SettingsCategory.toRoute(): String = when (this) {
@@ -311,118 +311,118 @@ private fun PhoneLayout(
                 navController = navController,
                 startDestination = startDestination,
                 modifier = Modifier.fillMaxSize(),
-            enterTransition = {
-                slideIntoContainer(
-                    towards = AnimatedContentTransitionScope.SlideDirection.Start,
-                    animationSpec = tween(300),
+                enterTransition = {
+                    slideIntoContainer(
+                        towards = AnimatedContentTransitionScope.SlideDirection.Start,
+                        animationSpec = tween(300),
+                    )
+                },
+                exitTransition = {
+                    fadeOut(animationSpec = tween(150))
+                },
+                popEnterTransition = {
+                    fadeIn(
+                        initialAlpha = 0.5f,
+                        animationSpec = tween(300, easing = LinearEasing),
+                    ) + scaleIn(
+                        initialScale = 0.92f,
+                        animationSpec = tween(300, easing = LinearEasing),
+                    )
+                },
+                popExitTransition = {
+                    slideOut(
+                        targetOffset = { IntOffset((it.width * 0.15f).toInt(), 0) },
+                        animationSpec = tween(300, easing = FastOutSlowInEasing),
+                    ) + scaleOut(
+                        targetScale = 0.92f,
+                        animationSpec = tween(300, easing = LinearEasing),
+                    )
+                },
+            ) {
+                authGraph(
+                    navController = navController,
+                    onAuthComplete = {
+                        navHostViewModel.onAuthComplete()
+                        navController.navigate(CHAT_GRAPH_ROUTE) {
+                            popUpTo(AUTH_GRAPH_ROUTE) { inclusive = true }
+                        }
+                    },
                 )
-            },
-            exitTransition = {
-                fadeOut(animationSpec = tween(150))
-            },
-            popEnterTransition = {
-                fadeIn(
-                    initialAlpha = 0.5f,
-                    animationSpec = tween(300, easing = LinearEasing),
-                ) + scaleIn(
-                    initialScale = 0.92f,
-                    animationSpec = tween(300, easing = LinearEasing),
+                chatGraph(
+                    navController = navController,
+                    onOpenDrawer = {
+                        scope.launch { drawerState.open() }
+                    },
                 )
-            },
-            popExitTransition = {
-                slideOut(
-                    targetOffset = { IntOffset((it.width * 0.15f).toInt(), 0) },
-                    animationSpec = tween(300, easing = FastOutSlowInEasing),
-                ) + scaleOut(
-                    targetScale = 0.92f,
-                    animationSpec = tween(300, easing = LinearEasing),
+                conversationsGraph(
+                    onConversationClick = { conversationId ->
+                        navController.navigateToChat(conversationId)
+                    },
+                    onNavigateToArchived = {
+                        navController.navigate("conversations/archived")
+                    },
+                    onNavigateBackFromArchived = {
+                        navController.popBackStack()
+                    },
                 )
-            },
-        ) {
-            authGraph(
-                navController = navController,
-                onAuthComplete = {
-                    navHostViewModel.onAuthComplete()
-                    navController.navigate(CHAT_GRAPH_ROUTE) {
-                        popUpTo(AUTH_GRAPH_ROUTE) { inclusive = true }
-                    }
-                },
-            )
-            chatGraph(
-                navController = navController,
-                onOpenDrawer = {
-                    scope.launch { drawerState.open() }
-                },
-            )
-            conversationsGraph(
-                onConversationClick = { conversationId ->
-                    navController.navigateToChat(conversationId)
-                },
-                onNavigateToArchived = {
-                    navController.navigate("conversations/archived")
-                },
-                onNavigateBackFromArchived = {
-                    navController.popBackStack()
-                },
-            )
-            agentsGraph(
-                onAgentClick = { agentId ->
-                    navController.navigate("agents/$agentId")
-                },
-                onBack = { navController.popBackStack() },
-                onStartChat = { agentId ->
-                    navController.navigate(NEW_CHAT_ROUTE) {
-                        popUpTo(CHAT_GRAPH_ROUTE) { inclusive = false }
-                        launchSingleTop = true
-                    }
-                },
-                onCreateAgent = {
-                    navController.navigate(AGENT_EDITOR_CREATE_ROUTE)
-                },
-                onEditAgent = { agentId ->
-                    navController.navigate("agents/editor/$agentId")
-                },
-            )
-            filesGraph()
-            settingsGraph(
-                onLogout = {
-                    navHostViewModel.logout()
-                    navController.navigate(AUTH_GRAPH_ROUTE) {
-                        popUpTo(0) { inclusive = true }
-                    }
-                },
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateToArchived = {
-                    navController.navigate("conversations/archived") {
-                        launchSingleTop = true
-                    }
-                },
-                onNavigateToSharedLinks = {
-                    navController.navigate(SHARED_LINKS_ROUTE) {
-                        launchSingleTop = true
-                    }
-                },
-                onNavigateBackFromSharedLinks = {
-                    navController.popBackStack()
-                },
-                onNavigateToPresets = {
-                    navController.navigate(PRESET_MANAGER_ROUTE) {
-                        launchSingleTop = true
-                    }
-                },
-                onNavigateBackFromPresets = {
-                    navController.popBackStack()
-                },
-                onNavigateToApiKeys = {
-                    navController.navigate(API_KEYS_ROUTE) {
-                        launchSingleTop = true
-                    }
-                },
-                onNavigateBackFromApiKeys = {
-                    navController.popBackStack()
-                },
-            )
-        }
+                agentsGraph(
+                    onAgentClick = { agentId ->
+                        navController.navigate("agents/$agentId")
+                    },
+                    onBack = { navController.popBackStack() },
+                    onStartChat = { agentId ->
+                        navController.navigate(NEW_CHAT_ROUTE) {
+                            popUpTo(CHAT_GRAPH_ROUTE) { inclusive = false }
+                            launchSingleTop = true
+                        }
+                    },
+                    onCreateAgent = {
+                        navController.navigate(AGENT_EDITOR_CREATE_ROUTE)
+                    },
+                    onEditAgent = { agentId ->
+                        navController.navigate("agents/editor/$agentId")
+                    },
+                )
+                filesGraph()
+                settingsGraph(
+                    onLogout = {
+                        navHostViewModel.logout()
+                        navController.navigate(AUTH_GRAPH_ROUTE) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    },
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToArchived = {
+                        navController.navigate("conversations/archived") {
+                            launchSingleTop = true
+                        }
+                    },
+                    onNavigateToSharedLinks = {
+                        navController.navigate(SHARED_LINKS_ROUTE) {
+                            launchSingleTop = true
+                        }
+                    },
+                    onNavigateBackFromSharedLinks = {
+                        navController.popBackStack()
+                    },
+                    onNavigateToPresets = {
+                        navController.navigate(PRESET_MANAGER_ROUTE) {
+                            launchSingleTop = true
+                        }
+                    },
+                    onNavigateBackFromPresets = {
+                        navController.popBackStack()
+                    },
+                    onNavigateToApiKeys = {
+                        navController.navigate(API_KEYS_ROUTE) {
+                            launchSingleTop = true
+                        }
+                    },
+                    onNavigateBackFromApiKeys = {
+                        navController.popBackStack()
+                    },
+                )
+            }
         }
     }
 }

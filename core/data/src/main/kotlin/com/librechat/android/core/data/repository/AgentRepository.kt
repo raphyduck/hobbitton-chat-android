@@ -27,6 +27,7 @@ interface AgentRepository {
         category: String? = null,
     ): Result<PaginatedAgents>
     suspend fun getAgent(id: String): Result<Agent>
+
     /**
      * Fetches complete agent data for editing via the /expanded endpoint.
      * Unlike [getAgent] which returns limited view-only fields, this method

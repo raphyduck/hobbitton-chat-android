@@ -10,9 +10,8 @@ import com.librechat.android.core.common.result.Result
 import com.librechat.android.core.data.repository.AgentRepository
 import com.librechat.android.core.data.repository.ConfigRepository
 import com.librechat.android.core.data.repository.McpRepository
-import com.librechat.android.core.model.Agent
-import com.librechat.android.core.model.ActionAuth
 import com.librechat.android.core.model.ActionMetadata
+import com.librechat.android.core.model.Agent
 import com.librechat.android.core.model.AgentAction
 import com.librechat.android.core.model.AgentCategory
 import com.librechat.android.core.model.AgentTool
@@ -20,20 +19,20 @@ import com.librechat.android.core.model.SupportContact
 import com.librechat.android.core.model.mcp.McpTool
 import com.librechat.android.core.model.request.CreateActionRequest
 import com.librechat.android.core.model.request.CreateAgentRequest
+import com.librechat.android.core.model.request.FunctionTool
 import com.librechat.android.core.model.request.RevertAgentRequest
 import com.librechat.android.core.model.request.UpdateAgentRequest
-import com.librechat.android.core.model.request.FunctionTool
 import com.librechat.android.feature.agents.AgentActionDisplayData
 import com.librechat.android.feature.agents.AgentHandoffDisplayData
 import com.librechat.android.feature.agents.AgentToolDisplayData
 import com.librechat.android.feature.agents.components.AgentAdvancedSettings
-import com.librechat.android.feature.agents.util.OpenApiSpecParser
 import com.librechat.android.feature.agents.components.AgentCapabilities
 import com.librechat.android.feature.agents.components.AgentSharingState
 import com.librechat.android.feature.agents.components.AgentVersion
 import com.librechat.android.feature.agents.components.AgentVisibility
 import com.librechat.android.feature.agents.components.ModelOption
 import com.librechat.android.feature.agents.components.SupportContactState
+import com.librechat.android.feature.agents.util.OpenApiSpecParser
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -887,13 +886,13 @@ class AgentEditorViewModel(
                     val serverName = matchingTool.serverName
                     if (serverName != null) {
                         // Store as "toolName_mcp_serverName" format
-                        tools.add("${mcpToolName}${MCP_TOOL_SEPARATOR}${serverName}")
+                        tools.add("${mcpToolName}${MCP_TOOL_SEPARATOR}$serverName")
                     } else {
                         tools.add(mcpToolName)
                     }
                 } else {
                     // May be a server name marker
-                    tools.add("${MCP_SERVER_MARKER}${MCP_TOOL_SEPARATOR}${mcpToolName}")
+                    tools.add("${MCP_SERVER_MARKER}${MCP_TOOL_SEPARATOR}$mcpToolName")
                 }
             }
 

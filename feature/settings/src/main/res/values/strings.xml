@@ -349,7 +349,7 @@
     <string name="hint_key_name">Key name</string>
     <string name="hint_key_name_placeholder">e.g. My App</string>
     <string name="dialog_title_api_key_created">API Key Created</string>
-    <string name="api_key_created_warning">Your API key has been created. Copy it now -- you won\'t be able to see it again.</string>
+    <string name="api_key_created_warning">Your API key has been created. Copy it now — you won\'t be able to see it again.</string>
     <string name="copied_to_clipboard">Copied to clipboard</string>
 
     <!-- Preset manager -->

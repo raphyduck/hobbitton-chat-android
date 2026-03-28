@@ -36,7 +36,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.librechat.android.core.ui.components.ErrorBanner
 import com.librechat.android.core.ui.components.LoadingIndicator
@@ -54,6 +53,7 @@ import com.librechat.android.feature.settings.screen.sections.ThemeSelector
 import com.librechat.android.feature.settings.screen.sections.TwoFactorCodeDialog
 import com.librechat.android.feature.settings.screen.sections.TwoFactorSetupDialog
 import com.librechat.android.feature.settings.viewmodel.SettingsViewModel
+import org.koin.compose.viewmodel.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -61,9 +61,9 @@ fun SettingsScreen(
     onLogout: () -> Unit,
     onNavigateBack: () -> Unit,
     onNavigateToArchived: () -> Unit,
+    modifier: Modifier = Modifier,
     onNavigateToSharedLinks: () -> Unit = {},
     onNavigateToApiKeys: () -> Unit = {},
-    modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -225,7 +225,11 @@ fun SettingsScreen(
                     SettingsRow(
                         icon = Icons.Default.Person,
                         title = stringResource(R.string.personalization),
-                        subtitle = if (uiState.personalizationEnabled) stringResource(R.string.status_enabled) else stringResource(R.string.status_disabled),
+                        subtitle = if (uiState.personalizationEnabled) {
+                            stringResource(R.string.status_enabled)
+                        } else {
+                            stringResource(R.string.status_disabled)
+                        },
                         onClick = viewModel::showPersonalizationDialog,
                     )
                 }

@@ -1,7 +1,6 @@
 package com.librechat.android.feature.settings.screen
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -44,18 +43,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.librechat.android.feature.settings.R
 import com.librechat.android.core.model.Memory
 import com.librechat.android.core.ui.components.ErrorBanner
 import com.librechat.android.core.ui.components.LoadingIndicator
+import com.librechat.android.feature.settings.R
 import com.librechat.android.feature.settings.viewmodel.MemoriesViewModel
+import org.koin.compose.viewmodel.koinViewModel
 
 /** Full memory CRUD screen with PullToRefresh and dedicated MemoriesViewModel. */
 @OptIn(ExperimentalMaterial3Api::class)

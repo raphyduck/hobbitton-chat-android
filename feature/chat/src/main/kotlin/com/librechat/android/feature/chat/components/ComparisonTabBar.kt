@@ -42,10 +42,10 @@ fun ComparisonTabBar(
     secondaryModelName: String,
     primaryContent: @Composable () -> Unit,
     secondaryContent: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
     onContinueWithPrimary: (() -> Unit)? = null,
     onContinueWithSecondary: (() -> Unit)? = null,
     onTabChanged: ((Int) -> Unit)? = null,
-    modifier: Modifier = Modifier,
 ) {
     val pagerState = rememberPagerState(pageCount = { 2 })
     val coroutineScope = rememberCoroutineScope()

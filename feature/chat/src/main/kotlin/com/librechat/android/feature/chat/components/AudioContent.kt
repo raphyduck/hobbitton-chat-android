@@ -18,7 +18,6 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.ByteArrayDataSource
-import androidx.media3.datasource.DataSpec
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.ui.PlayerView
@@ -50,7 +49,6 @@ fun AudioContent(
         }
 
         val dataSource = ByteArrayDataSource(audioBytes)
-        val dataSpec = DataSpec(android.net.Uri.parse("data:$mimeType;base64,"))
 
         ExoPlayer.Builder(context).build().apply {
             val mediaSource = ProgressiveMediaSource.Factory { dataSource }

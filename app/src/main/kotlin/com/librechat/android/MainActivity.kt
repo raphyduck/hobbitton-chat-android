@@ -23,14 +23,15 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.SideEffect
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.librechat.android.core.common.network.ConnectivityObserver
 import com.librechat.android.core.data.datastore.ThemeDataStore
 import com.librechat.android.core.data.datastore.ThemeMode
@@ -40,7 +41,6 @@ import com.librechat.android.feature.chat.SharedContent
 import com.librechat.android.navigation.LibreChatNavHost
 import org.koin.android.ext.android.inject
 import timber.log.Timber
-import androidx.compose.ui.res.stringResource
 
 class MainActivity : ComponentActivity() {
 
@@ -153,6 +153,7 @@ class MainActivity : ComponentActivity() {
 
     private fun handleShareIntent(intent: Intent) {
         val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
+
         @Suppress("DEPRECATION")
         val sharedUri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)

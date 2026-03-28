@@ -48,16 +48,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.librechat.android.R
 import com.librechat.android.core.model.EModelEndpoint
 import com.librechat.android.core.ui.components.isMonochromeIcon
 import com.librechat.android.core.ui.components.toIconRes
-import com.librechat.android.R
-import androidx.compose.ui.res.stringResource
 
 /**
  * Lightweight snapshot of fields DrawerConversationItem actually renders.
@@ -119,10 +119,10 @@ fun DrawerContent(
     onSettingsClick: () -> Unit,
     onAgentsClick: () -> Unit,
     onFilesClick: () -> Unit,
+    modifier: Modifier = Modifier,
     onToggleFavorite: (String) -> Unit = {},
     onRefresh: () -> Unit = {},
     onLoadMore: () -> Unit = {},
-    modifier: Modifier = Modifier,
 ) {
     Column(
         modifier = modifier
@@ -367,8 +367,8 @@ fun DrawerContent(
 private fun DrawerConversationItem(
     data: DrawerConversationDisplayData,
     onClick: () -> Unit,
-    onToggleFavorite: () -> Unit = {},
     modifier: Modifier = Modifier,
+    onToggleFavorite: () -> Unit = {},
 ) {
     val endpointIconRes = remember(data.endpoint) {
         data.endpoint?.toIconRes()
@@ -517,4 +517,3 @@ private fun DrawerFooterItem(
         )
     }
 }
-

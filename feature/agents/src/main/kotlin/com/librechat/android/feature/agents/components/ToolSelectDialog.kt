@@ -42,6 +42,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -49,7 +50,6 @@ import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 import com.librechat.android.feature.agents.AgentToolDisplayData
 import com.librechat.android.feature.agents.R
-import androidx.compose.ui.res.stringResource
 
 /**
  * Full-screen dialog for selecting agent tools, matching the web app's ToolSelectDialog.

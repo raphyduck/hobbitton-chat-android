@@ -48,11 +48,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.librechat.android.core.ui.components.ErrorBanner
 import com.librechat.android.core.ui.components.LoadingIndicator
+import com.librechat.android.feature.agents.R
 import com.librechat.android.feature.agents.components.AgentActionsPanel
 import com.librechat.android.feature.agents.components.AgentAdvancedPanel
 import com.librechat.android.feature.agents.components.AgentAvatarPicker
@@ -68,8 +69,7 @@ import com.librechat.android.feature.agents.components.AgentVersionHistory
 import com.librechat.android.feature.agents.components.ToolSelectDialog
 import com.librechat.android.feature.agents.viewmodel.AgentEditorEvent
 import com.librechat.android.feature.agents.viewmodel.AgentEditorViewModel
-import com.librechat.android.feature.agents.R
-import androidx.compose.ui.res.stringResource
+import org.koin.compose.viewmodel.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

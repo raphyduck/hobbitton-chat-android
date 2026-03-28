@@ -16,10 +16,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Extension
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.FindInPage
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PhotoLibrary
@@ -46,6 +46,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
@@ -54,7 +55,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.librechat.android.core.common.ToolConstants
 import com.librechat.android.feature.chat.McpServerDisplayData
-import androidx.compose.ui.res.stringResource
 import com.librechat.android.feature.chat.R
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -72,6 +72,7 @@ fun ChatToolsBottomSheet(
     onOpenModelSelector: () -> Unit,
     selectedModelDisplay: String?,
     onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
     isCodeInterpreterAvailable: Boolean = true,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -79,6 +80,7 @@ fun ChatToolsBottomSheet(
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
+        modifier = modifier,
         sheetState = sheetState,
     ) {
         Column(
@@ -284,7 +286,6 @@ fun ChatToolsBottomSheet(
                     }
                 }
             }
-
         }
     }
 }

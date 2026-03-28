@@ -1,6 +1,6 @@
 package com.librechat.android.feature.settings.viewmodel
 
-import android.content.Context
+import android.app.Application
 import com.google.common.truth.Truth.assertThat
 import com.librechat.android.core.common.ChatLayoutConstants
 import com.librechat.android.core.common.result.Result
@@ -41,7 +41,7 @@ class SettingsViewModelTest {
 
     private val testDispatcher = StandardTestDispatcher()
 
-    private val context = mockk<Context>(relaxed = true)
+    private val context = mockk<Application>(relaxed = true)
     private val userRepository = mockk<UserRepository>(relaxed = true)
     private val authRepository = mockk<AuthRepository>(relaxed = true)
     private val conversationRepository = mockk<ConversationRepository>(relaxed = true)

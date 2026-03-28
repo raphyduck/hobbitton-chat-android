@@ -28,8 +28,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import com.librechat.android.feature.settings.R
 import androidx.compose.ui.unit.dp
+import com.librechat.android.feature.settings.R
 
 @Composable
 internal fun DataSettingsSection(
@@ -42,106 +42,108 @@ internal fun DataSettingsSection(
 ) {
     var showClearDialog by remember { mutableStateOf(false) }
 
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        // Clear all conversations
-        Button(
-            onClick = { showClearDialog = true },
-            enabled = !isClearing,
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.error,
-                contentColor = MaterialTheme.colorScheme.onError,
-            ),
+    Column(modifier = modifier) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(stringResource(if (isClearing) R.string.clearing else R.string.clear_all_conversations))
-        }
-
-        // Archived conversations
-        OutlinedButton(
-            onClick = onViewArchived,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Row(
+            // Clear all conversations
+            Button(
+                onClick = { showClearDialog = true },
+                enabled = !isClearing,
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error,
+                    contentColor = MaterialTheme.colorScheme.onError,
+                ),
+            ) {
+                Text(stringResource(if (isClearing) R.string.clearing else R.string.clear_all_conversations))
+            }
+
+            // Archived conversations
+            OutlinedButton(
+                onClick = onViewArchived,
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Archive,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                    )
-                    Text(stringResource(R.string.archived_conversations))
-                }
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    if (archivedCount > 0) {
-                        Text(
-                            text = "$archivedCount",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Archive,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Text(stringResource(R.string.archived_conversations))
+                    }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        if (archivedCount > 0) {
+                            Text(
+                                text = "$archivedCount",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
                         )
                     }
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                    )
                 }
             }
+
+            // Export all data
+            OutlinedButton(
+                onClick = onExportAllData,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(stringResource(R.string.export_all_data))
+            }
+
+            Spacer(modifier = Modifier.height(0.dp))
         }
+        HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
 
-        // Export all data
-        OutlinedButton(
-            onClick = onExportAllData,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(stringResource(R.string.export_all_data))
+        // Clear all chats confirmation dialog
+        if (showClearDialog) {
+            AlertDialog(
+                onDismissRequest = { showClearDialog = false },
+                title = { Text(stringResource(R.string.dialog_title_clear_conversations)) },
+                text = {
+                    Text(
+                        stringResource(R.string.dialog_clear_conversations_message),
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showClearDialog = false
+                            onClearAllChats()
+                        },
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error,
+                        ),
+                    ) {
+                        Text(stringResource(R.string.clear_all))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showClearDialog = false }) {
+                        Text(stringResource(R.string.action_cancel))
+                    }
+                },
+            )
         }
-
-        Spacer(modifier = Modifier.height(0.dp))
-    }
-    HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
-
-    // Clear all chats confirmation dialog
-    if (showClearDialog) {
-        AlertDialog(
-            onDismissRequest = { showClearDialog = false },
-            title = { Text(stringResource(R.string.dialog_title_clear_conversations)) },
-            text = {
-                Text(
-                    stringResource(R.string.dialog_clear_conversations_message),
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showClearDialog = false
-                        onClearAllChats()
-                    },
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error,
-                    ),
-                ) {
-                    Text(stringResource(R.string.clear_all))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showClearDialog = false }) {
-                    Text(stringResource(R.string.action_cancel))
-                }
-            },
-        )
-    }
+    } // Column
 }

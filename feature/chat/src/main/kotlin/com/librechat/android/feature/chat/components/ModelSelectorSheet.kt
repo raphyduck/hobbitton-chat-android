@@ -44,6 +44,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.librechat.android.core.common.EndpointConstants
@@ -51,9 +52,8 @@ import com.librechat.android.core.model.Agent
 import com.librechat.android.core.model.EndpointConfig
 import com.librechat.android.core.ui.components.endpointIconRes
 import com.librechat.android.core.ui.components.isMonochromeEndpointIcon
-import me.xdrop.fuzzywuzzy.FuzzySearch
-import androidx.compose.ui.res.stringResource
 import com.librechat.android.feature.chat.R
+import me.xdrop.fuzzywuzzy.FuzzySearch
 
 private val IconSize = 20.dp
 private const val FUZZY_MATCH_THRESHOLD = 55
@@ -118,8 +118,9 @@ fun ModelSelectorSheet(
 
     // Filter agents by search query (fuzzy matching), sorted by score when searching
     val filteredAgents = remember(agents, searchQuery) {
-        if (!isSearching) agents
-        else if (searchQuery.length <= 2) {
+        if (!isSearching) {
+            agents
+        } else if (searchQuery.length <= 2) {
             agents.filter { agent ->
                 val name = agent.name ?: agent.id
                 fuzzyMatches(name, searchQuery)
