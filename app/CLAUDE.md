@@ -1,6 +1,6 @@
 # App Module
 
-Single Activity architecture. `MainActivity` is the sole entry point, annotated `@AndroidEntryPoint`.
+Single Activity architecture. `MainActivity` is the sole entry point.
 
 ## Navigation
 
@@ -50,7 +50,7 @@ Conversations are integrated into the drawer body. Agents, Files, and Settings a
 ## Dependencies
 
 This module depends on all `:core:*` and all `:feature:*` modules.
-It applies convention plugins: `librechat.android.application`, `librechat.android.compose`, `librechat.android.hilt`.
+It applies convention plugins: `librechat.android.application`, `librechat.android.compose`, `librechat.android.koin`.
 
 ### Server-Synced Favorites
 - `NavHostViewModel` exposes `favorites: StateFlow<Set<String>>` and `toggleFavorite()`

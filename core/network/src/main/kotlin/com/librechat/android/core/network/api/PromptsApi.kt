@@ -17,9 +17,8 @@ import io.ktor.client.request.patch
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.http.path
-import javax.inject.Inject
 
-class PromptsApi @Inject constructor(
+class PromptsApi constructor(
     private val client: HttpClient,
 ) {
     suspend fun getPromptGroups(

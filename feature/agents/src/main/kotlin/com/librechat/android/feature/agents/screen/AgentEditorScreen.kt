@@ -49,7 +49,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.librechat.android.core.ui.components.ErrorBanner
 import com.librechat.android.core.ui.components.LoadingIndicator
@@ -79,7 +79,7 @@ fun AgentEditorScreen(
     modifier: Modifier = Modifier,
     onDeleted: () -> Unit = onBack,
     onDuplicated: (String) -> Unit = onSaved,
-    viewModel: AgentEditorViewModel = hiltViewModel(),
+    viewModel: AgentEditorViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var showToolDialog by rememberSaveable { mutableStateOf(false) }

@@ -24,7 +24,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.librechat.android.feature.auth.viewmodel.RegisterViewModel
 import com.librechat.android.feature.auth.R
@@ -35,7 +35,7 @@ fun RegisterScreen(
     onRegistered: () -> Unit,
     onNavigateToLogin: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: RegisterViewModel = hiltViewModel(),
+    viewModel: RegisterViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 

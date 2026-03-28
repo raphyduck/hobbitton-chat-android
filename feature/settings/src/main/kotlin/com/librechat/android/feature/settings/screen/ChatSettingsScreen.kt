@@ -36,7 +36,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.librechat.android.feature.settings.R
 import com.librechat.android.feature.settings.viewmodel.SettingsViewModel
@@ -47,7 +47,7 @@ fun ChatSettingsScreen(
     onNavigateBack: () -> Unit,
     onNavigateToPresets: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: SettingsViewModel = hiltViewModel(),
+    viewModel: SettingsViewModel = koinViewModel(),
 ) {
     Scaffold(
         modifier = modifier,
@@ -83,7 +83,7 @@ fun ChatSettingsScreen(
 fun ChatSettingsContent(
     onNavigateToPresets: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: SettingsViewModel = hiltViewModel(),
+    viewModel: SettingsViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 

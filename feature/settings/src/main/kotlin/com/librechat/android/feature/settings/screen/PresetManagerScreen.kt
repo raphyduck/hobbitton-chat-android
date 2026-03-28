@@ -41,7 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.librechat.android.feature.settings.R
 import com.librechat.android.core.ui.components.EmptyState
@@ -55,7 +55,7 @@ import com.librechat.android.feature.settings.viewmodel.PresetManagerViewModel
 fun PresetManagerScreen(
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: PresetManagerViewModel = hiltViewModel(),
+    viewModel: PresetManagerViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }

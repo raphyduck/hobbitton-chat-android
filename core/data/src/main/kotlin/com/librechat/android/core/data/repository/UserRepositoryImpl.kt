@@ -8,11 +8,8 @@ import com.librechat.android.core.model.request.ResendVerificationRequest
 import com.librechat.android.core.model.request.VerifyEmailRequest
 import com.librechat.android.core.model.response.TermsResponse
 import com.librechat.android.core.network.api.UserApi
-import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
-class UserRepositoryImpl @Inject constructor(
+class UserRepositoryImpl(
     private val userApi: UserApi,
 ) : UserRepository {
 

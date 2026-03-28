@@ -9,12 +9,10 @@ import com.librechat.android.core.model.Memory
 import com.librechat.android.core.model.request.CreateMemoryRequest
 import com.librechat.android.core.model.request.UpdateMemoryPreferencesRequest
 import com.librechat.android.core.model.request.UpdateMemoryRequest
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 @Immutable
 data class MemoriesUiState(
@@ -27,8 +25,7 @@ data class MemoriesUiState(
     val editingMemory: Memory? = null,
 )
 
-@HiltViewModel
-class MemoriesViewModel @Inject constructor(
+class MemoriesViewModel(
     private val memoryRepository: MemoryRepository,
 ) : ViewModel() {
 

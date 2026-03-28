@@ -9,7 +9,6 @@ import com.librechat.android.core.data.datastore.ServerDataStore
 import com.librechat.android.core.data.repository.AgentRepository
 import com.librechat.android.core.model.Agent
 import com.librechat.android.feature.agents.AgentDetailDisplayData
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -17,7 +16,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 @Immutable
 data class AgentDetailUiState(
@@ -34,8 +32,7 @@ sealed interface AgentDetailEvent {
     data class Duplicated(val agentId: String) : AgentDetailEvent
 }
 
-@HiltViewModel
-class AgentDetailViewModel @Inject constructor(
+class AgentDetailViewModel(
     savedStateHandle: SavedStateHandle,
     private val agentRepository: AgentRepository,
     private val serverDataStore: ServerDataStore,

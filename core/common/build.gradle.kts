@@ -1,6 +1,6 @@
 plugins {
     id("librechat.android.library")
-    id("librechat.android.hilt")
+    id("librechat.android.koin")
 }
 
 android {

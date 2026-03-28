@@ -8,9 +8,8 @@ import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.http.path
-import javax.inject.Inject
 
-class PresetsApi @Inject constructor(
+class PresetsApi constructor(
     private val client: HttpClient,
 ) {
     suspend fun getPresets(): List<Preset> =

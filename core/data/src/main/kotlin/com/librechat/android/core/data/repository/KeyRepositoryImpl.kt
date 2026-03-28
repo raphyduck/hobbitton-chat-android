@@ -5,11 +5,8 @@ import com.librechat.android.core.common.result.safeApiCall
 import com.librechat.android.core.model.UserKey
 import com.librechat.android.core.model.request.UpdateKeyRequest
 import com.librechat.android.core.network.api.KeysApi
-import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
-class KeyRepositoryImpl @Inject constructor(
+class KeyRepositoryImpl(
     private val keysApi: KeysApi,
 ) : KeyRepository {
 

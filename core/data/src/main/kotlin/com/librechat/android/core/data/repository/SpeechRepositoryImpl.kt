@@ -7,11 +7,8 @@ import com.librechat.android.core.model.speech.SpeechToTextResponse
 import com.librechat.android.core.model.speech.TextToSpeechRequest
 import com.librechat.android.core.model.speech.TtsVoice
 import com.librechat.android.core.network.api.SpeechApi
-import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
-class SpeechRepositoryImpl @Inject constructor(
+class SpeechRepositoryImpl(
     private val speechApi: SpeechApi,
 ) : SpeechRepository {
 

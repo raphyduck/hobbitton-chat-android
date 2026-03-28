@@ -4,11 +4,8 @@ import com.librechat.android.core.common.result.Result
 import com.librechat.android.core.common.result.safeApiCall
 import com.librechat.android.core.model.Conversation
 import com.librechat.android.core.network.api.ConversationsApi
-import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
-class SearchRepositoryImpl @Inject constructor(
+class SearchRepositoryImpl(
     private val conversationsApi: ConversationsApi,
 ) : SearchRepository {
 

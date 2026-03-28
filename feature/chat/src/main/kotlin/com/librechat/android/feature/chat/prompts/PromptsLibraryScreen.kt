@@ -44,7 +44,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import org.koin.compose.viewmodel.koinViewModel
 import com.librechat.android.core.ui.components.EmptyState
 import com.librechat.android.core.ui.components.ErrorBanner
 import com.librechat.android.core.ui.components.LibreChatTopBar
@@ -63,7 +63,7 @@ fun PromptsLibraryScreen(
     onUseInChat: (String) -> Unit,
     onNavigateToEditor: (groupId: String?) -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: PromptsViewModel = hiltViewModel(),
+    viewModel: PromptsViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }

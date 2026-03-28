@@ -14,12 +14,10 @@ import com.librechat.android.core.model.request.CreatePromptRequest
 import com.librechat.android.core.model.request.UpdatePromptGroupRequest
 import com.librechat.android.core.model.request.UpdatePromptTagRequest
 import androidx.compose.runtime.Immutable
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 @Immutable
 data class PromptEditorUiState(
@@ -40,8 +38,7 @@ data class PromptEditorUiState(
     val isNewPrompt: Boolean get() = groupId == null
 }
 
-@HiltViewModel
-class PromptEditorViewModel @Inject constructor(
+class PromptEditorViewModel(
     private val promptRepository: PromptRepository,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {

@@ -4,11 +4,11 @@ Ktor HttpClient, API service classes, SSE streaming client, auth interceptor. Al
 
 ## What This Module Provides
 
-- **Ktor HttpClient factory** (`di/NetworkModule.kt`): Provides singleton `HttpClient(OkHttp)` with ContentNegotiation, Logging, HttpTimeout, HttpRequestRetry, and AuthInterceptorPlugin.
+- **Ktor HttpClient factory** (`di/NetworkModule.kt`): Provides singleton `HttpClient(OkHttp)` with ContentNegotiation, Logging, HttpTimeout, HttpRequestRetry, and AuthInterceptorPlugin via Koin module.
 - **AuthInterceptorPlugin** (`client/AuthInterceptor.kt`): Custom Ktor plugin that injects `Authorization: Bearer` on outgoing requests and retries on 401 after refreshing tokens. Skips auth endpoints (`auth/login`, `auth/register`, `auth/refresh`, etc.).
 - **TokenManager interface** (`client/TokenManager.kt`): `getAccessToken()`, `setTokens()`, `refreshAccessToken()` (Mutex-guarded), `clearTokens()`, `sessionExpiredFlow`. Implemented in `:core:data`.
 - **ServerUrlProvider interface** (`client/ServerUrlProvider.kt`): Resolves the user-configured base URL. Implemented in `:core:data`.
-- **API services** (`api/`): One class per domain -- `AuthApi`, `ConversationsApi`, `MessagesApi`, `ChatStreamApi`, `FilesApi`, `AgentsApi`, `PresetsApi`, `PromptsApi`, `TagsApi`, `ShareApi`, `ConfigApi`, `EndpointsApi`, `BalanceApi`, `UserApi`, `SearchApi`. Each is `@Inject constructor(client: HttpClient)`.
+- **API services** (`api/`): One class per domain -- `AuthApi`, `ConversationsApi`, `MessagesApi`, `ChatStreamApi`, `FilesApi`, `AgentsApi`, `PresetsApi`, `PromptsApi`, `TagsApi`, `ShareApi`, `ConfigApi`, `EndpointsApi`, `BalanceApi`, `UserApi`, `SearchApi`. Each takes `HttpClient` as a constructor parameter, wired via Koin.
 - **SSE client** (`sse/`): `SseClient`, `SseEvent`, `SseEventParser`, `SseConnectionManager`.
 - **DTO mappers** (`mapper/`): Convert network DTOs to domain models from `:core:model`.
 
@@ -40,7 +40,7 @@ On reconnection, append `?resume=true` to get a `sync` event with `runSteps[]` +
 
 ## Rules
 
-- Dependencies: `:core:model`, `:core:common`, Ktor bundles, kotlinx-serialization, Timber, Hilt.
-- Convention plugins: `librechat.android.library` + `librechat.android.hilt` + `librechat.kotlin.serialization`.
+- Dependencies: `:core:model`, `:core:common`, Ktor bundles, kotlinx-serialization, Timber, Koin.
+- Convention plugins: `librechat.android.library` + `librechat.android.koin` + `librechat.kotlin.serialization`.
 - API services must not contain business logic -- they are thin HTTP wrappers.
 - All `arg`-wrapped endpoints must match the backend pattern: `setBody(mapOf("arg" to mapOf(...)))`.

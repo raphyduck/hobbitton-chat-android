@@ -8,8 +8,6 @@ import com.librechat.android.core.model.response.RefreshResponse
 import com.librechat.android.core.network.client.CookieHelper
 import com.librechat.android.core.network.client.SecureTokenStorage
 import com.librechat.android.core.network.client.TokenManager
-import com.librechat.android.core.network.di.RefreshClient
-import dagger.hilt.android.qualifiers.ApplicationContext
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.ClientRequestException
@@ -25,13 +23,10 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import timber.log.Timber
-import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
-class TokenDataStore @Inject constructor(
-    @ApplicationContext context: Context,
-    @RefreshClient private val refreshClient: dagger.Lazy<HttpClient>,
+class TokenDataStore(
+    context: Context,
+    private val refreshClient: Lazy<HttpClient>,
 ) : TokenManager, SecureTokenStorage {
 
     private val masterKey: MasterKey = MasterKey.Builder(context)
@@ -81,7 +76,7 @@ class TokenDataStore @Inject constructor(
             // The LibreChat backend reads from req.cookies.refreshToken first,
             // falling back to req.body.refreshToken. Sending both ensures
             // compatibility across backend versions.
-            val httpResponse: HttpResponse = refreshClient.get()
+            val httpResponse: HttpResponse = refreshClient.value
                 .post("/api/auth/refresh") {
                     header("Cookie", "refreshToken=$storedRefreshToken")
                     setBody(mapOf("refreshToken" to storedRefreshToken))

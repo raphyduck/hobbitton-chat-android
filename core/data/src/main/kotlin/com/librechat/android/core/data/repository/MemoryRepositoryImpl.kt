@@ -8,11 +8,8 @@ import com.librechat.android.core.model.request.CreateMemoryRequest
 import com.librechat.android.core.model.request.UpdateMemoryPreferencesRequest
 import com.librechat.android.core.model.request.UpdateMemoryRequest
 import com.librechat.android.core.network.api.MemoriesApi
-import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
-class MemoryRepositoryImpl @Inject constructor(
+class MemoryRepositoryImpl(
     private val memoriesApi: MemoriesApi,
 ) : MemoryRepository {
 

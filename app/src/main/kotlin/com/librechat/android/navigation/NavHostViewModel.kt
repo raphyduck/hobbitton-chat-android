@@ -19,7 +19,6 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -33,7 +32,6 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import timber.log.Timber
-import javax.inject.Inject
 
 /**
  * Combined UI state for the drawer sidebar. A single emission replaces
@@ -59,8 +57,7 @@ data class VersionMismatchState(
     val backendVersion: String,
 )
 
-@HiltViewModel
-class NavHostViewModel @Inject constructor(
+class NavHostViewModel(
     private val authRepository: AuthRepository,
     private val bannerRepository: BannerRepository,
     private val configRepository: ConfigRepository,

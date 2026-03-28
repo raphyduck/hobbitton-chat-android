@@ -1,7 +1,7 @@
 plugins {
     id("librechat.android.application")
     id("librechat.android.compose")
-    id("librechat.android.hilt")
+    id("librechat.android.koin")
 }
 
 android {
@@ -31,7 +31,9 @@ dependencies {
 
     implementation(libs.activity.compose)
     implementation(libs.navigation.compose)
-    implementation(libs.hilt.navigation.compose)
+    implementation(libs.koin.compose)
+    implementation(libs.koin.compose.viewmodel)
+    implementation(libs.koin.compose.viewmodel.navigation)
     implementation(libs.compose.material3.wsc)
     implementation(libs.bundles.lifecycle)
     implementation(libs.coil.compose)

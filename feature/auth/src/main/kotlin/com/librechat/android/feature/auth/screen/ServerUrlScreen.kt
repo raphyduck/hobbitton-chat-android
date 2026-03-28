@@ -22,7 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.librechat.android.feature.auth.viewmodel.ServerUrlViewModel
 import com.librechat.android.feature.auth.R
@@ -32,7 +32,7 @@ import androidx.compose.ui.res.stringResource
 fun ServerUrlScreen(
     onServerValidated: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: ServerUrlViewModel = hiltViewModel(),
+    viewModel: ServerUrlViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 

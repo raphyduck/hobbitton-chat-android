@@ -49,7 +49,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.librechat.android.feature.settings.R
 import com.librechat.android.core.model.Memory
@@ -63,7 +63,7 @@ import com.librechat.android.feature.settings.viewmodel.MemoriesViewModel
 fun MemoriesScreen(
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: MemoriesViewModel = hiltViewModel(),
+    viewModel: MemoriesViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }

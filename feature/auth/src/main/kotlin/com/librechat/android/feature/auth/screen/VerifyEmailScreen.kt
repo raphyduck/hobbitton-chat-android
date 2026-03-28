@@ -28,7 +28,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.librechat.android.feature.auth.viewmodel.VerifyEmailViewModel
 import com.librechat.android.feature.auth.R
@@ -41,7 +41,7 @@ fun VerifyEmailScreen(
     onVerified: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: VerifyEmailViewModel = hiltViewModel(),
+    viewModel: VerifyEmailViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 

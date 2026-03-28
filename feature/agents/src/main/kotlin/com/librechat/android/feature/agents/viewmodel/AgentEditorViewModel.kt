@@ -34,8 +34,6 @@ import com.librechat.android.feature.agents.components.AgentVersion
 import com.librechat.android.feature.agents.components.AgentVisibility
 import com.librechat.android.feature.agents.components.ModelOption
 import com.librechat.android.feature.agents.components.SupportContactState
-import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -50,7 +48,6 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import timber.log.Timber
-import javax.inject.Inject
 
 @Immutable
 data class AgentEditorUiState(
@@ -106,13 +103,12 @@ sealed interface AgentEditorEvent {
     data object DeleteSuccess : AgentEditorEvent
 }
 
-@HiltViewModel
-class AgentEditorViewModel @Inject constructor(
+class AgentEditorViewModel(
     savedStateHandle: SavedStateHandle,
     private val agentRepository: AgentRepository,
     private val configRepository: ConfigRepository,
     private val mcpRepository: McpRepository,
-    @ApplicationContext private val appContext: Context,
+    private val appContext: Context,
 ) : ViewModel() {
 
     private val editAgentId: String? = savedStateHandle["agentId"]

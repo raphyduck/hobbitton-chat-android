@@ -71,7 +71,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import androidx.hilt.navigation.compose.hiltViewModel
+import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.librechat.android.core.common.EndpointConstants
@@ -104,7 +104,7 @@ import com.librechat.android.feature.chat.R
 @Composable
 fun ChatScreen(
     modifier: Modifier = Modifier,
-    viewModel: ChatViewModel = hiltViewModel(),
+    viewModel: ChatViewModel = koinViewModel(),
     onConversationStarted: ((String) -> Unit)? = null,
     onNavigateToConversation: ((String) -> Unit)? = null,
     onOpenDrawer: (() -> Unit)? = null,

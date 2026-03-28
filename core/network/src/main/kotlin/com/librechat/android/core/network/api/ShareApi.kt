@@ -13,9 +13,8 @@ import io.ktor.client.request.patch
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.http.path
-import javax.inject.Inject
 
-class ShareApi @Inject constructor(
+class ShareApi constructor(
     private val client: HttpClient,
 ) {
     suspend fun getSharedLinks(cursor: String? = null): SharedLinksResponse =

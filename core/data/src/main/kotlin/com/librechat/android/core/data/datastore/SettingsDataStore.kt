@@ -9,8 +9,6 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import javax.inject.Inject
-import javax.inject.Singleton
 
 enum class LatexRenderer {
     NATIVE, KATEX;
@@ -46,8 +44,7 @@ enum class ChatFontSize {
     }
 }
 
-@Singleton
-class SettingsDataStore @Inject constructor(
+class SettingsDataStore(
     private val dataStore: DataStore<Preferences>,
 ) {
     val latexRenderer: Flow<LatexRenderer> = dataStore.data.map { prefs ->

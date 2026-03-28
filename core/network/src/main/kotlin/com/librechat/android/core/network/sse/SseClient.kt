@@ -16,10 +16,9 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.json.Json
 import timber.log.Timber
-import javax.inject.Inject
 import kotlin.math.min
 
-class SseClient @Inject constructor(
+class SseClient(
     private val json: Json,
 ) {
     private val mapper = SseEventMapper(json)

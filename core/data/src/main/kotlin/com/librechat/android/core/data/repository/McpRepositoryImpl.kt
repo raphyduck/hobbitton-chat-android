@@ -10,11 +10,8 @@ import com.librechat.android.core.model.mcp.McpServerStatus
 import com.librechat.android.core.model.mcp.McpServerType
 import com.librechat.android.core.model.mcp.McpTool
 import com.librechat.android.core.network.api.McpApi
-import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
-class McpRepositoryImpl @Inject constructor(
+class McpRepositoryImpl(
     private val mcpApi: McpApi,
 ) : McpRepository {
 

@@ -14,8 +14,6 @@ import com.librechat.android.core.model.FileObject
 import com.librechat.android.core.model.request.DeleteFileEntry
 import com.librechat.android.feature.files.FileDisplayData
 import com.librechat.android.feature.files.FilePreviewDisplayData
-import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -24,7 +22,6 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.util.UUID
-import javax.inject.Inject
 
 enum class FileTypeFilter(val label: String) {
     ALL("All"),
@@ -70,10 +67,9 @@ data class FilesUiState(
     val viewMode: FileViewMode = FileViewMode.LIST,
 )
 
-@HiltViewModel
-class FilesViewModel @Inject constructor(
+class FilesViewModel(
     private val fileRepository: FileRepository,
-    @ApplicationContext private val context: Context,
+    private val context: Context,
     private val serverDataStore: ServerDataStore,
 ) : ViewModel() {
 

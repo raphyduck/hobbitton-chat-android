@@ -5,9 +5,7 @@ import android.net.Uri
 import android.webkit.CookieManager
 import androidx.browser.customtabs.CustomTabsIntent
 import com.librechat.android.core.data.datastore.ServerDataStore
-import javax.inject.Inject
-
-class OAuthManager @Inject constructor(
+class OAuthManager(
     private val serverDataStore: ServerDataStore,
 ) {
     /**

@@ -73,7 +73,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.librechat.android.core.ui.components.EmptyState
@@ -90,7 +90,7 @@ import androidx.compose.ui.res.stringResource
 @Composable
 fun FilesScreen(
     modifier: Modifier = Modifier,
-    viewModel: FilesViewModel = hiltViewModel(),
+    viewModel: FilesViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }

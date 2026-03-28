@@ -11,20 +11,16 @@ import com.librechat.android.core.model.request.ChatRequest
 import com.librechat.android.core.model.request.EphemeralAgent
 import com.librechat.android.core.model.response.ChatStatusResponse
 import com.librechat.android.core.network.api.ChatApi
-import com.librechat.android.core.network.di.StreamingClient
 import com.librechat.android.core.network.sse.SseClient
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
-import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
-class ChatRepositoryImpl @Inject constructor(
+class ChatRepositoryImpl(
     private val chatApi: ChatApi,
     private val sseClient: SseClient,
-    @StreamingClient private val sseHttpClient: HttpClient,
+    private val sseHttpClient: HttpClient,
     private val connectivityObserver: ConnectivityObserver,
 ) : ChatRepository {
 

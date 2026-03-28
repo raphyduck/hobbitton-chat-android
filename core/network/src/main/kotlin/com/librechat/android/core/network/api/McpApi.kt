@@ -26,9 +26,8 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import javax.inject.Inject
 
-class McpApi @Inject constructor(
+class McpApi constructor(
     private val client: HttpClient,
     private val json: Json,
 ) {

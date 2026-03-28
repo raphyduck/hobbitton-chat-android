@@ -9,9 +9,7 @@ import kotlinx.serialization.json.Json
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import javax.inject.Inject
-
-class ConversationExporter @Inject constructor(
+class ConversationExporter(
     private val conversationRepository: ConversationRepository,
     private val messageRepository: MessageRepository,
 ) {

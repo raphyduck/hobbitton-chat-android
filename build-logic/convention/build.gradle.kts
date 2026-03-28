@@ -24,10 +24,6 @@ gradlePlugin {
             id = "librechat.android.compose"
             implementationClass = "AndroidComposeConventionPlugin"
         }
-        register("androidHilt") {
-            id = "librechat.android.hilt"
-            implementationClass = "AndroidHiltConventionPlugin"
-        }
         register("androidFeature") {
             id = "librechat.android.feature"
             implementationClass = "AndroidFeatureConventionPlugin"
@@ -35,6 +31,10 @@ gradlePlugin {
         register("androidRoom") {
             id = "librechat.android.room"
             implementationClass = "AndroidRoomConventionPlugin"
+        }
+        register("androidKoin") {
+            id = "librechat.android.koin"
+            implementationClass = "AndroidKoinConventionPlugin"
         }
         register("kotlinSerialization") {
             id = "librechat.kotlin.serialization"

@@ -24,7 +24,7 @@ interface ConversationRepository {
 }
 ```
 
-All impls are `@Inject constructor(api, dao, mapper, @Dispatcher(IO) dispatcher)`.
+All impls take constructor parameters (api, dao, mapper, dispatcher) wired via Koin named qualifiers.
 
 ### Read-Through Cache
 
@@ -46,16 +46,16 @@ Wrap `EncryptedSharedPreferences` in try/catch -- some OEM devices have broken K
 
 ### DataModule Bindings
 
-`DataModule` is a Hilt `@Module` that `@Binds` repository interfaces to their implementations and `@Provides` the Room database, DAOs, and DataStore instances.
+`DataModule.kt` defines a Koin `module { }` that binds repository interfaces to their implementations via `singleOf(::Impl) bind Interface::class` and provides the Room database, DAOs, and DataStore instances.
 
 ## Room TypeConverters
 
-`Converters.kt` handles JSON serialization for complex Room fields: `List<String>`, `MessageContentPart` lists, `Feedback`, `FileReference` lists, etc. Uses the same `Json` instance from the Hilt graph.
+`Converters.kt` handles JSON serialization for complex Room fields: `List<String>`, `MessageContentPart` lists, `Feedback`, `FileReference` lists, etc. Uses the same `Json` instance from the Koin graph.
 
 ## Rules
 
-- Dependencies: `:core:network`, `:core:model`, `:core:common`, Room, DataStore, security-crypto, Ktor, kotlinx-serialization, Timber, Hilt.
-- Convention plugins: `librechat.android.library` + `librechat.android.hilt` + `librechat.android.room` + `librechat.kotlin.serialization`.
+- Dependencies: `:core:network`, `:core:model`, `:core:common`, Room, DataStore, security-crypto, Ktor, kotlinx-serialization, Timber, Koin.
+- Convention plugins: `librechat.android.library` + `librechat.android.koin` + `librechat.android.room` + `librechat.kotlin.serialization`.
 - Repositories must use `safeApiCall` from `:core:common` for all network calls.
 - Entities are internal to this module -- feature modules work with domain models from `:core:model`.
 - All DAO read methods that the UI observes should return `Flow`, not suspend functions.
@@ -63,7 +63,7 @@ Wrap `EncryptedSharedPreferences` in try/catch -- some OEM devices have broken K
 ### New Repositories (Round 2)
 - `MemoryRepository` / `MemoryRepositoryImpl` — wraps `MemoriesApi` for memory CRUD + preferences
 - `McpRepository` / `McpRepositoryImpl` — wraps `McpApi` for server CRUD, tools, connection status, reinitialize
-- Both bound in `DataModule.kt` via `@Binds`
+- Both bound in `DataModule.kt` via `singleOf`
 - Both use `safeApiCall` — no local caching (server is sole source of truth for memories and MCP)
 - **Gotcha**: Memory delete/update use `key` as identifier (not a separate ID field)
 - **Gotcha**: MCP server operations use `serverName` as identifier
@@ -71,4 +71,4 @@ Wrap `EncryptedSharedPreferences` in try/catch -- some OEM devices have broken K
 ### New Repositories (Round 3)
 - `BannerRepository` / `BannerRepositoryImpl` — wraps `BannerApi` for fetching server banners
 - `AgentRepository.getAgentsPaginated()` — server-side paginated agent fetch, maps response to `PaginatedAgents` domain model
-- Both bound in `DataModule.kt` via `@Binds`, both use `safeApiCall`, no local caching
+- Both bound in `DataModule.kt` via `singleOf`, both use `safeApiCall`, no local caching

@@ -7,12 +7,10 @@ import com.librechat.android.core.common.result.Result
 import com.librechat.android.core.data.repository.PresetRepository
 import com.librechat.android.core.model.Preset
 import com.librechat.android.feature.settings.PresetManagerDisplayData
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 @Immutable
 data class PresetManagerUiState(
@@ -22,8 +20,7 @@ data class PresetManagerUiState(
     val error: String? = null,
 )
 
-@HiltViewModel
-class PresetManagerViewModel @Inject constructor(
+class PresetManagerViewModel(
     private val presetRepository: PresetRepository,
 ) : ViewModel() {
 

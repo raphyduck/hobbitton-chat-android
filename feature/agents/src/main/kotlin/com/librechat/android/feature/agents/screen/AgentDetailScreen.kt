@@ -45,7 +45,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.librechat.android.core.ui.R as CoreUiR
 import com.librechat.android.core.ui.components.AvatarImage
@@ -65,7 +65,7 @@ fun AgentDetailScreen(
     onEdit: (String) -> Unit,
     onDuplicated: (String) -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: AgentDetailViewModel = hiltViewModel(),
+    viewModel: AgentDetailViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 

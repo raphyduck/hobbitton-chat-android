@@ -11,11 +11,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
-import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
-class ServerDataStore @Inject constructor(
+class ServerDataStore(
     private val dataStore: DataStore<Preferences>,
 ) : ServerUrlProvider {
 

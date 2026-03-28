@@ -29,9 +29,8 @@ import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
 import io.ktor.http.path
 import timber.log.Timber
-import javax.inject.Inject
 
-class AgentsApi @Inject constructor(
+class AgentsApi constructor(
     private val client: HttpClient,
 ) {
 

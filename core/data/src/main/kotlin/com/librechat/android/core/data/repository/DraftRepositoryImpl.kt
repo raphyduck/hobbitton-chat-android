@@ -1,7 +1,5 @@
 package com.librechat.android.core.data.repository
 
-import com.librechat.android.core.common.di.Dispatcher
-import com.librechat.android.core.common.di.LibreChatDispatchers
 import com.librechat.android.core.data.db.dao.DraftDao
 import com.librechat.android.core.data.db.entity.DraftEntity
 import kotlinx.coroutines.CoroutineDispatcher
@@ -13,13 +11,10 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
-import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
-class DraftRepositoryImpl @Inject constructor(
+class DraftRepositoryImpl(
     private val draftDao: DraftDao,
-    @Dispatcher(LibreChatDispatchers.IO) private val ioDispatcher: CoroutineDispatcher,
+    private val ioDispatcher: CoroutineDispatcher,
 ) : DraftRepository {
 
     private val cache = ConcurrentHashMap<String, String>()

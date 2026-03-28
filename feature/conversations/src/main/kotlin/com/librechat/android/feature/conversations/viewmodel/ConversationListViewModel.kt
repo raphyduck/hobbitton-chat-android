@@ -19,7 +19,6 @@ import com.librechat.android.feature.conversations.components.toDisplayData
 import com.librechat.android.feature.conversations.export.ConversationExporter
 import com.librechat.android.feature.conversations.export.ConversationImporter
 import com.librechat.android.feature.conversations.export.ExportFormat
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -29,7 +28,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 @Immutable
 data class ConversationListUiState(
@@ -54,8 +52,7 @@ sealed interface ConversationListEvent {
     data class ImportSuccess(val title: String) : ConversationListEvent
 }
 
-@HiltViewModel
-class ConversationListViewModel @Inject constructor(
+class ConversationListViewModel(
     private val conversationRepository: ConversationRepository,
     private val tagRepository: TagRepository,
     private val searchRepository: SearchRepository,

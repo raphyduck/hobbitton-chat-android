@@ -7,12 +7,10 @@ import com.librechat.android.core.common.result.Result
 import com.librechat.android.core.data.repository.ApiKeyRepository
 import com.librechat.android.core.model.ApiKey
 import com.librechat.android.core.model.request.CreateApiKeyRequest
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 @Immutable
 data class ApiKeysUiState(
@@ -32,8 +30,7 @@ data class ApiKeysUiState(
  * After creation, the key value is shown once via [ApiKeysUiState.createdKey]
  * and cannot be retrieved again from the server.
  */
-@HiltViewModel
-class ApiKeysViewModel @Inject constructor(
+class ApiKeysViewModel(
     private val apiKeyRepository: ApiKeyRepository,
 ) : ViewModel() {
 

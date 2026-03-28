@@ -21,7 +21,6 @@ import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.http.path
 import kotlinx.serialization.Serializable
-import javax.inject.Inject
 
 data class LoginResult(
     val response: LoginResponse,
@@ -34,7 +33,7 @@ data class RefreshResult(
     val newRefreshToken: String?,
 )
 
-class AuthApi @Inject constructor(
+class AuthApi constructor(
     private val client: HttpClient,
 ) {
     suspend fun login(email: String, password: String): LoginResult {

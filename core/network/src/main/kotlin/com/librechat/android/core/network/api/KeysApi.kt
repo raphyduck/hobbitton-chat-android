@@ -11,9 +11,8 @@ import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.http.encodeURLPathPart
 import io.ktor.http.path
-import javax.inject.Inject
 
-class KeysApi @Inject constructor(
+class KeysApi constructor(
     private val client: HttpClient,
 ) {
     suspend fun getKeyExpiry(): List<UserKey> =

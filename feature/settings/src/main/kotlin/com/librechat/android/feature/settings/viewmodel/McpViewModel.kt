@@ -11,13 +11,11 @@ import com.librechat.android.core.model.mcp.McpServer
 import com.librechat.android.core.model.mcp.McpServerStatus
 import com.librechat.android.core.model.mcp.McpServerType
 import com.librechat.android.core.model.mcp.McpTool
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import android.util.Log
-import javax.inject.Inject
 
 @Immutable
 data class McpUiState(
@@ -35,8 +33,7 @@ data class McpUiState(
     val successMessage: String? = null,
 )
 
-@HiltViewModel
-class McpViewModel @Inject constructor(
+class McpViewModel(
     private val mcpRepository: McpRepository,
 ) : ViewModel() {
 

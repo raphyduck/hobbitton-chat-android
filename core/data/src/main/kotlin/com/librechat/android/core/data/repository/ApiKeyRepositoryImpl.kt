@@ -5,11 +5,8 @@ import com.librechat.android.core.common.result.safeApiCall
 import com.librechat.android.core.model.ApiKey
 import com.librechat.android.core.model.request.CreateApiKeyRequest
 import com.librechat.android.core.network.api.ApiKeysApi
-import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
-class ApiKeyRepositoryImpl @Inject constructor(
+class ApiKeyRepositoryImpl(
     private val apiKeysApi: ApiKeysApi,
 ) : ApiKeyRepository {
 

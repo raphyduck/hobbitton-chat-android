@@ -11,9 +11,8 @@ import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.path
 import kotlinx.serialization.json.Json
-import javax.inject.Inject
 
-class ApiKeysApi @Inject constructor(
+class ApiKeysApi constructor(
     private val client: HttpClient,
 ) {
     private val lenientJson = Json {

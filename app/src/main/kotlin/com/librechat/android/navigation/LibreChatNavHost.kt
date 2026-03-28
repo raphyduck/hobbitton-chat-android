@@ -32,7 +32,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.IntOffset
-import androidx.hilt.navigation.compose.hiltViewModel
+import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -77,7 +77,7 @@ fun LibreChatNavHost(
     deepLinkUri: Uri? = null,
     onDeepLinkConsumed: () -> Unit = {},
     shareNavigationTrigger: Int = 0,
-    navHostViewModel: NavHostViewModel = hiltViewModel(),
+    navHostViewModel: NavHostViewModel = koinViewModel(),
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()

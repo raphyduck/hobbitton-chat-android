@@ -5,7 +5,7 @@ Native Android client for LibreChat. Connects to existing LibreChat backend serv
 ## Tech Stack
 
 - **UI**: Jetpack Compose + Compose Navigation
-- **DI**: Hilt
+- **DI**: Koin (KMP-ready)
 - **Network**: Ktor Client (OkHttp engine)
 - **Serialization**: Kotlinx Serialization
 - **Local Storage**: Room (cache), DataStore (prefs), EncryptedSharedPreferences (tokens)
@@ -38,6 +38,14 @@ Each module has its own `CLAUDE.md` with specific guidance.
 - Unidirectional data flow: UI → ViewModel → Repository → API/Room
 - Room is a read-through cache; server is source of truth
 - Custom SSE parser over raw ByteReadChannel (not Ktor SSE plugin)
+
+## Adding a New Feature Module
+
+1. Create the module directory under `feature/`
+2. Apply the `librechat.android.feature` convention plugin in `build.gradle.kts` — this auto-applies Koin + Compose deps
+3. Create `di/<Feature>Module.kt` with a Koin `module { }` containing `viewModelOf(::YourViewModel)` definitions
+4. Register the module in `LibreChatApplication.kt`'s `startKoin { modules(...) }` list
+5. Use `koinViewModel()` in screen composables to inject ViewModels
 
 ## Backend Quirks
 

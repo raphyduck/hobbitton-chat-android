@@ -7,11 +7,8 @@ import com.librechat.android.core.model.request.DeleteFileEntry
 import com.librechat.android.core.model.request.DeleteFilesRequest
 import com.librechat.android.core.network.api.FilesApi
 import com.librechat.android.core.network.api.FilesExtApi
-import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
-class FileRepositoryImpl @Inject constructor(
+class FileRepositoryImpl(
     private val filesApi: FilesApi,
     private val filesExtApi: FilesExtApi,
 ) : FileRepository {

@@ -3,9 +3,8 @@ package com.librechat.android.feature.conversations.export
 import com.librechat.android.core.common.result.Result
 import com.librechat.android.core.model.ConversationExport
 import kotlinx.serialization.json.Json
-import javax.inject.Inject
 
-class ConversationImporter @Inject constructor() {
+class ConversationImporter {
     private val json = Json {
         ignoreUnknownKeys = true
         isLenient = true

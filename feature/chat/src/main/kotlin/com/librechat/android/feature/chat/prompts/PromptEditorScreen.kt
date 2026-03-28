@@ -32,7 +32,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.librechat.android.core.ui.components.LoadingIndicator
 import androidx.compose.ui.res.stringResource
@@ -43,7 +43,7 @@ import com.librechat.android.feature.chat.R
 fun PromptEditorScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: PromptEditorViewModel = hiltViewModel(),
+    viewModel: PromptEditorViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }

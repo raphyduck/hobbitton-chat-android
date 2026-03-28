@@ -40,7 +40,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.librechat.android.feature.settings.R
 import com.librechat.android.feature.settings.viewmodel.SettingsViewModel
@@ -52,7 +52,7 @@ fun DataSettingsScreen(
     onNavigateToArchived: () -> Unit,
     onNavigateToSharedLinks: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: SettingsViewModel = hiltViewModel(),
+    viewModel: SettingsViewModel = koinViewModel(),
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -95,7 +95,7 @@ fun DataSettingsContent(
     onNavigateToSharedLinks: () -> Unit,
     modifier: Modifier = Modifier,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
-    viewModel: SettingsViewModel = hiltViewModel(),
+    viewModel: SettingsViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 

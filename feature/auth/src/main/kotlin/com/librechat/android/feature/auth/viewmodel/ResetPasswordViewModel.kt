@@ -6,12 +6,10 @@ import androidx.lifecycle.viewModelScope
 import com.librechat.android.core.common.result.Result
 import androidx.compose.runtime.Immutable
 import com.librechat.android.core.data.repository.AuthRepository
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 @Immutable
 data class ResetPasswordUiState(
@@ -22,8 +20,7 @@ data class ResetPasswordUiState(
     val isReset: Boolean = false,
 )
 
-@HiltViewModel
-class ResetPasswordViewModel @Inject constructor(
+class ResetPasswordViewModel(
     savedStateHandle: SavedStateHandle,
     private val authRepository: AuthRepository,
 ) : ViewModel() {

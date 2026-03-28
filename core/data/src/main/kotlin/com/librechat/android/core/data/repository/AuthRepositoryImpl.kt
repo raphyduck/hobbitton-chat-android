@@ -9,18 +9,14 @@ import com.librechat.android.core.model.response.TwoFactorSetupResponse
 import com.librechat.android.core.network.api.AuthApi
 import com.librechat.android.core.network.api.UserApi
 import com.librechat.android.core.network.client.TokenManager
-import dagger.hilt.android.qualifiers.ApplicationContext
 import timber.log.Timber
 import java.io.File
-import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
-class AuthRepositoryImpl @Inject constructor(
+class AuthRepositoryImpl(
     private val authApi: AuthApi,
     private val userApi: UserApi,
     private val tokenManager: TokenManager,
-    @ApplicationContext private val context: Context,
+    private val context: Context,
 ) : AuthRepository {
 
     override suspend fun login(email: String, password: String): Result<LoginOutcome> {

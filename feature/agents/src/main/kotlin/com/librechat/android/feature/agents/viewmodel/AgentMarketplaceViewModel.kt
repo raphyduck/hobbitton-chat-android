@@ -8,14 +8,12 @@ import com.librechat.android.core.data.datastore.ServerDataStore
 import com.librechat.android.core.data.repository.AgentRepository
 import com.librechat.android.core.model.Agent
 import com.librechat.android.feature.agents.AgentCardDisplayData
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 @Immutable
 data class AgentMarketplaceUiState(
@@ -32,8 +30,7 @@ data class AgentMarketplaceUiState(
     val currentPage: Int = 1,
 )
 
-@HiltViewModel
-class AgentMarketplaceViewModel @Inject constructor(
+class AgentMarketplaceViewModel(
     private val agentRepository: AgentRepository,
     private val serverDataStore: ServerDataStore,
 ) : ViewModel() {

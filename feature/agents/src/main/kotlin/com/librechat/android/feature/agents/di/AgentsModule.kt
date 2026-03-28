@@ -1,0 +1,23 @@
+package com.librechat.android.feature.agents.di
+
+import com.librechat.android.feature.agents.viewmodel.AgentDetailViewModel
+import com.librechat.android.feature.agents.viewmodel.AgentEditorViewModel
+import com.librechat.android.feature.agents.viewmodel.AgentMarketplaceViewModel
+import org.koin.android.ext.koin.androidContext
+import org.koin.core.module.dsl.viewModel
+import org.koin.core.module.dsl.viewModelOf
+import org.koin.dsl.module
+
+val agentsModule = module {
+    viewModelOf(::AgentMarketplaceViewModel)
+    viewModelOf(::AgentDetailViewModel)
+    viewModel {
+        AgentEditorViewModel(
+            savedStateHandle = get(),
+            agentRepository = get(),
+            configRepository = get(),
+            mcpRepository = get(),
+            appContext = androidContext(),
+        )
+    }
+}

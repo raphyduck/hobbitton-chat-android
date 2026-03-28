@@ -5,37 +5,61 @@ import coil.ImageLoader
 import coil.ImageLoaderFactory
 import coil.disk.DiskCache
 import coil.memory.MemoryCache
+import com.librechat.android.core.common.di.commonModule
+import com.librechat.android.core.data.di.dataModule
 import com.librechat.android.core.network.client.TokenManager
-import dagger.hilt.EntryPoint
-import dagger.hilt.InstallIn
-import dagger.hilt.android.EntryPointAccessors
-import dagger.hilt.android.HiltAndroidApp
-import dagger.hilt.components.SingletonComponent
+import com.librechat.android.core.network.di.networkModule
+import com.librechat.android.feature.agents.di.agentsModule
+import com.librechat.android.feature.auth.di.authModule
+import com.librechat.android.feature.chat.di.chatModule
+import com.librechat.android.feature.conversations.di.conversationsModule
+import com.librechat.android.feature.files.di.filesModule
+import com.librechat.android.feature.settings.di.settingsModule
+import com.librechat.android.navigation.appModule
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
+import org.koin.android.ext.android.get
+import org.koin.android.ext.koin.androidContext
+import org.koin.android.ext.koin.androidLogger
+import org.koin.core.context.startKoin
 import timber.log.Timber
 
-@HiltAndroidApp
 class LibreChatApplication : Application(), ImageLoaderFactory {
-
-    @EntryPoint
-    @InstallIn(SingletonComponent::class)
-    interface ImageLoaderEntryPoint {
-        fun tokenManager(): TokenManager
-    }
 
     override fun onCreate() {
         super.onCreate()
         if (BuildConfig.DEBUG) {
             Timber.plant(Timber.DebugTree())
         }
+
+        try {
+            startKoin {
+                if (BuildConfig.DEBUG) {
+                    androidLogger(org.koin.core.logger.Level.DEBUG)
+                }
+                androidContext(this@LibreChatApplication)
+                allowOverride(false)
+                modules(
+                    commonModule,
+                    networkModule,
+                    dataModule,
+                    appModule,
+                    authModule,
+                    chatModule,
+                    conversationsModule,
+                    settingsModule,
+                    agentsModule,
+                    filesModule,
+                )
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Koin initialization failed")
+            throw e // Always rethrow — DI failure is unrecoverable
+        }
     }
 
     override fun newImageLoader(): ImageLoader {
-        val entryPoint = EntryPointAccessors.fromApplication(
-            this, ImageLoaderEntryPoint::class.java
-        )
-        val tokenManager = entryPoint.tokenManager()
+        val tokenManager: TokenManager = get()
 
         val okHttpClient = OkHttpClient.Builder()
             .addInterceptor { chain ->

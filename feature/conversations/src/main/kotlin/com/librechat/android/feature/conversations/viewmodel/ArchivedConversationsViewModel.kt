@@ -8,7 +8,6 @@ import com.librechat.android.core.data.repository.ConversationRepository
 import com.librechat.android.core.model.Conversation
 import com.librechat.android.feature.conversations.ArchivedConversationDisplayData
 import com.librechat.android.feature.conversations.toArchivedDisplayData
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -16,7 +15,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 @Immutable
 data class ArchivedConversationsUiState(
@@ -30,8 +28,7 @@ sealed interface ArchivedConversationsEvent {
     data class ShowError(val message: String) : ArchivedConversationsEvent
 }
 
-@HiltViewModel
-class ArchivedConversationsViewModel @Inject constructor(
+class ArchivedConversationsViewModel(
     private val conversationRepository: ConversationRepository,
 ) : ViewModel() {
 

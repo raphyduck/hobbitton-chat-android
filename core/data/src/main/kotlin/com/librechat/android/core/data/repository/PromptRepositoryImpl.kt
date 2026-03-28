@@ -10,11 +10,8 @@ import com.librechat.android.core.model.request.UpdatePromptGroupRequest
 import com.librechat.android.core.model.request.UpdatePromptTagRequest
 import com.librechat.android.core.model.response.PromptGroupListResponse
 import com.librechat.android.core.network.api.PromptsApi
-import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
-class PromptRepositoryImpl @Inject constructor(
+class PromptRepositoryImpl(
     private val promptsApi: PromptsApi,
 ) : PromptRepository {
 

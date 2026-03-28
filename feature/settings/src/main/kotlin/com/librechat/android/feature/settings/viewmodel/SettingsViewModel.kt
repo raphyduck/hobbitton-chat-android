@@ -6,7 +6,6 @@ import timber.log.Timber
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import dagger.hilt.android.qualifiers.ApplicationContext
 import com.librechat.android.core.common.ChatLayoutConstants
 import com.librechat.android.core.common.result.Result
 import com.librechat.android.core.data.datastore.ChatFontSize
@@ -45,7 +44,6 @@ import com.librechat.android.feature.settings.viewmodel.delegate.MemoryManagemen
 import com.librechat.android.feature.settings.viewmodel.delegate.SpeechSettingsDelegate
 import com.librechat.android.feature.settings.viewmodel.delegate.TwoFactorSecurityDelegate
 import com.librechat.android.feature.settings.viewmodel.delegate.isHttpStatus
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -53,7 +51,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 data class SettingsCommand(
     val name: String,
@@ -188,9 +185,8 @@ private data class DataStorePreferences(
     val selectedVoiceId: String,
 )
 
-@HiltViewModel
-class SettingsViewModel @Inject constructor(
-    @ApplicationContext private val context: Context,
+class SettingsViewModel(
+    private val context: Context,
     private val userRepository: UserRepository,
     private val authRepository: AuthRepository,
     conversationRepository: ConversationRepository,

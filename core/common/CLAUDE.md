@@ -5,8 +5,7 @@ Pure Kotlin utilities shared by all modules. This is the lowest layer -- no othe
 ## What This Module Provides
 
 - **Result sealed class** (`result/Result.kt`): `Success<T>`, `Error(exception, message)`, `Loading`. Used by repositories and ViewModels to propagate outcomes.
-- **Dispatcher DI** (`di/DispatcherModule.kt`): `@Dispatcher(IO)`, `@Dispatcher(Default)`, `@Dispatcher(Main)` qualifiers for Hilt injection. Always inject dispatchers -- never hardcode `Dispatchers.IO`.
-- **CoroutineScope DI** (`di/CoroutineScopeModule.kt`): `@ApplicationScope` for work that outlives ViewModels.
+- **Dispatcher & Scope DI** (`di/CommonModule.kt`): Named Koin qualifiers (`named("io")`, `named("default")`, `named("main")`) for dispatchers and `named("applicationScope")` for coroutine scope. Always inject dispatchers -- never hardcode `Dispatchers.IO`.
 - **Extensions** (`extensions/`): `StringExt`, `DateExt`, `FlowExt` (includes `retryWithBackoff`, `throttleFirst`).
 - **ConnectivityObserver**: Wraps Android `ConnectivityManager.NetworkCallback` to detect network changes. Used by SSE reconnection logic.
 
@@ -35,7 +34,7 @@ This lives here (not in `:core:network`) because repositories in `:core:data` ca
 
 ## Rules
 
-- **Pure Kotlin preferred.** Minimal Android dependencies (only what ConnectivityObserver and Hilt require).
+- **Pure Kotlin preferred.** Minimal Android dependencies (only what ConnectivityObserver and Koin require).
 - **No network or data dependencies.** This module must not depend on `:core:network`, `:core:data`, or `:core:model`.
-- Dependencies: `coroutines-core`, `coroutines-android`, Hilt.
-- Convention plugin: `librechat.android.library` + `librechat.android.hilt`.
+- Dependencies: `coroutines-core`, `coroutines-android`, Koin.
+- Convention plugin: `librechat.android.library` + `librechat.android.koin`.

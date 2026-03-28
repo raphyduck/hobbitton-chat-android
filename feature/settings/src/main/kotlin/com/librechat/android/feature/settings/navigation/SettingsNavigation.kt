@@ -1,6 +1,6 @@
 package com.librechat.android.feature.settings.navigation
 
-import androidx.hilt.navigation.compose.hiltViewModel
+import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
@@ -84,7 +84,7 @@ fun NavGraphBuilder.settingsGraph(
         }
     }
     composable(SHARED_LINKS_ROUTE) {
-        val viewModel: SettingsViewModel = hiltViewModel()
+        val viewModel: SettingsViewModel = koinViewModel()
         val uiState = viewModel.uiState.collectAsStateWithLifecycle()
 
         // Load shared links when this screen is first shown

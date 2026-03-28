@@ -16,9 +16,8 @@ import io.ktor.client.request.post
 import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.http.path
-import javax.inject.Inject
 
-class MessagesApi @Inject constructor(
+class MessagesApi constructor(
     private val client: HttpClient,
 ) {
     suspend fun getMessages(conversationId: String): List<Message> =

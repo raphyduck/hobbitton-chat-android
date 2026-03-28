@@ -7,14 +7,16 @@ class AndroidFeatureConventionPlugin : Plugin<Project> {
         with(target) {
             pluginManager.apply("librechat.android.library")
             pluginManager.apply("librechat.android.compose")
-            pluginManager.apply("librechat.android.hilt")
+            pluginManager.apply("librechat.android.koin")
 
             dependencies {
                 add("implementation", project(":core:ui"))
                 add("implementation", project(":core:data"))
                 add("implementation", project(":core:model"))
                 add("implementation", project(":core:common"))
-                add("implementation", libs.findLibrary("hilt-navigation-compose").get())
+                add("implementation", libs.findLibrary("koin-compose").get())
+                add("implementation", libs.findLibrary("koin-compose-viewmodel").get())
+                add("implementation", libs.findLibrary("koin-compose-viewmodel-navigation").get())
                 add("implementation", libs.findLibrary("navigation-compose").get())
                 add("implementation", libs.findBundle("lifecycle").get())
             }

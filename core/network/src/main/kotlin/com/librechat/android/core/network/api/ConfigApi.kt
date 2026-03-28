@@ -9,9 +9,8 @@ import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.path
 import kotlinx.serialization.json.Json
-import javax.inject.Inject
 
-class ConfigApi @Inject constructor(
+class ConfigApi constructor(
     private val client: HttpClient,
 ) {
     suspend fun getStartupConfig(): StartupConfig =

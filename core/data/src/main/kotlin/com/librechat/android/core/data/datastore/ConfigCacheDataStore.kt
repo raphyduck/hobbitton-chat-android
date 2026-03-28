@@ -12,11 +12,8 @@ import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 import timber.log.Timber
-import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
-class ConfigCacheDataStore @Inject constructor(
+class ConfigCacheDataStore(
     private val dataStore: DataStore<Preferences>,
     private val json: Json,
 ) {

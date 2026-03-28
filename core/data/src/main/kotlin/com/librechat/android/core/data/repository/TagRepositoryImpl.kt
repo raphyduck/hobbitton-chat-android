@@ -4,11 +4,8 @@ import com.librechat.android.core.common.result.Result
 import com.librechat.android.core.common.result.safeApiCall
 import com.librechat.android.core.model.ConversationTag
 import com.librechat.android.core.network.api.TagsApi
-import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
-class TagRepositoryImpl @Inject constructor(
+class TagRepositoryImpl(
     private val tagsApi: TagsApi,
 ) : TagRepository {
 

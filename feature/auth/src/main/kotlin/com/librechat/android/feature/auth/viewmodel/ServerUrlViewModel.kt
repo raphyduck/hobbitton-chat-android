@@ -6,12 +6,10 @@ import com.librechat.android.core.common.result.Result
 import com.librechat.android.core.data.datastore.ServerDataStore
 import androidx.compose.runtime.Immutable
 import com.librechat.android.core.data.repository.ConfigRepository
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 @Immutable
 data class ServerUrlUiState(
@@ -23,8 +21,7 @@ data class ServerUrlUiState(
     val showHttpWarning: Boolean = false,
 )
 
-@HiltViewModel
-class ServerUrlViewModel @Inject constructor(
+class ServerUrlViewModel(
     private val serverDataStore: ServerDataStore,
     private val configRepository: ConfigRepository,
 ) : ViewModel() {

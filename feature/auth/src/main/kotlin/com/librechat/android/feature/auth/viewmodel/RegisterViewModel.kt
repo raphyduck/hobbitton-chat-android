@@ -6,12 +6,10 @@ import com.librechat.android.core.common.result.Result
 import com.librechat.android.core.data.repository.AuthRepository
 import androidx.compose.runtime.Immutable
 import com.librechat.android.core.data.repository.ConfigRepository
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 @Immutable
 data class RegisterUiState(
@@ -26,8 +24,7 @@ data class RegisterUiState(
     val minPasswordLength: Int = 8,
 )
 
-@HiltViewModel
-class RegisterViewModel @Inject constructor(
+class RegisterViewModel(
     private val authRepository: AuthRepository,
     private val configRepository: ConfigRepository,
 ) : ViewModel() {

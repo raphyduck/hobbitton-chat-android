@@ -18,11 +18,8 @@ import com.librechat.android.core.model.request.RevertAgentRequest
 import com.librechat.android.core.model.request.ToolCallRequest
 import com.librechat.android.core.model.request.UpdateAgentRequest
 import com.librechat.android.core.network.api.AgentsApi
-import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
-class AgentRepositoryImpl @Inject constructor(
+class AgentRepositoryImpl(
     private val agentsApi: AgentsApi,
 ) : AgentRepository {
 

@@ -14,12 +14,10 @@ import com.librechat.android.core.model.request.UpdatePromptGroupRequest
 import com.librechat.android.core.model.request.UpdatePromptTagRequest
 import com.librechat.android.feature.chat.prompts.components.PromptSortOrder
 import com.librechat.android.feature.chat.prompts.components.extractVariables
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 @Immutable
 data class PromptsUiState(
@@ -45,8 +43,7 @@ data class PromptsUiState(
     val variableNames: List<String> = emptyList(),
 )
 
-@HiltViewModel
-class PromptsViewModel @Inject constructor(
+class PromptsViewModel(
     private val promptRepository: PromptRepository,
 ) : ViewModel() {
 

@@ -12,9 +12,8 @@ import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.http.path
-import javax.inject.Inject
 
-class ChatApi @Inject constructor(
+class ChatApi constructor(
     private val client: HttpClient,
 ) {
     suspend fun startChat(endpoint: String, request: ChatRequest): ChatStartResponse =

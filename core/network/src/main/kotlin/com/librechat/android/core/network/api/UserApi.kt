@@ -18,7 +18,6 @@ import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
 import io.ktor.http.path
 import kotlinx.serialization.Serializable
-import javax.inject.Inject
 
 @Serializable
 data class UserUpdateRequest(
@@ -36,7 +35,7 @@ data class UpdatePluginsRequest(
     val plugins: List<String>,
 )
 
-class UserApi @Inject constructor(
+class UserApi constructor(
     private val client: HttpClient,
 ) {
     suspend fun getUser(): User =

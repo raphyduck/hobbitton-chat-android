@@ -5,12 +5,10 @@ import androidx.lifecycle.viewModelScope
 import com.librechat.android.core.common.result.Result
 import androidx.compose.runtime.Immutable
 import com.librechat.android.core.data.repository.UserRepository
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 @Immutable
 data class TermsUiState(
@@ -21,8 +19,7 @@ data class TermsUiState(
 )
 
 /** Loads and accepts server terms of service; use consumeAccepted() to reset the navigation trigger. */
-@HiltViewModel
-class TermsViewModel @Inject constructor(
+class TermsViewModel(
     private val userRepository: UserRepository,
 ) : ViewModel() {
 

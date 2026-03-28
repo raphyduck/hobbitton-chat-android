@@ -7,11 +7,8 @@ import com.librechat.android.core.model.response.ShareLinkCheckResponse
 import com.librechat.android.core.model.response.SharedLinksResponse
 import com.librechat.android.core.network.api.ShareApi
 import com.librechat.android.core.network.client.ServerUrlProvider
-import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
-class ShareRepositoryImpl @Inject constructor(
+class ShareRepositoryImpl(
     private val shareApi: ShareApi,
     private val serverUrlProvider: ServerUrlProvider,
 ) : ShareRepository {

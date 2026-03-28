@@ -38,16 +38,14 @@ import com.librechat.android.core.ui.theme.LibreChatTheme
 import com.librechat.android.feature.chat.ShareIntentConsumer
 import com.librechat.android.feature.chat.SharedContent
 import com.librechat.android.navigation.LibreChatNavHost
-import dagger.hilt.android.AndroidEntryPoint
+import org.koin.android.ext.android.inject
 import timber.log.Timber
-import javax.inject.Inject
 import androidx.compose.ui.res.stringResource
 
-@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
-    @Inject lateinit var connectivityObserver: ConnectivityObserver
-    @Inject lateinit var themeDataStore: ThemeDataStore
+    private val connectivityObserver: ConnectivityObserver by inject()
+    private val themeDataStore: ThemeDataStore by inject()
 
     private var deepLinkUri by mutableStateOf<android.net.Uri?>(null)
 

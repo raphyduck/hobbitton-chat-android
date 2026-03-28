@@ -43,7 +43,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.librechat.android.core.model.Conversation
 import com.librechat.android.core.ui.components.EmptyState
@@ -69,7 +69,7 @@ fun ConversationListScreen(
     modifier: Modifier = Modifier,
     onNewChatClick: () -> Unit = {},
     onNavigateToArchived: () -> Unit = {},
-    viewModel: ConversationListViewModel = hiltViewModel(),
+    viewModel: ConversationListViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current

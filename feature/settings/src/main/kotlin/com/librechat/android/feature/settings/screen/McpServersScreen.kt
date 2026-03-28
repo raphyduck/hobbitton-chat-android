@@ -49,7 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.librechat.android.feature.settings.R
 import com.librechat.android.core.model.mcp.McpServer
@@ -64,7 +64,7 @@ import com.librechat.android.feature.settings.viewmodel.McpViewModel
 fun McpServersScreen(
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: McpViewModel = hiltViewModel(),
+    viewModel: McpViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }

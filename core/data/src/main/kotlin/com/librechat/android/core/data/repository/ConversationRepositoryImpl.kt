@@ -12,11 +12,8 @@ import com.librechat.android.core.network.api.ConversationsApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import timber.log.Timber
-import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
-class ConversationRepositoryImpl @Inject constructor(
+class ConversationRepositoryImpl(
     private val conversationsApi: ConversationsApi,
     private val conversationDao: ConversationDao,
 ) : ConversationRepository {

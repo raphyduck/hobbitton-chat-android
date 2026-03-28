@@ -24,9 +24,8 @@ import io.ktor.client.request.setBody
 import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
 import io.ktor.http.path
-import javax.inject.Inject
 
-class ConversationsApi @Inject constructor(
+class ConversationsApi constructor(
     private val client: HttpClient,
 ) {
     suspend fun getConversations(

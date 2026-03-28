@@ -37,7 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.librechat.android.feature.conversations.ArchivedConversationDisplayData
 import com.librechat.android.core.ui.components.EmptyState
@@ -53,7 +53,7 @@ import androidx.compose.ui.res.stringResource
 fun ArchivedConversationsScreen(
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: ArchivedConversationsViewModel = hiltViewModel(),
+    viewModel: ArchivedConversationsViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }

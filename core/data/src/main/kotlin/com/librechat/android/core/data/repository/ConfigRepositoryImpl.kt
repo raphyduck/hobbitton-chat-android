@@ -15,11 +15,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.SerializationException
 import timber.log.Timber
 import java.io.IOException
-import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
-class ConfigRepositoryImpl @Inject constructor(
+class ConfigRepositoryImpl(
     private val configApi: ConfigApi,
     private val configCache: ConfigCacheDataStore,
 ) : ConfigRepository {

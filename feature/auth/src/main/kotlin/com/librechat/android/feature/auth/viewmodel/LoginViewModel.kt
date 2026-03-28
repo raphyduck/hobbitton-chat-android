@@ -10,12 +10,10 @@ import com.librechat.android.core.data.repository.AuthRepository
 import com.librechat.android.core.data.repository.ConfigRepository
 import com.librechat.android.core.model.LoginOutcome
 import com.librechat.android.feature.auth.oauth.OAuthManager
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 @Immutable
 data class LoginUiState(
@@ -30,8 +28,7 @@ data class LoginUiState(
     val socialLogins: List<String> = emptyList(),
 )
 
-@HiltViewModel
-class LoginViewModel @Inject constructor(
+class LoginViewModel(
     private val authRepository: AuthRepository,
     private val configRepository: ConfigRepository,
     private val oAuthManager: OAuthManager,

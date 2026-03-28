@@ -23,7 +23,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.hilt.navigation.compose.hiltViewModel
+import org.koin.compose.viewmodel.koinViewModel
 import com.librechat.android.feature.settings.R
 import com.librechat.android.feature.settings.viewmodel.SettingsViewModel
 import kotlinx.coroutines.launch
@@ -45,7 +45,7 @@ fun TabbedSettingsScreen(
     onNavigateToPresets: () -> Unit,
     onNavigateToApiKeys: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: SettingsViewModel = hiltViewModel(),
+    viewModel: SettingsViewModel = koinViewModel(),
 ) {
     val pagerState = rememberPagerState(pageCount = { SettingsTabs.size })
     val scope = rememberCoroutineScope()

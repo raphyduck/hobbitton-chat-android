@@ -47,8 +47,6 @@ import com.librechat.android.feature.chat.viewmodel.delegate.PresetPromptDelegat
 import com.librechat.android.feature.chat.viewmodel.delegate.TextToSpeechDelegate
 import com.librechat.android.feature.chat.viewmodel.delegate.VoiceInputDelegate
 import com.librechat.android.feature.chat.viewmodel.delegate.toSerialName
-import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -65,12 +63,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.util.UUID
-import javax.inject.Inject
-
-@HiltViewModel
-class ChatViewModel @Inject constructor(
+class ChatViewModel(
     savedStateHandle: SavedStateHandle,
-    @ApplicationContext private val appContext: Context,
+    private val appContext: Context,
     private val agentRepository: AgentRepository,
     private val chatRepository: ChatRepository,
     private val messageRepository: MessageRepository,

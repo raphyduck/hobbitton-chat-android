@@ -4,11 +4,8 @@ import com.librechat.android.core.common.result.Result
 import com.librechat.android.core.common.result.safeApiCall
 import com.librechat.android.core.model.Preset
 import com.librechat.android.core.network.api.PresetsApi
-import javax.inject.Inject
-import javax.inject.Singleton
 
-@Singleton
-class PresetRepositoryImpl @Inject constructor(
+class PresetRepositoryImpl(
     private val presetsApi: PresetsApi,
 ) : PresetRepository {
 

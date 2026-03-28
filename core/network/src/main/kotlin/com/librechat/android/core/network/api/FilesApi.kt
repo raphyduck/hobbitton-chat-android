@@ -15,9 +15,8 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.path
 import timber.log.Timber
 import java.util.UUID
-import javax.inject.Inject
 
-class FilesApi @Inject constructor(
+class FilesApi constructor(
     private val client: HttpClient,
 ) {
     suspend fun getFiles(): List<FileObject> =

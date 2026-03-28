@@ -5,14 +5,12 @@ import androidx.lifecycle.viewModelScope
 import com.librechat.android.core.common.result.Result
 import androidx.compose.runtime.Immutable
 import com.librechat.android.core.data.repository.UserRepository
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 @Immutable
 data class VerifyEmailUiState(
@@ -24,8 +22,7 @@ data class VerifyEmailUiState(
     val resendSuccess: Boolean = false,
 )
 
-@HiltViewModel
-class VerifyEmailViewModel @Inject constructor(
+class VerifyEmailViewModel(
     private val userRepository: UserRepository,
 ) : ViewModel() {
 
