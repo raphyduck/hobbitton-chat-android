@@ -58,7 +58,7 @@ import com.librechat.android.feature.settings.navigation.SETTINGS_TABBED_ROUTE
 import com.librechat.android.feature.settings.navigation.SHARED_LINKS_ROUTE
 import com.librechat.android.feature.settings.navigation.settingsGraph
 import kotlinx.coroutines.launch
-import timber.log.Timber
+import co.touchlab.kermit.Logger
 
 private val SidebarWidth = 320.dp
 
@@ -109,7 +109,7 @@ fun TabletLayout(
                     if (MainActivity.CONVERSATION_ID_REGEX.matches(conversationId)) {
                         navController.navigateToChat(conversationId)
                     } else {
-                        Timber.w("Ignoring deep link with invalid conversation ID: %s", conversationId)
+                        Logger.w { "Ignoring deep link with invalid conversation ID: $conversationId" }
                     }
                 }
             }

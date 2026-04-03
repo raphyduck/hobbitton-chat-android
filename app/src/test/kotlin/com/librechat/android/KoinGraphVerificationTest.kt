@@ -56,9 +56,11 @@ import com.librechat.android.core.network.di.networkModule
 import com.librechat.android.core.network.sse.SseClient
 import com.librechat.android.feature.agents.di.agentsModule
 import com.librechat.android.feature.auth.di.authModule
+import com.librechat.android.feature.auth.oauth.OAuthLauncher
 import com.librechat.android.feature.chat.di.chatModule
 import com.librechat.android.feature.conversations.di.conversationsModule
 import com.librechat.android.feature.files.di.filesModule
+import com.librechat.android.feature.files.platform.FileReader
 import com.librechat.android.feature.settings.di.settingsModule
 import com.librechat.android.navigation.appModule
 import kotlinx.coroutines.CoroutineDispatcher
@@ -155,6 +157,10 @@ class KoinGraphVerificationTest {
             SpeechRepository::class,
             TagRepository::class,
             UserRepository::class,
+            // feature:auth platform provides
+            OAuthLauncher::class,
+            // feature:files platform provides
+            FileReader::class,
             // Wrappers/DSL types that verify can't resolve via constructor
             kotlin.Lazy::class,
             java.io.File::class,

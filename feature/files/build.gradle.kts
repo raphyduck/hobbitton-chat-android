@@ -1,13 +1,20 @@
 plugins {
-    id("librechat.android.feature")
+    id("librechat.kmp.feature")
 }
 
 android {
     namespace = "com.librechat.android.feature.files"
 }
 
-dependencies {
-    implementation(project(":core:network"))
-    implementation(libs.coil.compose)
-    implementation(libs.timber)
+kotlin {
+    sourceSets {
+        commonMain.dependencies {
+            implementation(project(":core:network"))
+            implementation(libs.kermit)
+            implementation(libs.coil3.compose)
+        }
+        named("androidUnitTest").dependencies {
+            implementation(libs.koin.test)
+        }
+    }
 }

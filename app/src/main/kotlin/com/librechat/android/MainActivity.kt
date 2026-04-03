@@ -40,7 +40,7 @@ import com.librechat.android.feature.chat.ShareIntentConsumer
 import com.librechat.android.feature.chat.SharedContent
 import com.librechat.android.navigation.LibreChatNavHost
 import org.koin.android.ext.android.inject
-import timber.log.Timber
+import co.touchlab.kermit.Logger
 
 class MainActivity : ComponentActivity() {
 
@@ -66,7 +66,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             val windowSizeClass = calculateWindowSizeClass(this)
             val isConnected by connectivityObserver.isConnected.collectAsStateWithLifecycle(initialValue = true)
-            val themeMode by themeDataStore.themeMode.collectAsStateWithLifecycle(initialValue = ThemeMode.SYSTEM)
+            val themeMode by themeDataStore.themeMode.collectAsStateWithLifecycle(initialValue = themeDataStore.initialThemeMode)
             val darkTheme = when (themeMode) {
                 ThemeMode.LIGHT -> false
                 ThemeMode.DARK -> true
@@ -138,7 +138,7 @@ class MainActivity : ComponentActivity() {
             if (uri.scheme == "librechat" && uri.host in KNOWN_DEEP_LINK_HOSTS) {
                 deepLinkUri = uri
             } else if (uri.scheme == "librechat") {
-                Timber.w("Ignoring deep link with unknown host: %s", uri.host)
+                Logger.w { "Ignoring deep link with unknown host: ${uri.host}" }
             }
         }
     }
@@ -164,7 +164,7 @@ class MainActivity : ComponentActivity() {
         val fileUris = if (sharedUri != null) listOf(sharedUri) else emptyList()
 
         if (sharedText != null || fileUris.isNotEmpty()) {
-            Timber.d("Share intent received: text=%s, uris=%d", sharedText != null, fileUris.size)
+            Logger.d { "Share intent received: text=${sharedText != null}, uris=${fileUris.size}" }
             ShareIntentConsumer.setPendingShare(
                 SharedContent(text = sharedText, fileUris = fileUris),
             )
@@ -181,7 +181,7 @@ class MainActivity : ComponentActivity() {
         }
 
         if (!sharedUris.isNullOrEmpty()) {
-            Timber.d("Share multiple intent received: uris=%d", sharedUris.size)
+            Logger.d { "Share multiple intent received: uris=${sharedUris.size}" }
             ShareIntentConsumer.setPendingShare(
                 SharedContent(fileUris = sharedUris),
             )

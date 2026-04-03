@@ -1,13 +1,24 @@
 plugins {
-    id("librechat.android.library")
-    id("librechat.android.koin")
+    id("librechat.kmp.library")
+    id("librechat.kmp.koin")
 }
 
 android {
     namespace = "com.librechat.android.core.common"
 }
 
-dependencies {
-    implementation(libs.coroutines.core)
-    implementation(libs.coroutines.android)
+kotlin {
+    sourceSets {
+        commonMain.dependencies {
+            implementation(libs.coroutines.core)
+            api(libs.kotlinx.datetime)
+        }
+        androidMain.dependencies {
+            implementation(libs.coroutines.android)
+            implementation(libs.koin.android)
+        }
+        named("androidUnitTest").dependencies {
+            implementation(libs.koin.test)
+        }
+    }
 }

@@ -37,9 +37,19 @@ Without this setting, the server's violation system may accumulate ban points ag
 
 - **Registration** — The app respects your server's registration settings. If registration is disabled server-side, only the login form is shown.
 
+## Requirements
+
+| Tool | Version |
+|------|---------|
+| JDK | 17+ |
+| Android Studio | Latest stable |
+| Xcode | 15+ (iOS only) |
+| Gradle | 8.11.1 (via wrapper) |
+| Kotlin | 2.1.20 |
+
 ## Building from Source
 
-**Requirements:** Android Studio, JDK 17+
+### Android
 
 ```bash
 ./gradlew assembleDebug
@@ -53,14 +63,30 @@ For a release build:
 ./gradlew assembleRelease
 ```
 
+### iOS
+
+Build the shared KMP framework and open in Xcode:
+
+```bash
+./gradlew :shared:linkDebugFrameworkIosSimulatorArm64
+open iosApp/iosApp.xcodeproj
+```
+
+Run on an iOS simulator from Xcode. The shared framework must be rebuilt whenever shared code changes.
+
 ### Tech Stack
 
-- Jetpack Compose + Compose Navigation
-- Hilt (dependency injection)
+- Kotlin Multiplatform (KMP) with shared business logic
+- Jetpack Compose (Android) + SwiftUI (iOS)
+- Koin (dependency injection)
 - Ktor Client with OkHttp engine
 - Kotlinx Serialization
 - Room (cache), DataStore (preferences), EncryptedSharedPreferences (tokens)
-- Kotlin 2.1.0, compileSdk 35, minSdk 26
+- Kotlin 2.1.20, compileSdk 35, minSdk 26
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, code style, and PR guidelines.
 
 ## License
 

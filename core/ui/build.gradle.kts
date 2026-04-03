@@ -1,14 +1,19 @@
 plugins {
-    id("librechat.android.library")
-    id("librechat.android.compose")
+    id("librechat.kmp.library")
+    id("librechat.kmp.compose")
 }
 
 android {
     namespace = "com.librechat.android.core.ui"
 }
 
-dependencies {
-    implementation(project(":core:model"))
-    implementation(project(":core:common"))
-    implementation(libs.coil.compose)
+kotlin {
+    sourceSets {
+        commonMain.dependencies {
+            implementation(project(":core:model"))
+            implementation(project(":core:common"))
+            implementation(libs.coil3.compose)
+            implementation(libs.coil3.network.ktor)
+        }
+    }
 }

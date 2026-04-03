@@ -60,7 +60,7 @@ import com.librechat.android.feature.settings.navigation.SHARED_LINKS_ROUTE
 import com.librechat.android.feature.settings.navigation.settingsGraph
 import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
-import timber.log.Timber
+import co.touchlab.kermit.Logger
 
 /** Maps a [SettingsCategory] to its corresponding navigation route. */
 fun SettingsCategory.toRoute(): String = when (this) {
@@ -214,7 +214,7 @@ private fun PhoneLayout(
                     if (MainActivity.CONVERSATION_ID_REGEX.matches(conversationId)) {
                         navController.navigateToChat(conversationId)
                     } else {
-                        Timber.w("Ignoring deep link with invalid conversation ID: %s", conversationId)
+                        Logger.w { "Ignoring deep link with invalid conversation ID: $conversationId" }
                     }
                 }
             }
