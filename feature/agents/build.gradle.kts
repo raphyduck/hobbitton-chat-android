@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace = "com.librechat.android.feature.agents"
+    namespace = "com.garfiec.librechat.feature.agents"
 }
 
 kotlin {

@@ -5,10 +5,10 @@ plugins {
 }
 
 android {
-    namespace = "com.librechat.android"
+    namespace = "com.garfiec.librechat"
 
     defaultConfig {
-        applicationId = "com.librechat.android"
+        applicationId = "com.garfiec.librechat"
     }
 
     buildFeatures {

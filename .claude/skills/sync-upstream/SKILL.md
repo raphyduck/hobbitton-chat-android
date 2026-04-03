@@ -59,7 +59,7 @@ cat UPSTREAM_VERSION
 ```
 If missing, create from current state:
 ```bash
-VERSION=$(grep 'SUPPORTED_BACKEND_VERSION' core/common/src/main/kotlin/com/librechat/android/core/common/BackendVersion.kt | grep -o '"[^"]*"' | tr -d '"')
+VERSION=$(grep 'SUPPORTED_BACKEND_VERSION' core/common/src/main/kotlin/com/garfiec/librechat/core/common/BackendVersion.kt | grep -o '"[^"]*"' | tr -d '"')
 COMMIT=$(cd upstream && git rev-parse HEAD)
 echo "# Upstream LibreChat version this Android build tracks." > UPSTREAM_VERSION
 echo "# Updated by the sync-upstream skill. Do not edit manually." >> UPSTREAM_VERSION
@@ -82,7 +82,7 @@ Check if a prior sync was partially done in another session:
 TRACKED_TAG=$(grep '^tag=' UPSTREAM_VERSION | cut -d= -f2)
 
 # Get version from BackendVersion.kt
-CODE_VERSION=$(grep 'SUPPORTED_BACKEND_VERSION' core/common/src/main/kotlin/com/librechat/android/core/common/BackendVersion.kt | grep -o '"[^"]*"' | tr -d '"')
+CODE_VERSION=$(grep 'SUPPORTED_BACKEND_VERSION' core/common/src/main/kotlin/com/garfiec/librechat/core/common/BackendVersion.kt | grep -o '"[^"]*"' | tr -d '"')
 
 # Get submodule current position
 SUBMODULE_HEAD=$(cd upstream && git rev-parse HEAD)
@@ -275,7 +275,7 @@ Create a task for the implementer with the approved change list:
 > {paste the approved change list here}
 >
 > **After all code changes:**
-> 1. Update `SUPPORTED_BACKEND_VERSION` in `core/common/src/main/kotlin/com/librechat/android/core/common/BackendVersion.kt` to "{new_version}" (without v prefix)
+> 1. Update `SUPPORTED_BACKEND_VERSION` in `core/common/src/main/kotlin/com/garfiec/librechat/core/common/BackendVersion.kt` to "{new_version}" (without v prefix)
 > 2. Advance submodule: `cd upstream && git checkout {target_tag}`
 > 3. Update `UPSTREAM_VERSION` at repo root:
 >    ```

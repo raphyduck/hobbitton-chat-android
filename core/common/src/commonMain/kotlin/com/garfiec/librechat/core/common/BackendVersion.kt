@@ -1,0 +1,75 @@
+package com.garfiec.librechat.core.common
+
+/**
+ * Backend version compatibility constants and comparison utilities.
+ *
+ * The LibreChat backend does not currently expose a version endpoint.
+ * The version is determined by:
+ * 1. A `version` field in the `/api/config` response (if the backend adds one in the future)
+ * 2. Parsing the `customFooter` field for a `LibreChat vX.Y.Z` pattern
+ *    (when customFooter is null, the web frontend displays the default version from Constants.VERSION)
+ *
+ * If the version cannot be determined, the check is silently skipped.
+ */
+object BackendVersion {
+
+    /**
+     * The LibreChat backend version this app was built and tested against.
+     * Matches the VERSION constant from the official LibreChat repo's
+     * `packages/data-provider/src/config.ts` and `package.json`.
+     */
+    const val SUPPORTED_BACKEND_VERSION = "0.8.4"
+
+    /**
+     * Represents a parsed semantic version (major.minor.patch).
+     */
+    data class SemanticVersion(
+        val major: Int,
+        val minor: Int,
+        val patch: Int,
+    ) {
+        override fun toString(): String = "$major.$minor.$patch"
+    }
+
+    /**
+     * Parses a version string like "0.8.2", "v0.8.2", "0.8", or "v0.8" into a [SemanticVersion].
+     * Returns null if the string cannot be parsed.
+     */
+    fun parse(version: String): SemanticVersion? {
+        val cleaned = version.trimStart('v', 'V').trim()
+        val parts = cleaned.split('.')
+        if (parts.size < 2) return null
+        val major = parts[0].toIntOrNull() ?: return null
+        val minor = parts[1].toIntOrNull() ?: return null
+        val patch = if (parts.size >= 3) parts[2].toIntOrNull() ?: 0 else 0
+        return SemanticVersion(major, minor, patch)
+    }
+
+    /**
+     * Checks whether two versions are compatible.
+     * A mismatch in major or minor version is considered incompatible.
+     * Patch differences are ignored (considered compatible).
+     *
+     * @return true if the versions are compatible (same major and minor), false otherwise.
+     *         Returns true if either version cannot be parsed (fail-open).
+     */
+    fun isCompatible(supported: String, actual: String): Boolean {
+        val supportedVersion = parse(supported) ?: return true
+        val actualVersion = parse(actual) ?: return true
+        return supportedVersion.major == actualVersion.major &&
+            supportedVersion.minor == actualVersion.minor
+    }
+
+    /**
+     * Extracts a version string from a LibreChat customFooter value.
+     * The default footer format is: `[LibreChat vX.Y.Z](https://librechat.ai) - ...`
+     * Also handles variations like `LibreChat v0.8.2` without markdown links.
+     *
+     * @return The extracted version string (without 'v' prefix), or null if not found.
+     */
+    fun extractVersionFromFooter(footer: String?): String? {
+        if (footer == null) return null
+        val regex = Regex("""LibreChat\s+v?(\d+\.\d+(?:\.\d+)?)""", RegexOption.IGNORE_CASE)
+        return regex.find(footer)?.groupValues?.get(1)
+    }
+}
