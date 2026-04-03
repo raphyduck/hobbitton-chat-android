@@ -1,6 +1,8 @@
 # LibreChat Android
 
-Native Android client for [LibreChat](https://www.librechat.ai/). Connects to any self-hosted LibreChat server — no backend modifications required.
+[![LibreChat](https://img.shields.io/badge/LibreChat-v0.8.4-blue)](https://github.com/danny-avila/LibreChat/releases/tag/v0.8.4)
+
+A third-party native Android client for [LibreChat](https://www.librechat.ai/). Not affiliated with the official LibreChat project — this is an independent app that connects to any self-hosted LibreChat server, no backend modifications required.
 
 ## Features
 
@@ -15,6 +17,26 @@ Native Android client for [LibreChat](https://www.librechat.ai/). Connects to an
 - **Settings** — Theme (system/light/dark), account management, data controls
 - **Tablet** — Adaptive dual-pane layout (600dp+) with persistent sidebar
 - **Accessibility** — Semantic headings, content descriptions, 48dp touch targets, live regions
+
+## Screenshots
+
+| Feature | Phone | Tablet / Foldable |
+|---|---|---|
+| **Server Connect** — Point the app at any self-hosted LibreChat server | <img src="docs/screenshots/server-url-phone.png" width="280"> | <img src="docs/screenshots/server-url-tablet.png" width="380"> |
+| **Home Screen** — Clean welcome screen with voice input and quick access | <img src="docs/screenshots/home-phone.png" width="280"> | <img src="docs/screenshots/home-tablet.png" width="380"> |
+| **Conversations Sidebar** — Swipe to open your chat history with search, tags, and date grouping | <img src="docs/screenshots/sidebar-phone.gif" width="280"> | <img src="docs/screenshots/sidebar-tablet.gif" width="380"> |
+| **Predictive Back** — Native Android back gesture with peek animation | <img src="docs/screenshots/predictive-back-phone.gif" width="280"> | <img src="docs/screenshots/predictive-back-tablet.gif" width="380"> |
+| **Mermaid Diagrams** — Interactive flowcharts and diagrams rendered in-chat | <img src="docs/screenshots/mermaid-phone.png" width="280"> | <img src="docs/screenshots/mermaid-tablet.png" width="380"> |
+| **LaTeX Math** — Beautifully typeset equations and formulas | <img src="docs/screenshots/latex-phone.png" width="280"> | <img src="docs/screenshots/latex-tablet.png" width="380"> |
+| **Code Blocks** — Syntax-highlighted code with language badge and copy button | <img src="docs/screenshots/code-phone.png" width="280"> | <img src="docs/screenshots/code-tablet.png" width="380"> |
+| **Tables** — Clean, scrollable data tables | <img src="docs/screenshots/table-phone.png" width="280"> | <img src="docs/screenshots/table-tablet.png" width="380"> |
+| **Extended Thinking** — See the model's reasoning process | <img src="docs/screenshots/thinking-phone.png" width="280"> | <img src="docs/screenshots/thinking-tablet.png" width="380"> |
+| **Image Generation** — AI-generated images via agents | <img src="docs/screenshots/imagegen-phone.png" width="280"> | <img src="docs/screenshots/imagegen-tablet.png" width="380"> |
+| **Chat Options** — Attach files, switch models, toggle tools, and tune parameters | <img src="docs/screenshots/chat-options-phone.png" width="280"> | <img src="docs/screenshots/chat-options-tablet.png" width="380"> |
+| **Model Selection** — Searchable bottom sheet with models grouped by provider | <img src="docs/screenshots/model-selection-phone.png" width="280"> | <img src="docs/screenshots/model-selection-tablet.png" width="380"> |
+| **Model Parameters** — Fine-tune temperature, top-p, tokens, and custom instructions | <img src="docs/screenshots/model-params-phone.png" width="280"> | <img src="docs/screenshots/model-params-tablet.png" width="380"> |
+| **Photo Upload** — Attach images from your gallery or camera | <img src="docs/screenshots/photo-upload-phone.png" width="280"> | <img src="docs/screenshots/photo-upload-tablet.png" width="380"> |
+| **Settings** — Theme, language, layout, and personalization options | <img src="docs/screenshots/settings-phone.png" width="280"> | <img src="docs/screenshots/settings-tablet.png" width="380"> |
 
 ## Server Setup
 
