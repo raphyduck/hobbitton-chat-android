@@ -38,8 +38,8 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
-import librechat_android.feature.chat.generated.resources.Res
-import librechat_android.feature.chat.generated.resources.*
+import librechat_mobile.feature.chat.generated.resources.Res
+import librechat_mobile.feature.chat.generated.resources.*
 
 data class LogContent(
     val title: String = "Log Output",

@@ -55,11 +55,11 @@ import com.garfiec.librechat.feature.settings.navigation.SETTINGS_TABBED_ROUTE
 import com.garfiec.librechat.feature.settings.navigation.SHARED_LINKS_ROUTE
 import com.garfiec.librechat.feature.settings.navigation.settingsGraph
 import kotlinx.coroutines.launch
-import librechat_android.shared.generated.resources.Res
-import librechat_android.shared.generated.resources.dismiss
-import librechat_android.shared.generated.resources.dont_warn_again
-import librechat_android.shared.generated.resources.version_mismatch_message
-import librechat_android.shared.generated.resources.version_mismatch_title
+import librechat_mobile.shared.generated.resources.Res
+import librechat_mobile.shared.generated.resources.dismiss
+import librechat_mobile.shared.generated.resources.dont_warn_again
+import librechat_mobile.shared.generated.resources.version_mismatch_message
+import librechat_mobile.shared.generated.resources.version_mismatch_title
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 

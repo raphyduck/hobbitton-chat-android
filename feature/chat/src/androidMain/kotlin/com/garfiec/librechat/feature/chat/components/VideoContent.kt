@@ -29,8 +29,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
-import librechat_android.feature.chat.generated.resources.Res
-import librechat_android.feature.chat.generated.resources.*
+import librechat_mobile.feature.chat.generated.resources.Res
+import librechat_mobile.feature.chat.generated.resources.*
 
 @Composable
 actual fun VideoContent(

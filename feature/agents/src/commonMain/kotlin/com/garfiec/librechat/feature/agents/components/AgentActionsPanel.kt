@@ -57,8 +57,8 @@ import com.garfiec.librechat.core.model.ActionAuth
 import com.garfiec.librechat.core.model.ActionMetadata
 import com.garfiec.librechat.core.model.request.FunctionTool
 import com.garfiec.librechat.feature.agents.AgentActionDisplayData
-import librechat_android.feature.agents.generated.resources.Res
-import librechat_android.feature.agents.generated.resources.*
+import librechat_mobile.feature.agents.generated.resources.Res
+import librechat_mobile.feature.agents.generated.resources.*
 import com.garfiec.librechat.feature.agents.util.OpenApiSpecParser
 import com.garfiec.librechat.feature.agents.util.ParsedFunctionInfo
 import kotlinx.coroutines.delay

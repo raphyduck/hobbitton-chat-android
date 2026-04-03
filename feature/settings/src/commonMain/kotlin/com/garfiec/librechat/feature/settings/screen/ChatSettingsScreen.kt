@@ -38,8 +38,8 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import librechat_android.feature.settings.generated.resources.Res
-import librechat_android.feature.settings.generated.resources.*
+import librechat_mobile.feature.settings.generated.resources.Res
+import librechat_mobile.feature.settings.generated.resources.*
 import com.garfiec.librechat.feature.settings.viewmodel.SettingsViewModel
 import org.koin.compose.viewmodel.koinViewModel
 

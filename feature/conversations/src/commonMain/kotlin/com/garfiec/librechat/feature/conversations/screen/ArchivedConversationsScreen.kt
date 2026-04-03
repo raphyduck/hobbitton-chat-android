@@ -43,8 +43,8 @@ import com.garfiec.librechat.core.ui.components.EmptyState
 import com.garfiec.librechat.core.ui.components.ErrorBanner
 import com.garfiec.librechat.core.ui.components.LoadingIndicator
 import com.garfiec.librechat.feature.conversations.ArchivedConversationDisplayData
-import librechat_android.feature.conversations.generated.resources.Res
-import librechat_android.feature.conversations.generated.resources.*
+import librechat_mobile.feature.conversations.generated.resources.Res
+import librechat_mobile.feature.conversations.generated.resources.*
 import com.garfiec.librechat.feature.conversations.viewmodel.ArchivedConversationsEvent
 import com.garfiec.librechat.feature.conversations.viewmodel.ArchivedConversationsViewModel
 import org.koin.compose.viewmodel.koinViewModel

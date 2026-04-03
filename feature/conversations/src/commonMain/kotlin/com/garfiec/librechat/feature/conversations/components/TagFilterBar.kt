@@ -29,8 +29,8 @@ import androidx.compose.ui.Modifier
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
 import com.garfiec.librechat.core.model.ConversationTag
-import librechat_android.feature.conversations.generated.resources.Res
-import librechat_android.feature.conversations.generated.resources.*
+import librechat_mobile.feature.conversations.generated.resources.Res
+import librechat_mobile.feature.conversations.generated.resources.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

@@ -40,8 +40,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.garfiec.librechat.core.ui.components.ErrorBanner
 import com.garfiec.librechat.core.ui.components.LoadingIndicator
 import com.garfiec.librechat.core.ui.components.OtpVerificationDialog
-import librechat_android.feature.settings.generated.resources.Res
-import librechat_android.feature.settings.generated.resources.*
+import librechat_mobile.feature.settings.generated.resources.Res
+import librechat_mobile.feature.settings.generated.resources.*
 import com.garfiec.librechat.feature.settings.screen.sections.AboutInfo
 import com.garfiec.librechat.feature.settings.screen.sections.AccountInfo
 import com.garfiec.librechat.feature.settings.screen.sections.BackupCodesDialog

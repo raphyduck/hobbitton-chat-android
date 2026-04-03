@@ -18,8 +18,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
-import librechat_android.feature.agents.generated.resources.Res
-import librechat_android.feature.agents.generated.resources.*
+import librechat_mobile.feature.agents.generated.resources.Res
+import librechat_mobile.feature.agents.generated.resources.*
 
 data class ModelOption(
     val id: String,

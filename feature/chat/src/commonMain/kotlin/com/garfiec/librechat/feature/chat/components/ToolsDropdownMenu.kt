@@ -16,8 +16,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import org.jetbrains.compose.resources.stringResource
 import com.garfiec.librechat.core.common.ToolConstants
-import librechat_android.feature.chat.generated.resources.Res
-import librechat_android.feature.chat.generated.resources.*
+import librechat_mobile.feature.chat.generated.resources.Res
+import librechat_mobile.feature.chat.generated.resources.*
 
 private data class ToolMenuItem(
     val id: String,

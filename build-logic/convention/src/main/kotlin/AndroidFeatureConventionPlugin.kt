@@ -5,9 +5,9 @@ import org.gradle.kotlin.dsl.dependencies
 class AndroidFeatureConventionPlugin : Plugin<Project> {
     override fun apply(target: Project) {
         with(target) {
-            pluginManager.apply("librechat.android.library")
-            pluginManager.apply("librechat.android.compose")
-            pluginManager.apply("librechat.android.koin")
+            pluginManager.apply("librechat.mobile.library")
+            pluginManager.apply("librechat.mobile.compose")
+            pluginManager.apply("librechat.mobile.koin")
 
             dependencies {
                 add("implementation", project(":core:ui"))

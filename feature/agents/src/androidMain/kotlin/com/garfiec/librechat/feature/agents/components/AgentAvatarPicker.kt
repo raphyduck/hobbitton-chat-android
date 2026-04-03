@@ -23,8 +23,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
-import librechat_android.feature.agents.generated.resources.Res
-import librechat_android.feature.agents.generated.resources.*
+import librechat_mobile.feature.agents.generated.resources.Res
+import librechat_mobile.feature.agents.generated.resources.*
 
 @Composable
 actual fun AgentAvatarPicker(

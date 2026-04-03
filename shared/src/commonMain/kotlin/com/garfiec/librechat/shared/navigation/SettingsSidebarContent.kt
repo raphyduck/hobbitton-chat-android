@@ -29,9 +29,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import librechat_android.shared.generated.resources.Res
-import librechat_android.shared.generated.resources.cd_back_to_conversations
-import librechat_android.shared.generated.resources.settings
+import librechat_mobile.shared.generated.resources.Res
+import librechat_mobile.shared.generated.resources.cd_back_to_conversations
+import librechat_mobile.shared.generated.resources.settings
 import org.jetbrains.compose.resources.stringResource
 
 private val CategoryItemShape = RoundedCornerShape(12.dp)

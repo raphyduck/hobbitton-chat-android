@@ -37,4 +37,4 @@ This lives here (not in `:core:network`) because repositories in `:core:data` ca
 - **Pure Kotlin preferred.** Minimal Android dependencies (only what ConnectivityObserver and Koin require).
 - **No network or data dependencies.** This module must not depend on `:core:network`, `:core:data`, or `:core:model`.
 - Dependencies: `coroutines-core`, `coroutines-android`, Koin.
-- Convention plugin: `librechat.android.library` + `librechat.android.koin`.
+- Convention plugin: `librechat.mobile.library` + `librechat.mobile.koin`.

@@ -51,8 +51,8 @@ import com.garfiec.librechat.core.common.ToolConstants
 import com.garfiec.librechat.core.model.AgentToolCall
 import com.garfiec.librechat.core.model.ContentType
 import com.garfiec.librechat.core.model.MessageContentPart
-import librechat_android.feature.chat.generated.resources.Res
-import librechat_android.feature.chat.generated.resources.*
+import librechat_mobile.feature.chat.generated.resources.Res
+import librechat_mobile.feature.chat.generated.resources.*
 import com.garfiec.librechat.feature.chat.components.artifact.ArtifactButton
 import com.garfiec.librechat.feature.chat.components.artifact.ArtifactPanel
 import com.garfiec.librechat.feature.chat.components.artifact.ArtifactSegment

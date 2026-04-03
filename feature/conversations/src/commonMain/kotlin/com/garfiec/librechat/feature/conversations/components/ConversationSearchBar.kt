@@ -18,8 +18,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
-import librechat_android.feature.conversations.generated.resources.Res
-import librechat_android.feature.conversations.generated.resources.*
+import librechat_mobile.feature.conversations.generated.resources.Res
+import librechat_mobile.feature.conversations.generated.resources.*
 
 @Composable
 fun ConversationSearchBar(

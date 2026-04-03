@@ -16,8 +16,8 @@ import androidx.compose.ui.Modifier
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import librechat_android.feature.chat.generated.resources.Res
-import librechat_android.feature.chat.generated.resources.*
+import librechat_mobile.feature.chat.generated.resources.Res
+import librechat_mobile.feature.chat.generated.resources.*
 
 @Composable
 fun ModelSelectorButton(

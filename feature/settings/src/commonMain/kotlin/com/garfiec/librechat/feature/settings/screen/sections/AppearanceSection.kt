@@ -25,8 +25,8 @@ import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.garfiec.librechat.core.data.datastore.ThemeMode
-import librechat_android.feature.settings.generated.resources.Res
-import librechat_android.feature.settings.generated.resources.*
+import librechat_mobile.feature.settings.generated.resources.Res
+import librechat_mobile.feature.settings.generated.resources.*
 
 @Composable
 internal fun ThemeSelector(

@@ -17,8 +17,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.stringResource
-import librechat_android.feature.files.generated.resources.Res
-import librechat_android.feature.files.generated.resources.*
+import librechat_mobile.feature.files.generated.resources.Res
+import librechat_mobile.feature.files.generated.resources.*
 import com.garfiec.librechat.feature.files.viewmodel.FileSortField
 import com.garfiec.librechat.feature.files.viewmodel.FileSortOrder
 

@@ -48,8 +48,8 @@ import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.garfiec.librechat.core.ui.components.EmptyState
-import librechat_android.feature.settings.generated.resources.Res
-import librechat_android.feature.settings.generated.resources.*
+import librechat_mobile.feature.settings.generated.resources.Res
+import librechat_mobile.feature.settings.generated.resources.*
 import com.garfiec.librechat.feature.settings.SharedLinkDisplayData
 
 @OptIn(ExperimentalMaterial3Api::class)

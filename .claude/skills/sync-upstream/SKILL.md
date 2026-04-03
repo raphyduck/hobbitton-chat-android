@@ -1,8 +1,8 @@
 ---
 name: sync-upstream
 description: >
-  Sync the LibreChat Android client with a newer official LibreChat server release.
-  Diffs upstream tags, identifies gaps in the Android app, proposes changes with
+  Sync the LibreChat Mobile client with a newer official LibreChat server release.
+  Diffs upstream tags, identifies gaps in the mobile app, proposes changes with
   user approval, then implements them. Use when a new LibreChat version is released.
 allowed-tools: Bash, Read, Glob, Grep, Write, Edit, Agent, TeamCreate, SendMessage, TaskCreate, TaskUpdate, TaskGet, TaskList
 argument-hint: "[target-tag] (optional, defaults to latest stable)"
@@ -10,7 +10,7 @@ argument-hint: "[target-tag] (optional, defaults to latest stable)"
 
 # Sync Upstream
 
-Synchronize the LibreChat Android app with a newer version of the official LibreChat server.
+Synchronize the LibreChat Mobile app with a newer version of the official LibreChat server.
 This is a multi-phase, team-based workflow.
 
 You are the **team lead**. You orchestrate at a high level. You NEVER read code, write code,
@@ -22,18 +22,20 @@ Create an Agent Team with 4 teammates at the start:
 
 | Teammate | Role | Prompt Summary |
 |----------|------|----------------|
-| **investigator** | Reads upstream diffs, analyzes API/type/UI changes, cross-references with Android codebase | "You are the investigator for a LibreChat Android upstream sync. Your job is to analyze diffs between upstream tags and identify gaps in the Android client. You have read-only responsibilities — never write code." |
-| **android-expert** | Technical advisor on Android architecture and best practices. Cross-checks all guidance with online research before advising. | "You are the Android tech lead for a LibreChat Android upstream sync. You provide guidance on Android best practices, Jetpack Compose patterns, Kotlin idioms, and architectural decisions. CRITICAL: You MUST cross-check your knowledge by researching online (WebSearch/WebFetch) before giving advice. Never rely solely on training data — always verify current best practices, especially for Compose, Hilt, Ktor, and Material 3. Return researched guidance to teammates who ask." |
-| **implementer** | Writes code changes to Android app following existing patterns and conventions | "You are the implementer for a LibreChat Android upstream sync. Your job is to write code changes following existing architecture patterns. Always read the module's CLAUDE.md before touching it. Follow safeApiCall, Hilt DI, UDF, Ktor, @Serializable patterns. Before making significant architectural decisions, consult the android-expert teammate." |
-| **verifier** | Checks implementation correctness, runs builds, validates changes match proposal | "You are the verifier for a LibreChat Android upstream sync. Your job is to independently validate that implementation matches the approved proposal. Run builds, review changes, and flag issues. Message the implementer directly if fixes are needed." |
+| **investigator** | Reads upstream diffs, analyzes API/type/UI changes, cross-references with mobile codebase | "You are the investigator for a LibreChat Mobile upstream sync. Your job is to analyze diffs between upstream tags and identify gaps in the mobile client. You have read-only responsibilities — never write code." |
+| **android-expert** | Technical advisor on Android architecture and best practices. Cross-checks all guidance with online research before advising. | "You are the Android tech lead for a LibreChat Mobile upstream sync. You provide guidance on Android best practices, Jetpack Compose patterns, Kotlin idioms, and architectural decisions. CRITICAL: You MUST cross-check your knowledge by researching online (WebSearch/WebFetch) before giving advice. Never rely solely on training data — always verify current best practices, especially for Compose, Ktor, and Material 3. Return researched guidance to teammates who ask." |
+| **ios-kmp-expert** | Technical advisor on iOS and Kotlin Multiplatform architecture. Ensures KMP shared code and iOS-specific implementations follow platform conventions. | "You are the iOS/KMP tech lead for a LibreChat Mobile upstream sync. You provide guidance on Compose Multiplatform patterns, KMP expect/actual declarations, iOS platform APIs (UIKit, Foundation, Keychain), SKIE interop, and ensuring shared code compiles correctly for both targets. CRITICAL: You MUST cross-check your knowledge by researching online (WebSearch/WebFetch) before giving advice. Never rely solely on training data — always verify current best practices for CMP, KMP, and iOS platform conventions. Return researched guidance to teammates who ask." |
+| **implementer** | Writes code changes to mobile app following existing patterns and conventions | "You are the implementer for a LibreChat Mobile upstream sync. Your job is to write code changes following existing architecture patterns. Always read the module's CLAUDE.md before touching it. Follow safeApiCall, Koin DI, UDF, Ktor, @Serializable patterns. Before making significant architectural decisions, consult the android-expert or ios-kmp-expert teammate." |
+| **verifier** | Checks implementation correctness, runs builds, validates changes match proposal | "You are the verifier for a LibreChat Mobile upstream sync. Your job is to independently validate that implementation matches the approved proposal. Run builds, review changes, and flag issues. Message the implementer directly if fixes are needed." |
 
 **Teammate interaction pattern:**
 - **investigator** works independently on Phase A and B (diff + gap analysis)
-- **android-expert** is consulted by the implementer before architectural decisions and by the
-  lead when the proposal involves patterns that may have better modern alternatives. The
-  android-expert MUST search online to verify recommendations — do not accept advice that
+- **android-expert** is consulted for Android-specific architecture, Compose, and Material 3 decisions.
+  The android-expert MUST search online to verify recommendations — do not accept advice that
   hasn't been cross-checked against current documentation.
-- **implementer** does all code changes, consulting android-expert for non-trivial patterns
+- **ios-kmp-expert** is consulted for KMP shared code, expect/actual patterns, iOS platform APIs,
+  and Compose Multiplatform concerns. Same online-verification requirement as android-expert.
+- **implementer** does all code changes, consulting android-expert or ios-kmp-expert for non-trivial patterns
 - **verifier** validates after implementer finishes, messages implementer for fixes
 
 **Important:** Teammates retain context across messages. Reuse them for follow-ups — do NOT
@@ -45,7 +47,7 @@ Run these checks yourself (lightweight, no codebase reading):
 
 ### 1. Submodule check
 ```bash
-cd LibreChat-Android && git submodule status
+cd Librechat-Mobile && git submodule status
 ```
 If `upstream/` is missing:
 ```bash
@@ -61,7 +63,7 @@ If missing, create from current state:
 ```bash
 VERSION=$(grep 'SUPPORTED_BACKEND_VERSION' core/common/src/main/kotlin/com/garfiec/librechat/core/common/BackendVersion.kt | grep -o '"[^"]*"' | tr -d '"')
 COMMIT=$(cd upstream && git rev-parse HEAD)
-echo "# Upstream LibreChat version this Android build tracks." > UPSTREAM_VERSION
+echo "# Upstream LibreChat version this mobile build tracks." > UPSTREAM_VERSION
 echo "# Updated by the sync-upstream skill. Do not edit manually." >> UPSTREAM_VERSION
 echo "tag=v${VERSION}" >> UPSTREAM_VERSION
 echo "commit=${COMMIT}" >> UPSTREAM_VERSION
@@ -126,7 +128,7 @@ Create a task for the investigator with this prompt:
 >    - **API changes**: New/modified/removed routes, controller logic
 >    - **Type/schema changes**: New/modified data types, request/response shapes
 >    - **UI changes**: New components, modified user flows
->    - **Bug fixes**: Fixes that may need Android equivalents
+>    - **Bug fixes**: Fixes that may need mobile equivalents
 >    - **Infrastructure**: Build, config, deps (usually not relevant)
 > 6. Report back a structured summary table.
 
@@ -149,14 +151,14 @@ Once investigator reports back:
 
 ### B1. Send follow-up to investigator
 
-> Now cross-reference the upstream changes you found with the Android codebase.
+> Now cross-reference the upstream changes you found with the mobile codebase.
 >
 > 1. Read these mapping files from `${CLAUDE_SKILL_DIR}/reference/`:
->    - `api-mapping.md` — official routes to Android *Api.kt files
+>    - `api-mapping.md` — official routes to mobile *Api.kt files
 >    - `model-mapping.md` — official TS types to Kotlin data classes
->    - `ui-mapping.md` — web components to Android feature modules
+>    - `ui-mapping.md` — web components to mobile feature modules
 > 2. For each API change from Phase A:
->    - Grep the Android codebase (`core/network/src/`) for the corresponding endpoint
+>    - Grep the mobile codebase (`core/network/src/`) for the corresponding endpoint
 >    - Note if it exists, needs updating, or is missing
 > 3. For each type/schema change:
 >    - Check `core/model/src/` for matching Kotlin data class
@@ -168,11 +170,11 @@ Once investigator reports back:
 >    - **Breaking** (must fix): Changed request/response shapes, removed/renamed endpoints, auth changes
 >    - **Additive** (new feature): New endpoints, new UI features, new optional fields
 >    - **Cosmetic** (polish): UI improvements, a11y, i18n
-> 6. Report the categorized gap list with specific file paths for both upstream and Android.
+> 6. Report the categorized gap list with specific file paths for both upstream and mobile.
 
 ### B2. Receive gap report
 
-The investigator now has full context of both the upstream diff AND the Android gaps.
+The investigator now has full context of both the upstream diff AND the mobile gaps.
 Keep the investigator alive for follow-up questions during Phase C.
 
 **Done when:** You have the categorized gap list from the investigator.
@@ -191,42 +193,43 @@ Take the investigator's gap report and present it as a structured proposal:
 ### Breaking Changes ({count}) — must fix before updating version
 For each:
 - What changed upstream (with file reference)
-- What Android file(s) need updating
+- What Mobile file(s) need updating
 - Proposed change
 
 ### New Features ({count}) — recommended
 For each:
 - What was added upstream
-- Proposed Android implementation approach
+- Proposed mobile implementation approach
 - Which module(s) would be affected
 
 ### UI Changes Needing User Input ({count})
 For each:
 - What the web app does (with file reference)
-- Why it doesn't translate directly to Android/Compose
+- Why it doesn't translate directly to mobile/Compose
 - 2-3 concrete options for the user to choose from
 
 ### Deferred Items ({count}) — can wait for a future sync
 Items that are low priority or require significant new infrastructure.
 ```
 
-### Consult android-expert on non-trivial items
+### Consult experts on non-trivial items
 
 Before presenting to the user, for any proposed change that involves:
 - New architectural patterns (e.g., adding a new module, new DI scope)
 - UI patterns that don't have an existing equivalent in the codebase
 - Performance-sensitive changes (e.g., new list rendering, image loading)
 - Navigation changes
+- KMP shared code or expect/actual patterns
 
-Send these items to the **android-expert** teammate:
+Send Android-specific items to **android-expert** and KMP/iOS items to **ios-kmp-expert**:
 
-> Review these proposed Android changes for best practices. For each item,
+> Review these proposed mobile changes for best practices. For each item,
 > research online to verify the recommended approach is current (especially
-> for Compose, Material 3, Hilt, and Ktor). Flag any items where modern
+> for Compose, Material 3, Koin, and Ktor). Flag any items where modern
 > best practices differ from what we're proposing.
 > {list of non-trivial items}
 
-Incorporate the android-expert's feedback into the proposal before showing the user.
+Incorporate the experts' feedback into the proposal before showing the user.
 
 ### Approval gate
 
@@ -268,8 +271,8 @@ Create a task for the implementer with the approved change list:
 > - Ktor client patterns in `core/network/`
 >
 > **Before making non-trivial architectural decisions** (new patterns, new modules,
-> complex UI components), message the **android-expert** teammate for guidance.
-> The android-expert will research current best practices online and advise.
+> complex UI components), message the **android-expert** or **ios-kmp-expert** teammate for guidance.
+> They will research current best practices online and advise.
 >
 > **Approved changes:**
 > {paste the approved change list here}

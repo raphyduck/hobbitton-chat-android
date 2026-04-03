@@ -52,8 +52,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.garfiec.librechat.core.model.Memory
 import com.garfiec.librechat.core.ui.components.ErrorBanner
 import com.garfiec.librechat.core.ui.components.LoadingIndicator
-import librechat_android.feature.settings.generated.resources.Res
-import librechat_android.feature.settings.generated.resources.*
+import librechat_mobile.feature.settings.generated.resources.Res
+import librechat_mobile.feature.settings.generated.resources.*
 import com.garfiec.librechat.feature.settings.viewmodel.MemoriesViewModel
 import org.koin.compose.viewmodel.koinViewModel
 

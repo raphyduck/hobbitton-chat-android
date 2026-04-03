@@ -55,7 +55,7 @@ Wrap `EncryptedSharedPreferences` in try/catch -- some OEM devices have broken K
 ## Rules
 
 - Dependencies: `:core:network`, `:core:model`, `:core:common`, Room, DataStore, security-crypto, Ktor, kotlinx-serialization, Timber, Koin.
-- Convention plugins: `librechat.android.library` + `librechat.android.koin` + `librechat.android.room` + `librechat.kotlin.serialization`.
+- Convention plugins: `librechat.mobile.library` + `librechat.mobile.koin` + `librechat.mobile.room` + `librechat.kotlin.serialization`.
 - Repositories must use `safeApiCall` from `:core:common` for all network calls.
 - Entities are internal to this module -- feature modules work with domain models from `:core:model`.
 - All DAO read methods that the UI observes should return `Flow`, not suspend functions.

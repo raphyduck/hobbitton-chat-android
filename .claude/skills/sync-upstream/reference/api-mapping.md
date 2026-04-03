@@ -1,10 +1,10 @@
-# API Route Mapping: Official → Android
+# API Route Mapping: Official → Mobile
 
-Maps official LibreChat API route files to their Android `*Api.kt` counterparts.
+Maps official LibreChat API route files to their mobile `*Api.kt` counterparts.
 
 ## Implemented
 
-| Official Route | Android API File | Notes |
+| Official Route | Mobile API File | Notes |
 |---------------|-----------------|-------|
 | `routes/auth.js` | `AuthApi.kt` | Login, register, refresh, logout, 2FA |
 | `routes/oauth.js` | `AuthApi.kt` | OAuth flows (shared file) |
@@ -28,15 +28,15 @@ Maps official LibreChat API route files to their Android `*Api.kt` counterparts.
 | N/A | `SpeechApi.kt` | Text-to-speech |
 | N/A | `ApiKeysApi.kt` | API key management |
 
-## Gaps (no Android counterpart yet)
+## Gaps (no mobile counterpart yet)
 
 | Official Route | What It Does | Priority |
 |---------------|-------------|----------|
 | `routes/categories.js` | Agent categories | Low — categories embedded in agent responses |
-| `routes/endpoints.js` | List available endpoints | Medium — Android uses config response instead |
-| `routes/models.js` | List available models per endpoint | Medium — Android uses config response instead |
+| `routes/endpoints.js` | List available endpoints | Medium — Mobile uses config response instead |
+| `routes/models.js` | List available models per endpoint | Medium — Mobile uses config response instead |
 | `routes/roles.js` | Role-based access control (admin) | Low — admin feature |
-| `routes/settings.js` | User settings CRUD | Medium — Android uses local DataStore |
+| `routes/settings.js` | User settings CRUD | Medium — Mobile uses local DataStore |
 | `routes/actions.js` | Custom actions/plugins | Low — plugin system |
 | `routes/assistants/` (dir) | OpenAI Assistants API | Low — agents supersede assistants |
 | `routes/accessPermissions.js` | File access permissions | Low — admin feature |

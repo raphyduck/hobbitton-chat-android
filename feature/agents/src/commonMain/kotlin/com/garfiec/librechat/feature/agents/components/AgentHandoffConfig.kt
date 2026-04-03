@@ -38,8 +38,8 @@ import androidx.compose.ui.Modifier
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
 import com.garfiec.librechat.feature.agents.AgentHandoffDisplayData
-import librechat_android.feature.agents.generated.resources.Res
-import librechat_android.feature.agents.generated.resources.*
+import librechat_mobile.feature.agents.generated.resources.Res
+import librechat_mobile.feature.agents.generated.resources.*
 
 @Composable
 fun AgentHandoffConfig(

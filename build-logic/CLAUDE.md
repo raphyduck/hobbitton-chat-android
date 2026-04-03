@@ -6,12 +6,12 @@ Convention plugins that apply consistent Gradle configuration across all modules
 
 | Plugin ID | Class | What it does |
 |-----------|-------|-------------|
-| `librechat.android.application` | `AndroidApplicationConventionPlugin` | AGP application plugin, compileSdk 35, minSdk 26, JDK 17 |
-| `librechat.android.library` | `AndroidLibraryConventionPlugin` | AGP library plugin, same SDK/JDK config |
-| `librechat.android.compose` | `AndroidComposeConventionPlugin` | Compose compiler, Compose BOM, Material 3 |
-| `librechat.android.koin` | `AndroidKoinConventionPlugin` | Koin core + Android dependencies |
-| `librechat.android.feature` | `AndroidFeatureConventionPlugin` | Auto-applies: library + compose + koin + serialization |
-| `librechat.android.room` | `AndroidRoomConventionPlugin` | Room + KSP, schema export config |
+| `librechat.mobile.application` | `AndroidApplicationConventionPlugin` | AGP application plugin, compileSdk 35, minSdk 26, JDK 17 |
+| `librechat.mobile.library` | `AndroidLibraryConventionPlugin` | AGP library plugin, same SDK/JDK config |
+| `librechat.mobile.compose` | `AndroidComposeConventionPlugin` | Compose compiler, Compose BOM, Material 3 |
+| `librechat.mobile.koin` | `AndroidKoinConventionPlugin` | Koin core + Android dependencies |
+| `librechat.mobile.feature` | `AndroidFeatureConventionPlugin` | Auto-applies: library + compose + koin + serialization |
+| `librechat.mobile.room` | `AndroidRoomConventionPlugin` | Room + KSP, schema export config |
 | `librechat.kotlin.serialization` | `KotlinSerializationConventionPlugin` | Kotlinx Serialization plugin + JSON dependency |
 
 ## Critical: apply() Signature
@@ -32,6 +32,6 @@ build.gradle.kts files. Use `libs.` accessors (e.g., `libs.koin.android`, `libs.
 
 ## Feature Module Convention
 
-Feature modules use `id("librechat.android.feature")` which auto-applies library, compose,
+Feature modules use `id("librechat.mobile.feature")` which auto-applies library, compose,
 koin, and serialization. They only need to add feature-specific dependencies.
 Feature modules depend on `:core:*` only, never on other feature modules.

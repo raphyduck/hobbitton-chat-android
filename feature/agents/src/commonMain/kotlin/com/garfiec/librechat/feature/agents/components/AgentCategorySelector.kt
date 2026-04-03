@@ -16,8 +16,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import org.jetbrains.compose.resources.stringResource
 import com.garfiec.librechat.core.model.AgentCategory
-import librechat_android.feature.agents.generated.resources.Res
-import librechat_android.feature.agents.generated.resources.*
+import librechat_mobile.feature.agents.generated.resources.Res
+import librechat_mobile.feature.agents.generated.resources.*
 
 /**
  * Maps category values to human-readable English labels.

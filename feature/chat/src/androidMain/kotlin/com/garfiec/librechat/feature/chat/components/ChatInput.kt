@@ -53,8 +53,8 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import com.garfiec.librechat.feature.chat.McpServerDisplayData
 import com.garfiec.librechat.feature.chat.PromptMentionDisplayData
-import librechat_android.feature.chat.generated.resources.Res
-import librechat_android.feature.chat.generated.resources.*
+import librechat_mobile.feature.chat.generated.resources.Res
+import librechat_mobile.feature.chat.generated.resources.*
 import java.io.File
 
 @Composable

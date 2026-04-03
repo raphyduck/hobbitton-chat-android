@@ -5,8 +5,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import com.garfiec.librechat.core.model.ConversationTag
 import com.garfiec.librechat.core.ui.components.FilterChipBottomSheet
-import librechat_android.feature.conversations.generated.resources.Res
-import librechat_android.feature.conversations.generated.resources.*
+import librechat_mobile.feature.conversations.generated.resources.Res
+import librechat_mobile.feature.conversations.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 
 @Composable

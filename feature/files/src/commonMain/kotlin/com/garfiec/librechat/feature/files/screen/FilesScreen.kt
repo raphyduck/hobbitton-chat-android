@@ -83,8 +83,8 @@ import com.garfiec.librechat.feature.files.viewmodel.FileTypeFilter
 import com.garfiec.librechat.feature.files.viewmodel.FileViewMode
 import com.garfiec.librechat.feature.files.viewmodel.FilesViewModel
 import org.jetbrains.compose.resources.stringResource
-import librechat_android.feature.files.generated.resources.Res
-import librechat_android.feature.files.generated.resources.*
+import librechat_mobile.feature.files.generated.resources.Res
+import librechat_mobile.feature.files.generated.resources.*
 import org.koin.compose.viewmodel.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)

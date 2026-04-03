@@ -1,6 +1,6 @@
-# LibreChat Android
+# LibreChat Mobile
 
-Native Android client for LibreChat. Connects to existing LibreChat backend servers (no backend changes). Users specify server URL during onboarding.
+Native mobile client for LibreChat (Android & iOS). Connects to existing LibreChat backend servers (no backend changes). Users specify server URL during onboarding.
 
 ## Tech Stack
 
@@ -42,7 +42,7 @@ Each module has its own `CLAUDE.md` with specific guidance.
 ## Adding a New Feature Module
 
 1. Create the module directory under `feature/`
-2. Apply the `librechat.android.feature` convention plugin in `build.gradle.kts` — this auto-applies Koin + Compose deps
+2. Apply the `librechat.mobile.feature` convention plugin in `build.gradle.kts` — this auto-applies Koin + Compose deps
 3. Create `di/<Feature>Module.kt` with a Koin `module { }` containing `viewModelOf(::YourViewModel)` definitions
 4. Register the module in `LibreChatApplication.kt`'s `startKoin { modules(...) }` list
 5. Use `koinViewModel()` in screen composables to inject ViewModels
@@ -58,6 +58,6 @@ Each module has its own `CLAUDE.md` with specific guidance.
 ## Upstream Sync
 
 - **`upstream/`** — Git submodule of the [official LibreChat repo](https://github.com/danny-avila/LibreChat). Read-only reference for API and web app parity. Do not modify.
-- **`UPSTREAM_VERSION`** — Tracks which official tag/commit this Android build is based on. Updated by the `/sync-upstream` skill.
+- **`UPSTREAM_VERSION`** — Tracks which official tag/commit this mobile build is based on. Updated by the `/sync-upstream` skill.
 - **`BackendVersion.kt`** (`core/common/`) — `SUPPORTED_BACKEND_VERSION` constant must match the tag in `UPSTREAM_VERSION` (without `v` prefix).
 - **`/sync-upstream`** — Claude Code skill to diff upstream releases, identify gaps, propose changes, and implement them with user approval. Uses Agent Teams (investigator, android-expert, implementer, verifier).

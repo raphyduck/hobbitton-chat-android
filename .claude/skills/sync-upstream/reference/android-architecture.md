@@ -1,6 +1,6 @@
-# Android Architecture Reference
+# LibreChat Mobile Architecture Reference
 
-Condensed architecture guide for the LibreChat Android app. Read module-specific `CLAUDE.md` files for full details.
+Condensed architecture guide for the LibreChat Mobile app. Read module-specific `CLAUDE.md` files for full details.
 
 ## Module Dependency Graph
 
@@ -143,7 +143,7 @@ Two-phase protocol:
 - Room entity: `{Domain}Entity.kt`
 - Room DAO: `{Domain}Dao.kt`
 - DI module: `{Domain}Module.kt`
-- Convention plugins: `librechat.android.{type}` (e.g., `librechat.android.feature`)
+- Convention plugins: `librechat.mobile.{type}` (e.g., `librechat.mobile.feature`)
 
 ## Build System
 

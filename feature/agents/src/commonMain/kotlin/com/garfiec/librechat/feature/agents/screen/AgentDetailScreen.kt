@@ -51,8 +51,8 @@ import com.garfiec.librechat.core.ui.components.AvatarImage
 import com.garfiec.librechat.core.ui.components.endpointIconPainter
 import com.garfiec.librechat.core.ui.components.ErrorBanner
 import com.garfiec.librechat.core.ui.components.LoadingIndicator
-import librechat_android.feature.agents.generated.resources.Res
-import librechat_android.feature.agents.generated.resources.*
+import librechat_mobile.feature.agents.generated.resources.Res
+import librechat_mobile.feature.agents.generated.resources.*
 import com.garfiec.librechat.feature.agents.viewmodel.AgentDetailEvent
 import com.garfiec.librechat.feature.agents.viewmodel.AgentDetailViewModel
 import org.koin.compose.viewmodel.koinViewModel
