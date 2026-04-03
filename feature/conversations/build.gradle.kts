@@ -1,14 +1,24 @@
 plugins {
-    id("librechat.android.feature")
+    id("librechat.kmp.feature")
 }
 
 android {
     namespace = "com.librechat.android.feature.conversations"
 }
 
-dependencies {
-    implementation(libs.timber)
-    implementation(libs.paging.runtime)
-    implementation(libs.paging.compose)
-    implementation(libs.kotlinx.serialization.json)
+kotlin {
+    sourceSets {
+        commonMain.dependencies {
+            implementation(libs.paging.common)
+            implementation(libs.kermit)
+            implementation(libs.kotlinx.serialization.json)
+        }
+        androidMain.dependencies {
+            implementation(libs.paging.runtime)
+            implementation(libs.paging.compose)
+        }
+        named("androidUnitTest").dependencies {
+            implementation(libs.koin.test)
+        }
+    }
 }

@@ -25,11 +25,11 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import timber.log.Timber
-import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.time.temporal.ChronoUnit
+import co.touchlab.kermit.Logger
+import kotlin.time.Clock
+import kotlin.time.Instant
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 
 /**
  * Combined UI state for the drawer sidebar. A single emission replaces
@@ -64,7 +64,7 @@ class NavHostViewModel(
     private val settingsDataStore: com.librechat.android.core.data.datastore.SettingsDataStore,
 ) : ViewModel() {
 
-    private val _isLoggedIn = MutableStateFlow(false)
+    private val _isLoggedIn = MutableStateFlow(tokenManager.isAuthenticated)
     val isLoggedIn: StateFlow<Boolean> = _isLoggedIn.asStateFlow()
 
     /**
@@ -227,7 +227,7 @@ class NavHostViewModel(
                 nextCursor = result.data
                 _hasMore.value = result.data != null
             } else {
-                Timber.w("Failed to load more conversations")
+                Logger.w { "Failed to load more conversations" }
             }
             _isLoadingMore.value = false
         }
@@ -308,12 +308,12 @@ class NavHostViewModel(
         viewModelScope.launch {
             val result = bannerRepository.getBanners()
             if (result is Result.Success) {
-                val now = Instant.now()
+                val now = Clock.System.now()
                 _banners.value = result.data.filter { banner ->
                     val from = banner.displayFrom?.let { runCatching { Instant.parse(it) }.getOrNull() }
                     val to = banner.displayTo?.let { runCatching { Instant.parse(it) }.getOrNull() }
-                    val afterStart = from == null || !now.isBefore(from)
-                    val beforeEnd = to == null || now.isBefore(to)
+                    val afterStart = from == null || now >= from
+                    val beforeEnd = to == null || now < to
                     afterStart && beforeEnd
                 }
             }
@@ -350,11 +350,9 @@ class NavHostViewModel(
                             backendVersion = detectedVersion,
                         )
                     } else {
-                        Timber.d(
-                            "Version mismatch (backend=%s, supported=%s) but user dismissed for this version",
-                            detectedVersion,
-                            checkResult.supportedVersion,
-                        )
+                        Logger.d {
+                            "Version mismatch (backend=$detectedVersion, supported=${checkResult.supportedVersion}) but user dismissed for this version"
+                        }
                     }
                 }
             }
@@ -434,17 +432,26 @@ private fun Conversation.toDrawerDisplayData(
 }
 
 private fun Instant.toRelativeTimeString(): String {
-    val now = Instant.now()
-    val minutes = ChronoUnit.MINUTES.between(this, now)
-    val hours = ChronoUnit.HOURS.between(this, now)
-    val days = ChronoUnit.DAYS.between(this, now)
+    val now = Clock.System.now()
+    val duration = now - this
+    val minutes = duration.inWholeMinutes
+    val hours = duration.inWholeHours
+    val days = duration.inWholeDays
 
     return when {
         minutes < 1 -> "Just now"
         minutes < 60 -> "${minutes}m ago"
         hours < 24 -> "${hours}h ago"
         days < 7 -> "${days}d ago"
-        else -> atZone(ZoneId.systemDefault())
-            .format(DateTimeFormatter.ofPattern("MMM d"))
+        else -> {
+            val date = toLocalDateTime(TimeZone.currentSystemDefault()).date
+            val monthAbbr = when (date.monthNumber) {
+                1 -> "Jan"; 2 -> "Feb"; 3 -> "Mar"; 4 -> "Apr"
+                5 -> "May"; 6 -> "Jun"; 7 -> "Jul"; 8 -> "Aug"
+                9 -> "Sep"; 10 -> "Oct"; 11 -> "Nov"; 12 -> "Dec"
+                else -> ""
+            }
+            "$monthAbbr ${date.dayOfMonth}"
+        }
     }
 }

@@ -5,7 +5,7 @@ Build a native Android app (LibreChat-Android) with full feature parity to the L
 
 ## Tech Stack (Mandated)
 - **UI**: Jetpack Compose + Compose Navigation
-- **DI**: Hilt
+- **DI**: Koin
 - **Network**: Ktor Client
 - **Serialization**: Kotlinx Serialization
 - **Min SDK**: TBD (recommend 26+)

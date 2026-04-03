@@ -2,6 +2,8 @@ import com.android.build.gradle.LibraryExtension
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.kotlin.dsl.configure
+import org.gradle.kotlin.dsl.withType
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 class AndroidLibraryConventionPlugin : Plugin<Project> {
     override fun apply(target: Project) {
@@ -11,8 +13,14 @@ class AndroidLibraryConventionPlugin : Plugin<Project> {
             pluginManager.apply("librechat.android.detekt")
             pluginManager.apply("org.jetbrains.kotlinx.kover")
 
+            tasks.withType<KotlinCompile>().configureEach {
+                compilerOptions {
+                    freeCompilerArgs.addAll("-opt-in=kotlin.time.ExperimentalTime")
+                }
+            }
+
             extensions.configure<LibraryExtension> {
-                compileSdk = 35
+                compileSdk = 36
                 defaultConfig {
                     minSdk = 26
                     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

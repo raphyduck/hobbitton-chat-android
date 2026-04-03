@@ -6,6 +6,7 @@ dependencies {
     compileOnly(libs.android.gradlePlugin)
     compileOnly(libs.kotlin.gradlePlugin)
     compileOnly(libs.compose.gradlePlugin)
+    compileOnly(libs.compose.multiplatform.gradlePlugin)
     compileOnly(libs.ksp.gradlePlugin)
     compileOnly(libs.room.gradlePlugin)
     compileOnly(libs.detekt.gradlePlugin)
@@ -45,6 +46,26 @@ gradlePlugin {
         register("androidDetekt") {
             id = "librechat.android.detekt"
             implementationClass = "AndroidDetektConventionPlugin"
+        }
+        register("kmpLibrary") {
+            id = "librechat.kmp.library"
+            implementationClass = "KmpLibraryConventionPlugin"
+        }
+        register("kmpCompose") {
+            id = "librechat.kmp.compose"
+            implementationClass = "KmpComposeConventionPlugin"
+        }
+        register("kmpKoin") {
+            id = "librechat.kmp.koin"
+            implementationClass = "KmpKoinConventionPlugin"
+        }
+        register("kmpRoom") {
+            id = "librechat.kmp.room"
+            implementationClass = "KmpRoomConventionPlugin"
+        }
+        register("kmpFeature") {
+            id = "librechat.kmp.feature"
+            implementationClass = "KmpFeatureConventionPlugin"
         }
     }
 }

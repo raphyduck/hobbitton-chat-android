@@ -1,20 +1,30 @@
 plugins {
-    id("librechat.android.feature")
+    id("librechat.kmp.feature")
 }
 
 android {
     namespace = "com.librechat.android.feature.chat"
 }
 
-dependencies {
-    implementation(project(":core:network"))
-    implementation(libs.timber)
-    implementation(libs.kotlinx.serialization.json)
-    implementation(libs.coil.compose)
-    implementation(libs.media3.exoplayer)
-    implementation(libs.media3.ui)
-    implementation(libs.media3.datasource)
-    implementation(libs.fuzzywuzzy)
-    implementation(libs.markdown.renderer.m3)
-    implementation(libs.markdown.renderer.coil3)
+kotlin {
+    sourceSets {
+        commonMain.dependencies {
+            implementation(project(":core:network"))
+            implementation(libs.kermit)
+            implementation(libs.kotlinx.serialization.json)
+            implementation(libs.coil3.compose)
+            implementation(libs.coil3.network.ktor)
+            implementation(libs.markdown.renderer.m3)
+            implementation(libs.markdown.renderer.coil3)
+        }
+        androidMain.dependencies {
+            implementation(libs.koin.android)
+            implementation(libs.media3.exoplayer)
+            implementation(libs.media3.ui)
+            implementation(libs.media3.datasource)
+        }
+        getByName("androidUnitTest").dependencies {
+            implementation(libs.koin.test)
+        }
+    }
 }

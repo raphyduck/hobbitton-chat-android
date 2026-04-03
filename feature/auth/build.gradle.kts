@@ -1,13 +1,22 @@
 plugins {
-    id("librechat.android.feature")
+    id("librechat.kmp.feature")
 }
 
 android {
     namespace = "com.librechat.android.feature.auth"
 }
 
-dependencies {
-    implementation(project(":core:network"))
-    implementation(libs.browser)
-    testImplementation(libs.kotlinx.serialization.json)
+kotlin {
+    sourceSets {
+        commonMain.dependencies {
+            implementation(project(":core:network"))
+        }
+        androidMain.dependencies {
+            implementation(libs.browser)
+        }
+        named("androidUnitTest").dependencies {
+            implementation(libs.kotlinx.serialization.json)
+            implementation(libs.koin.test)
+        }
+    }
 }

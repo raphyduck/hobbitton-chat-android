@@ -61,5 +61,3 @@ Each module has its own `CLAUDE.md` with specific guidance.
 - **`UPSTREAM_VERSION`** — Tracks which official tag/commit this Android build is based on. Updated by the `/sync-upstream` skill.
 - **`BackendVersion.kt`** (`core/common/`) — `SUPPORTED_BACKEND_VERSION` constant must match the tag in `UPSTREAM_VERSION` (without `v` prefix).
 - **`/sync-upstream`** — Claude Code skill to diff upstream releases, identify gaps, propose changes, and implement them with user approval. Uses Agent Teams (investigator, android-expert, implementer, verifier).
-
-@~/.claude/librechat-android-local.md
