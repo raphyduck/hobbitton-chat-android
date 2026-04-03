@@ -7,7 +7,7 @@ plugins {
 }
 
 android {
-    namespace = "com.librechat.shared"
+    namespace = "com.garfiec.librechat.shared"
 }
 
 kotlin {

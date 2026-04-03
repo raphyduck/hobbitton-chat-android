@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace = "com.librechat.android.feature.conversations"
+    namespace = "com.garfiec.librechat.feature.conversations"
 }
 
 kotlin {

@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.librechat.android.core.ui"
+    namespace = "com.garfiec.librechat.core.ui"
 }
 
 kotlin {

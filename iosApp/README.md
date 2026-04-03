@@ -18,7 +18,7 @@ iosApp/
     KoinHelper.swift            — Swift-side Koin dependency resolver
     ContentView.swift           — Placeholder view (for Previews)
     SharedFrameworkTest.swift   — Compile-time smoke test for KMP + SKIE bridging
-    Info.plist                  — Bundle config (ID: com.librechat.ios, URL scheme: librechat)
+    Info.plist                  — Bundle config (ID: com.garfiec.librechat.ios, URL scheme: librechat)
 ```
 
 ## Architecture
