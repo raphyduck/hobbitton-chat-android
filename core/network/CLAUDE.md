@@ -41,6 +41,6 @@ On reconnection, append `?resume=true` to get a `sync` event with `runSteps[]` +
 ## Rules
 
 - Dependencies: `:core:model`, `:core:common`, Ktor bundles, kotlinx-serialization, Timber, Koin.
-- Convention plugins: `librechat.android.library` + `librechat.android.koin` + `librechat.kotlin.serialization`.
+- Convention plugins: `librechat.mobile.library` + `librechat.mobile.koin` + `librechat.kotlin.serialization`.
 - API services must not contain business logic -- they are thin HTTP wrappers.
 - All `arg`-wrapped endpoints must match the backend pattern: `setBody(mapOf("arg" to mapOf(...)))`.

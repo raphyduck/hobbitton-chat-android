@@ -53,8 +53,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.garfiec.librechat.core.ui.components.ErrorBanner
 import com.garfiec.librechat.core.ui.components.LoadingIndicator
-import librechat_android.feature.agents.generated.resources.Res
-import librechat_android.feature.agents.generated.resources.*
+import librechat_mobile.feature.agents.generated.resources.Res
+import librechat_mobile.feature.agents.generated.resources.*
 import com.garfiec.librechat.feature.agents.components.AgentActionsPanel
 import com.garfiec.librechat.feature.agents.components.AgentAdvancedPanel
 import com.garfiec.librechat.feature.agents.components.AgentAvatarPicker

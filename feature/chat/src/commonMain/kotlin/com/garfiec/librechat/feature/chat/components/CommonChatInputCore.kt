@@ -42,13 +42,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.garfiec.librechat.feature.chat.McpServerDisplayData
-import librechat_android.feature.chat.generated.resources.Res
-import librechat_android.feature.chat.generated.resources.cd_send_message
-import librechat_android.feature.chat.generated.resources.cd_start_voice_recording
-import librechat_android.feature.chat.generated.resources.cd_stop_generation
-import librechat_android.feature.chat.generated.resources.hint_message
-import librechat_android.feature.chat.generated.resources.hint_message_model
-import librechat_android.feature.chat.generated.resources.recording
+import librechat_mobile.feature.chat.generated.resources.Res
+import librechat_mobile.feature.chat.generated.resources.cd_send_message
+import librechat_mobile.feature.chat.generated.resources.cd_start_voice_recording
+import librechat_mobile.feature.chat.generated.resources.cd_stop_generation
+import librechat_mobile.feature.chat.generated.resources.hint_message
+import librechat_mobile.feature.chat.generated.resources.hint_message_model
+import librechat_mobile.feature.chat.generated.resources.recording
 import org.jetbrains.compose.resources.stringResource
 
 @Immutable

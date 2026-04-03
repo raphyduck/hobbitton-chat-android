@@ -10,7 +10,7 @@ class AndroidLibraryConventionPlugin : Plugin<Project> {
         with(target) {
             pluginManager.apply("com.android.library")
             pluginManager.apply("org.jetbrains.kotlin.android")
-            pluginManager.apply("librechat.android.detekt")
+            pluginManager.apply("librechat.mobile.detekt")
             pluginManager.apply("org.jetbrains.kotlinx.kover")
 
             tasks.withType<KotlinCompile>().configureEach {

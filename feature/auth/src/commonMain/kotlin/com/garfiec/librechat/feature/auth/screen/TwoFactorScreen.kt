@@ -38,8 +38,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import librechat_android.feature.auth.generated.resources.Res
-import librechat_android.feature.auth.generated.resources.*
+import librechat_mobile.feature.auth.generated.resources.Res
+import librechat_mobile.feature.auth.generated.resources.*
 import com.garfiec.librechat.feature.auth.viewmodel.TwoFactorViewModel
 import org.koin.compose.viewmodel.koinViewModel
 

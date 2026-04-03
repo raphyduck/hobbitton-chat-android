@@ -29,8 +29,8 @@ import com.garfiec.librechat.core.common.extensions.toInstantOrNull
 import com.garfiec.librechat.core.model.EModelEndpoint
 import com.garfiec.librechat.core.ui.components.endpointIconPainter
 import com.garfiec.librechat.core.ui.components.isMonochromeIcon
-import librechat_android.feature.conversations.generated.resources.Res
-import librechat_android.feature.conversations.generated.resources.*
+import librechat_mobile.feature.conversations.generated.resources.Res
+import librechat_mobile.feature.conversations.generated.resources.*
 import kotlin.time.Clock
 import kotlin.time.Instant
 import kotlinx.datetime.TimeZone

@@ -27,9 +27,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.garfiec.librechat.feature.chat.McpServerDisplayData
-import librechat_android.feature.chat.generated.resources.Res
-import librechat_android.feature.chat.generated.resources.cd_attach_file
-import librechat_android.feature.chat.generated.resources.cd_paste_image
+import librechat_mobile.feature.chat.generated.resources.Res
+import librechat_mobile.feature.chat.generated.resources.cd_attach_file
+import librechat_mobile.feature.chat.generated.resources.cd_paste_image
 import org.jetbrains.compose.resources.stringResource
 
 @Composable

@@ -53,8 +53,8 @@ import coil3.compose.AsyncImage
 import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
 import coil3.toBitmap
-import librechat_android.feature.chat.generated.resources.Res
-import librechat_android.feature.chat.generated.resources.*
+import librechat_mobile.feature.chat.generated.resources.Res
+import librechat_mobile.feature.chat.generated.resources.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext

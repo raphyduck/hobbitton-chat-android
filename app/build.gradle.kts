@@ -1,7 +1,7 @@
 plugins {
-    id("librechat.android.application")
-    id("librechat.android.compose")
-    id("librechat.android.koin")
+    id("librechat.mobile.application")
+    id("librechat.mobile.compose")
+    id("librechat.mobile.koin")
 }
 
 android {

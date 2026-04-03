@@ -42,7 +42,7 @@ Material 3 theme and shared Compose components used across all feature modules. 
 - Components accept domain models from `:core:model` as parameters and render them.
 - All components must be stateless or hoist state to the caller.
 - Dependencies: `:core:model`, `:core:common`, Coil for image loading, Compose libraries.
-- Convention plugins: `librechat.android.library` + `librechat.android.compose`.
+- Convention plugins: `librechat.mobile.library` + `librechat.mobile.compose`.
 - No DI in this module (no Koin modules, no injected classes).
 - Use `@Preview` annotations on all components for Android Studio preview support.
 - During SSE streaming, buffer markdown re-renders to ~100ms intervals to avoid frame drops.

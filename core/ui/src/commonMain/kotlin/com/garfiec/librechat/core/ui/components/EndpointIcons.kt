@@ -3,13 +3,13 @@ package com.garfiec.librechat.core.ui.components
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.painter.Painter
 import com.garfiec.librechat.core.model.EModelEndpoint
-import librechat_android.core.ui.generated.resources.Res
-import librechat_android.core.ui.generated.resources.ic_agents
-import librechat_android.core.ui.generated.resources.ic_anthropic
-import librechat_android.core.ui.generated.resources.ic_azure
-import librechat_android.core.ui.generated.resources.ic_bedrock
-import librechat_android.core.ui.generated.resources.ic_google
-import librechat_android.core.ui.generated.resources.ic_openai
+import librechat_mobile.core.ui.generated.resources.Res
+import librechat_mobile.core.ui.generated.resources.ic_agents
+import librechat_mobile.core.ui.generated.resources.ic_anthropic
+import librechat_mobile.core.ui.generated.resources.ic_azure
+import librechat_mobile.core.ui.generated.resources.ic_bedrock
+import librechat_mobile.core.ui.generated.resources.ic_google
+import librechat_mobile.core.ui.generated.resources.ic_openai
 import org.jetbrains.compose.resources.painterResource
 
 /**

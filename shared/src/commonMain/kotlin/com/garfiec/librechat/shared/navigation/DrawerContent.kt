@@ -53,18 +53,18 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.garfiec.librechat.core.ui.components.endpointIconPainter
 import com.garfiec.librechat.core.ui.components.isMonochromeIcon
-import librechat_android.shared.generated.resources.Res
-import librechat_android.shared.generated.resources.agents
-import librechat_android.shared.generated.resources.bookmark
-import librechat_android.shared.generated.resources.cd_clear_search
-import librechat_android.shared.generated.resources.cd_search
-import librechat_android.shared.generated.resources.favorites
-import librechat_android.shared.generated.resources.files
-import librechat_android.shared.generated.resources.new_chat
-import librechat_android.shared.generated.resources.no_conversations_found
-import librechat_android.shared.generated.resources.remove_bookmark
-import librechat_android.shared.generated.resources.search_conversations_placeholder
-import librechat_android.shared.generated.resources.settings
+import librechat_mobile.shared.generated.resources.Res
+import librechat_mobile.shared.generated.resources.agents
+import librechat_mobile.shared.generated.resources.bookmark
+import librechat_mobile.shared.generated.resources.cd_clear_search
+import librechat_mobile.shared.generated.resources.cd_search
+import librechat_mobile.shared.generated.resources.favorites
+import librechat_mobile.shared.generated.resources.files
+import librechat_mobile.shared.generated.resources.new_chat
+import librechat_mobile.shared.generated.resources.no_conversations_found
+import librechat_mobile.shared.generated.resources.remove_bookmark
+import librechat_mobile.shared.generated.resources.search_conversations_placeholder
+import librechat_mobile.shared.generated.resources.settings
 import org.jetbrains.compose.resources.stringResource
 
 // Pre-computed shapes to avoid creating new ones per item per frame

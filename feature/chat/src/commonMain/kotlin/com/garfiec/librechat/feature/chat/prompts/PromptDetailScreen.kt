@@ -31,8 +31,8 @@ import androidx.compose.ui.Modifier
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
 import com.garfiec.librechat.core.ui.components.LibreChatTopBar
-import librechat_android.feature.chat.generated.resources.Res
-import librechat_android.feature.chat.generated.resources.*
+import librechat_mobile.feature.chat.generated.resources.Res
+import librechat_mobile.feature.chat.generated.resources.*
 import com.garfiec.librechat.feature.chat.prompts.components.PromptPreviewPanel
 
 @OptIn(ExperimentalMaterial3Api::class)

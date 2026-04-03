@@ -14,8 +14,8 @@
 
 ```bash
 # Clone with submodules (upstream LibreChat server reference)
-git clone --recursive https://github.com/anthropics/LibreChat-Android.git
-cd LibreChat-Android
+git clone --recursive https://github.com/garfiec/Librechat-Mobile.git
+cd Librechat-Mobile
 ```
 
 ### Android

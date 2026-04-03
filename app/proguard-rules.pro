@@ -1,4 +1,4 @@
-# LibreChat Android ProGuard Rules
+# LibreChat Mobile ProGuard Rules
 
 # Keep Kotlin serialization
 -keepattributes *Annotation*, InnerClasses

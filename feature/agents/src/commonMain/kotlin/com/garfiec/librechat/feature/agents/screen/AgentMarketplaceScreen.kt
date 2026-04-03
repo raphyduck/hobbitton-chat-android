@@ -52,8 +52,8 @@ import com.garfiec.librechat.core.ui.components.ErrorBanner
 import com.garfiec.librechat.core.ui.components.LibreChatTopBar
 import com.garfiec.librechat.core.ui.components.LoadingIndicator
 import com.garfiec.librechat.feature.agents.AgentCardDisplayData
-import librechat_android.feature.agents.generated.resources.Res
-import librechat_android.feature.agents.generated.resources.*
+import librechat_mobile.feature.agents.generated.resources.Res
+import librechat_mobile.feature.agents.generated.resources.*
 import com.garfiec.librechat.feature.agents.viewmodel.AgentMarketplaceViewModel
 import org.koin.compose.viewmodel.koinViewModel
 

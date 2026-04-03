@@ -49,8 +49,8 @@ import com.garfiec.librechat.core.ui.components.EmptyState
 import com.garfiec.librechat.core.ui.components.ErrorBanner
 import com.garfiec.librechat.core.ui.components.LibreChatTopBar
 import com.garfiec.librechat.core.ui.components.LoadingIndicator
-import librechat_android.feature.chat.generated.resources.Res
-import librechat_android.feature.chat.generated.resources.*
+import librechat_mobile.feature.chat.generated.resources.Res
+import librechat_mobile.feature.chat.generated.resources.*
 import com.garfiec.librechat.feature.chat.prompts.components.PromptFilterSheet
 import com.garfiec.librechat.feature.chat.prompts.components.PromptShareDialog
 import com.garfiec.librechat.feature.chat.prompts.components.PromptSortOrder

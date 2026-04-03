@@ -1,13 +1,13 @@
 # Upstream Paths to Watch
 
-These are the directories in the `upstream/` submodule that matter for Android parity.
+These are the directories in the `upstream/` submodule that matter for mobile parity.
 Use these paths when generating focused diffs between tags.
 
 | Path | What It Contains | Why It Matters |
 |------|-----------------|----------------|
-| `api/server/routes/` | Express route definitions (REST endpoints) | Defines the API contract the Android app calls |
+| `api/server/routes/` | Express route definitions (REST endpoints) | Defines the API contract the mobile app calls |
 | `api/server/controllers/` | Request handlers and business logic | Shows request/response shapes and validation |
-| `packages/data-provider/src/` | Shared types, schemas, API client, config | Canonical type definitions; Android models must match |
+| `packages/data-provider/src/` | Shared types, schemas, API client, config | Canonical type definitions; Mobile models must match |
 | `packages/data-provider/src/types/` | TypeScript type subdirectory (queries, mutations, agents, etc.) | React Query hook types that define API shapes |
 | `packages/data-schemas/src/` | Mongoose schemas and DB models | Database schema changes that affect API responses |
 | `client/src/components/` | React UI components by feature area | Reference for Android UI feature parity |

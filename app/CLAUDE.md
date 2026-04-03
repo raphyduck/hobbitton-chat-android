@@ -50,7 +50,7 @@ Conversations are integrated into the drawer body. Agents, Files, and Settings a
 ## Dependencies
 
 This module depends on all `:core:*` and all `:feature:*` modules.
-It applies convention plugins: `librechat.android.application`, `librechat.android.compose`, `librechat.android.koin`.
+It applies convention plugins: `librechat.mobile.application`, `librechat.mobile.compose`, `librechat.mobile.koin`.
 
 ### Server-Synced Favorites
 - `NavHostViewModel` exposes `favorites: StateFlow<Set<String>>` and `toggleFavorite()`

@@ -16,27 +16,27 @@ dependencies {
 gradlePlugin {
     plugins {
         register("androidApplication") {
-            id = "librechat.android.application"
+            id = "librechat.mobile.application"
             implementationClass = "AndroidApplicationConventionPlugin"
         }
         register("androidLibrary") {
-            id = "librechat.android.library"
+            id = "librechat.mobile.library"
             implementationClass = "AndroidLibraryConventionPlugin"
         }
         register("androidCompose") {
-            id = "librechat.android.compose"
+            id = "librechat.mobile.compose"
             implementationClass = "AndroidComposeConventionPlugin"
         }
         register("androidFeature") {
-            id = "librechat.android.feature"
+            id = "librechat.mobile.feature"
             implementationClass = "AndroidFeatureConventionPlugin"
         }
         register("androidRoom") {
-            id = "librechat.android.room"
+            id = "librechat.mobile.room"
             implementationClass = "AndroidRoomConventionPlugin"
         }
         register("androidKoin") {
-            id = "librechat.android.koin"
+            id = "librechat.mobile.koin"
             implementationClass = "AndroidKoinConventionPlugin"
         }
         register("kotlinSerialization") {
@@ -44,7 +44,7 @@ gradlePlugin {
             implementationClass = "KotlinSerializationConventionPlugin"
         }
         register("androidDetekt") {
-            id = "librechat.android.detekt"
+            id = "librechat.mobile.detekt"
             implementationClass = "AndroidDetektConventionPlugin"
         }
         register("kmpLibrary") {

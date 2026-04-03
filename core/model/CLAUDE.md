@@ -27,4 +27,4 @@ All `@Serializable` data classes -- domain models, DTOs, request/response wrappe
 - Only dependency beyond `:core:common` is `kotlinx-serialization-json`.
 - Use `@Serializable` on every data class. Use `@SerialName` for snake_case JSON fields.
 - Use `JsonObject` / `JsonElement` for truly polymorphic/mixed-type fields (e.g., `Agent.avatar`, `Feedback.tag`).
-- Convention plugins: `librechat.android.library` + `librechat.kotlin.serialization`.
+- Convention plugins: `librechat.mobile.library` + `librechat.kotlin.serialization`.

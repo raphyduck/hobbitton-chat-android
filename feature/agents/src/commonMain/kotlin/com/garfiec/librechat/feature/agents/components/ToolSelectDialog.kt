@@ -49,8 +49,8 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil3.compose.AsyncImage
 import com.garfiec.librechat.feature.agents.AgentToolDisplayData
-import librechat_android.feature.agents.generated.resources.Res
-import librechat_android.feature.agents.generated.resources.*
+import librechat_mobile.feature.agents.generated.resources.Res
+import librechat_mobile.feature.agents.generated.resources.*
 
 /**
  * Full-screen dialog for selecting agent tools, matching the web app's ToolSelectDialog.

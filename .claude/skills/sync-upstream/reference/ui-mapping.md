@@ -1,10 +1,10 @@
-# UI Mapping: Official React Components → Android Feature Modules
+# UI Mapping: Official React Components → Mobile Feature Modules
 
-Maps web client component directories to Android Compose feature modules.
+Maps web client component directories to mobile Compose feature modules.
 
 ## Implemented
 
-| Web Component Dir | Android Module | Coverage |
+| Web Component Dir | Mobile Module | Coverage |
 |-------------------|---------------|----------|
 | `components/Chat/` | `feature/chat/` | Core chat UI, message list, input |
 | `components/Messages/` | `feature/chat/` | Message rendering, branching, siblings |
@@ -17,11 +17,11 @@ Maps web client component directories to Android Compose feature modules.
 | `components/Banners/` | `app/` | System banner display |
 | `components/Endpoints/` | `feature/chat/` | Model/endpoint selector bottom sheet |
 
-## Gaps (no Android counterpart)
+## Gaps (no mobile counterpart)
 
 | Web Component Dir | What It Does | Priority | Notes |
 |-------------------|-------------|----------|-------|
-| `components/Prompts/` | Prompts library with CRUD, categories, sharing | Medium | Android has PromptsApi but no dedicated UI |
+| `components/Prompts/` | Prompts library with CRUD, categories, sharing | Medium | Mobile has PromptsApi but no dedicated UI |
 | `components/Artifacts/` | Code/document artifact viewer and editor | Medium | New feature in recent versions |
 | `components/MCP/` | MCP server configuration UI | Low | Admin-oriented feature |
 | `components/MCPUIResource/` | MCP UI resource rendering | Low | Depends on MCP support |
@@ -33,13 +33,13 @@ Maps web client component directories to Android Compose feature modules.
 | `components/Audio/` | Voice input/output, TTS | Medium | SpeechApi exists, no UI |
 | `components/Plugins/` | Legacy plugin system | N/A | Superseded by agents |
 | `components/Tools/` | Tool configuration and management | Low | Part of agent setup |
-| `components/OAuth/` | OAuth provider buttons | Low | Android uses Chrome Custom Tabs |
+| `components/OAuth/` | OAuth provider buttons | Low | Mobile uses Chrome Custom Tabs |
 | `components/Web/` | Web search integration | Low | Agent tool feature |
-| `components/System/` | System-level UI (error boundaries, etc.) | Low | Android has own error handling |
+| `components/System/` | System-level UI (error boundaries, etc.) | Low | Mobile has own error handling |
 
-## Key Web Patterns → Android Equivalents
+## Key Web Patterns → Mobile Equivalents
 
-| Web Pattern | Android Equivalent |
+| Web Pattern | Mobile Equivalent |
 |------------|-------------------|
 | Recoil atoms (`store/`) | ViewModel state (StateFlow) |
 | React Query hooks (`hooks/`) | Repository + ViewModel |

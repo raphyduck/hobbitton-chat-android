@@ -1,8 +1,8 @@
-# LibreChat Android
+# LibreChat Mobile
 
 [![LibreChat](https://img.shields.io/badge/LibreChat-v0.8.4-blue)](https://github.com/danny-avila/LibreChat/releases/tag/v0.8.4)
 
-A third-party native Android client for [LibreChat](https://www.librechat.ai/). Not affiliated with the official LibreChat project — this is an independent app that connects to any self-hosted LibreChat server, no backend modifications required.
+A third-party native mobile client for [LibreChat](https://www.librechat.ai/) (Android & iOS). Not affiliated with the official LibreChat project — this is an independent app that connects to any self-hosted LibreChat server, no backend modifications required.
 
 ## Features
 
@@ -53,7 +53,7 @@ Add the following to your LibreChat server's `.env` file:
 NON_BROWSER_VIOLATION_SCORE=0
 ```
 
-Without this setting, the server's violation system may accumulate ban points against the Android client if the User-Agent check fails, eventually locking the account out.
+Without this setting, the server's violation system may accumulate ban points against the mobile client if the User-Agent check fails, eventually locking the account out.
 
 ### Notes
 

@@ -27,8 +27,8 @@ import androidx.compose.ui.Modifier
 import com.garfiec.librechat.feature.chat.util.copyToClipboard
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
-import librechat_android.feature.chat.generated.resources.Res
-import librechat_android.feature.chat.generated.resources.*
+import librechat_mobile.feature.chat.generated.resources.Res
+import librechat_mobile.feature.chat.generated.resources.*
 
 enum class SharePermission(val label: String) {
     VIEW_ONLY("View only"),

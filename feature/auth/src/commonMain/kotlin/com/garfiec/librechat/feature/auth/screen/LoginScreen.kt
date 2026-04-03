@@ -31,8 +31,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import librechat_android.feature.auth.generated.resources.Res
-import librechat_android.feature.auth.generated.resources.*
+import librechat_mobile.feature.auth.generated.resources.Res
+import librechat_mobile.feature.auth.generated.resources.*
 import com.garfiec.librechat.feature.auth.viewmodel.LoginViewModel
 import org.koin.compose.viewmodel.koinViewModel
 

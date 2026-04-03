@@ -53,8 +53,8 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.garfiec.librechat.core.common.ToolConstants
 import com.garfiec.librechat.feature.chat.McpServerDisplayData
-import librechat_android.feature.chat.generated.resources.Res
-import librechat_android.feature.chat.generated.resources.*
+import librechat_mobile.feature.chat.generated.resources.Res
+import librechat_mobile.feature.chat.generated.resources.*
 
 /**
  * Floating row of Material 3 chips above the chat input field.

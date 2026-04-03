@@ -58,8 +58,8 @@ import co.touchlab.kermit.Logger
 import com.garfiec.librechat.feature.files.FilePreviewDisplayData
 import com.garfiec.librechat.feature.files.platform.PdfPreview
 import org.jetbrains.compose.resources.stringResource
-import librechat_android.feature.files.generated.resources.Res
-import librechat_android.feature.files.generated.resources.*
+import librechat_mobile.feature.files.generated.resources.Res
+import librechat_mobile.feature.files.generated.resources.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

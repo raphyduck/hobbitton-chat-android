@@ -44,8 +44,8 @@ import co.touchlab.kermit.Logger
 import com.garfiec.librechat.feature.files.FilePreviewDisplayData
 import com.garfiec.librechat.feature.files.screen.InfoRow
 import org.jetbrains.compose.resources.stringResource
-import librechat_android.feature.files.generated.resources.Res
-import librechat_android.feature.files.generated.resources.*
+import librechat_mobile.feature.files.generated.resources.Res
+import librechat_mobile.feature.files.generated.resources.*
 import java.io.File
 
 private sealed interface PdfLoadState {

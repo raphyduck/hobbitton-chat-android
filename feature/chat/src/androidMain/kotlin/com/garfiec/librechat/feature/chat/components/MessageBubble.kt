@@ -31,8 +31,8 @@ import com.garfiec.librechat.core.model.Message
 import com.garfiec.librechat.core.ui.components.AvatarImage
 import com.garfiec.librechat.core.ui.components.endpointIconPainter
 import com.garfiec.librechat.core.ui.components.isMonochromeEndpointIcon
-import librechat_android.feature.chat.generated.resources.Res
-import librechat_android.feature.chat.generated.resources.*
+import librechat_mobile.feature.chat.generated.resources.Res
+import librechat_mobile.feature.chat.generated.resources.*
 import kotlinx.coroutines.delay
 
 private const val ACTION_AUTO_HIDE_MILLIS = 30_000L

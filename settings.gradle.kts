@@ -16,7 +16,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "LibreChat-Android"
+rootProject.name = "LibreChat-Mobile"
 
 include(":app")
 include(":core:common")
