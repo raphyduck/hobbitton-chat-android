@@ -289,8 +289,6 @@ private fun MarkdownTextSegment(
 ) {
     val colors = markdownColor(
         text = MaterialTheme.colorScheme.onSurface,
-        codeText = MaterialTheme.colorScheme.onSurface,
-        linkText = MaterialTheme.colorScheme.primary,
         codeBackground = MaterialTheme.colorScheme.surfaceContainerHigh,
         inlineCodeBackground = MaterialTheme.colorScheme.surfaceContainerHigh,
         dividerColor = MaterialTheme.colorScheme.outlineVariant,

@@ -447,8 +447,8 @@ actual fun MarkdownContent(
     val segments = remember(text) { splitTableSegments(text) }
 
     val colors = markdownColor(
-        text = MaterialTheme.colorScheme.onSurface, codeText = MaterialTheme.colorScheme.onSurface,
-        linkText = MaterialTheme.colorScheme.primary, codeBackground = MaterialTheme.colorScheme.surfaceContainerHigh,
+        text = MaterialTheme.colorScheme.onSurface,
+        codeBackground = MaterialTheme.colorScheme.surfaceContainerHigh,
         inlineCodeBackground = MaterialTheme.colorScheme.surfaceContainerHigh, dividerColor = MaterialTheme.colorScheme.outlineVariant,
     )
     val bl = MaterialTheme.typography.bodyLarge
