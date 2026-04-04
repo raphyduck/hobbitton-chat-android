@@ -2,6 +2,7 @@ plugins {
     id("librechat.mobile.application")
     id("librechat.mobile.compose")
     id("librechat.mobile.koin")
+    id("librechat.kotlin.serialization")
 }
 
 android {

@@ -3,13 +3,14 @@ package com.garfiec.librechat.feature.settings.navigation
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import com.garfiec.librechat.feature.settings.screen.McpServersScreen
+import kotlinx.serialization.Serializable
 
-const val MCP_SERVERS_ROUTE = "settings/mcp"
+@Serializable data object McpServers : SettingsRoute
 
 fun NavGraphBuilder.mcpServersScreen(
     onNavigateBack: () -> Unit,
 ) {
-    composable(MCP_SERVERS_ROUTE) {
+    composable<McpServers> {
         McpServersScreen(
             onNavigateBack = onNavigateBack,
         )

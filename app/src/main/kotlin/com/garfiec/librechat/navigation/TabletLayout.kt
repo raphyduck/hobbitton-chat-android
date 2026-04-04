@@ -37,28 +37,42 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
+import kotlin.reflect.KClass
 import com.garfiec.librechat.MainActivity
 import com.garfiec.librechat.core.ui.components.BannerDisplay
-import com.garfiec.librechat.feature.agents.navigation.AGENT_EDITOR_CREATE_ROUTE
+import com.garfiec.librechat.feature.agents.navigation.AgentDetail
+import com.garfiec.librechat.feature.agents.navigation.AgentEditorCreate
+import com.garfiec.librechat.feature.agents.navigation.AgentEditorEdit
+import com.garfiec.librechat.feature.agents.navigation.AgentMarketplace
 import com.garfiec.librechat.feature.agents.navigation.agentsGraph
-import com.garfiec.librechat.feature.auth.navigation.AUTH_GRAPH_ROUTE
+import com.garfiec.librechat.feature.auth.navigation.AuthRoute
+import com.garfiec.librechat.feature.auth.navigation.ServerUrl
 import com.garfiec.librechat.feature.auth.navigation.authGraph
-import com.garfiec.librechat.feature.chat.navigation.CHAT_GRAPH_ROUTE
-import com.garfiec.librechat.feature.chat.navigation.CHAT_ROUTE
-import com.garfiec.librechat.feature.chat.navigation.NEW_CHAT_ROUTE
+import com.garfiec.librechat.feature.chat.navigation.Chat
+import com.garfiec.librechat.feature.chat.navigation.ChatRoute
+import com.garfiec.librechat.feature.chat.navigation.NewChat
 import com.garfiec.librechat.feature.chat.navigation.chatGraph
 import com.garfiec.librechat.feature.chat.navigation.navigateToChat
+import com.garfiec.librechat.feature.conversations.navigation.ArchivedConversations
 import com.garfiec.librechat.feature.conversations.navigation.conversationsGraph
+import com.garfiec.librechat.feature.files.navigation.Files
 import com.garfiec.librechat.feature.files.navigation.filesGraph
-import com.garfiec.librechat.feature.settings.navigation.API_KEYS_ROUTE
-import com.garfiec.librechat.feature.settings.navigation.PRESET_MANAGER_ROUTE
-import com.garfiec.librechat.feature.settings.navigation.SETTINGS_TABBED_ROUTE
-import com.garfiec.librechat.feature.settings.navigation.SHARED_LINKS_ROUTE
+import com.garfiec.librechat.feature.settings.navigation.ApiKeys
+import com.garfiec.librechat.feature.settings.navigation.PresetManager
+import com.garfiec.librechat.feature.settings.navigation.SettingsTabbed
+import com.garfiec.librechat.feature.settings.navigation.SharedLinks
 import com.garfiec.librechat.feature.settings.navigation.settingsGraph
 import kotlinx.coroutines.launch
 import co.touchlab.kermit.Logger
+
+/** Checks if this destination's route matches the given typed route class. */
+private fun NavDestination?.isRoute(routeClass: KClass<*>): Boolean {
+    val qualifiedName = routeClass.qualifiedName ?: return false
+    return this?.route?.startsWith(qualifiedName) == true
+}
 
 private val SidebarWidth = 320.dp
 
@@ -69,7 +83,7 @@ private const val FLING_VELOCITY_THRESHOLD = 800f
 fun TabletLayout(
     navController: NavHostController,
     navHostViewModel: NavHostViewModel,
-    startDestination: String,
+    startDestination: Any,
     isInAuthFlow: Boolean,
     deepLinkUri: Uri?,
     onDeepLinkConsumed: () -> Unit,
@@ -122,11 +136,12 @@ fun TabletLayout(
     // non-chat screen (e.g. settings, agents, files).
     LaunchedEffect(shareNavigationTrigger) {
         if (shareNavigationTrigger > 0) {
-            val currentRoute = navController.currentBackStackEntry?.destination?.route
-            val isOnChatScreen = currentRoute == CHAT_ROUTE || currentRoute == NEW_CHAT_ROUTE
+            val currentDest = navController.currentBackStackEntry?.destination
+            val isOnChatScreen = currentDest.isRoute(Chat::class) ||
+                currentDest.isRoute(NewChat::class)
             if (!isOnChatScreen) {
-                navController.navigate(NEW_CHAT_ROUTE) {
-                    popUpTo(CHAT_GRAPH_ROUTE) { inclusive = false }
+                navController.navigate(NewChat) {
+                    popUpTo<ChatRoute> { inclusive = false }
                     launchSingleTop = true
                 }
             }
@@ -215,10 +230,10 @@ fun TabletLayout(
                         viewModel = navHostViewModel,
                         onNewChat = {
                             // Skip navigation if already on the new chat screen
-                            val currentRoute = navController.currentBackStackEntry?.destination?.route
-                            if (currentRoute != NEW_CHAT_ROUTE) {
-                                navController.navigate(NEW_CHAT_ROUTE) {
-                                    popUpTo(CHAT_GRAPH_ROUTE) { inclusive = false }
+                            val currentDest = navController.currentBackStackEntry?.destination
+                            if (!currentDest.isRoute(NewChat::class)) {
+                                navController.navigate(NewChat) {
+                                    popUpTo<ChatRoute> { inclusive = false }
                                     launchSingleTop = true
                                 }
                             }
@@ -227,7 +242,7 @@ fun TabletLayout(
                             navController.navigateToChat(conversationId)
                         },
                         onSettingsClick = {
-                            navController.navigate(SETTINGS_TABBED_ROUTE) {
+                            navController.navigate(SettingsTabbed) {
                                 launchSingleTop = true
                             }
                         },
@@ -237,12 +252,12 @@ fun TabletLayout(
                             }
                         },
                         onAgentsClick = {
-                            navController.navigate(TopLevelDestination.AGENTS.route) {
+                            navController.navigate(AgentMarketplace) {
                                 launchSingleTop = true
                             }
                         },
                         onFilesClick = {
-                            navController.navigate(TopLevelDestination.FILES.route) {
+                            navController.navigate(Files) {
                                 launchSingleTop = true
                             }
                         },
@@ -308,7 +323,7 @@ fun TabletLayout(
 private fun MainContent(
     navController: NavHostController,
     navHostViewModel: NavHostViewModel,
-    startDestination: String,
+    startDestination: Any,
     isInAuthFlow: Boolean,
     banners: List<com.garfiec.librechat.core.model.Banner>,
     dismissedBannerIds: Set<String>,
@@ -360,8 +375,8 @@ private fun MainContent(
                 navController = navController,
                 onAuthComplete = {
                     navHostViewModel.onAuthComplete()
-                    navController.navigate(CHAT_GRAPH_ROUTE) {
-                        popUpTo(AUTH_GRAPH_ROUTE) { inclusive = true }
+                    navController.navigate(NewChat) {
+                        popUpTo<AuthRoute> { inclusive = true }
                     }
                 },
             )
@@ -374,7 +389,7 @@ private fun MainContent(
                     navController.navigateToChat(conversationId)
                 },
                 onNavigateToArchived = {
-                    navController.navigate("conversations/archived")
+                    navController.navigate(ArchivedConversations)
                 },
                 onNavigateBackFromArchived = {
                     navController.popBackStack()
@@ -382,38 +397,38 @@ private fun MainContent(
             )
             agentsGraph(
                 onAgentClick = { agentId ->
-                    navController.navigate("agents/$agentId")
+                    navController.navigate(AgentDetail(agentId = agentId))
                 },
                 onBack = { navController.popBackStack() },
                 onStartChat = { agentId ->
-                    navController.navigate(NEW_CHAT_ROUTE) {
-                        popUpTo(CHAT_GRAPH_ROUTE) { inclusive = false }
+                    navController.navigate(NewChat) {
+                        popUpTo<ChatRoute> { inclusive = false }
                         launchSingleTop = true
                     }
                 },
                 onCreateAgent = {
-                    navController.navigate(AGENT_EDITOR_CREATE_ROUTE)
+                    navController.navigate(AgentEditorCreate)
                 },
                 onEditAgent = { agentId ->
-                    navController.navigate("agents/editor/$agentId")
+                    navController.navigate(AgentEditorEdit(agentId = agentId))
                 },
             )
             filesGraph()
             settingsGraph(
                 onLogout = {
                     navHostViewModel.logout()
-                    navController.navigate(AUTH_GRAPH_ROUTE) {
+                    navController.navigate(ServerUrl) {
                         popUpTo(0) { inclusive = true }
                     }
                 },
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToArchived = {
-                    navController.navigate("conversations/archived") {
+                    navController.navigate(ArchivedConversations) {
                         launchSingleTop = true
                     }
                 },
                 onNavigateToSharedLinks = {
-                    navController.navigate(SHARED_LINKS_ROUTE) {
+                    navController.navigate(SharedLinks) {
                         launchSingleTop = true
                     }
                 },
@@ -421,7 +436,7 @@ private fun MainContent(
                     navController.popBackStack()
                 },
                 onNavigateToPresets = {
-                    navController.navigate(PRESET_MANAGER_ROUTE) {
+                    navController.navigate(PresetManager) {
                         launchSingleTop = true
                     }
                 },
@@ -429,7 +444,7 @@ private fun MainContent(
                     navController.popBackStack()
                 },
                 onNavigateToApiKeys = {
-                    navController.navigate(API_KEYS_ROUTE) {
+                    navController.navigate(ApiKeys) {
                         launchSingleTop = true
                     }
                 },

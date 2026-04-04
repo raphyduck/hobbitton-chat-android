@@ -13,16 +13,22 @@ import com.garfiec.librechat.feature.settings.screen.PresetManagerScreen
 import com.garfiec.librechat.feature.settings.screen.SharedLinksScreen
 import com.garfiec.librechat.feature.settings.screen.TabbedSettingsScreen
 import com.garfiec.librechat.feature.settings.viewmodel.SettingsViewModel
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.modules.SerializersModule
+import kotlinx.serialization.modules.polymorphic
+import kotlinx.serialization.modules.subclass
 import org.koin.compose.viewmodel.koinViewModel
 
-const val SETTINGS_TABBED_ROUTE = "settings"
-const val SETTINGS_GENERAL_ROUTE = "settings/general"
-const val SETTINGS_CHAT_ROUTE = "settings/chat"
-const val SETTINGS_ACCOUNT_ROUTE = "settings/account"
-const val SETTINGS_DATA_ROUTE = "settings/data"
-const val SHARED_LINKS_ROUTE = "settings/shared-links"
-const val PRESET_MANAGER_ROUTE = "settings/presets"
-const val API_KEYS_ROUTE = "settings/api_keys"
+@Serializable sealed interface SettingsRoute
+
+@Serializable data object SettingsTabbed : SettingsRoute
+@Serializable data object SettingsGeneral : SettingsRoute
+@Serializable data object SettingsChat : SettingsRoute
+@Serializable data object SettingsAccount : SettingsRoute
+@Serializable data object SettingsData : SettingsRoute
+@Serializable data object SharedLinks : SettingsRoute
+@Serializable data object PresetManager : SettingsRoute
+@Serializable data object ApiKeys : SettingsRoute
 
 fun NavGraphBuilder.settingsGraph(
     onLogout: () -> Unit,
@@ -35,7 +41,7 @@ fun NavGraphBuilder.settingsGraph(
     onNavigateToApiKeys: () -> Unit = {},
     onNavigateBackFromApiKeys: () -> Unit = {},
 ) {
-    composable(SETTINGS_TABBED_ROUTE) {
+    composable<SettingsTabbed> {
         TabbedSettingsScreen(
             onNavigateBack = onNavigateBack,
             onLogout = onLogout,
@@ -46,32 +52,32 @@ fun NavGraphBuilder.settingsGraph(
         )
     }
 
-    composable(SETTINGS_GENERAL_ROUTE) {
+    composable<SettingsGeneral> {
         GeneralSettingsScreen(
             onNavigateBack = onNavigateBack,
         )
     }
-    composable(SETTINGS_CHAT_ROUTE) {
+    composable<SettingsChat> {
         ChatSettingsScreen(
             onNavigateBack = onNavigateBack,
             onNavigateToPresets = onNavigateToPresets,
         )
     }
-    composable(SETTINGS_ACCOUNT_ROUTE) {
+    composable<SettingsAccount> {
         AccountSettingsScreen(
             onLogout = onLogout,
             onNavigateBack = onNavigateBack,
             onNavigateToApiKeys = onNavigateToApiKeys,
         )
     }
-    composable(SETTINGS_DATA_ROUTE) {
+    composable<SettingsData> {
         DataSettingsScreen(
             onNavigateBack = onNavigateBack,
             onNavigateToArchived = onNavigateToArchived,
             onNavigateToSharedLinks = onNavigateToSharedLinks,
         )
     }
-    composable(SHARED_LINKS_ROUTE) {
+    composable<SharedLinks> {
         val viewModel: SettingsViewModel = koinViewModel()
         val uiState = viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -90,14 +96,29 @@ fun NavGraphBuilder.settingsGraph(
             onNavigateBack = onNavigateBackFromSharedLinks,
         )
     }
-    composable(PRESET_MANAGER_ROUTE) {
+    composable<PresetManager> {
         PresetManagerScreen(
             onNavigateBack = onNavigateBackFromPresets,
         )
     }
-    composable(API_KEYS_ROUTE) {
+    composable<ApiKeys> {
         ApiKeysScreen(
             onNavigateBack = onNavigateBackFromApiKeys,
         )
+    }
+}
+
+val settingsSerializersModule = SerializersModule {
+    polymorphic(SettingsRoute::class) {
+        subclass(SettingsTabbed::class, SettingsTabbed.serializer())
+        subclass(SettingsGeneral::class, SettingsGeneral.serializer())
+        subclass(SettingsChat::class, SettingsChat.serializer())
+        subclass(SettingsAccount::class, SettingsAccount.serializer())
+        subclass(SettingsData::class, SettingsData.serializer())
+        subclass(SharedLinks::class, SharedLinks.serializer())
+        subclass(PresetManager::class, PresetManager.serializer())
+        subclass(ApiKeys::class, ApiKeys.serializer())
+        subclass(Memories::class, Memories.serializer())
+        subclass(McpServers::class, McpServers.serializer())
     }
 }

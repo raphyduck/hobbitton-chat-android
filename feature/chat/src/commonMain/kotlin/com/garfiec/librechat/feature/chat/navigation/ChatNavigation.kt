@@ -3,27 +3,38 @@ package com.garfiec.librechat.feature.chat.navigation
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.navigation.NavController
+import androidx.navigation.NavDestination
 import androidx.navigation.NavGraphBuilder
-import androidx.navigation.NavType
 import androidx.navigation.compose.composable
-import androidx.navigation.navArgument
 import androidx.navigation.navigation
+import kotlin.reflect.KClass
 import com.garfiec.librechat.feature.chat.prompts.PromptEditorScreen
 import com.garfiec.librechat.feature.chat.prompts.PromptsLibraryScreen
 import com.garfiec.librechat.feature.chat.screen.ChatScreen
 import com.garfiec.librechat.feature.chat.screen.NewChatScreen
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.modules.SerializersModule
+import kotlinx.serialization.modules.polymorphic
+import kotlinx.serialization.modules.subclass
 
-const val CHAT_GRAPH_ROUTE = "chat_graph"
-const val NEW_CHAT_ROUTE = "new_chat"
-const val CHAT_ROUTE = "chat/{conversationId}"
-const val PROMPTS_LIBRARY_ROUTE = "prompts_library"
-const val PROMPT_EDITOR_ROUTE = "prompt_editor?groupId={groupId}"
+@Serializable sealed interface ChatRoute
+
+@Serializable data object NewChat : ChatRoute
+@Serializable data class Chat(val conversationId: String? = null) : ChatRoute
+@Serializable data object PromptsLibrary : ChatRoute
+@Serializable data class PromptEditor(val groupId: String? = null) : ChatRoute
+
+/** Checks if this destination's route matches the given typed route class. */
+internal fun NavDestination?.isRoute(routeClass: KClass<*>): Boolean {
+    val qualifiedName = routeClass.qualifiedName ?: return false
+    return this?.route?.startsWith(qualifiedName) == true
+}
 
 fun NavController.navigateToChat(conversationId: String) {
     val currentEntry = currentBackStackEntry
-    val isCurrentlyInChat = currentEntry?.destination?.route == CHAT_ROUTE
+    val isCurrentlyInChat = currentEntry?.destination.isRoute(Chat::class)
     val currentDestId = currentEntry?.destination?.id
-    navigate("chat/$conversationId") {
+    navigate(Chat(conversationId = conversationId)) {
         if (isCurrentlyInChat && currentDestId != null) {
             // Already viewing a chat -- replace it so switching chats
             // doesn't stack entries. Back will go to whatever was
@@ -36,24 +47,19 @@ fun NavController.navigateToChat(conversationId: String) {
 }
 
 fun NavController.navigateToPromptsLibrary() {
-    navigate(PROMPTS_LIBRARY_ROUTE)
+    navigate(PromptsLibrary)
 }
 
 fun NavController.navigateToPromptEditor(groupId: String? = null) {
-    if (groupId != null) {
-        navigate("prompt_editor?groupId=$groupId")
-    } else {
-        navigate("prompt_editor")
-    }
+    navigate(PromptEditor(groupId = groupId))
 }
 
 fun NavGraphBuilder.chatGraph(
     navController: NavController,
     onOpenDrawer: (() -> Unit)? = null,
 ) {
-    navigation(startDestination = NEW_CHAT_ROUTE, route = CHAT_GRAPH_ROUTE) {
-        composable(
-            route = NEW_CHAT_ROUTE,
+    navigation<ChatRoute>(startDestination = NewChat::class) {
+        composable<NewChat>(
             enterTransition = { EnterTransition.None },
             exitTransition = { ExitTransition.None },
             popEnterTransition = { null },
@@ -67,15 +73,7 @@ fun NavGraphBuilder.chatGraph(
                 onNavigateToPromptsLibrary = { navController.navigateToPromptsLibrary() },
             )
         }
-        composable(
-            route = CHAT_ROUTE,
-            arguments = listOf(
-                navArgument("conversationId") {
-                    type = NavType.StringType
-                    nullable = true
-                    defaultValue = null
-                },
-            ),
+        composable<Chat>(
             enterTransition = { EnterTransition.None },
             exitTransition = { ExitTransition.None },
             popEnterTransition = { null },
@@ -88,7 +86,7 @@ fun NavGraphBuilder.chatGraph(
                 onNavigateToConversation = { conversationId -> navController.navigateToChat(conversationId) },
             )
         }
-        composable(PROMPTS_LIBRARY_ROUTE) {
+        composable<PromptsLibrary> {
             PromptsLibraryScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onUseInChat = { promptText ->
@@ -99,19 +97,19 @@ fun NavGraphBuilder.chatGraph(
                 },
             )
         }
-        composable(
-            route = PROMPT_EDITOR_ROUTE,
-            arguments = listOf(
-                navArgument("groupId") {
-                    type = NavType.StringType
-                    nullable = true
-                    defaultValue = null
-                },
-            ),
-        ) {
+        composable<PromptEditor> {
             PromptEditorScreen(
                 onBack = { navController.popBackStack() },
             )
         }
+    }
+}
+
+val chatSerializersModule = SerializersModule {
+    polymorphic(ChatRoute::class) {
+        subclass(NewChat::class, NewChat.serializer())
+        subclass(Chat::class, Chat.serializer())
+        subclass(PromptsLibrary::class, PromptsLibrary.serializer())
+        subclass(PromptEditor::class, PromptEditor.serializer())
     }
 }

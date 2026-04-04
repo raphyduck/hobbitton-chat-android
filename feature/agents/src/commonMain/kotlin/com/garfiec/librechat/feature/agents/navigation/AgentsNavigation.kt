@@ -1,17 +1,21 @@
 package com.garfiec.librechat.feature.agents.navigation
 
 import androidx.navigation.NavGraphBuilder
-import androidx.navigation.NavType
 import androidx.navigation.compose.composable
-import androidx.navigation.navArgument
 import com.garfiec.librechat.feature.agents.screen.AgentDetailScreen
 import com.garfiec.librechat.feature.agents.screen.AgentEditorScreen
 import com.garfiec.librechat.feature.agents.screen.AgentMarketplaceScreen
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.modules.SerializersModule
+import kotlinx.serialization.modules.polymorphic
+import kotlinx.serialization.modules.subclass
 
-const val AGENTS_ROUTE = "agents"
-const val AGENT_DETAIL_ROUTE = "agents/{agentId}"
-const val AGENT_EDITOR_CREATE_ROUTE = "agents/editor/create"
-const val AGENT_EDITOR_EDIT_ROUTE = "agents/editor/{agentId}"
+@Serializable sealed interface AgentsRoute
+
+@Serializable data object AgentMarketplace : AgentsRoute
+@Serializable data class AgentDetail(val agentId: String) : AgentsRoute
+@Serializable data object AgentEditorCreate : AgentsRoute
+@Serializable data class AgentEditorEdit(val agentId: String) : AgentsRoute
 
 fun NavGraphBuilder.agentsGraph(
     onAgentClick: (String) -> Unit,
@@ -20,19 +24,14 @@ fun NavGraphBuilder.agentsGraph(
     onCreateAgent: () -> Unit,
     onEditAgent: (String) -> Unit,
 ) {
-    composable(AGENTS_ROUTE) {
+    composable<AgentMarketplace> {
         AgentMarketplaceScreen(
             onAgentClick = onAgentClick,
             onCreateAgent = onCreateAgent,
             onBack = onBack,
         )
     }
-    composable(
-        route = AGENT_DETAIL_ROUTE,
-        arguments = listOf(
-            navArgument("agentId") { type = NavType.StringType },
-        ),
-    ) {
+    composable<AgentDetail> {
         AgentDetailScreen(
             onBack = onBack,
             onStartChat = onStartChat,
@@ -40,21 +39,25 @@ fun NavGraphBuilder.agentsGraph(
             onDuplicated = onAgentClick,
         )
     }
-    composable(AGENT_EDITOR_CREATE_ROUTE) {
+    composable<AgentEditorCreate> {
         AgentEditorScreen(
             onBack = onBack,
             onSaved = { agentId -> onAgentClick(agentId) },
         )
     }
-    composable(
-        route = AGENT_EDITOR_EDIT_ROUTE,
-        arguments = listOf(
-            navArgument("agentId") { type = NavType.StringType },
-        ),
-    ) {
+    composable<AgentEditorEdit> {
         AgentEditorScreen(
             onBack = onBack,
             onSaved = { agentId -> onAgentClick(agentId) },
         )
+    }
+}
+
+val agentsSerializersModule = SerializersModule {
+    polymorphic(AgentsRoute::class) {
+        subclass(AgentMarketplace::class, AgentMarketplace.serializer())
+        subclass(AgentDetail::class, AgentDetail.serializer())
+        subclass(AgentEditorCreate::class, AgentEditorCreate.serializer())
+        subclass(AgentEditorEdit::class, AgentEditorEdit.serializer())
     }
 }

@@ -2,9 +2,7 @@ package com.garfiec.librechat.feature.auth.navigation
 
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
-import androidx.navigation.NavType
 import androidx.navigation.compose.composable
-import androidx.navigation.navArgument
 import androidx.navigation.navigation
 import com.garfiec.librechat.core.ui.components.ScreenTransitionWrapper
 import com.garfiec.librechat.feature.auth.screen.ForgotPasswordScreen
@@ -15,84 +13,70 @@ import com.garfiec.librechat.feature.auth.screen.ServerUrlScreen
 import com.garfiec.librechat.feature.auth.screen.TermsScreen
 import com.garfiec.librechat.feature.auth.screen.TwoFactorScreen
 import com.garfiec.librechat.feature.auth.screen.VerifyEmailScreen
-const val AUTH_GRAPH_ROUTE = "auth_graph"
-const val SERVER_URL_ROUTE = "server_url"
-const val LOGIN_ROUTE = "login"
-const val REGISTER_ROUTE = "register"
-const val FORGOT_PASSWORD_ROUTE = "forgot_password"
-const val TWO_FACTOR_ROUTE = "two_factor/{tempToken}"
-const val VERIFY_EMAIL_ROUTE = "verify_email/{email}"
-const val TERMS_ROUTE = "auth/terms"
-const val RESET_PASSWORD_ROUTE = "reset_password/{userId}/{token}"
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.modules.SerializersModule
+import kotlinx.serialization.modules.polymorphic
+import kotlinx.serialization.modules.subclass
+
+@Serializable sealed interface AuthRoute
+
+@Serializable data object ServerUrl : AuthRoute
+@Serializable data object Login : AuthRoute
+@Serializable data object Register : AuthRoute
+@Serializable data object ForgotPassword : AuthRoute
+@Serializable data class TwoFactor(val tempToken: String) : AuthRoute
+@Serializable data class VerifyEmail(val email: String) : AuthRoute
+@Serializable data object Terms : AuthRoute
+@Serializable data class ResetPassword(val userId: String, val token: String) : AuthRoute
 
 fun NavController.navigateToVerifyEmail(email: String) {
-    navigate("verify_email/${encodeNavArg(email)}")
+    navigate(VerifyEmail(email = email))
 }
 
 fun NavController.navigateToResetPassword(userId: String, token: String) {
-    navigate("reset_password/${encodeNavArg(userId)}/${encodeNavArg(token)}")
-}
-
-private fun encodeNavArg(value: String): String = buildString {
-    for (c in value) {
-        when {
-            c.isLetterOrDigit() || c in "-._~" -> append(c)
-            else -> {
-                val bytes = c.toString().encodeToByteArray()
-                for (b in bytes) {
-                    append('%')
-                    append(
-                        (b.toInt() and 0xFF).toString(16).uppercase().padStart(2, '0'),
-                    )
-                }
-            }
-        }
-    }
+    navigate(ResetPassword(userId = userId, token = token))
 }
 
 fun NavGraphBuilder.authGraph(
     navController: NavController,
     onAuthComplete: () -> Unit,
 ) {
-    navigation(startDestination = SERVER_URL_ROUTE, route = AUTH_GRAPH_ROUTE) {
-        composable(SERVER_URL_ROUTE) {
+    navigation<AuthRoute>(startDestination = ServerUrl::class) {
+        composable<ServerUrl> {
             ScreenTransitionWrapper(transition) {
                 ServerUrlScreen(
-                    onServerValidated = { navController.navigate(LOGIN_ROUTE) },
+                    onServerValidated = { navController.navigate(Login) },
                 )
             }
         }
-        composable(LOGIN_ROUTE) {
+        composable<Login> {
             ScreenTransitionWrapper(transition) {
                 LoginScreen(
                     onLoginSuccess = onAuthComplete,
-                    onNavigateToRegister = { navController.navigate(REGISTER_ROUTE) },
-                    onNavigateToForgotPassword = { navController.navigate(FORGOT_PASSWORD_ROUTE) },
+                    onNavigateToRegister = { navController.navigate(Register) },
+                    onNavigateToForgotPassword = { navController.navigate(ForgotPassword) },
                     onNavigateToTwoFactor = { tempToken ->
-                        navController.navigate("two_factor/$tempToken")
+                        navController.navigate(TwoFactor(tempToken = tempToken))
                     },
                 )
             }
         }
-        composable(REGISTER_ROUTE) {
+        composable<Register> {
             ScreenTransitionWrapper(transition) {
                 RegisterScreen(
-                    onRegistered = { navController.popBackStack(LOGIN_ROUTE, inclusive = false) },
+                    onRegistered = { navController.popBackStack<Login>(inclusive = false) },
                     onNavigateToLogin = { navController.popBackStack() },
                 )
             }
         }
-        composable(FORGOT_PASSWORD_ROUTE) {
+        composable<ForgotPassword> {
             ScreenTransitionWrapper(transition) {
                 ForgotPasswordScreen(
                     onBack = { navController.popBackStack() },
                 )
             }
         }
-        composable(
-            route = TWO_FACTOR_ROUTE,
-            arguments = listOf(navArgument("tempToken") { type = NavType.StringType }),
-        ) {
+        composable<TwoFactor> {
             ScreenTransitionWrapper(transition) {
                 TwoFactorScreen(
                     onVerified = onAuthComplete,
@@ -100,18 +84,15 @@ fun NavGraphBuilder.authGraph(
                 )
             }
         }
-        composable(
-            route = VERIFY_EMAIL_ROUTE,
-            arguments = listOf(navArgument("email") { type = NavType.StringType }),
-        ) {
+        composable<VerifyEmail> {
             ScreenTransitionWrapper(transition) {
                 VerifyEmailScreen(
-                    onVerified = { navController.popBackStack(LOGIN_ROUTE, inclusive = false) },
+                    onVerified = { navController.popBackStack<Login>(inclusive = false) },
                     onBack = { navController.popBackStack() },
                 )
             }
         }
-        composable(TERMS_ROUTE) {
+        composable<Terms> {
             ScreenTransitionWrapper(transition) {
                 TermsScreen(
                     onAccepted = onAuthComplete,
@@ -119,19 +100,26 @@ fun NavGraphBuilder.authGraph(
                 )
             }
         }
-        composable(
-            route = RESET_PASSWORD_ROUTE,
-            arguments = listOf(
-                navArgument("userId") { type = NavType.StringType },
-                navArgument("token") { type = NavType.StringType },
-            ),
-        ) {
+        composable<ResetPassword> {
             ScreenTransitionWrapper(transition) {
                 ResetPasswordScreen(
-                    onResetComplete = { navController.popBackStack(LOGIN_ROUTE, inclusive = false) },
+                    onResetComplete = { navController.popBackStack<Login>(inclusive = false) },
                     onBack = { navController.popBackStack() },
                 )
             }
         }
+    }
+}
+
+val authSerializersModule = SerializersModule {
+    polymorphic(AuthRoute::class) {
+        subclass(ServerUrl::class, ServerUrl.serializer())
+        subclass(Login::class, Login.serializer())
+        subclass(Register::class, Register.serializer())
+        subclass(ForgotPassword::class, ForgotPassword.serializer())
+        subclass(TwoFactor::class, TwoFactor.serializer())
+        subclass(VerifyEmail::class, VerifyEmail.serializer())
+        subclass(Terms::class, Terms.serializer())
+        subclass(ResetPassword::class, ResetPassword.serializer())
     }
 }
