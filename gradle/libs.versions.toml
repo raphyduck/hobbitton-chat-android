@@ -42,7 +42,7 @@ markdown-renderer = "0.39.2"
 media3 = "1.10.0"
 
 # Image Loading
-coil3 = "3.3.0"
+coil3 = "3.4.0"
 
 # Logging
 kermit = "2.1.0"
