@@ -40,13 +40,14 @@ data class PromptEditorUiState(
 class PromptEditorViewModel(
     private val promptRepository: PromptRepository,
     savedStateHandle: SavedStateHandle,
+    initialGroupId: String? = null,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PromptEditorUiState())
     val uiState: StateFlow<PromptEditorUiState> = _uiState.asStateFlow()
 
     init {
-        val groupId = savedStateHandle.get<String>("groupId")
+        val groupId = initialGroupId
         if (groupId != null) {
             loadGroup(groupId)
         }

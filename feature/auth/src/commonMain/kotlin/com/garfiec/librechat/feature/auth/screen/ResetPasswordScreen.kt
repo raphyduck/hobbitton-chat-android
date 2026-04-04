@@ -35,14 +35,17 @@ import librechat_mobile.feature.auth.generated.resources.Res
 import librechat_mobile.feature.auth.generated.resources.*
 import com.garfiec.librechat.feature.auth.viewmodel.ResetPasswordViewModel
 import org.koin.compose.viewmodel.koinViewModel
+import org.koin.core.parameter.parametersOf
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ResetPasswordScreen(
     onResetComplete: () -> Unit,
     onBack: () -> Unit,
+    userId: String? = null,
+    token: String? = null,
     modifier: Modifier = Modifier,
-    viewModel: ResetPasswordViewModel = koinViewModel(),
+    viewModel: ResetPasswordViewModel = koinViewModel { parametersOf(userId, token) },
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 

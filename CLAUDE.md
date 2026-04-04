@@ -4,18 +4,19 @@ Native mobile client for LibreChat (Android & iOS). Connects to existing LibreCh
 
 ## Tech Stack
 
-- **UI**: Jetpack Compose + Compose Navigation
+- **UI**: Jetpack Compose + Navigation Compose 3 (Nav 3)
 - **DI**: Koin (KMP-ready)
 - **Network**: Ktor Client (OkHttp engine)
 - **Serialization**: Kotlinx Serialization
 - **Local Storage**: Room (cache), DataStore (prefs), EncryptedSharedPreferences (tokens)
-- **Build**: Gradle 8.11.1, AGP 8.7.3, Kotlin 2.1.0, compileSdk 35, minSdk 26
+- **Build**: Gradle 9.4.1, AGP 9.1.0, Kotlin 2.3.20, compileSdk 36, minSdk 26
 
 ## Module Layout
 
 ```
 app/                  → Single Activity, adaptive navigation (phone/tablet)
-build-logic/          → 7 convention plugins for consistent Gradle config
+shared/               → KMP shared framework (iOS entry point, shared navigation)
+build-logic/          → 13 convention plugins for consistent Gradle config
 core/common/          → Result type, dispatcher DI, coroutine scopes, extensions
 core/model/           → @Serializable data classes (pure Kotlin, no Android deps)
 core/network/         → Ktor client, 16 API services, SSE client, auth interceptor
@@ -34,7 +35,7 @@ Each module has its own `CLAUDE.md` with specific guidance.
 ## Architecture Rules
 
 - Feature modules depend on `:core:*` only, never on each other
-- Single Activity with Compose Navigation
+- Single Activity with Nav 3 (`NavDisplay` + `NavBackStack<NavKey>` + `entryProvider`)
 - Unidirectional data flow: UI → ViewModel → Repository → API/Room
 - Room is a read-through cache; server is source of truth
 - Custom SSE parser over raw ByteReadChannel (not Ktor SSE plugin)

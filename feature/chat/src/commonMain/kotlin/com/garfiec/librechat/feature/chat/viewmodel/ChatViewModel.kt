@@ -58,6 +58,7 @@ import kotlin.uuid.Uuid
 
 class ChatViewModel(
     savedStateHandle: SavedStateHandle,
+    initialConversationId: String? = null,
     private val agentRepository: AgentRepository,
     private val chatRepository: ChatRepository,
     private val messageRepository: MessageRepository,
@@ -163,7 +164,7 @@ class ChatViewModel(
     private var titleGenerationRequested = false
 
     init {
-        val conversationId = savedStateHandle.get<String>("conversationId")
+        val conversationId = initialConversationId
         isNewConversation = conversationId == null
         if (conversationId != null) {
             _uiState.value = _uiState.value.copy(
@@ -174,7 +175,7 @@ class ChatViewModel(
             loadConversationModel(conversationId)
             restoreDraft(conversationId)
             // Check if there's an active stream for this conversation (e.g. when
-            // navigating here from new_chat immediately after sending). If so,
+            // navigating here from NewChat immediately after sending). If so,
             // resume it so the user sees streaming content on this screen.
             resumeActiveStreamIfNeeded(conversationId)
         } else {
@@ -255,7 +256,7 @@ class ChatViewModel(
         }
 
         // Restore MCP server and tool selections from DataStore so they
-        // survive the new_chat -> chat/{id} navigation re-creation.
+        // survive the NewChat -> Chat(id) navigation re-creation.
         viewModelScope.launch {
             val mcpServers = settingsDataStore.selectedMcpServers.first()
             val tools = settingsDataStore.enabledTools.first()

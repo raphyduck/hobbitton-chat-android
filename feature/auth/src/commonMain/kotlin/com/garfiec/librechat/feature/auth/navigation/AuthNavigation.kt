@@ -1,10 +1,7 @@
 package com.garfiec.librechat.feature.auth.navigation
 
-import androidx.navigation.NavController
-import androidx.navigation.NavGraphBuilder
-import androidx.navigation.compose.composable
-import androidx.navigation.navigation
-import com.garfiec.librechat.core.ui.components.ScreenTransitionWrapper
+import androidx.navigation3.runtime.EntryProviderScope
+import androidx.navigation3.runtime.NavKey
 import com.garfiec.librechat.feature.auth.screen.ForgotPasswordScreen
 import com.garfiec.librechat.feature.auth.screen.LoginScreen
 import com.garfiec.librechat.feature.auth.screen.RegisterScreen
@@ -18,7 +15,7 @@ import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
 
-@Serializable sealed interface AuthRoute
+@Serializable sealed interface AuthRoute : NavKey
 
 @Serializable data object ServerUrl : AuthRoute
 @Serializable data object Login : AuthRoute
@@ -29,90 +26,69 @@ import kotlinx.serialization.modules.subclass
 @Serializable data object Terms : AuthRoute
 @Serializable data class ResetPassword(val userId: String, val token: String) : AuthRoute
 
-fun NavController.navigateToVerifyEmail(email: String) {
-    navigate(VerifyEmail(email = email))
-}
-
-fun NavController.navigateToResetPassword(userId: String, token: String) {
-    navigate(ResetPassword(userId = userId, token = token))
-}
-
-fun NavGraphBuilder.authGraph(
-    navController: NavController,
+fun EntryProviderScope<NavKey>.authEntries(
+    onNavigate: (NavKey) -> Unit,
+    onBack: () -> Unit,
     onAuthComplete: () -> Unit,
 ) {
-    navigation<AuthRoute>(startDestination = ServerUrl::class) {
-        composable<ServerUrl> {
-            ScreenTransitionWrapper(transition) {
-                ServerUrlScreen(
-                    onServerValidated = { navController.navigate(Login) },
-                )
-            }
-        }
-        composable<Login> {
-            ScreenTransitionWrapper(transition) {
-                LoginScreen(
-                    onLoginSuccess = onAuthComplete,
-                    onNavigateToRegister = { navController.navigate(Register) },
-                    onNavigateToForgotPassword = { navController.navigate(ForgotPassword) },
-                    onNavigateToTwoFactor = { tempToken ->
-                        navController.navigate(TwoFactor(tempToken = tempToken))
-                    },
-                )
-            }
-        }
-        composable<Register> {
-            ScreenTransitionWrapper(transition) {
-                RegisterScreen(
-                    onRegistered = { navController.popBackStack<Login>(inclusive = false) },
-                    onNavigateToLogin = { navController.popBackStack() },
-                )
-            }
-        }
-        composable<ForgotPassword> {
-            ScreenTransitionWrapper(transition) {
-                ForgotPasswordScreen(
-                    onBack = { navController.popBackStack() },
-                )
-            }
-        }
-        composable<TwoFactor> {
-            ScreenTransitionWrapper(transition) {
-                TwoFactorScreen(
-                    onVerified = onAuthComplete,
-                    onBack = { navController.popBackStack() },
-                )
-            }
-        }
-        composable<VerifyEmail> {
-            ScreenTransitionWrapper(transition) {
-                VerifyEmailScreen(
-                    onVerified = { navController.popBackStack<Login>(inclusive = false) },
-                    onBack = { navController.popBackStack() },
-                )
-            }
-        }
-        composable<Terms> {
-            ScreenTransitionWrapper(transition) {
-                TermsScreen(
-                    onAccepted = onAuthComplete,
-                    onBack = { navController.popBackStack() },
-                )
-            }
-        }
-        composable<ResetPassword> {
-            ScreenTransitionWrapper(transition) {
-                ResetPasswordScreen(
-                    onResetComplete = { navController.popBackStack<Login>(inclusive = false) },
-                    onBack = { navController.popBackStack() },
-                )
-            }
-        }
+    entry<ServerUrl> {
+        ServerUrlScreen(
+            onServerValidated = { onNavigate(Login) },
+        )
+    }
+    entry<Login> {
+        LoginScreen(
+            onLoginSuccess = onAuthComplete,
+            onNavigateToRegister = { onNavigate(Register) },
+            onNavigateToForgotPassword = { onNavigate(ForgotPassword) },
+            onNavigateToTwoFactor = { tempToken ->
+                onNavigate(TwoFactor(tempToken = tempToken))
+            },
+        )
+    }
+    entry<Register> {
+        RegisterScreen(
+            onRegistered = onBack,
+            onNavigateToLogin = onBack,
+        )
+    }
+    entry<ForgotPassword> {
+        ForgotPasswordScreen(
+            onBack = onBack,
+        )
+    }
+    entry<TwoFactor> { key ->
+        TwoFactorScreen(
+            onVerified = onAuthComplete,
+            onBack = onBack,
+            tempToken = key.tempToken,
+        )
+    }
+    entry<VerifyEmail> { key ->
+        VerifyEmailScreen(
+            onVerified = onBack,
+            onBack = onBack,
+            email = key.email,
+        )
+    }
+    entry<Terms> {
+        TermsScreen(
+            onAccepted = onAuthComplete,
+            onBack = onBack,
+        )
+    }
+    entry<ResetPassword> { key ->
+        ResetPasswordScreen(
+            onResetComplete = onBack,
+            onBack = onBack,
+            userId = key.userId,
+            token = key.token,
+        )
     }
 }
 
 val authSerializersModule = SerializersModule {
-    polymorphic(AuthRoute::class) {
+    polymorphic(NavKey::class) {
         subclass(ServerUrl::class, ServerUrl.serializer())
         subclass(Login::class, Login.serializer())
         subclass(Register::class, Register.serializer())

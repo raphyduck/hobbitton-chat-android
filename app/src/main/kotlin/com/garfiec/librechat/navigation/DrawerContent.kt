@@ -81,7 +81,7 @@ private val ActiveIndicatorShape = RoundedCornerShape(2.dp)
 /**
  * Stateful DrawerContent that collects its own state from the ViewModel.
  * State changes only recompose inside this composable — not the parent
- * PhoneLayout/TabletLayout, which avoids recomposing the NavHost/main content.
+ * PhoneLayout/TabletLayout, which avoids recomposing the NavDisplay/main content.
  */
 @Composable
 fun DrawerContent(

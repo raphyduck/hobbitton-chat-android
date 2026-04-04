@@ -2,18 +2,9 @@ package com.garfiec.librechat.navigation
 
 import android.net.Uri
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.slideOut
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -34,45 +25,18 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.NavDestination
-import androidx.navigation.NavHostController
-import androidx.navigation.compose.NavHost
-import kotlin.reflect.KClass
+import androidx.navigation3.runtime.NavKey
 import com.garfiec.librechat.MainActivity
 import com.garfiec.librechat.core.ui.components.BannerDisplay
-import com.garfiec.librechat.feature.agents.navigation.AgentDetail
-import com.garfiec.librechat.feature.agents.navigation.AgentEditorCreate
-import com.garfiec.librechat.feature.agents.navigation.AgentEditorEdit
 import com.garfiec.librechat.feature.agents.navigation.AgentMarketplace
-import com.garfiec.librechat.feature.agents.navigation.agentsGraph
-import com.garfiec.librechat.feature.auth.navigation.AuthRoute
-import com.garfiec.librechat.feature.auth.navigation.ServerUrl
-import com.garfiec.librechat.feature.auth.navigation.authGraph
 import com.garfiec.librechat.feature.chat.navigation.Chat
-import com.garfiec.librechat.feature.chat.navigation.ChatRoute
 import com.garfiec.librechat.feature.chat.navigation.NewChat
-import com.garfiec.librechat.feature.chat.navigation.chatGraph
-import com.garfiec.librechat.feature.chat.navigation.navigateToChat
-import com.garfiec.librechat.feature.conversations.navigation.ArchivedConversations
-import com.garfiec.librechat.feature.conversations.navigation.conversationsGraph
 import com.garfiec.librechat.feature.files.navigation.Files
-import com.garfiec.librechat.feature.files.navigation.filesGraph
-import com.garfiec.librechat.feature.settings.navigation.ApiKeys
-import com.garfiec.librechat.feature.settings.navigation.PresetManager
 import com.garfiec.librechat.feature.settings.navigation.SettingsTabbed
-import com.garfiec.librechat.feature.settings.navigation.SharedLinks
-import com.garfiec.librechat.feature.settings.navigation.settingsGraph
 import kotlinx.coroutines.launch
 import co.touchlab.kermit.Logger
-
-/** Checks if this destination's route matches the given typed route class. */
-private fun NavDestination?.isRoute(routeClass: KClass<*>): Boolean {
-    val qualifiedName = routeClass.qualifiedName ?: return false
-    return this?.route?.startsWith(qualifiedName) == true
-}
 
 private val SidebarWidth = 320.dp
 
@@ -81,10 +45,8 @@ private const val FLING_VELOCITY_THRESHOLD = 800f
 
 @Composable
 fun TabletLayout(
-    navController: NavHostController,
+    navigator: Navigator,
     navHostViewModel: NavHostViewModel,
-    startDestination: Any,
-    isInAuthFlow: Boolean,
     deepLinkUri: Uri?,
     onDeepLinkConsumed: () -> Unit,
     modifier: Modifier = Modifier,
@@ -95,8 +57,6 @@ fun TabletLayout(
     val dismissedBannerIds by navHostViewModel.dismissedBannerIds.collectAsStateWithLifecycle()
 
     // Persisted sidebar state from DataStore -- single source of truth in the ViewModel.
-    // The ViewModel's StateFlow initial value is read synchronously from DataStore,
-    // so the first composition already has the correct persisted state (no flicker).
     val isSidebarOpen by navHostViewModel.tabletSidebarOpen.collectAsStateWithLifecycle()
 
     // Whether swipe gesture is enabled (from settings)
@@ -106,7 +66,6 @@ fun TabletLayout(
     val sidebarWidthPx = with(density) { SidebarWidth.toPx() }
 
     // Animatable tracks sidebar reveal in pixels: 0 = closed, sidebarWidthPx = open.
-    // During a drag it follows the finger; on release it animates to 0 or sidebarWidthPx.
     val sidebarOffset = remember { Animatable(if (isSidebarOpen) sidebarWidthPx else 0f) }
     val scope = rememberCoroutineScope()
 
@@ -121,7 +80,7 @@ fun TabletLayout(
             if (uri.scheme == "librechat" && uri.host == "conversation") {
                 uri.lastPathSegment?.let { conversationId ->
                     if (MainActivity.CONVERSATION_ID_REGEX.matches(conversationId)) {
-                        navController.navigateToChat(conversationId)
+                        navigator.navigateToChat(conversationId)
                     } else {
                         Logger.w { "Ignoring deep link with invalid conversation ID: $conversationId" }
                     }
@@ -131,19 +90,13 @@ fun TabletLayout(
         }
     }
 
-    // Handle share intent: if already on a chat screen, let the active ChatViewModel
-    // consume the shared content reactively. Only navigate to new chat when on a
-    // non-chat screen (e.g. settings, agents, files).
+    // Handle share intent
     LaunchedEffect(shareNavigationTrigger) {
         if (shareNavigationTrigger > 0) {
-            val currentDest = navController.currentBackStackEntry?.destination
-            val isOnChatScreen = currentDest.isRoute(Chat::class) ||
-                currentDest.isRoute(NewChat::class)
+            val currentRoute = navigator.currentRoute
+            val isOnChatScreen = currentRoute is Chat || currentRoute is NewChat
             if (!isOnChatScreen) {
-                navController.navigate(NewChat) {
-                    popUpTo<ChatRoute> { inclusive = false }
-                    launchSingleTop = true
-                }
+                navigator.navigateToTopLevel(NewChat)
             }
         }
     }
@@ -163,7 +116,7 @@ fun TabletLayout(
         }
     }
 
-    if (!isInAuthFlow) {
+    if (!navigator.isInAuthFlow) {
         val swipeModifier = if (gestureEnabled) {
             Modifier.pointerInput(Unit) {
                 val velocityTracker = VelocityTracker()
@@ -174,7 +127,6 @@ fun TabletLayout(
                     onDragEnd = {
                         val velocity = velocityTracker.calculateVelocity().x
                         val currentOffset = sidebarOffset.value
-                        // Decide target: fling velocity wins, otherwise use 50% threshold
                         val shouldOpen = when {
                             velocity > FLING_VELOCITY_THRESHOLD -> true
                             velocity < -FLING_VELOCITY_THRESHOLD -> false
@@ -192,7 +144,6 @@ fun TabletLayout(
                         }
                     },
                     onDragCancel = {
-                        // Snap back to the current committed state
                         val target = if (isSidebarOpen) sidebarWidthPx else 0f
                         scope.launch {
                             sidebarOffset.animateTo(
@@ -229,37 +180,24 @@ fun TabletLayout(
                     SidebarScaffold(
                         viewModel = navHostViewModel,
                         onNewChat = {
-                            // Skip navigation if already on the new chat screen
-                            val currentDest = navController.currentBackStackEntry?.destination
-                            if (!currentDest.isRoute(NewChat::class)) {
-                                navController.navigate(NewChat) {
-                                    popUpTo<ChatRoute> { inclusive = false }
-                                    launchSingleTop = true
-                                }
+                            if (navigator.currentRoute !is NewChat) {
+                                navigator.navigateToTopLevel(NewChat)
                             }
                         },
                         onConversationClick = { conversationId ->
-                            navController.navigateToChat(conversationId)
+                            navigator.navigateToChat(conversationId)
                         },
                         onSettingsClick = {
-                            navController.navigate(SettingsTabbed) {
-                                launchSingleTop = true
-                            }
+                            navigator.navigate(SettingsTabbed)
                         },
                         onSettingsCategorySelected = { category ->
-                            navController.navigate(category.toRoute()) {
-                                launchSingleTop = true
-                            }
+                            navigator.navigate(category.toRoute())
                         },
                         onAgentsClick = {
-                            navController.navigate(AgentMarketplace) {
-                                launchSingleTop = true
-                            }
+                            navigator.navigate(AgentMarketplace)
                         },
                         onFilesClick = {
-                            navController.navigate(Files) {
-                                launchSingleTop = true
-                            }
+                            navigator.navigate(Files)
                         },
                         modifier = Modifier
                             .width(SidebarWidth)
@@ -271,9 +209,8 @@ fun TabletLayout(
                 }
                 // Slot 1: Main content -- resizes to fill remaining space
                 MainContent(
-                    navController = navController,
+                    navigator = navigator,
                     navHostViewModel = navHostViewModel,
-                    startDestination = startDestination,
                     isInAuthFlow = false,
                     banners = banners,
                     dismissedBannerIds = dismissedBannerIds,
@@ -287,29 +224,24 @@ fun TabletLayout(
             val sidebarPx = SidebarWidth.roundToPx()
             val animatedPx = sidebarOffset.value.toInt()
 
-            // Sidebar: always measured at full 320dp width
             val sidebarPlaceable = measurables[0].measure(
                 constraints.copy(minWidth = sidebarPx, maxWidth = sidebarPx),
             )
-            // Main content: resizes to fill screen minus the visible sidebar portion
             val mainWidth = (constraints.maxWidth - animatedPx).coerceAtLeast(0)
             val mainPlaceable = measurables[1].measure(
                 constraints.copy(minWidth = mainWidth, maxWidth = mainWidth),
             )
 
             layout(constraints.maxWidth, constraints.maxHeight) {
-                // Sidebar slides: -320px (off-screen) -> 0px (fully visible)
                 sidebarPlaceable.placeRelative(animatedPx - sidebarPx, 0)
-                // Main content starts right after the visible sidebar portion
                 mainPlaceable.placeRelative(animatedPx, 0)
             }
         }
     } else {
         // Auth flow -- no sidebar, just main content
         MainContent(
-            navController = navController,
+            navigator = navigator,
             navHostViewModel = navHostViewModel,
-            startDestination = startDestination,
             isInAuthFlow = true,
             banners = banners,
             dismissedBannerIds = dismissedBannerIds,
@@ -321,9 +253,8 @@ fun TabletLayout(
 
 @Composable
 private fun MainContent(
-    navController: NavHostController,
+    navigator: Navigator,
     navHostViewModel: NavHostViewModel,
-    startDestination: Any,
     isInAuthFlow: Boolean,
     banners: List<com.garfiec.librechat.core.model.Banner>,
     dismissedBannerIds: Set<String>,
@@ -339,119 +270,11 @@ private fun MainContent(
                 modifier = Modifier.padding(top = 4.dp),
             )
         }
-        NavHost(
-            navController = navController,
-            startDestination = startDestination,
+        MainNavDisplay(
+            navigator = navigator,
+            navHostViewModel = navHostViewModel,
+            onOpenDrawer = onToggleDrawer,
             modifier = Modifier.fillMaxSize(),
-            enterTransition = {
-                slideIntoContainer(
-                    towards = AnimatedContentTransitionScope.SlideDirection.Start,
-                    animationSpec = tween(300),
-                )
-            },
-            exitTransition = {
-                fadeOut(animationSpec = tween(150))
-            },
-            popEnterTransition = {
-                fadeIn(
-                    initialAlpha = 0.5f,
-                    animationSpec = tween(300, easing = LinearEasing),
-                ) + scaleIn(
-                    initialScale = 0.92f,
-                    animationSpec = tween(300, easing = LinearEasing),
-                )
-            },
-            popExitTransition = {
-                slideOut(
-                    targetOffset = { IntOffset((it.width * 0.15f).toInt(), 0) },
-                    animationSpec = tween(300, easing = FastOutSlowInEasing),
-                ) + scaleOut(
-                    targetScale = 0.92f,
-                    animationSpec = tween(300, easing = LinearEasing),
-                )
-            },
-        ) {
-            authGraph(
-                navController = navController,
-                onAuthComplete = {
-                    navHostViewModel.onAuthComplete()
-                    navController.navigate(NewChat) {
-                        popUpTo<AuthRoute> { inclusive = true }
-                    }
-                },
-            )
-            chatGraph(
-                navController = navController,
-                onOpenDrawer = onToggleDrawer,
-            )
-            conversationsGraph(
-                onConversationClick = { conversationId ->
-                    navController.navigateToChat(conversationId)
-                },
-                onNavigateToArchived = {
-                    navController.navigate(ArchivedConversations)
-                },
-                onNavigateBackFromArchived = {
-                    navController.popBackStack()
-                },
-            )
-            agentsGraph(
-                onAgentClick = { agentId ->
-                    navController.navigate(AgentDetail(agentId = agentId))
-                },
-                onBack = { navController.popBackStack() },
-                onStartChat = { agentId ->
-                    navController.navigate(NewChat) {
-                        popUpTo<ChatRoute> { inclusive = false }
-                        launchSingleTop = true
-                    }
-                },
-                onCreateAgent = {
-                    navController.navigate(AgentEditorCreate)
-                },
-                onEditAgent = { agentId ->
-                    navController.navigate(AgentEditorEdit(agentId = agentId))
-                },
-            )
-            filesGraph()
-            settingsGraph(
-                onLogout = {
-                    navHostViewModel.logout()
-                    navController.navigate(ServerUrl) {
-                        popUpTo(0) { inclusive = true }
-                    }
-                },
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateToArchived = {
-                    navController.navigate(ArchivedConversations) {
-                        launchSingleTop = true
-                    }
-                },
-                onNavigateToSharedLinks = {
-                    navController.navigate(SharedLinks) {
-                        launchSingleTop = true
-                    }
-                },
-                onNavigateBackFromSharedLinks = {
-                    navController.popBackStack()
-                },
-                onNavigateToPresets = {
-                    navController.navigate(PresetManager) {
-                        launchSingleTop = true
-                    }
-                },
-                onNavigateBackFromPresets = {
-                    navController.popBackStack()
-                },
-                onNavigateToApiKeys = {
-                    navController.navigate(ApiKeys) {
-                        launchSingleTop = true
-                    }
-                },
-                onNavigateBackFromApiKeys = {
-                    navController.popBackStack()
-                },
-            )
-        }
+        )
     }
 }

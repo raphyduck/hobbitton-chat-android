@@ -17,7 +17,8 @@ class AndroidFeatureConventionPlugin : Plugin<Project> {
                 add("implementation", libs.findLibrary("koin-compose").get())
                 add("implementation", libs.findLibrary("koin-compose-viewmodel").get())
                 add("implementation", libs.findLibrary("koin-compose-viewmodel-navigation").get())
-                add("implementation", libs.findLibrary("navigation-compose").get())
+                add("implementation", libs.findLibrary("navigation3-ui-kmp").get())
+                add("implementation", libs.findLibrary("lifecycle-viewmodel-navigation3-kmp").get())
                 add("implementation", libs.findBundle("lifecycle").get())
             }
         }

@@ -1,14 +1,5 @@
 # Known Issues
 
-## Tablet back navigation doesn't dismiss sidebar first
-
-**Status**: Known issue, to be fixed later
-
-**Symptoms**: In tablet mode with the sidebar open, pressing back navigates away from the current chat instead of dismissing the sidebar first. The sidebar remains covering the screen.
-
-**Root cause**: The `BackHandler` in `TabletLayout.kt` is present but the system navigation's back handler takes priority. Needs investigation into back handler dispatch ordering relative to the NavHost.
-
-**Workaround**: Tap the hamburger menu button to toggle the sidebar closed.
 
 ## Chat search: sub-message scroll precision
 

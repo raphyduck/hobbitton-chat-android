@@ -8,10 +8,12 @@
 - **TwoFactorScreen** -- 6-digit OTP input with backup code fallback
 
 ## Navigation
-- Graph route: `AUTH_GRAPH_ROUTE` ("auth_graph"), start destination: `SERVER_URL_ROUTE`
-- Flow: ServerUrl -> Login -> (2FA if `tempToken` returned) -> `onAuthComplete`
+- Sealed interface: `AuthRoute : NavKey` with typed route classes
+- Routes: `ServerUrl`, `Login`, `Register`, `ForgotPassword`, `TwoFactor(tempToken)`, `VerifyEmail(email)`, `ResetPassword(userId, token)`, `Terms` (all `@Serializable`)
+- Feature entries registered via `EntryProviderScope<NavKey>.authEntries()`
+- Flow: `ServerUrl` → `Login` → (2FA if `tempToken` returned) → `onAuthComplete`
 - Register and ForgotPassword are lateral routes from Login
-- `TWO_FACTOR_ROUTE` takes `{tempToken}` nav argument
+- `TwoFactor(val tempToken: String)` data class carries the nav argument directly
 
 ## OAuth Flow
 - `OAuthManager` opens Chrome Custom Tabs to `{serverUrl}/api/oauth/{provider}`
@@ -37,7 +39,7 @@
 
 ### Terms Screen
 - `TermsScreen` + `TermsViewModel` — displays server terms, "I Accept" button
-- Route: `TERMS_ROUTE = "auth/terms"` in `AuthNavigation.kt`
+- Route: `Terms` data object (part of `AuthRoute` sealed interface) in `AuthNavigation.kt`
 - Loads terms text via `UserRepository`, posts acceptance on confirm
 - `TermsViewModel.consumeAccepted()` resets navigation trigger
 - **Gotcha**: Terms check should happen after login if `startupConfig.requireTerms` is true

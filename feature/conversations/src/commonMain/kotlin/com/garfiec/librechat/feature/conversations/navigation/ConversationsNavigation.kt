@@ -1,8 +1,7 @@
 package com.garfiec.librechat.feature.conversations.navigation
 
-import androidx.navigation.NavGraphBuilder
-import androidx.navigation.compose.composable
-import com.garfiec.librechat.core.ui.components.ScreenTransitionWrapper
+import androidx.navigation3.runtime.EntryProviderScope
+import androidx.navigation3.runtime.NavKey
 import com.garfiec.librechat.feature.conversations.screen.ArchivedConversationsScreen
 import com.garfiec.librechat.feature.conversations.screen.ConversationListScreen
 import kotlinx.serialization.Serializable
@@ -10,35 +9,31 @@ import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
 
-@Serializable sealed interface ConversationsRoute
+@Serializable sealed interface ConversationsRoute : NavKey
 
 @Serializable data object Conversations : ConversationsRoute
 @Serializable data object ArchivedConversations : ConversationsRoute
 
-fun NavGraphBuilder.conversationsGraph(
+fun EntryProviderScope<NavKey>.conversationsEntries(
     onConversationClick: (String) -> Unit,
     onNavigateToArchived: () -> Unit = {},
-    onNavigateBackFromArchived: () -> Unit = {},
+    onBack: () -> Unit = {},
 ) {
-    composable<Conversations> {
-        ScreenTransitionWrapper(transition) {
-            ConversationListScreen(
-                onConversationClick = onConversationClick,
-                onNavigateToArchived = onNavigateToArchived,
-            )
-        }
+    entry<Conversations> {
+        ConversationListScreen(
+            onConversationClick = onConversationClick,
+            onNavigateToArchived = onNavigateToArchived,
+        )
     }
-    composable<ArchivedConversations> {
-        ScreenTransitionWrapper(transition) {
-            ArchivedConversationsScreen(
-                onNavigateBack = onNavigateBackFromArchived,
-            )
-        }
+    entry<ArchivedConversations> {
+        ArchivedConversationsScreen(
+            onNavigateBack = onBack,
+        )
     }
 }
 
 val conversationsSerializersModule = SerializersModule {
-    polymorphic(ConversationsRoute::class) {
+    polymorphic(NavKey::class) {
         subclass(Conversations::class, Conversations.serializer())
         subclass(ArchivedConversations::class, ArchivedConversations.serializer())
     }

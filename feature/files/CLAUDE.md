@@ -1,7 +1,7 @@
 # feature:files
 
 ## Screen
-`FilesScreen` -- single route `FILES_ROUTE`. Lists uploaded files with upload and delete actions.
+`FilesScreen` -- sealed interface `FilesRoute : NavKey` with single route `Files` (`@Serializable` data object). Lists uploaded files with upload and delete actions.
 
 ## ViewModel
 `FilesViewModel` depends on `FileRepository` and application `Context` (for content resolver).

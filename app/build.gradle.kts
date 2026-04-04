@@ -31,7 +31,8 @@ dependencies {
     implementation(project(":feature:files"))
 
     implementation(libs.activity.compose)
-    implementation(libs.navigation.compose)
+    implementation(libs.navigation3.ui.kmp)
+    implementation(libs.lifecycle.viewmodel.navigation3.kmp)
     implementation(libs.koin.compose)
     implementation(libs.koin.compose.viewmodel)
     implementation(libs.koin.compose.viewmodel.navigation)

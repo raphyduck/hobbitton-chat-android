@@ -81,18 +81,20 @@ import librechat_mobile.feature.chat.generated.resources.Res
 import librechat_mobile.feature.chat.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
+import org.koin.core.parameter.parametersOf
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 actual fun ChatScreen(
     modifier: Modifier,
+    conversationId: String?,
     onConversationStarted: ((String) -> Unit)?,
     onNavigateToConversation: ((String) -> Unit)?,
     onOpenDrawer: (() -> Unit)?,
     onNavigateToPromptsLibrary: (() -> Unit)?,
     onNavigateBack: (() -> Unit)?,
 ) {
-    val viewModel: ChatViewModel = koinViewModel()
+    val viewModel: ChatViewModel = koinViewModel { parametersOf(conversationId) }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val attachedFiles by viewModel.attachedFiles.collectAsStateWithLifecycle()
     val prefs by viewModel.chatPreferences.collectAsStateWithLifecycle()

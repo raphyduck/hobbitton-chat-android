@@ -56,6 +56,7 @@ import librechat_mobile.feature.agents.generated.resources.*
 import com.garfiec.librechat.feature.agents.viewmodel.AgentDetailEvent
 import com.garfiec.librechat.feature.agents.viewmodel.AgentDetailViewModel
 import org.koin.compose.viewmodel.koinViewModel
+import org.koin.core.parameter.parametersOf
 
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -65,8 +66,9 @@ fun AgentDetailScreen(
     onStartChat: (String) -> Unit,
     onEdit: (String) -> Unit,
     onDuplicated: (String) -> Unit,
+    agentId: String? = null,
     modifier: Modifier = Modifier,
-    viewModel: AgentDetailViewModel = koinViewModel(),
+    viewModel: AgentDetailViewModel = koinViewModel { parametersOf(agentId) },
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 

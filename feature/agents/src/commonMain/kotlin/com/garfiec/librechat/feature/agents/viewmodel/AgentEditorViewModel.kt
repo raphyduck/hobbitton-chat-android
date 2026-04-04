@@ -107,9 +107,10 @@ class AgentEditorViewModel(
     private val configRepository: ConfigRepository,
     private val mcpRepository: McpRepository,
     private val contentReader: ContentReader,
+    initialAgentId: String? = null,
 ) : ViewModel() {
 
-    private val editAgentId: String? = savedStateHandle["agentId"]
+    private val editAgentId: String? = initialAgentId
 
     private val _uiState = MutableStateFlow(
         AgentEditorUiState(

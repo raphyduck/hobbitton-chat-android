@@ -1,7 +1,7 @@
 # feature:conversations
 
 ## Screen
-`ConversationListScreen` -- the drawer content showing all conversations. Single route: `CONVERSATIONS_ROUTE`.
+`ConversationListScreen` -- the drawer content showing all conversations. Sealed interface: `ConversationsRoute : NavKey` with routes `Conversations` and `ArchivedConversations` (both `@Serializable` data objects).
 
 ## Pagination
 - Cursor-based via `ConversationRepository.loadNextPage(cursor, tags)`

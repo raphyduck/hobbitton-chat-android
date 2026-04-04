@@ -5,8 +5,9 @@
 - **AgentDetailScreen** -- full agent info with "Start Chat" action
 
 ## Navigation
-- `AGENTS_ROUTE` ("agents") -> marketplace grid
-- `AGENT_DETAIL_ROUTE` ("agents/{agentId}") -> detail view
+- Sealed interface: `AgentsRoute : NavKey` with typed route classes
+- Routes: `AgentMarketplace` (grid), `AgentDetail(agentId: String)` (detail), `AgentEditorCreate`, `AgentEditorEdit(agentId: String)` (all `@Serializable`)
+- Feature entries registered via `EntryProviderScope<NavKey>.agentsEntries()`
 - `onStartChat(agentId)` callback navigates to chat with the selected agent
 
 ## Marketplace ViewModel

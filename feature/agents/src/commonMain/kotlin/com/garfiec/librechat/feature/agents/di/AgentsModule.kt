@@ -14,14 +14,22 @@ val agentsModule = module {
     includes(agentsPlatformModule)
 
     viewModelOf(::AgentMarketplaceViewModel)
-    viewModelOf(::AgentDetailViewModel)
-    viewModel {
+    viewModel { params ->
+        AgentDetailViewModel(
+            savedStateHandle = get(),
+            agentRepository = get(),
+            serverDataStore = get(),
+            initialAgentId = params.getOrNull(),
+        )
+    }
+    viewModel { params ->
         AgentEditorViewModel(
             savedStateHandle = get(),
             agentRepository = get(),
             configRepository = get(),
             mcpRepository = get(),
             contentReader = get(),
+            initialAgentId = params.getOrNull(),
         )
     }
 }

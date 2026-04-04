@@ -36,9 +36,10 @@ class AgentDetailViewModel(
     savedStateHandle: SavedStateHandle,
     private val agentRepository: AgentRepository,
     private val serverDataStore: ServerDataStore,
+    initialAgentId: String? = null,
 ) : ViewModel() {
 
-    private val agentId: String = checkNotNull(savedStateHandle["agentId"])
+    private val agentId: String = checkNotNull(initialAgentId) { "agentId must be provided" }
 
     private val _uiState = MutableStateFlow(AgentDetailUiState())
     val uiState: StateFlow<AgentDetailUiState> = _uiState.asStateFlow()

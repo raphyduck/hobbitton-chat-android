@@ -2,8 +2,8 @@ package com.garfiec.librechat.feature.settings.navigation
 
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.NavGraphBuilder
-import androidx.navigation.compose.composable
+import androidx.navigation3.runtime.EntryProviderScope
+import androidx.navigation3.runtime.NavKey
 import com.garfiec.librechat.feature.settings.screen.AccountSettingsScreen
 import com.garfiec.librechat.feature.settings.screen.ApiKeysScreen
 import com.garfiec.librechat.feature.settings.screen.ChatSettingsScreen
@@ -19,7 +19,7 @@ import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
 import org.koin.compose.viewmodel.koinViewModel
 
-@Serializable sealed interface SettingsRoute
+@Serializable sealed interface SettingsRoute : NavKey
 
 @Serializable data object SettingsTabbed : SettingsRoute
 @Serializable data object SettingsGeneral : SettingsRoute
@@ -30,54 +30,48 @@ import org.koin.compose.viewmodel.koinViewModel
 @Serializable data object PresetManager : SettingsRoute
 @Serializable data object ApiKeys : SettingsRoute
 
-fun NavGraphBuilder.settingsGraph(
+fun EntryProviderScope<NavKey>.settingsEntries(
+    onNavigate: (NavKey) -> Unit,
+    onBack: () -> Unit,
     onLogout: () -> Unit,
-    onNavigateBack: () -> Unit,
     onNavigateToArchived: () -> Unit = {},
-    onNavigateToSharedLinks: () -> Unit = {},
-    onNavigateBackFromSharedLinks: () -> Unit = {},
-    onNavigateToPresets: () -> Unit = {},
-    onNavigateBackFromPresets: () -> Unit = {},
-    onNavigateToApiKeys: () -> Unit = {},
-    onNavigateBackFromApiKeys: () -> Unit = {},
 ) {
-    composable<SettingsTabbed> {
+    entry<SettingsTabbed> {
         TabbedSettingsScreen(
-            onNavigateBack = onNavigateBack,
+            onNavigateBack = onBack,
             onLogout = onLogout,
             onNavigateToArchived = onNavigateToArchived,
-            onNavigateToSharedLinks = onNavigateToSharedLinks,
-            onNavigateToPresets = onNavigateToPresets,
-            onNavigateToApiKeys = onNavigateToApiKeys,
+            onNavigateToSharedLinks = { onNavigate(SharedLinks) },
+            onNavigateToPresets = { onNavigate(PresetManager) },
+            onNavigateToApiKeys = { onNavigate(ApiKeys) },
         )
     }
-
-    composable<SettingsGeneral> {
+    entry<SettingsGeneral> {
         GeneralSettingsScreen(
-            onNavigateBack = onNavigateBack,
+            onNavigateBack = onBack,
         )
     }
-    composable<SettingsChat> {
+    entry<SettingsChat> {
         ChatSettingsScreen(
-            onNavigateBack = onNavigateBack,
-            onNavigateToPresets = onNavigateToPresets,
+            onNavigateBack = onBack,
+            onNavigateToPresets = { onNavigate(PresetManager) },
         )
     }
-    composable<SettingsAccount> {
+    entry<SettingsAccount> {
         AccountSettingsScreen(
             onLogout = onLogout,
-            onNavigateBack = onNavigateBack,
-            onNavigateToApiKeys = onNavigateToApiKeys,
+            onNavigateBack = onBack,
+            onNavigateToApiKeys = { onNavigate(ApiKeys) },
         )
     }
-    composable<SettingsData> {
+    entry<SettingsData> {
         DataSettingsScreen(
-            onNavigateBack = onNavigateBack,
+            onNavigateBack = onBack,
             onNavigateToArchived = onNavigateToArchived,
-            onNavigateToSharedLinks = onNavigateToSharedLinks,
+            onNavigateToSharedLinks = { onNavigate(SharedLinks) },
         )
     }
-    composable<SharedLinks> {
+    entry<SharedLinks> {
         val viewModel: SettingsViewModel = koinViewModel()
         val uiState = viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -93,23 +87,23 @@ fun NavGraphBuilder.settingsGraph(
             onLoadMore = viewModel::loadMoreSharedLinks,
             onToggleVisibility = viewModel::toggleSharedLinkVisibility,
             onDelete = viewModel::deleteSharedLink,
-            onNavigateBack = onNavigateBackFromSharedLinks,
+            onNavigateBack = onBack,
         )
     }
-    composable<PresetManager> {
+    entry<PresetManager> {
         PresetManagerScreen(
-            onNavigateBack = onNavigateBackFromPresets,
+            onNavigateBack = onBack,
         )
     }
-    composable<ApiKeys> {
+    entry<ApiKeys> {
         ApiKeysScreen(
-            onNavigateBack = onNavigateBackFromApiKeys,
+            onNavigateBack = onBack,
         )
     }
 }
 
 val settingsSerializersModule = SerializersModule {
-    polymorphic(SettingsRoute::class) {
+    polymorphic(NavKey::class) {
         subclass(SettingsTabbed::class, SettingsTabbed.serializer())
         subclass(SettingsGeneral::class, SettingsGeneral.serializer())
         subclass(SettingsChat::class, SettingsChat.serializer())
