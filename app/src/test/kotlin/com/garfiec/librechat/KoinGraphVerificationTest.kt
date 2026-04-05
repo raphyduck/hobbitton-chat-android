@@ -62,7 +62,7 @@ import com.garfiec.librechat.feature.conversations.di.conversationsModule
 import com.garfiec.librechat.feature.files.di.filesModule
 import com.garfiec.librechat.feature.files.platform.FileReader
 import com.garfiec.librechat.feature.settings.di.settingsModule
-import com.garfiec.librechat.navigation.appModule
+import com.garfiec.librechat.shared.navigation.sharedAppModule
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import org.junit.Test
@@ -76,7 +76,7 @@ class KoinGraphVerificationTest {
         commonModule,
         networkModule,
         dataModule,
-        appModule,
+        sharedAppModule,
         authModule,
         chatModule,
         conversationsModule,

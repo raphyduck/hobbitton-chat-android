@@ -4,36 +4,34 @@ Single Activity architecture. `MainActivity` is the sole entry point.
 
 ## Navigation
 
-`LibreChatNavHost` is the root composable using Nav 3's `NavDisplay` with `NavBackStack<NavKey>` and `entryProvider`. It uses adaptive layout based on `WindowSizeClass`:
+`LibreChatNavHost` (in this module) is the Android-specific entry point. It wraps the shared module's `LibreChatNavHost` via a `content` lambda, adding:
 
-- **Phone**: `ModalNavigationDrawer` as primary navigation (sidebar-first pattern matching the web frontend). No bottom navigation bar. Drawer opens via hamburger button in chat header or swipe gesture.
-- **Tablet** (600dp+ width): Persistent side panel with full conversation list. No `NavigationRail` or bottom bar.
+- **Deep link handling** (`librechat://conversation/{conversationId}`)
+- **Share intent routing** (navigates to NewChat if not already on a chat screen)
+- **Tablet layout branching** based on `WindowSizeClass`
+
+The shared module owns the core navigation: `Navigator`, `NavHostViewModel`, `MainNavDisplay`, `PhoneLayout`, sidebar/drawer composables, and all feature entry providers. See `shared/CLAUDE.md` for details.
+
+### Layout Modes
+
+- **Phone**: Delegates to shared `PhoneLayout` — `ModalNavigationDrawer` sidebar-first pattern.
+- **Tablet** (600dp+ width): Uses `TabletLayout` (Android-only, in this module) — persistent side panel with swipe gesture and `BackHandler`.
 
 Feature modules provide entries via `EntryProviderScope<NavKey>` extensions (e.g., `authEntries()`, `chatEntries()`). Navigation is driven by `onNavigate: (NavKey) -> Unit` and `onBack: () -> Unit` lambdas — feature modules never receive `NavBackStack` directly.
 
-## Sidebar / Drawer Content
+## Android-Only Files in This Module
 
-`DrawerContent` is the rich sidebar matching the web's left panel:
-- "New Chat" button at top
-- Search bar with debounce filtering
-- Conversation items grouped by date (Today, Yesterday, Previous 7 Days, etc.)
-- Each item shows: endpoint icon, title, model name, relative time
-- Active conversation highlighted with left border indicator and tinted background
-- Footer: links to Agents, Files, Settings
-- Sign out button at bottom
+- `LibreChatNavHost.kt` — Thin wrapper adding deep links, share intents, and tablet/phone branching
+- `TabletLayout.kt` — Persistent sidebar with `BackHandler`, `android.net.Uri`, and custom swipe gesture
 
 ## Top-Level Destinations
 
 Top-level routes: `NewChat` (Chat), `Conversations`, `AgentMarketplace` (Agents), `Files`, `SettingsTabbed` (Settings).
-Conversations are integrated into the drawer body. Agents, Files, and Settings are accessible via drawer footer links. All routes are registered in the `NavDisplay` entry provider.
-
-## Active Conversation Tracking
-
-`NavHostViewModel.activeConversationId` tracks the currently viewed conversation. Updated automatically from the navigation back stack when the chat route changes. Used by `DrawerContent` to highlight the active conversation.
+Conversations are integrated into the drawer body. Agents, Files, and Settings are accessible via drawer footer links. All routes are registered in the shared `MainNavDisplay` entry provider.
 
 ## Auth & Session
 
-- `NavHostViewModel` observes auth state via `isLoggedIn` flow
+- `NavHostViewModel` (in shared) observes auth state via `isLoggedIn` flow
 - Start destination is `NewChat` if logged in, `ServerUrl` otherwise
 - `sessionExpired` flow triggers nav to auth flow with full back stack clear
 - Drawer gestures are hidden during auth flow
@@ -41,7 +39,7 @@ Conversations are integrated into the drawer body. Agents, Files, and Settings a
 ## Deep Linking
 
 - Scheme: `librechat://conversation/{conversationId}`
-- Handled in `MainActivity.handleDeepLink()` and forwarded to `LibreChatNavHost`
+- Handled in `MainActivity.handleDeepLink()` and forwarded to this module's `LibreChatNavHost`
 - `onNewIntent` handles deep links when app is already running
 
 ## Connectivity
@@ -51,23 +49,22 @@ Conversations are integrated into the drawer body. Agents, Files, and Settings a
 
 ## Dependencies
 
-This module depends on all `:core:*` and all `:feature:*` modules.
+This module depends on `:shared`, all `:core:*`, and all `:feature:*` modules.
 It applies convention plugins: `librechat.mobile.application`, `librechat.mobile.compose`, `librechat.mobile.koin`.
 
 ### Server-Synced Favorites
-- `NavHostViewModel` exposes `favorites: StateFlow<Set<String>>` and `toggleFavorite()`
+- `NavHostViewModel` (shared) exposes `favorites: StateFlow<Set<String>>` and `toggleFavorite()`
 - Currently backed by `SettingsDataStore` (local) — server sync via `UserApi.getFavorites()/updateFavorites()` available but needs wiring
-- `DrawerContent` shows star icon per conversation (filled = bookmarked)
-- Favorites state passed through `LibreChatNavHost` and `TabletLayout`
+- `DrawerContent` (shared) shows star icon per conversation (filled = bookmarked)
 
 ### Server Banners
-- `NavHostViewModel` fetches banners from `BannerRepository` on init, filters expired via `displayFrom`/`displayTo` with `Instant.parse()`
+- `NavHostViewModel` (shared) fetches banners from `BannerRepository` on init, filters expired via `displayFrom`/`displayTo` with `Instant.parse()`
 - Dismissed banner IDs tracked in-memory via `dismissedBannerIds: StateFlow<Set<String>>` (session-scoped, not persisted)
-- `BannerDisplay` composable shown at top of content in both `LibreChatNavHost` (phone) and `TabletLayout`
+- `BannerDisplay` composable shown at top of content in both `PhoneLayout` (shared) and `TabletLayout` (app)
 - Banner types: "info" (blue), "warning" (amber), "error" (red) — defaults to "info" if type is null
 - **Gotcha**: `displayFrom`/`displayTo` are ISO 8601 strings parsed with `Instant.parse()` — wrap in `runCatching` since the format from the server is not guaranteed
 
 ### Preset Navigation
 - `PresetManager` route registered in `SettingsNavigation.kt`
 - `PresetManagerScreen` accessible from Settings → Chat section
-- Navigation wired through `MainNavDisplay` entry provider, accessible from both phone and tablet layouts
+- Navigation wired through shared `MainNavDisplay` entry provider, accessible from both phone and tablet layouts

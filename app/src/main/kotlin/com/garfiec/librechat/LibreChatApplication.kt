@@ -18,7 +18,7 @@ import com.garfiec.librechat.feature.chat.di.chatModule
 import com.garfiec.librechat.feature.conversations.di.conversationsModule
 import com.garfiec.librechat.feature.files.di.filesModule
 import com.garfiec.librechat.feature.settings.di.settingsModule
-import com.garfiec.librechat.navigation.appModule
+import com.garfiec.librechat.shared.navigation.sharedAppModule
 import io.ktor.client.HttpClient
 import org.koin.android.ext.android.get
 import org.koin.android.ext.koin.androidContext
@@ -41,7 +41,7 @@ class LibreChatApplication : Application(), SingletonImageLoader.Factory {
                     commonModule,
                     networkModule,
                     dataModule,
-                    appModule,
+                    sharedAppModule,
                     authModule,
                     authPlatformModule,
                     chatModule,

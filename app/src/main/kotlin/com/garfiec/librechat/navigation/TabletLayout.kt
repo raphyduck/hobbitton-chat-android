@@ -1,6 +1,5 @@
 package com.garfiec.librechat.navigation
 
-import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
@@ -27,16 +26,17 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation3.runtime.NavKey
-import com.garfiec.librechat.MainActivity
 import com.garfiec.librechat.core.ui.components.BannerDisplay
+import com.garfiec.librechat.shared.navigation.NavHostViewModel
+import com.garfiec.librechat.shared.navigation.Navigator
+import com.garfiec.librechat.shared.navigation.MainNavDisplay
+import com.garfiec.librechat.shared.navigation.SidebarScaffold
+import com.garfiec.librechat.shared.navigation.toRoute
 import com.garfiec.librechat.feature.agents.navigation.AgentMarketplace
-import com.garfiec.librechat.feature.chat.navigation.Chat
 import com.garfiec.librechat.feature.chat.navigation.NewChat
 import com.garfiec.librechat.feature.files.navigation.Files
 import com.garfiec.librechat.feature.settings.navigation.SettingsTabbed
 import kotlinx.coroutines.launch
-import co.touchlab.kermit.Logger
 
 private val SidebarWidth = 320.dp
 
@@ -47,10 +47,7 @@ private const val FLING_VELOCITY_THRESHOLD = 800f
 fun TabletLayout(
     navigator: Navigator,
     navHostViewModel: NavHostViewModel,
-    deepLinkUri: Uri?,
-    onDeepLinkConsumed: () -> Unit,
     modifier: Modifier = Modifier,
-    shareNavigationTrigger: Int = 0,
 ) {
     // Banner state only -- drawer state is collected inside DrawerContent itself
     val banners by navHostViewModel.banners.collectAsStateWithLifecycle()
@@ -72,33 +69,6 @@ fun TabletLayout(
     // Back press closes sidebar before navigating away
     BackHandler(enabled = isSidebarOpen) {
         navHostViewModel.setTabletSidebarOpen(false)
-    }
-
-    // Handle deep links
-    LaunchedEffect(deepLinkUri) {
-        deepLinkUri?.let { uri ->
-            if (uri.scheme == "librechat" && uri.host == "conversation") {
-                uri.lastPathSegment?.let { conversationId ->
-                    if (MainActivity.CONVERSATION_ID_REGEX.matches(conversationId)) {
-                        navigator.navigateToChat(conversationId)
-                    } else {
-                        Logger.w { "Ignoring deep link with invalid conversation ID: $conversationId" }
-                    }
-                }
-            }
-            onDeepLinkConsumed()
-        }
-    }
-
-    // Handle share intent
-    LaunchedEffect(shareNavigationTrigger) {
-        if (shareNavigationTrigger > 0) {
-            val currentRoute = navigator.currentRoute
-            val isOnChatScreen = currentRoute is Chat || currentRoute is NewChat
-            if (!isOnChatScreen) {
-                navigator.navigateToTopLevel(NewChat)
-            }
-        }
     }
 
     // Sync: when ViewModel state changes (e.g. hamburger button, back press),
@@ -273,7 +243,7 @@ private fun MainContent(
         MainNavDisplay(
             navigator = navigator,
             navHostViewModel = navHostViewModel,
-            onOpenDrawer = onToggleDrawer,
+            onMenuClick = onToggleDrawer,
             modifier = Modifier.fillMaxSize(),
         )
     }
