@@ -64,10 +64,11 @@ Without this setting, the server's violation system may accumulate ban points ag
 | Tool | Version |
 |------|---------|
 | JDK | 17+ |
-| Android Studio | Latest stable |
-| Xcode | 15+ (iOS only) |
-| Gradle | 8.11.1 (via wrapper) |
-| Kotlin | 2.1.20 |
+| Android Studio or IntelliJ IDEA | Latest stable (recommended IDE for all code editing) |
+| Xcode | 15+ (iOS only, Apple Silicon Mac required — IDE not needed, CLI only) |
+| iOS Deployment Target | 16.0+ |
+| Gradle | 9.4.1 (via wrapper) |
+| Kotlin | 2.3.20 |
 
 ## Building from Source
 
@@ -87,24 +88,26 @@ For a release build:
 
 ### iOS
 
-Build the shared KMP framework and open in Xcode:
+Build and run on the iOS Simulator:
 
 ```bash
-./gradlew :shared:linkDebugFrameworkIosSimulatorArm64
-open iosApp/iosApp.xcodeproj
+xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp \
+  -sdk iphonesimulator \
+  -destination 'platform=iOS Simulator,name=iPhone 16' \
+  -derivedDataPath iosApp/build build
 ```
 
-Run on an iOS simulator from Xcode. The shared framework must be rebuilt whenever shared code changes.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for full simulator install and launch commands.
 
 ### Tech Stack
 
 - Kotlin Multiplatform (KMP) with shared business logic
-- Jetpack Compose (Android) + SwiftUI (iOS)
+- Jetpack Compose (Android) + Compose Multiplatform (iOS)
 - Koin (dependency injection)
-- Ktor Client with OkHttp engine
+- Ktor Client (OkHttp on Android, Darwin on iOS)
 - Kotlinx Serialization
-- Room (cache), DataStore (preferences), EncryptedSharedPreferences (tokens)
-- Kotlin 2.1.20, compileSdk 35, minSdk 26
+- Room (cache), DataStore (preferences), EncryptedSharedPreferences / Keychain (tokens)
+- Kotlin 2.3.20, compileSdk 36, minSdk 26
 
 ## Contributing
 
