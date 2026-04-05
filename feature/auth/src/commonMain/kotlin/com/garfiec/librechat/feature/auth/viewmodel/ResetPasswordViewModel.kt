@@ -23,10 +23,12 @@ data class ResetPasswordUiState(
 class ResetPasswordViewModel(
     savedStateHandle: SavedStateHandle,
     private val authRepository: AuthRepository,
+    initialUserId: String? = null,
+    initialToken: String? = null,
 ) : ViewModel() {
 
-    private val userId: String = savedStateHandle["userId"] ?: ""
-    private val token: String = savedStateHandle["token"] ?: ""
+    private val userId: String = initialUserId ?: ""
+    private val token: String = initialToken ?: ""
 
     private val _uiState = MutableStateFlow(ResetPasswordUiState())
     val uiState: StateFlow<ResetPasswordUiState> = _uiState.asStateFlow()

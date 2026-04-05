@@ -34,14 +34,16 @@ import librechat_mobile.feature.auth.generated.resources.Res
 import librechat_mobile.feature.auth.generated.resources.*
 import com.garfiec.librechat.feature.auth.viewmodel.VerifyEmailViewModel
 import org.koin.compose.viewmodel.koinViewModel
+import org.koin.core.parameter.parametersOf
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VerifyEmailScreen(
     onVerified: () -> Unit,
     onBack: () -> Unit,
+    email: String? = null,
     modifier: Modifier = Modifier,
-    viewModel: VerifyEmailViewModel = koinViewModel(),
+    viewModel: VerifyEmailViewModel = koinViewModel { parametersOf(email) },
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val email = uiState.email

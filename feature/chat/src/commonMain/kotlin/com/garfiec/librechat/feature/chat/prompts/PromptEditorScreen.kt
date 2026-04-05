@@ -38,13 +38,15 @@ import com.garfiec.librechat.core.ui.components.LoadingIndicator
 import librechat_mobile.feature.chat.generated.resources.Res
 import librechat_mobile.feature.chat.generated.resources.*
 import org.koin.compose.viewmodel.koinViewModel
+import org.koin.core.parameter.parametersOf
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PromptEditorScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: PromptEditorViewModel = koinViewModel(),
+    groupId: String? = null,
+    viewModel: PromptEditorViewModel = koinViewModel { parametersOf(groupId) },
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }

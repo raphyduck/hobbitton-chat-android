@@ -125,7 +125,7 @@ data class ChatUiState(
     val showDeleteConfirmation: Boolean = false,
     val duplicatedConversationId: String? = null,
     /** Set at StreamEvent.Created when a new conversation's conversationId becomes available.
-     *  The UI navigates to chat/{id} and then clears this via [ChatViewModel.onPendingNavigationHandled],
+     *  The UI navigates to Chat(id) and then clears this via [ChatViewModel.onPendingNavigationHandled],
      *  which also resets this ViewModel to a clean landing state. */
     val pendingNavigationConversationId: String? = null,
     // Model comparison state

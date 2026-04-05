@@ -1,117 +1,69 @@
 package com.garfiec.librechat.feature.chat.navigation
 
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
-import androidx.navigation.NavController
-import androidx.navigation.NavGraphBuilder
-import androidx.navigation.NavType
-import androidx.navigation.compose.composable
-import androidx.navigation.navArgument
-import androidx.navigation.navigation
+import androidx.navigation3.runtime.EntryProviderScope
+import androidx.navigation3.runtime.NavKey
 import com.garfiec.librechat.feature.chat.prompts.PromptEditorScreen
 import com.garfiec.librechat.feature.chat.prompts.PromptsLibraryScreen
 import com.garfiec.librechat.feature.chat.screen.ChatScreen
 import com.garfiec.librechat.feature.chat.screen.NewChatScreen
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.modules.SerializersModule
+import kotlinx.serialization.modules.polymorphic
+import kotlinx.serialization.modules.subclass
 
-const val CHAT_GRAPH_ROUTE = "chat_graph"
-const val NEW_CHAT_ROUTE = "new_chat"
-const val CHAT_ROUTE = "chat/{conversationId}"
-const val PROMPTS_LIBRARY_ROUTE = "prompts_library"
-const val PROMPT_EDITOR_ROUTE = "prompt_editor?groupId={groupId}"
+@Serializable sealed interface ChatRoute : NavKey
 
-fun NavController.navigateToChat(conversationId: String) {
-    val currentEntry = currentBackStackEntry
-    val isCurrentlyInChat = currentEntry?.destination?.route == CHAT_ROUTE
-    val currentDestId = currentEntry?.destination?.id
-    navigate("chat/$conversationId") {
-        if (isCurrentlyInChat && currentDestId != null) {
-            // Already viewing a chat -- replace it so switching chats
-            // doesn't stack entries. Back will go to whatever was
-            // before the first chat (e.g. new_chat, settings, agents).
-            popUpTo(currentDestId) { inclusive = true }
-        }
-        // From non-chat screens just push onto the backstack normally
-        launchSingleTop = true
-    }
-}
+@Serializable data object NewChat : ChatRoute
+@Serializable data class Chat(val conversationId: String? = null) : ChatRoute
+@Serializable data object PromptsLibrary : ChatRoute
+@Serializable data class PromptEditor(val groupId: String? = null) : ChatRoute
 
-fun NavController.navigateToPromptsLibrary() {
-    navigate(PROMPTS_LIBRARY_ROUTE)
-}
-
-fun NavController.navigateToPromptEditor(groupId: String? = null) {
-    if (groupId != null) {
-        navigate("prompt_editor?groupId=$groupId")
-    } else {
-        navigate("prompt_editor")
-    }
-}
-
-fun NavGraphBuilder.chatGraph(
-    navController: NavController,
+fun EntryProviderScope<NavKey>.chatEntries(
+    onNavigate: (NavKey) -> Unit,
+    onBack: () -> Unit,
+    onNavigateToChat: (String) -> Unit,
     onOpenDrawer: (() -> Unit)? = null,
 ) {
-    navigation(startDestination = NEW_CHAT_ROUTE, route = CHAT_GRAPH_ROUTE) {
-        composable(
-            route = NEW_CHAT_ROUTE,
-            enterTransition = { EnterTransition.None },
-            exitTransition = { ExitTransition.None },
-            popEnterTransition = { null },
-            popExitTransition = { null },
-        ) {
-            NewChatScreen(
-                onConversationStarted = { conversationId ->
-                    navController.navigateToChat(conversationId)
-                },
-                onOpenDrawer = onOpenDrawer,
-                onNavigateToPromptsLibrary = { navController.navigateToPromptsLibrary() },
-            )
-        }
-        composable(
-            route = CHAT_ROUTE,
-            arguments = listOf(
-                navArgument("conversationId") {
-                    type = NavType.StringType
-                    nullable = true
-                    defaultValue = null
-                },
-            ),
-            enterTransition = { EnterTransition.None },
-            exitTransition = { ExitTransition.None },
-            popEnterTransition = { null },
-            popExitTransition = { null },
-        ) { _ ->
-            ChatScreen(
-                onOpenDrawer = onOpenDrawer,
-                onNavigateToPromptsLibrary = { navController.navigateToPromptsLibrary() },
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateToConversation = { conversationId -> navController.navigateToChat(conversationId) },
-            )
-        }
-        composable(PROMPTS_LIBRARY_ROUTE) {
-            PromptsLibraryScreen(
-                onNavigateBack = { navController.popBackStack() },
-                onUseInChat = { promptText ->
-                    navController.popBackStack()
-                },
-                onNavigateToEditor = { groupId ->
-                    navController.navigateToPromptEditor(groupId)
-                },
-            )
-        }
-        composable(
-            route = PROMPT_EDITOR_ROUTE,
-            arguments = listOf(
-                navArgument("groupId") {
-                    type = NavType.StringType
-                    nullable = true
-                    defaultValue = null
-                },
-            ),
-        ) {
-            PromptEditorScreen(
-                onBack = { navController.popBackStack() },
-            )
-        }
+    entry<NewChat> {
+        NewChatScreen(
+            onConversationStarted = { conversationId ->
+                onNavigateToChat(conversationId)
+            },
+            onOpenDrawer = onOpenDrawer,
+            onNavigateToPromptsLibrary = { onNavigate(PromptsLibrary) },
+        )
+    }
+    entry<Chat> { key ->
+        ChatScreen(
+            conversationId = key.conversationId,
+            onOpenDrawer = onOpenDrawer,
+            onNavigateToPromptsLibrary = { onNavigate(PromptsLibrary) },
+            onNavigateBack = onBack,
+            onNavigateToConversation = { conversationId -> onNavigateToChat(conversationId) },
+        )
+    }
+    entry<PromptsLibrary> {
+        PromptsLibraryScreen(
+            onNavigateBack = onBack,
+            onUseInChat = { _ -> onBack() },
+            onNavigateToEditor = { groupId ->
+                onNavigate(PromptEditor(groupId = groupId))
+            },
+        )
+    }
+    entry<PromptEditor> { key ->
+        PromptEditorScreen(
+            onBack = onBack,
+            groupId = key.groupId,
+        )
+    }
+}
+
+val chatSerializersModule = SerializersModule {
+    polymorphic(NavKey::class) {
+        subclass(NewChat::class, NewChat.serializer())
+        subclass(Chat::class, Chat.serializer())
+        subclass(PromptsLibrary::class, PromptsLibrary.serializer())
+        subclass(PromptEditor::class, PromptEditor.serializer())
     }
 }

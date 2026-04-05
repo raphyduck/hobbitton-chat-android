@@ -97,18 +97,20 @@ import com.garfiec.librechat.feature.chat.viewmodel.ChatScreenState
 import com.garfiec.librechat.feature.chat.viewmodel.ChatViewModel
 import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
+import org.koin.core.parameter.parametersOf
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 actual fun ChatScreen(
     modifier: Modifier,
+    conversationId: String?,
     onConversationStarted: ((String) -> Unit)?,
     onNavigateToConversation: ((String) -> Unit)?,
     onOpenDrawer: (() -> Unit)?,
     onNavigateToPromptsLibrary: (() -> Unit)?,
     onNavigateBack: (() -> Unit)?,
 ) {
-    val viewModel: ChatViewModel = koinViewModel()
+    val viewModel: ChatViewModel = koinViewModel { parametersOf(conversationId) }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val attachedFiles by viewModel.attachedFiles.collectAsStateWithLifecycle()
     val shareLinkUrl by viewModel.shareLinkUrl.collectAsStateWithLifecycle()
@@ -232,9 +234,9 @@ actual fun ChatScreen(
         }
     }
 
-    // When a new conversation starts, navigate to chat/{conversationId} immediately
-    // (at StreamEvent.Created) so the new_chat landing page stays clean in the back
-    // stack. The new ChatViewModel at chat/{id} will resume the active stream.
+    // When a new conversation starts, navigate to Chat(conversationId) immediately
+    // (at StreamEvent.Created) so the NewChat landing page stays clean in the back
+    // stack. The new ChatViewModel at Chat(id) will resume the active stream.
     // onPendingNavigationHandled() resets this ViewModel to a fresh landing state.
     LaunchedEffect(uiState.pendingNavigationConversationId) {
         val pendingId = uiState.pendingNavigationConversationId

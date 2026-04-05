@@ -7,10 +7,11 @@
 - **Active**: message list + streaming content + input area
 
 ## Navigation
-- `CHAT_GRAPH_ROUTE` with `NEW_CHAT_ROUTE` (landing) and `CHAT_ROUTE` ("chat/{conversationId}")
-- `PROMPTS_LIBRARY_ROUTE` is co-located here for prompts library screen
-- When a new conversation starts from the landing page, `pendingNavigationConversationId` triggers navigation to `chat/{id}` after the first stream completes (data persisted to Room), keeping `new_chat` in the back stack
-- `navigateToChat()` replaces the current chat entry when switching between chats so back returns to `new_chat`
+- Sealed interface: `ChatRoute : NavKey` with typed route classes
+- Routes: `NewChat` (landing), `Chat(conversationId: String? = null)`, `PromptsLibrary`, `PromptEditor(groupId: String? = null)` (all `@Serializable`)
+- Feature entries registered via `EntryProviderScope<NavKey>.chatEntries()`
+- When a new conversation starts from the landing page, `pendingNavigationConversationId` triggers navigation to `Chat(id)` after the first stream completes (data persisted to Room), keeping `NewChat` in the back stack
+- `navigateToChat()` replaces the current chat entry on the `NavBackStack` when switching between chats so back returns to `NewChat`
 
 ## Message Tree
 - Messages stored flat, linked by `parentMessageId` (root = `NO_PARENT` UUID)

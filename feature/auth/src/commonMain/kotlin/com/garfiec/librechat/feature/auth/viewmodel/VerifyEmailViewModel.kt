@@ -26,10 +26,11 @@ data class VerifyEmailUiState(
 class VerifyEmailViewModel(
     savedStateHandle: SavedStateHandle,
     private val userRepository: UserRepository,
+    initialEmail: String? = null,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(
-        VerifyEmailUiState(email = savedStateHandle["email"] ?: ""),
+        VerifyEmailUiState(email = initialEmail ?: ""),
     )
     val uiState: StateFlow<VerifyEmailUiState> = _uiState.asStateFlow()
 

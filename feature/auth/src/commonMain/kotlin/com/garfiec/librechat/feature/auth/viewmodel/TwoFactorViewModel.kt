@@ -24,9 +24,10 @@ data class TwoFactorUiState(
 class TwoFactorViewModel(
     savedStateHandle: SavedStateHandle,
     private val authRepository: AuthRepository,
+    initialTempToken: String? = null,
 ) : ViewModel() {
 
-    private val tempToken: String = savedStateHandle["tempToken"] ?: ""
+    private val tempToken: String = initialTempToken ?: ""
 
     private val _uiState = MutableStateFlow(TwoFactorUiState())
     val uiState: StateFlow<TwoFactorUiState> = _uiState.asStateFlow()

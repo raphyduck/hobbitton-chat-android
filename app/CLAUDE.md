@@ -4,10 +4,12 @@ Single Activity architecture. `MainActivity` is the sole entry point.
 
 ## Navigation
 
-`LibreChatNavHost` is the root composable. It uses adaptive layout based on `WindowSizeClass`:
+`LibreChatNavHost` is the root composable using Nav 3's `NavDisplay` with `NavBackStack<NavKey>` and `entryProvider`. It uses adaptive layout based on `WindowSizeClass`:
 
 - **Phone**: `ModalNavigationDrawer` as primary navigation (sidebar-first pattern matching the web frontend). No bottom navigation bar. Drawer opens via hamburger button in chat header or swipe gesture.
 - **Tablet** (600dp+ width): Persistent side panel with full conversation list. No `NavigationRail` or bottom bar.
+
+Feature modules provide entries via `EntryProviderScope<NavKey>` extensions (e.g., `authEntries()`, `chatEntries()`). Navigation is driven by `onNavigate: (NavKey) -> Unit` and `onBack: () -> Unit` lambdas — feature modules never receive `NavBackStack` directly.
 
 ## Sidebar / Drawer Content
 
@@ -22,8 +24,8 @@ Single Activity architecture. `MainActivity` is the sole entry point.
 
 ## Top-Level Destinations
 
-Defined in `TopLevelDestination` enum: Chat, Conversations, Agents, Files, Settings.
-Conversations are integrated into the drawer body. Agents, Files, and Settings are accessible via drawer footer links. All routes remain registered in the NavHost.
+Top-level routes: `NewChat` (Chat), `Conversations`, `AgentMarketplace` (Agents), `Files`, `SettingsTabbed` (Settings).
+Conversations are integrated into the drawer body. Agents, Files, and Settings are accessible via drawer footer links. All routes are registered in the `NavDisplay` entry provider.
 
 ## Active Conversation Tracking
 
@@ -32,8 +34,8 @@ Conversations are integrated into the drawer body. Agents, Files, and Settings a
 ## Auth & Session
 
 - `NavHostViewModel` observes auth state via `isLoggedIn` flow
-- Start destination is `CHAT_GRAPH_ROUTE` if logged in, `AUTH_GRAPH_ROUTE` otherwise
-- `sessionExpired` flow triggers nav to auth graph with full backstack clear
+- Start destination is `NewChat` if logged in, `ServerUrl` otherwise
+- `sessionExpired` flow triggers nav to auth flow with full back stack clear
 - Drawer gestures are hidden during auth flow
 
 ## Deep Linking
@@ -66,6 +68,6 @@ It applies convention plugins: `librechat.mobile.application`, `librechat.mobile
 - **Gotcha**: `displayFrom`/`displayTo` are ISO 8601 strings parsed with `Instant.parse()` — wrap in `runCatching` since the format from the server is not guaranteed
 
 ### Preset Navigation
-- `PRESET_MANAGER_ROUTE` registered in `SettingsNavigation.kt`
+- `PresetManager` route registered in `SettingsNavigation.kt`
 - `PresetManagerScreen` accessible from Settings → Chat section
-- Navigation wired in both `LibreChatNavHost` and `TabletLayout`
+- Navigation wired through `MainNavDisplay` entry provider, accessible from both phone and tablet layouts

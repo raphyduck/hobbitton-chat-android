@@ -1,12 +1,7 @@
 package com.garfiec.librechat.feature.auth.navigation
 
-import androidx.navigation.NavController
-import androidx.navigation.NavGraphBuilder
-import androidx.navigation.NavType
-import androidx.navigation.compose.composable
-import androidx.navigation.navArgument
-import androidx.navigation.navigation
-import com.garfiec.librechat.core.ui.components.ScreenTransitionWrapper
+import androidx.navigation3.runtime.EntryProviderScope
+import androidx.navigation3.runtime.NavKey
 import com.garfiec.librechat.feature.auth.screen.ForgotPasswordScreen
 import com.garfiec.librechat.feature.auth.screen.LoginScreen
 import com.garfiec.librechat.feature.auth.screen.RegisterScreen
@@ -15,123 +10,92 @@ import com.garfiec.librechat.feature.auth.screen.ServerUrlScreen
 import com.garfiec.librechat.feature.auth.screen.TermsScreen
 import com.garfiec.librechat.feature.auth.screen.TwoFactorScreen
 import com.garfiec.librechat.feature.auth.screen.VerifyEmailScreen
-const val AUTH_GRAPH_ROUTE = "auth_graph"
-const val SERVER_URL_ROUTE = "server_url"
-const val LOGIN_ROUTE = "login"
-const val REGISTER_ROUTE = "register"
-const val FORGOT_PASSWORD_ROUTE = "forgot_password"
-const val TWO_FACTOR_ROUTE = "two_factor/{tempToken}"
-const val VERIFY_EMAIL_ROUTE = "verify_email/{email}"
-const val TERMS_ROUTE = "auth/terms"
-const val RESET_PASSWORD_ROUTE = "reset_password/{userId}/{token}"
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.modules.SerializersModule
+import kotlinx.serialization.modules.polymorphic
+import kotlinx.serialization.modules.subclass
 
-fun NavController.navigateToVerifyEmail(email: String) {
-    navigate("verify_email/${encodeNavArg(email)}")
-}
+@Serializable sealed interface AuthRoute : NavKey
 
-fun NavController.navigateToResetPassword(userId: String, token: String) {
-    navigate("reset_password/${encodeNavArg(userId)}/${encodeNavArg(token)}")
-}
+@Serializable data object ServerUrl : AuthRoute
+@Serializable data object Login : AuthRoute
+@Serializable data object Register : AuthRoute
+@Serializable data object ForgotPassword : AuthRoute
+@Serializable data class TwoFactor(val tempToken: String) : AuthRoute
+@Serializable data class VerifyEmail(val email: String) : AuthRoute
+@Serializable data object Terms : AuthRoute
+@Serializable data class ResetPassword(val userId: String, val token: String) : AuthRoute
 
-private fun encodeNavArg(value: String): String = buildString {
-    for (c in value) {
-        when {
-            c.isLetterOrDigit() || c in "-._~" -> append(c)
-            else -> {
-                val bytes = c.toString().encodeToByteArray()
-                for (b in bytes) {
-                    append('%')
-                    append(
-                        (b.toInt() and 0xFF).toString(16).uppercase().padStart(2, '0'),
-                    )
-                }
-            }
-        }
+fun EntryProviderScope<NavKey>.authEntries(
+    onNavigate: (NavKey) -> Unit,
+    onBack: () -> Unit,
+    onAuthComplete: () -> Unit,
+) {
+    entry<ServerUrl> {
+        ServerUrlScreen(
+            onServerValidated = { onNavigate(Login) },
+        )
+    }
+    entry<Login> {
+        LoginScreen(
+            onLoginSuccess = onAuthComplete,
+            onNavigateToRegister = { onNavigate(Register) },
+            onNavigateToForgotPassword = { onNavigate(ForgotPassword) },
+            onNavigateToTwoFactor = { tempToken ->
+                onNavigate(TwoFactor(tempToken = tempToken))
+            },
+        )
+    }
+    entry<Register> {
+        RegisterScreen(
+            onRegistered = onBack,
+            onNavigateToLogin = onBack,
+        )
+    }
+    entry<ForgotPassword> {
+        ForgotPasswordScreen(
+            onBack = onBack,
+        )
+    }
+    entry<TwoFactor> { key ->
+        TwoFactorScreen(
+            onVerified = onAuthComplete,
+            onBack = onBack,
+            tempToken = key.tempToken,
+        )
+    }
+    entry<VerifyEmail> { key ->
+        VerifyEmailScreen(
+            onVerified = onBack,
+            onBack = onBack,
+            email = key.email,
+        )
+    }
+    entry<Terms> {
+        TermsScreen(
+            onAccepted = onAuthComplete,
+            onBack = onBack,
+        )
+    }
+    entry<ResetPassword> { key ->
+        ResetPasswordScreen(
+            onResetComplete = onBack,
+            onBack = onBack,
+            userId = key.userId,
+            token = key.token,
+        )
     }
 }
 
-fun NavGraphBuilder.authGraph(
-    navController: NavController,
-    onAuthComplete: () -> Unit,
-) {
-    navigation(startDestination = SERVER_URL_ROUTE, route = AUTH_GRAPH_ROUTE) {
-        composable(SERVER_URL_ROUTE) {
-            ScreenTransitionWrapper(transition) {
-                ServerUrlScreen(
-                    onServerValidated = { navController.navigate(LOGIN_ROUTE) },
-                )
-            }
-        }
-        composable(LOGIN_ROUTE) {
-            ScreenTransitionWrapper(transition) {
-                LoginScreen(
-                    onLoginSuccess = onAuthComplete,
-                    onNavigateToRegister = { navController.navigate(REGISTER_ROUTE) },
-                    onNavigateToForgotPassword = { navController.navigate(FORGOT_PASSWORD_ROUTE) },
-                    onNavigateToTwoFactor = { tempToken ->
-                        navController.navigate("two_factor/$tempToken")
-                    },
-                )
-            }
-        }
-        composable(REGISTER_ROUTE) {
-            ScreenTransitionWrapper(transition) {
-                RegisterScreen(
-                    onRegistered = { navController.popBackStack(LOGIN_ROUTE, inclusive = false) },
-                    onNavigateToLogin = { navController.popBackStack() },
-                )
-            }
-        }
-        composable(FORGOT_PASSWORD_ROUTE) {
-            ScreenTransitionWrapper(transition) {
-                ForgotPasswordScreen(
-                    onBack = { navController.popBackStack() },
-                )
-            }
-        }
-        composable(
-            route = TWO_FACTOR_ROUTE,
-            arguments = listOf(navArgument("tempToken") { type = NavType.StringType }),
-        ) {
-            ScreenTransitionWrapper(transition) {
-                TwoFactorScreen(
-                    onVerified = onAuthComplete,
-                    onBack = { navController.popBackStack() },
-                )
-            }
-        }
-        composable(
-            route = VERIFY_EMAIL_ROUTE,
-            arguments = listOf(navArgument("email") { type = NavType.StringType }),
-        ) {
-            ScreenTransitionWrapper(transition) {
-                VerifyEmailScreen(
-                    onVerified = { navController.popBackStack(LOGIN_ROUTE, inclusive = false) },
-                    onBack = { navController.popBackStack() },
-                )
-            }
-        }
-        composable(TERMS_ROUTE) {
-            ScreenTransitionWrapper(transition) {
-                TermsScreen(
-                    onAccepted = onAuthComplete,
-                    onBack = { navController.popBackStack() },
-                )
-            }
-        }
-        composable(
-            route = RESET_PASSWORD_ROUTE,
-            arguments = listOf(
-                navArgument("userId") { type = NavType.StringType },
-                navArgument("token") { type = NavType.StringType },
-            ),
-        ) {
-            ScreenTransitionWrapper(transition) {
-                ResetPasswordScreen(
-                    onResetComplete = { navController.popBackStack(LOGIN_ROUTE, inclusive = false) },
-                    onBack = { navController.popBackStack() },
-                )
-            }
-        }
+val authSerializersModule = SerializersModule {
+    polymorphic(NavKey::class) {
+        subclass(ServerUrl::class, ServerUrl.serializer())
+        subclass(Login::class, Login.serializer())
+        subclass(Register::class, Register.serializer())
+        subclass(ForgotPassword::class, ForgotPassword.serializer())
+        subclass(TwoFactor::class, TwoFactor.serializer())
+        subclass(VerifyEmail::class, VerifyEmail.serializer())
+        subclass(Terms::class, Terms.serializer())
+        subclass(ResetPassword::class, ResetPassword.serializer())
     }
 }

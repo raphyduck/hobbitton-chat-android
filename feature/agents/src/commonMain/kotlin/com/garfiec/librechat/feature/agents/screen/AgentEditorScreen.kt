@@ -71,16 +71,18 @@ import com.garfiec.librechat.feature.agents.components.ToolSelectDialog
 import com.garfiec.librechat.feature.agents.viewmodel.AgentEditorEvent
 import com.garfiec.librechat.feature.agents.viewmodel.AgentEditorViewModel
 import org.koin.compose.viewmodel.koinViewModel
+import org.koin.core.parameter.parametersOf
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AgentEditorScreen(
     onBack: () -> Unit,
     onSaved: (String) -> Unit,
+    agentId: String? = null,
     modifier: Modifier = Modifier,
     onDeleted: () -> Unit = onBack,
     onDuplicated: (String) -> Unit = onSaved,
-    viewModel: AgentEditorViewModel = koinViewModel(),
+    viewModel: AgentEditorViewModel = koinViewModel { parametersOf(agentId) },
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var showToolDialog by rememberSaveable { mutableStateOf(false) }

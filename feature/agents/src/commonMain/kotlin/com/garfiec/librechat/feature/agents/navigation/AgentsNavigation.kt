@@ -1,60 +1,64 @@
 package com.garfiec.librechat.feature.agents.navigation
 
-import androidx.navigation.NavGraphBuilder
-import androidx.navigation.NavType
-import androidx.navigation.compose.composable
-import androidx.navigation.navArgument
+import androidx.navigation3.runtime.EntryProviderScope
+import androidx.navigation3.runtime.NavKey
 import com.garfiec.librechat.feature.agents.screen.AgentDetailScreen
 import com.garfiec.librechat.feature.agents.screen.AgentEditorScreen
 import com.garfiec.librechat.feature.agents.screen.AgentMarketplaceScreen
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.modules.SerializersModule
+import kotlinx.serialization.modules.polymorphic
+import kotlinx.serialization.modules.subclass
 
-const val AGENTS_ROUTE = "agents"
-const val AGENT_DETAIL_ROUTE = "agents/{agentId}"
-const val AGENT_EDITOR_CREATE_ROUTE = "agents/editor/create"
-const val AGENT_EDITOR_EDIT_ROUTE = "agents/editor/{agentId}"
+@Serializable sealed interface AgentsRoute : NavKey
 
-fun NavGraphBuilder.agentsGraph(
-    onAgentClick: (String) -> Unit,
+@Serializable data object AgentMarketplace : AgentsRoute
+@Serializable data class AgentDetail(val agentId: String) : AgentsRoute
+@Serializable data object AgentEditorCreate : AgentsRoute
+@Serializable data class AgentEditorEdit(val agentId: String) : AgentsRoute
+
+fun EntryProviderScope<NavKey>.agentsEntries(
+    onNavigate: (NavKey) -> Unit,
     onBack: () -> Unit,
     onStartChat: (String) -> Unit,
-    onCreateAgent: () -> Unit,
-    onEditAgent: (String) -> Unit,
 ) {
-    composable(AGENTS_ROUTE) {
+    entry<AgentMarketplace> {
         AgentMarketplaceScreen(
-            onAgentClick = onAgentClick,
-            onCreateAgent = onCreateAgent,
+            onAgentClick = { agentId -> onNavigate(AgentDetail(agentId = agentId)) },
+            onCreateAgent = { onNavigate(AgentEditorCreate) },
             onBack = onBack,
         )
     }
-    composable(
-        route = AGENT_DETAIL_ROUTE,
-        arguments = listOf(
-            navArgument("agentId") { type = NavType.StringType },
-        ),
-    ) {
+    entry<AgentDetail> { key ->
         AgentDetailScreen(
             onBack = onBack,
             onStartChat = onStartChat,
-            onEdit = onEditAgent,
-            onDuplicated = onAgentClick,
+            onEdit = { agentId -> onNavigate(AgentEditorEdit(agentId = agentId)) },
+            onDuplicated = { agentId -> onNavigate(AgentDetail(agentId = agentId)) },
+            agentId = key.agentId,
         )
     }
-    composable(AGENT_EDITOR_CREATE_ROUTE) {
+    entry<AgentEditorCreate> {
         AgentEditorScreen(
             onBack = onBack,
-            onSaved = { agentId -> onAgentClick(agentId) },
+            onSaved = { agentId -> onNavigate(AgentDetail(agentId = agentId)) },
+            agentId = null,
         )
     }
-    composable(
-        route = AGENT_EDITOR_EDIT_ROUTE,
-        arguments = listOf(
-            navArgument("agentId") { type = NavType.StringType },
-        ),
-    ) {
+    entry<AgentEditorEdit> { key ->
         AgentEditorScreen(
             onBack = onBack,
-            onSaved = { agentId -> onAgentClick(agentId) },
+            onSaved = { agentId -> onNavigate(AgentDetail(agentId = agentId)) },
+            agentId = key.agentId,
         )
+    }
+}
+
+val agentsSerializersModule = SerializersModule {
+    polymorphic(NavKey::class) {
+        subclass(AgentMarketplace::class, AgentMarketplace.serializer())
+        subclass(AgentDetail::class, AgentDetail.serializer())
+        subclass(AgentEditorCreate::class, AgentEditorCreate.serializer())
+        subclass(AgentEditorEdit::class, AgentEditorEdit.serializer())
     }
 }

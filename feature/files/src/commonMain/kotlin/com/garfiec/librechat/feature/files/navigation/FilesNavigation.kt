@@ -1,18 +1,27 @@
 package com.garfiec.librechat.feature.files.navigation
 
-import androidx.navigation.NavGraphBuilder
-import androidx.navigation.compose.composable
-import com.garfiec.librechat.core.ui.components.ScreenTransitionWrapper
+import androidx.navigation3.runtime.EntryProviderScope
+import androidx.navigation3.runtime.NavKey
 import com.garfiec.librechat.feature.files.screen.FilesScreen
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.modules.SerializersModule
+import kotlinx.serialization.modules.polymorphic
+import kotlinx.serialization.modules.subclass
 
-const val FILES_ROUTE = "files"
+@Serializable sealed interface FilesRoute : NavKey
 
-fun NavGraphBuilder.filesGraph(
+@Serializable data object Files : FilesRoute
+
+fun EntryProviderScope<NavKey>.filesEntries(
     onBack: (() -> Unit)? = null,
 ) {
-    composable(FILES_ROUTE) {
-        ScreenTransitionWrapper(transition) {
-            FilesScreen(onBack = onBack)
-        }
+    entry<Files> {
+        FilesScreen(onBack = onBack)
+    }
+}
+
+val filesSerializersModule = SerializersModule {
+    polymorphic(NavKey::class) {
+        subclass(Files::class, Files.serializer())
     }
 }

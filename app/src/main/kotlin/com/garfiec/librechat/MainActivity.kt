@@ -51,8 +51,8 @@ class MainActivity : ComponentActivity() {
 
     /**
      * Incremented each time a share intent arrives.
-     * The NavHost observes this and either:
-     * - Navigates to NEW_CHAT_ROUTE if the user is not on a chat screen, or
+     * The NavDisplay observes this and either:
+     * - Navigates to NewChat if the user is not on a chat screen, or
      * - Lets the active ChatViewModel consume the shared content in-place if already on a chat screen.
      */
     private var shareNavigationTrigger by mutableStateOf(0)

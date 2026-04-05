@@ -42,14 +42,16 @@ import librechat_mobile.feature.auth.generated.resources.Res
 import librechat_mobile.feature.auth.generated.resources.*
 import com.garfiec.librechat.feature.auth.viewmodel.TwoFactorViewModel
 import org.koin.compose.viewmodel.koinViewModel
+import org.koin.core.parameter.parametersOf
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TwoFactorScreen(
     onVerified: () -> Unit,
     onBack: () -> Unit,
+    tempToken: String? = null,
     modifier: Modifier = Modifier,
-    viewModel: TwoFactorViewModel = koinViewModel(),
+    viewModel: TwoFactorViewModel = koinViewModel { parametersOf(tempToken) },
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 

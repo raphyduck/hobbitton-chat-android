@@ -1,17 +1,18 @@
 package com.garfiec.librechat.feature.settings.navigation
 
-import androidx.navigation.NavGraphBuilder
-import androidx.navigation.compose.composable
+import androidx.navigation3.runtime.EntryProviderScope
+import androidx.navigation3.runtime.NavKey
 import com.garfiec.librechat.feature.settings.screen.MemoriesScreen
+import kotlinx.serialization.Serializable
 
-const val MEMORIES_ROUTE = "settings/memories"
+@Serializable data object Memories : SettingsRoute
 
-fun NavGraphBuilder.memoriesScreen(
-    onNavigateBack: () -> Unit,
+fun EntryProviderScope<NavKey>.memoriesEntry(
+    onBack: () -> Unit,
 ) {
-    composable(MEMORIES_ROUTE) {
+    entry<Memories> {
         MemoriesScreen(
-            onNavigateBack = onNavigateBack,
+            onNavigateBack = onBack,
         )
     }
 }

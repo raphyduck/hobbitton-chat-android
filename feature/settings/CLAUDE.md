@@ -1,7 +1,7 @@
 # feature:settings
 
 ## Screen
-`SettingsScreen` -- single route `SETTINGS_ROUTE`. Receives `onLogout` and `onNavigateBack` callbacks.
+`SettingsScreen` -- sealed interface `SettingsRoute : NavKey` with primary route `SettingsTabbed` (`@Serializable` data object). Receives `onLogout` and `onNavigateBack` callbacks.
 
 ## Sections
 - **Account**: displays user profile from `UserApi.getUser()`
@@ -46,14 +46,14 @@
 - `McpServersScreen` — server list with status badges, CRUD, reinitialize, tools sheet (`McpViewModel`)
 - `PresetManagerScreen` — list/delete presets (`PresetManagerViewModel`)
 - `CommandsConfigScreen` — enable/disable slash commands
-- Routes: `MEMORIES_ROUTE`, `MCP_SERVERS_ROUTE`, `PRESET_MANAGER_ROUTE`, `COMMANDS_CONFIG_ROUTE`
+- Routes: `Memories`, `McpServers`, `PresetManager` (all `@Serializable` data objects extending `SettingsRoute`)
 - **Gotcha**: Memories and MCP navigation routes defined in their own files (`MemoriesNavigation.kt`, `McpNavigation.kt`) but wired through `SettingsNavigation.kt`
 - **Gotcha**: `McpServerDialog` uses `McpServerType` enum (SSE, STREAMABLE_HTTP) — must match backend expectations
 - **Gotcha**: Memory keys are immutable after creation (edit dialog disables key field)
 
 ### API Keys
 - `ApiKeysScreen` — list/create/delete API keys, own ViewModel (`ApiKeysViewModel`)
-- Route: `API_KEYS_ROUTE` ("settings/api_keys"), accessible from Settings → Security section
+- Route: `ApiKeys` (`@Serializable` data object extending `SettingsRoute`), accessible from Settings → Security section
 - `ApiKeyCreateDialog` is two-phase: name input → show created key value with copy button
 - **Gotcha**: The key value is only available in the creation response — it cannot be retrieved again from the server. The dialog must show it immediately after creation.
 

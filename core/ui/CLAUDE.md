@@ -73,7 +73,7 @@ These rules apply to ALL composables across feature modules, not just core:ui.
 
 3. **Mark UI state classes `@Immutable`.** This lets the Compose compiler skip recomposition when the reference hasn't changed. All fields must be `val` with stable types.
 
-4. **Collect state at the narrowest scope.** If only `DrawerContent` uses drawer state, collect inside `DrawerContent` — not in the parent `PhoneLayout` which also owns the NavHost. State changes should only recompose the composable that reads them.
+4. **Collect state at the narrowest scope.** If only `DrawerContent` uses drawer state, collect inside `DrawerContent` — not in the parent `PhoneLayout` which also owns the NavDisplay. State changes should only recompose the composable that reads them.
 
 5. **Use `SharingStarted.Eagerly`** for UI state that should be ready before the composable subscribes (avoids empty→populated two-phase render jank on first frame).
 
