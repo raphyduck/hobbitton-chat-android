@@ -43,7 +43,9 @@ Each module has its own `CLAUDE.md` with specific guidance.
 ## Adding a New Feature Module
 
 1. Create the module directory under `feature/`
-2. Apply the `librechat.mobile.feature` convention plugin in `build.gradle.kts` — this auto-applies Koin + Compose deps
+2. Apply the convention plugin in `build.gradle.kts` — this auto-applies Koin + Compose deps:
+   - `librechat.kmp.feature` — for KMP modules with shared iOS + Android code (most features)
+   - `librechat.mobile.feature` — for Android-only modules
 3. Create `di/<Feature>Module.kt` with a Koin `module { }` containing `viewModelOf(::YourViewModel)` definitions
 4. Register the module in `LibreChatApplication.kt`'s `startKoin { modules(...) }` list
 5. Use `koinViewModel()` in screen composables to inject ViewModels

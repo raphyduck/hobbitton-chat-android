@@ -8,15 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		AAA00001 /* iOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB00001; };
-		AAA00002 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB00002; };
-		AAA00003 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB00003; };
-		AAA00004 /* ChatStreamView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB00004; };
 		AAA00005 /* KoinHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB00005; };
-		AAA00006 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB00006; };
 		AAA00007 /* SharedFrameworkTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB00007; };
-		AAA00008 /* RegisterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB00008A; };
-		AAA00009 /* ForgotPasswordView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB00009; };
-		AAA0000A /* FilesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB0000A; };
 		AAA0000B /* ComposeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB0000B; };
 		AAA0000C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BBB0000C; };
 		AAA00010 /* Shared.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BBB00010; };
@@ -50,7 +43,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# Aggregate and copy Compose Multiplatform resources into the app bundle.\n# Runs the Gradle aggregation task to ensure resources from all feature\n# modules are collected, then copies them into the .app bundle where\n# the Compose resource reader expects them at runtime.\n\nif [ \"$CONFIGURATION\" = \"Debug\" ]; then\n    ARCH_DIR=\"iosSimulatorArm64\"\n    GRADLE_TASK=\":shared:iosSimulatorArm64AggregateResources\"\nelse\n    ARCH_DIR=\"iosArm64\"\n    GRADLE_TASK=\":shared:iosArm64AggregateResources\"\nfi\n\nPROJECT_ROOT=\"$SRCROOT/..\"\nSRC=\"$PROJECT_ROOT/shared/build/kotlin-multiplatform-resources/aggregated-resources/$ARCH_DIR/composeResources\"\nDST=\"$BUILT_PRODUCTS_DIR/$PRODUCT_NAME.app/compose-resources/composeResources\"\n\n# Run Gradle aggregation to ensure resources are up to date\necho \"Running $GRADLE_TASK...\"\ncd \"$PROJECT_ROOT\" && ./gradlew \"$GRADLE_TASK\" --quiet 2>&1\nGRADLE_EXIT=$?\nif [ $GRADLE_EXIT -ne 0 ]; then\n    echo \"error: Gradle task $GRADLE_TASK failed with exit code $GRADLE_EXIT\"\n    exit $GRADLE_EXIT\nfi\n\n# Clean stale resources before copying fresh ones\nif [ -d \"$DST\" ]; then\n    rm -rf \"$DST\"\nfi\n\nif [ -d \"$SRC\" ]; then\n    mkdir -p \"$DST\"\n    cp -R \"$SRC/\" \"$DST/\"\n    echo \"Copied Compose resources from $SRC to $DST\"\nelse\n    echo \"error: Compose resources not found at $SRC after Gradle aggregation\"\n    exit 1\nfi\n";
+			shellScript = "# Aggregate and copy Compose Multiplatform resources into the app bundle.\n# Runs the Gradle aggregation task to ensure resources from all feature\n# modules are collected, then copies them into the .app bundle where\n# the Compose resource reader expects them at runtime.\n\nif [ \"$CONFIGURATION\" = \"Debug\" ]; then\n    ARCH_DIR=\"iosSimulatorArm64\"\n    GRADLE_TASK=\":shared:iosSimulatorArm64AggregateResources\"\nelse\n    ARCH_DIR=\"iosArm64\"\n    GRADLE_TASK=\":shared:iosArm64AggregateResources\"\nfi\n\nPROJECT_ROOT=\"$SRCROOT/..\"\nSRC=\"$PROJECT_ROOT/shared/build/kotlin-multiplatform-resources/aggregated-resources/$ARCH_DIR/composeResources\"\nDST=\"$BUILT_PRODUCTS_DIR/$PRODUCT_NAME.app/compose-resources/composeResources\"\n\n# Run Gradle aggregation to ensure resources are up to date\necho \"Running $GRADLE_TASK...\"\ncd \"$PROJECT_ROOT\" && ./gradlew \"$GRADLE_TASK\" 2>&1\nGRADLE_EXIT=$?\nif [ $GRADLE_EXIT -ne 0 ]; then\n    echo \"error: Gradle task $GRADLE_TASK failed with exit code $GRADLE_EXIT\"\n    exit $GRADLE_EXIT\nfi\n\n# Clean stale resources before copying fresh ones\nif [ -d \"$DST\" ]; then\n    rm -rf \"$DST\"\nfi\n\nif [ -d \"$SRC\" ]; then\n    mkdir -p \"$DST\"\n    cp -R \"$SRC/\" \"$DST/\"\n    echo \"Copied Compose resources from $SRC to $DST\"\nelse\n    echo \"error: Compose resources not found at $SRC after Gradle aggregation\"\n    exit 1\nfi\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -67,16 +60,9 @@
 
 /* Begin PBXFileReference section */
 		BBB00001 /* iOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iOSApp.swift; sourceTree = "<group>"; };
-		BBB00002 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
-		BBB00003 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
-		BBB00004 /* ChatStreamView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatStreamView.swift; sourceTree = "<group>"; };
 		BBB00005 /* KoinHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KoinHelper.swift; sourceTree = "<group>"; };
-		BBB00006 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		BBB00007 /* SharedFrameworkTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedFrameworkTest.swift; sourceTree = "<group>"; };
 		BBB00008 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		BBB00008A /* RegisterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegisterView.swift; sourceTree = "<group>"; };
-		BBB00009 /* ForgotPasswordView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgotPasswordView.swift; sourceTree = "<group>"; };
-		BBB0000A /* FilesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilesView.swift; sourceTree = "<group>"; };
 		BBB0000B /* ComposeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposeView.swift; sourceTree = "<group>"; };
 		BBB0000C /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		BBB00010 /* Shared.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Shared.framework; path = "../shared/build/bin/iosSimulatorArm64/debugFramework/Shared.framework"; sourceTree = "<group>"; };
@@ -108,15 +94,8 @@
 			isa = PBXGroup;
 			children = (
 				BBB00001 /* iOSApp.swift */,
-				BBB00002 /* RootView.swift */,
-				BBB00003 /* LoginView.swift */,
-				BBB00004 /* ChatStreamView.swift */,
 				BBB00005 /* KoinHelper.swift */,
-				BBB00006 /* ContentView.swift */,
 				BBB00007 /* SharedFrameworkTest.swift */,
-				BBB00008A /* RegisterView.swift */,
-				BBB00009 /* ForgotPasswordView.swift */,
-				BBB0000A /* FilesView.swift */,
 				BBB0000B /* ComposeView.swift */,
 				BBB0000C /* Assets.xcassets */,
 				BBB00008 /* Info.plist */,
@@ -196,15 +175,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				AAA00001 /* iOSApp.swift in Sources */,
-				AAA00002 /* RootView.swift in Sources */,
-				AAA00003 /* LoginView.swift in Sources */,
-				AAA00004 /* ChatStreamView.swift in Sources */,
 				AAA00005 /* KoinHelper.swift in Sources */,
-				AAA00006 /* ContentView.swift in Sources */,
 				AAA00007 /* SharedFrameworkTest.swift in Sources */,
-				AAA00008 /* RegisterView.swift in Sources */,
-				AAA00009 /* ForgotPasswordView.swift in Sources */,
-				AAA0000A /* FilesView.swift in Sources */,
 				AAA0000B /* ComposeView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -302,7 +274,7 @@
 				ENABLE_PREVIEWS = YES;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
-					"$(PROJECT_DIR)/../shared/build/bin/iosSimulatorArm64/releaseFramework",
+					"$(PROJECT_DIR)/../shared/build/bin/iosArm64/releaseFramework",
 				);
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = iosApp/Info.plist;

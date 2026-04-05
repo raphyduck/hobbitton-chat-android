@@ -1,14 +1,22 @@
-# Contributing to LibreChat Native KMP
+# Contributing to LibreChat Mobile
 
 ## Prerequisites
 
-| Tool | Version |
-|------|---------|
-| JDK | 17+ |
-| Android Studio | Latest stable |
-| Xcode | 15+ (iOS development) |
-| Gradle | 8.11.1 (via wrapper) |
-| Kotlin | 2.1.20 |
+| Tool | Version | Notes |
+|------|---------|-------|
+| JDK | 17+ | |
+| Android Studio or IntelliJ IDEA | Latest stable | Recommended IDE for all code editing (Android + iOS) |
+| Xcode | 15+ | Required for iOS SDK, simulators, and `xcodebuild` CLI. IDE not needed. |
+| Apple Silicon Mac | | Intel Macs not supported (no `iosSimulatorX64` target) |
+| iOS Deployment Target | 16.0+ | |
+| Gradle | 9.4.1 (via wrapper) | |
+| Kotlin | 2.3.20 | |
+
+## IDE Setup
+
+**Use Android Studio or IntelliJ IDEA for all development** — both Android and iOS. Nearly all code is Kotlin (shared business logic, Compose Multiplatform UI, `iosMain` platform implementations). The 4 remaining Swift files are a thin hosting layer that rarely changes.
+
+Xcode must be installed for the iOS toolchain (SDKs, simulators, `xcodebuild`), but you never need to open the Xcode IDE. All builds and runs are done via CLI.
 
 ## Getting Started
 
@@ -20,24 +28,43 @@ cd Librechat-Mobile
 
 ### Android
 
+Build and install on a connected device or emulator:
+
 ```bash
 ./gradlew assembleDebug
+adb install app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Open the project in Android Studio and run on an emulator or device. Debug APK output: `app/build/outputs/apk/debug/app-debug.apk`.
+Or run directly via Android Studio's run configuration.
 
 ### iOS
 
+Build and run on the iOS Simulator from CLI:
+
 ```bash
-# Build the shared KMP framework
+# Build the app (Xcode build phases handle the shared framework automatically)
+xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp \
+  -sdk iphonesimulator \
+  -destination 'platform=iOS Simulator,name=iPhone 16' \
+  -derivedDataPath iosApp/build build
+
+# Boot simulator, install, and launch
+xcrun simctl boot "iPhone 16"
+xcrun simctl install booted iosApp/build/Build/Products/Debug-iphonesimulator/iosApp.app
+xcrun simctl launch booted com.garfiec.librechat.ios
+```
+
+> **Note:** The first build takes several minutes while the Kotlin/Native toolchain downloads.
+
+To build only the shared KMP framework (e.g., after changing shared Kotlin code):
+
+```bash
 ./gradlew :shared:linkDebugFrameworkIosSimulatorArm64
 ```
 
-Open `iosApp/iosApp.xcodeproj` in Xcode and run on an iOS simulator. The shared framework must be rebuilt whenever shared code changes.
-
 ## Project Structure
 
-The project is a Kotlin Multiplatform (KMP) app with shared business logic and platform-specific UI layers.
+This is a Kotlin Multiplatform (KMP) app. Business logic and UI are shared across Android and iOS via Compose Multiplatform.
 
 ### Modules
 
@@ -66,7 +93,9 @@ Source sets: `commonMain` = shared code, `androidMain` / `iosMain` = platform-sp
 ## Adding a New Feature Module
 
 1. Create the module directory under `feature/`
-2. Apply the `librechat.kmp.feature` convention plugin in `build.gradle.kts`
+2. Apply the convention plugin in `build.gradle.kts`:
+   - `librechat.kmp.feature` — for KMP modules with shared iOS + Android code (most features)
+   - `librechat.mobile.feature` — for Android-only modules
 3. Create `di/<Feature>Module.kt` with a Koin `module { }` containing `viewModelOf(::YourViewModel)` definitions
 4. Register the module in the application startup Koin configuration
 5. Use `koinViewModel()` in screen composables to inject ViewModels
