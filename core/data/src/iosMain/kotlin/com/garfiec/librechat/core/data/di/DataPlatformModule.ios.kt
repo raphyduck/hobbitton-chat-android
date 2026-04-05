@@ -20,14 +20,21 @@ import okio.Path.Companion.toPath
 import org.koin.core.module.Module
 import org.koin.dsl.binds
 import org.koin.dsl.module
+import platform.Foundation.NSFileManager
 import platform.Foundation.NSHomeDirectory
+
+@OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
+private fun ensureDirectoryExists(path: String) {
+    NSFileManager.defaultManager.createDirectoryAtPath(path, withIntermediateDirectories = true, attributes = null, error = null)
+}
 
 actual val dataPlatformModule: Module = module {
 
     // --- Database ---
     single {
-        val dbPath = NSHomeDirectory() + "/Library/Application Support/librechat.db"
-        Room.databaseBuilder<LibreChatDatabase>(name = dbPath)
+        val dbDir = NSHomeDirectory() + "/Library/Application Support"
+        ensureDirectoryExists(dbDir)
+        Room.databaseBuilder<LibreChatDatabase>(name = "$dbDir/librechat.db")
             .setDriver(BundledSQLiteDriver())
             .setQueryCoroutineContext(Dispatchers.IO)
             .build()
@@ -35,7 +42,9 @@ actual val dataPlatformModule: Module = module {
 
     // --- DataStore ---
     single<DataStore<Preferences>> {
-        val path = NSHomeDirectory() + "/Library/Application Support/datastore/$DATASTORE_FILE_NAME.preferences_pb"
+        val datastoreDir = NSHomeDirectory() + "/Library/Application Support/datastore"
+        ensureDirectoryExists(datastoreDir)
+        val path = "$datastoreDir/$DATASTORE_FILE_NAME.preferences_pb"
         PreferenceDataStoreFactory.createWithPath(
             produceFile = { path.toPath() },
         )
