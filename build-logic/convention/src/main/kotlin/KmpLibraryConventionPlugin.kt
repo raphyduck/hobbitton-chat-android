@@ -13,20 +13,13 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
             pluginManager.apply("org.jetbrains.kotlinx.kover")
 
             extensions.configure<KotlinMultiplatformExtension> {
+                jvmToolchain(17)
                 compilerOptions {
                     freeCompilerArgs.addAll(
                         "-opt-in=kotlin.time.ExperimentalTime",
                     )
                 }
-                androidTarget {
-                    compilations.configureEach {
-                        compileTaskProvider.configure {
-                            compilerOptions {
-                                jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
-                            }
-                        }
-                    }
-                }
+                androidTarget()
                 iosArm64()
                 iosSimulatorArm64()
 
@@ -47,8 +40,6 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
                     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
                 }
                 compileOptions {
-                    sourceCompatibility = org.gradle.api.JavaVersion.VERSION_17
-                    targetCompatibility = org.gradle.api.JavaVersion.VERSION_17
                     isCoreLibraryDesugaringEnabled = true
                 }
                 lint {
