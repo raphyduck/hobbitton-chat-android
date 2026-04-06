@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import co.touchlab.kermit.Logger
+import com.garfiec.librechat.core.common.extensions.firstBlocking
 import com.garfiec.librechat.core.common.extensions.formatMonthAbbrev
 import kotlin.time.Clock
 import kotlin.time.Instant
@@ -107,7 +108,7 @@ class NavHostViewModel(
         .stateIn(
             viewModelScope,
             SharingStarted.Eagerly,
-            initialValue = false, // Avoid runBlocking — not safe on iOS/Kotlin Native main thread
+            firstBlocking(settingsDataStore.tabletSidebarOpen, false),
         )
 
     val tabletSidebarGestureEnabled: StateFlow<Boolean> = settingsDataStore.tabletSidebarGestureEnabled

@@ -86,6 +86,7 @@ fun SettingsCategory.toRoute(): SettingsRoute = when (this) {
 fun LibreChatNavHost(
     modifier: Modifier = Modifier,
     navHostViewModel: NavHostViewModel = koinViewModel(),
+    content: (@Composable (Navigator, NavHostViewModel, Modifier) -> Unit)? = null,
 ) {
     val isLoggedIn by navHostViewModel.isLoggedIn.collectAsStateWithLifecycle()
 
@@ -113,11 +114,15 @@ fun LibreChatNavHost(
         }
     }
 
-    PhoneLayout(
-        navigator = navigator,
-        navHostViewModel = navHostViewModel,
-        modifier = modifier,
-    )
+    if (content != null) {
+        content(navigator, navHostViewModel, modifier)
+    } else {
+        PhoneLayout(
+            navigator = navigator,
+            navHostViewModel = navHostViewModel,
+            modifier = modifier,
+        )
+    }
 
     // Version mismatch warning dialog
     val versionMismatch by navHostViewModel.versionMismatch.collectAsStateWithLifecycle()
@@ -165,8 +170,9 @@ private fun VersionMismatchDialog(
     )
 }
 
+/** Default phone layout with modal drawer sidebar. Used by iOS directly and by Android as the non-tablet path. */
 @Composable
-private fun PhoneLayout(
+fun PhoneLayout(
     navigator: Navigator,
     navHostViewModel: NavHostViewModel,
     modifier: Modifier = Modifier,
@@ -228,88 +234,103 @@ private fun PhoneLayout(
                     modifier = Modifier.padding(top = 4.dp),
                 )
             }
-            NavDisplay(
-                backStack = navigator.backStack,
-                onBack = { navigator.goBack() },
-                transitionSpec = {
-                    slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(300)) togetherWith
-                        fadeOut(animationSpec = tween(150))
-                },
-                popTransitionSpec = {
-                    (fadeIn(initialAlpha = 0.5f, animationSpec = tween(300, easing = LinearEasing)) +
-                        scaleIn(initialScale = 0.92f, animationSpec = tween(300, easing = LinearEasing))) togetherWith
-                        (slideOutHorizontally(
-                            targetOffsetX = { (it * 0.15f).toInt() },
-                            animationSpec = tween(300, easing = FastOutSlowInEasing),
-                        ) + scaleOut(
-                            targetScale = 0.92f,
-                            animationSpec = tween(300, easing = LinearEasing),
-                        ))
-                },
-                predictivePopTransitionSpec = {
-                    (fadeIn(initialAlpha = 0.5f, animationSpec = tween(300, easing = LinearEasing)) +
-                        scaleIn(initialScale = 0.92f, animationSpec = tween(300, easing = LinearEasing))) togetherWith
-                        (slideOutHorizontally(
-                            targetOffsetX = { (it * 0.15f).toInt() },
-                            animationSpec = tween(300, easing = FastOutSlowInEasing),
-                        ) + scaleOut(
-                            targetScale = 0.92f,
-                            animationSpec = tween(300, easing = LinearEasing),
-                        ))
-                },
-                entryDecorators = listOf(
-                    rememberSaveableStateHolderNavEntryDecorator(),
-                    rememberViewModelStoreNavEntryDecorator(),
-                ),
-                entryProvider = entryProvider {
-                    authEntries(
-                        onNavigate = { navigator.navigate(it) },
-                        onBack = { navigator.goBack() },
-                        onAuthComplete = {
-                            navHostViewModel.onAuthComplete()
-                            navigator.navigateToChat()
-                        },
-                    )
-                    chatEntries(
-                        onNavigate = { navigator.navigate(it) },
-                        onBack = { navigator.goBack() },
-                        onNavigateToChat = { navigator.navigateToChat(it) },
-                        onOpenDrawer = {
-                            scope.launch { drawerState.open() }
-                        },
-                    )
-                    conversationsEntries(
-                        onConversationClick = { navigator.navigateToChat(it) },
-                        onNavigateToArchived = { navigator.navigate(ArchivedConversations) },
-                        onBack = { navigator.goBack() },
-                    )
-                    agentsEntries(
-                        onNavigate = { navigator.navigate(it) },
-                        onBack = { navigator.goBack() },
-                        onStartChat = { _ ->
-                            navigator.navigateToTopLevel(NewChat)
-                        },
-                    )
-                    filesEntries(
-                        onBack = { navigator.goBack() },
-                    )
-                    settingsEntries(
-                        onNavigate = { navigator.navigate(it) },
-                        onBack = { navigator.goBack() },
-                        onLogout = {
-                            navHostViewModel.logout()
-                            navigator.navigateToAuth()
-                        },
-                        onNavigateToArchived = { navigator.navigate(ArchivedConversations) },
-                    )
-                    memoriesEntry(
-                        onBack = { navigator.goBack() },
-                    )
-                    mcpServersEntry(
-                        onBack = { navigator.goBack() },
-                    )
-                },
+            MainNavDisplay(
+                navigator = navigator,
+                navHostViewModel = navHostViewModel,
+                onMenuClick = { scope.launch { drawerState.open() } },
+                modifier = Modifier.fillMaxSize(),
             )
         }
     }
+}
+
+/** Core NavDisplay with entry providers for all feature modules. Used by both PhoneLayout and Android's TabletLayout. */
+@Composable
+fun MainNavDisplay(
+    navigator: Navigator,
+    navHostViewModel: NavHostViewModel,
+    onMenuClick: (() -> Unit)? = null,
+    modifier: Modifier = Modifier,
+) {
+    NavDisplay(
+        backStack = navigator.backStack,
+        onBack = { navigator.goBack() },
+        modifier = modifier,
+        transitionSpec = {
+            slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(300)) togetherWith
+                fadeOut(animationSpec = tween(150))
+        },
+        popTransitionSpec = {
+            (fadeIn(initialAlpha = 0.5f, animationSpec = tween(300, easing = LinearEasing)) +
+                scaleIn(initialScale = 0.92f, animationSpec = tween(300, easing = LinearEasing))) togetherWith
+                (slideOutHorizontally(
+                    targetOffsetX = { (it * 0.15f).toInt() },
+                    animationSpec = tween(300, easing = FastOutSlowInEasing),
+                ) + scaleOut(
+                    targetScale = 0.92f,
+                    animationSpec = tween(300, easing = LinearEasing),
+                ))
+        },
+        predictivePopTransitionSpec = {
+            (fadeIn(initialAlpha = 0.5f, animationSpec = tween(300, easing = LinearEasing)) +
+                scaleIn(initialScale = 0.92f, animationSpec = tween(300, easing = LinearEasing))) togetherWith
+                (slideOutHorizontally(
+                    targetOffsetX = { (it * 0.15f).toInt() },
+                    animationSpec = tween(300, easing = FastOutSlowInEasing),
+                ) + scaleOut(
+                    targetScale = 0.92f,
+                    animationSpec = tween(300, easing = LinearEasing),
+                ))
+        },
+        entryDecorators = listOf(
+            rememberSaveableStateHolderNavEntryDecorator(),
+            rememberViewModelStoreNavEntryDecorator(),
+        ),
+        entryProvider = entryProvider {
+            authEntries(
+                onNavigate = { navigator.navigate(it) },
+                onBack = { navigator.goBack() },
+                onAuthComplete = {
+                    navHostViewModel.onAuthComplete()
+                    navigator.navigateToChat()
+                },
+            )
+            chatEntries(
+                onNavigate = { navigator.navigate(it) },
+                onBack = { navigator.goBack() },
+                onNavigateToChat = { navigator.navigateToChat(it) },
+                onOpenDrawer = onMenuClick,
+            )
+            conversationsEntries(
+                onConversationClick = { navigator.navigateToChat(it) },
+                onNavigateToArchived = { navigator.navigate(ArchivedConversations) },
+                onBack = { navigator.goBack() },
+            )
+            agentsEntries(
+                onNavigate = { navigator.navigate(it) },
+                onBack = { navigator.goBack() },
+                onStartChat = { _ ->
+                    navigator.navigateToTopLevel(NewChat)
+                },
+            )
+            filesEntries(
+                onBack = { navigator.goBack() },
+            )
+            settingsEntries(
+                onNavigate = { navigator.navigate(it) },
+                onBack = { navigator.goBack() },
+                onLogout = {
+                    navHostViewModel.logout()
+                    navigator.navigateToAuth()
+                },
+                onNavigateToArchived = { navigator.navigate(ArchivedConversations) },
+            )
+            memoriesEntry(
+                onBack = { navigator.goBack() },
+            )
+            mcpServersEntry(
+                onBack = { navigator.goBack() },
+            )
+        },
+    )
 }
