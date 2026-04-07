@@ -1,8 +1,5 @@
 package com.garfiec.librechat.feature.chat.components
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -16,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -24,17 +20,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BrokenImage
-import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.Fullscreen
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Psychology
-import androidx.compose.material.icons.filled.Videocam
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -56,7 +43,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.compositeOver
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
@@ -71,9 +57,7 @@ import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import coil3.compose.SubcomposeAsyncImage
 import com.garfiec.librechat.core.common.ChatLayoutConstants
-import com.garfiec.librechat.core.model.ContentType
 import com.garfiec.librechat.core.model.Message
 import com.garfiec.librechat.core.model.MessageContentPart
 import com.garfiec.librechat.core.ui.components.AvatarImage
@@ -85,24 +69,12 @@ import com.mikepenz.markdown.m3.markdownTypography
 import org.intellij.markdown.flavours.gfm.GFMFlavourDescriptor
 import kotlinx.coroutines.delay
 import librechat_mobile.feature.chat.generated.resources.Res
-import librechat_mobile.feature.chat.generated.resources.cd_collapse
-import librechat_mobile.feature.chat.generated.resources.cd_embedded_image
-import librechat_mobile.feature.chat.generated.resources.cd_expand
 import librechat_mobile.feature.chat.generated.resources.cd_expand_table
 import librechat_mobile.feature.chat.generated.resources.cd_close
-import librechat_mobile.feature.chat.generated.resources.cd_failed_to_load_image
 import librechat_mobile.feature.chat.generated.resources.dialog_table
-import librechat_mobile.feature.chat.generated.resources.label_input
-import librechat_mobile.feature.chat.generated.resources.label_output
-import librechat_mobile.feature.chat.generated.resources.label_thinking
 import librechat_mobile.feature.chat.generated.resources.sender_assistant
 import librechat_mobile.feature.chat.generated.resources.sender_you
 import org.jetbrains.compose.resources.stringResource
-import com.garfiec.librechat.feature.chat.components.artifact.ArtifactButton
-import com.garfiec.librechat.feature.chat.components.artifact.ArtifactPanel
-import com.garfiec.librechat.feature.chat.components.artifact.ArtifactSegment
-import com.garfiec.librechat.feature.chat.components.artifact.detectArtifacts
-import com.garfiec.librechat.feature.chat.components.artifact.groupArtifactVersions
 
 private const val ACTION_AUTO_HIDE_MILLIS = 30_000L
 
@@ -364,72 +336,18 @@ actual fun ContentPartRenderer(
     showImageDescriptions: Boolean, searchQuery: String?, searchFocusedOccurrence: Int,
     onFocusedOccurrencePositioned: ((LayoutCoordinates) -> Unit)?,
 ) {
-    val mod = modifier.fillMaxWidth()
-    when (part.type) {
-        ContentType.TEXT, ContentType.TEXT_DELTA -> {
-            val text = part.text.orEmpty()
-            if (text.isNotBlank()) {
-                val segments = remember(text) { detectArtifacts(text) }
-                val hasArtifacts = remember(segments) { segments.any { it is ArtifactSegment.ArtifactReference } }
-                if (!hasArtifacts) {
-                    MarkdownContent(text, mod, fontSizeMultiplier, useKatex, searchQuery, searchFocusedOccurrence, onFocusedOccurrencePositioned)
-                } else {
-                    val versionMap = remember(segments) { groupArtifactVersions(segments) }
-                    var activeArtifact by remember {
-                        mutableStateOf<com.garfiec.librechat.feature.chat.components.artifact.Artifact?>(null)
-                    }
-                    Column(modifier = mod) {
-                        segments.forEach { segment ->
-                            when (segment) {
-                                is ArtifactSegment.Text -> {
-                                    MarkdownContent(segment.text, Modifier.fillMaxWidth(), fontSizeMultiplier, useKatex, searchQuery, searchFocusedOccurrence, onFocusedOccurrencePositioned)
-                                }
-                                is ArtifactSegment.ArtifactReference -> {
-                                    val versions = versionMap[segment.artifact.identifier] ?: listOf(segment.artifact)
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    ArtifactButton(
-                                        artifact = segment.artifact,
-                                        onClick = { activeArtifact = segment.artifact },
-                                        versionCount = versions.size,
-                                    )
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                }
-                            }
-                        }
-                    }
-                    activeArtifact?.let { artifact ->
-                        val versions = versionMap[artifact.identifier] ?: listOf(artifact)
-                        ArtifactPanel(
-                            artifact = artifact,
-                            onDismiss = { activeArtifact = null },
-                            versions = versions,
-                        )
-                    }
-                }
-            }
-        }
-        ContentType.THINK -> ThinkingBlock(part.think.orEmpty(), mod, fontSizeMultiplier, useKatex)
-        ContentType.TOOL_CALL -> {
-            val tc = part.toolCall
-            ToolCallCard(tc?.name ?: tc?.function?.name ?: "Tool Call", tc?.function?.arguments, tc?.output ?: tc?.function?.output, mod)
-        }
-        ContentType.IMAGE_FILE -> {
-            val url = part.imageFile?.filepath?.let { fp ->
-                when {
-                    fp.startsWith("http") -> fp
-                    fp.startsWith("/images/") && baseUrl.isNotBlank() -> "$baseUrl$fp"
-                    baseUrl.isNotBlank() -> "$baseUrl/api/files/$fp"
-                    else -> fp
-                }
-            } ?: part.imageFile?.fileId?.let { if (baseUrl.isNotBlank()) "$baseUrl/api/files/$it" else null }
-            ImageContentPart(url, mod)
-        }
-        ContentType.IMAGE_URL -> ImageContentPart(part.imageUrl?.url, mod)
-        ContentType.VIDEO_URL -> part.videoUrl?.url?.let { VideoContent(it, mod) }
-        ContentType.INPUT_AUDIO -> AudioContent(part.inputAudio?.data, part.inputAudio?.format, mod)
-        ContentType.ERROR -> ErrorContentPart(part.error ?: part.text.orEmpty(), mod)
-        else -> if (!part.text.isNullOrEmpty()) MarkdownContent(part.text.orEmpty(), mod, fontSizeMultiplier, useKatex)
-    }
+    ContentPartDispatcher(
+        part = part,
+        modifier = modifier,
+        baseUrl = baseUrl,
+        fontSizeMultiplier = fontSizeMultiplier,
+        useKatex = useKatex,
+        attachments = attachments,
+        showImageDescriptions = showImageDescriptions,
+        searchQuery = searchQuery,
+        searchFocusedOccurrence = searchFocusedOccurrence,
+        onFocusedOccurrencePositioned = onFocusedOccurrencePositioned,
+    )
 }
 
 // ─── MarkdownContent ─────────────────────────────────────────────────
@@ -753,67 +671,3 @@ private fun androidx.compose.ui.text.TextStyle.scale(m: Float): androidx.compose
     )
 }
 
-// ─── Sub-components ──────────────────────────────────────────────────
-
-@Composable
-private fun ThinkingBlock(text: String, modifier: Modifier = Modifier, fontSizeMultiplier: Float = 1f, useKatex: Boolean = false) {
-    var expanded by remember { mutableStateOf(false) }
-    Column(modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.surfaceContainerLow)) {
-        Row(
-            Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable { expanded = !expanded }.padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(Icons.Default.Psychology, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
-            Spacer(Modifier.width(8.dp))
-            Text(stringResource(Res.string.label_thinking), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f))
-            Icon(if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore, stringResource(if (expanded) Res.string.cd_collapse else Res.string.cd_expand), Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        AnimatedVisibility(expanded, enter = expandVertically(), exit = shrinkVertically()) {
-            Column(Modifier.padding(start = 12.dp, end = 12.dp, bottom = 12.dp)) {
-                Spacer(Modifier.height(8.dp))
-                MarkdownContent(text, fontSizeMultiplier = fontSizeMultiplier, useKatex = useKatex)
-            }
-        }
-    }
-}
-
-@Composable
-private fun ToolCallCard(toolName: String, args: String?, output: String?, modifier: Modifier = Modifier) {
-    var expanded by remember { mutableStateOf(false) }
-    Card(modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh), shape = RoundedCornerShape(8.dp)) {
-        Column(Modifier.padding(12.dp)) {
-            Row(Modifier.fillMaxWidth().clickable { expanded = !expanded }, verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Build, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(Modifier.width(8.dp))
-                Text(toolName, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
-                Icon(if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore, stringResource(if (expanded) Res.string.cd_collapse else Res.string.cd_expand), Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            AnimatedVisibility(expanded, enter = expandVertically(), exit = shrinkVertically()) {
-                Column {
-                    if (!args.isNullOrBlank()) { Spacer(Modifier.height(8.dp)); Text(stringResource(Res.string.label_input), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant); Spacer(Modifier.height(4.dp)); CodeBlock(code = args, language = "json") }
-                    if (!output.isNullOrBlank()) { Spacer(Modifier.height(8.dp)); Text(stringResource(Res.string.label_output), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant); Spacer(Modifier.height(4.dp)); CodeBlock(code = output, language = null) }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ImageContentPart(imageUrl: String?, modifier: Modifier = Modifier) {
-    if (imageUrl == null) return
-    var showFs by remember { mutableStateOf(false) }
-    SubcomposeAsyncImage(
-        model = imageUrl, contentDescription = stringResource(Res.string.cd_embedded_image), contentScale = ContentScale.FillWidth,
-        modifier = modifier.fillMaxWidth().heightIn(max = 300.dp).clip(RoundedCornerShape(12.dp)).clickable { showFs = true },
-        loading = { Box(Modifier.fillMaxWidth().height(120.dp).background(MaterialTheme.colorScheme.surfaceContainerHigh, RoundedCornerShape(12.dp)), Alignment.Center) { CircularProgressIndicator(Modifier.size(24.dp)) } },
-        error = { Box(Modifier.fillMaxWidth().height(120.dp).background(MaterialTheme.colorScheme.surfaceContainerHigh, RoundedCornerShape(12.dp)), Alignment.Center) { Icon(Icons.Default.BrokenImage, stringResource(Res.string.cd_failed_to_load_image), Modifier.size(32.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant) } },
-    )
-    if (showFs) FullscreenImageViewer(imageUrl, { showFs = false })
-}
-
-@Composable
-private fun ErrorContentPart(errorText: String, modifier: Modifier = Modifier) {
-    Row(modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.errorContainer).padding(12.dp), verticalAlignment = Alignment.Top) {
-        Text(errorText, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onErrorContainer)
-    }
-}

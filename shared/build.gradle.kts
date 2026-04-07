@@ -49,6 +49,8 @@ kotlin {
             implementation(libs.koin.compose)
             implementation(libs.koin.compose.viewmodel)
             implementation(libs.koin.compose.viewmodel.navigation)
+            implementation(libs.coil3.compose)
+            implementation(libs.coil3.network.ktor)
         }
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)
