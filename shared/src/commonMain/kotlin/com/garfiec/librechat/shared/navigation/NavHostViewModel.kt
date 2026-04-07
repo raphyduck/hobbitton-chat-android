@@ -14,16 +14,19 @@ import com.garfiec.librechat.core.model.Banner
 import com.garfiec.librechat.core.model.Conversation
 import com.garfiec.librechat.core.model.EModelEndpoint
 import com.garfiec.librechat.core.network.client.TokenManager
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.launch
 import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.common.extensions.firstBlocking
@@ -79,6 +82,10 @@ class NavHostViewModel(
     private val settingsDataStore: com.garfiec.librechat.core.data.datastore.SettingsDataStore,
 ) : ViewModel() {
 
+    companion object {
+        private const val SEARCH_DEBOUNCE_MS = 300L
+    }
+
     private val _isLoggedIn = MutableStateFlow(tokenManager.isAuthenticated)
     val isLoggedIn: StateFlow<Boolean> = _isLoggedIn.asStateFlow()
 
@@ -128,8 +135,6 @@ class NavHostViewModel(
         _selectedSettingsCategory.value = category
     }
 
-    private var searchJob: Job? = null
-
     val drawerUiState: StateFlow<DrawerUiState> = combine(
         combine(
             _groupedConversations,
@@ -169,6 +174,7 @@ class NavHostViewModel(
             }
         }
         observeConversations()
+        observeSearchQuery()
         observeBookmarks()
         fetchBanners()
         loadInitialConversations()
@@ -194,15 +200,24 @@ class NavHostViewModel(
 
     private fun loadInitialConversations() {
         viewModelScope.launch {
-            try {
-                val result = conversationRepository.loadNextPage(cursor = null)
-                if (result is Result.Success) {
-                    nextCursor = result.data
-                    _hasMore.value = result.data != null
-                }
-            } catch (e: Exception) {
-                Logger.w(e) { "Failed to load initial conversations" }
+            loadPage(cursor = null)
+        }
+    }
+
+    private suspend fun loadPage(cursor: String?): Boolean {
+        return try {
+            val result = conversationRepository.loadNextPage(cursor = cursor)
+            if (result is Result.Success) {
+                nextCursor = result.data
+                _hasMore.value = result.data != null
+                true
+            } else {
+                Logger.w { "Failed to load conversations page" }
+                false
             }
+        } catch (e: Exception) {
+            Logger.w(e) { "Failed to load conversations page" }
+            false
         }
     }
 
@@ -210,19 +225,8 @@ class NavHostViewModel(
         if (_isLoadingMore.value || !_hasMore.value) return
         _isLoadingMore.value = true
         viewModelScope.launch {
-            try {
-                val result = conversationRepository.loadNextPage(cursor = nextCursor)
-                if (result is Result.Success) {
-                    nextCursor = result.data
-                    _hasMore.value = result.data != null
-                } else {
-                    Logger.w { "Failed to load more conversations" }
-                }
-            } catch (e: Exception) {
-                Logger.w(e) { "Failed to load more conversations" }
-            } finally {
-                _isLoadingMore.value = false
-            }
+            loadPage(cursor = nextCursor)
+            _isLoadingMore.value = false
         }
     }
 
@@ -236,19 +240,10 @@ class NavHostViewModel(
     fun refreshConversations() {
         _isRefreshing.value = true
         viewModelScope.launch {
-            try {
-                nextCursor = null
-                _hasMore.value = true
-                val result = conversationRepository.loadNextPage(cursor = null)
-                if (result is Result.Success) {
-                    nextCursor = result.data
-                    _hasMore.value = result.data != null
-                }
-            } catch (e: Exception) {
-                Logger.w(e) { "Failed to refresh conversations" }
-            } finally {
-                _isRefreshing.value = false
-            }
+            nextCursor = null
+            _hasMore.value = true
+            loadPage(cursor = null)
+            _isRefreshing.value = false
         }
     }
 
@@ -258,19 +253,23 @@ class NavHostViewModel(
 
     fun onSearchQueryChanged(query: String) {
         _searchQuery.value = query
-        searchJob?.cancel()
-
         if (query.isBlank()) {
             _groupedConversations.value = groupConversationsByDate(_recentConversations.value)
-            return
         }
+    }
 
-        searchJob = viewModelScope.launch {
-            delay(300)
-            val filtered = _recentConversations.value.filter { conversation ->
-                conversation.title?.contains(query, ignoreCase = true) == true
-            }
-            _groupedConversations.value = groupConversationsByDate(filtered)
+    @OptIn(FlowPreview::class)
+    private fun observeSearchQuery() {
+        viewModelScope.launch {
+            _searchQuery
+                .filter { it.isNotBlank() }
+                .debounce(SEARCH_DEBOUNCE_MS)
+                .collectLatest { query ->
+                    val filtered = _recentConversations.value.filter { conversation ->
+                        conversation.title?.contains(query, ignoreCase = true) == true
+                    }
+                    _groupedConversations.value = groupConversationsByDate(filtered)
+                }
         }
     }
 
@@ -312,8 +311,16 @@ class NavHostViewModel(
                 if (result is Result.Success) {
                     val now = Clock.System.now()
                     _banners.value = result.data.filter { banner ->
-                        val from = banner.displayFrom?.let { runCatching { Instant.parse(it) }.getOrNull() }
-                        val to = banner.displayTo?.let { runCatching { Instant.parse(it) }.getOrNull() }
+                        val from = banner.displayFrom?.let {
+                            runCatching { Instant.parse(it) }
+                                .onFailure { e -> Logger.w(e) { "Failed to parse banner displayFrom: $it" } }
+                                .getOrNull()
+                        }
+                        val to = banner.displayTo?.let {
+                            runCatching { Instant.parse(it) }
+                                .onFailure { e -> Logger.w(e) { "Failed to parse banner displayTo: $it" } }
+                                .getOrNull()
+                        }
                         val afterStart = from == null || now >= from
                         val beforeEnd = to == null || now < to
                         afterStart && beforeEnd
@@ -332,24 +339,29 @@ class NavHostViewModel(
     }
 
     fun dismissBanner(bannerId: String) {
-        _dismissedBannerIds.value = _dismissedBannerIds.value + bannerId
+        _dismissedBannerIds.update { it + bannerId }
     }
 
     private fun checkBackendVersion() {
         viewModelScope.launch {
-            val result = configRepository.checkBackendVersion()
-            if (result is Result.Success) {
-                val checkResult = result.data
-                val detectedVersion = checkResult.backendVersion
-                if (!checkResult.isCompatible && detectedVersion != null) {
-                    val dismissedVersion = settingsDataStore.dismissedVersionWarning.first()
-                    if (dismissedVersion != detectedVersion) {
-                        _versionMismatch.value = VersionMismatchState(
-                            supportedVersion = checkResult.supportedVersion,
-                            backendVersion = detectedVersion,
-                        )
+            when (val result = configRepository.checkBackendVersion()) {
+                is Result.Success -> {
+                    val checkResult = result.data
+                    val detectedVersion = checkResult.backendVersion
+                    if (!checkResult.isCompatible && detectedVersion != null) {
+                        val dismissedVersion = settingsDataStore.dismissedVersionWarning.first()
+                        if (dismissedVersion != detectedVersion) {
+                            _versionMismatch.value = VersionMismatchState(
+                                supportedVersion = checkResult.supportedVersion,
+                                backendVersion = detectedVersion,
+                            )
+                        }
                     }
                 }
+                is Result.Error -> {
+                    Logger.w(result.exception) { "Failed to check backend version: ${result.message}" }
+                }
+                else -> {}
             }
         }
     }
