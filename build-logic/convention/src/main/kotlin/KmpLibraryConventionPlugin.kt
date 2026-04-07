@@ -13,7 +13,7 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
             pluginManager.apply("org.jetbrains.kotlinx.kover")
 
             extensions.configure<KotlinMultiplatformExtension> {
-                jvmToolchain(17)
+                jvmToolchain(BuildConstants.JVM_TOOLCHAIN_VERSION)
                 compilerOptions {
                     freeCompilerArgs.addAll(
                         "-opt-in=kotlin.time.ExperimentalTime",
@@ -34,9 +34,9 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
             }
 
             extensions.configure<LibraryExtension> {
-                compileSdk = 36
+                compileSdk = BuildConstants.COMPILE_SDK
                 defaultConfig {
-                    minSdk = 26
+                    minSdk = BuildConstants.MIN_SDK
                     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
                 }
                 compileOptions {

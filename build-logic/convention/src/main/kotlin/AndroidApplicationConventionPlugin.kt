@@ -13,17 +13,17 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
             pluginManager.apply("org.jetbrains.kotlinx.kover")
 
             extensions.configure<KotlinAndroidProjectExtension> {
-                jvmToolchain(17)
+                jvmToolchain(BuildConstants.JVM_TOOLCHAIN_VERSION)
                 compilerOptions {
                     freeCompilerArgs.addAll("-opt-in=kotlin.time.ExperimentalTime")
                 }
             }
 
             extensions.configure<ApplicationExtension> {
-                compileSdk = 36
+                compileSdk = BuildConstants.COMPILE_SDK
                 defaultConfig {
-                    minSdk = 26
-                    targetSdk = 35
+                    minSdk = BuildConstants.MIN_SDK
+                    targetSdk = BuildConstants.TARGET_SDK
                     versionCode = 1
                     versionName = "0.1.0"
                     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
