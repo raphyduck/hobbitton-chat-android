@@ -2,8 +2,7 @@ import com.android.build.api.dsl.ApplicationExtension
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.kotlin.dsl.configure
-import org.gradle.kotlin.dsl.withType
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import org.jetbrains.kotlin.gradle.dsl.KotlinAndroidProjectExtension
 
 class AndroidApplicationConventionPlugin : Plugin<Project> {
     override fun apply(target: Project) {
@@ -13,24 +12,23 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
             pluginManager.apply("librechat.mobile.detekt")
             pluginManager.apply("org.jetbrains.kotlinx.kover")
 
-            tasks.withType<KotlinCompile>().configureEach {
+            extensions.configure<KotlinAndroidProjectExtension> {
+                jvmToolchain(BuildConstants.JVM_TOOLCHAIN_VERSION)
                 compilerOptions {
                     freeCompilerArgs.addAll("-opt-in=kotlin.time.ExperimentalTime")
                 }
             }
 
             extensions.configure<ApplicationExtension> {
-                compileSdk = 36
+                compileSdk = BuildConstants.COMPILE_SDK
                 defaultConfig {
-                    minSdk = 26
-                    targetSdk = 35
+                    minSdk = BuildConstants.MIN_SDK
+                    targetSdk = BuildConstants.TARGET_SDK
                     versionCode = 1
                     versionName = "0.1.0"
                     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
                 }
                 compileOptions {
-                    sourceCompatibility = org.gradle.api.JavaVersion.VERSION_17
-                    targetCompatibility = org.gradle.api.JavaVersion.VERSION_17
                     isCoreLibraryDesugaringEnabled = true
                 }
                 lint {
