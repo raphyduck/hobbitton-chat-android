@@ -23,9 +23,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.launch
 import co.touchlab.kermit.Logger
@@ -64,19 +62,10 @@ data class DrawerUiState(
     val hasMore: Boolean = true,
 )
 
-/**
- * UI state for a backend version mismatch warning.
- */
-@Immutable
-data class VersionMismatchState(
-    val supportedVersion: String,
-    val backendVersion: String,
-)
-
 class NavHostViewModel(
     private val authRepository: AuthRepository,
-    private val bannerRepository: BannerRepository,
-    private val configRepository: ConfigRepository,
+    bannerRepository: BannerRepository,
+    configRepository: ConfigRepository,
     private val conversationRepository: ConversationRepository,
     private val tokenManager: TokenManager,
     private val settingsDataStore: com.garfiec.librechat.core.data.datastore.SettingsDataStore,
@@ -86,11 +75,13 @@ class NavHostViewModel(
         private const val SEARCH_DEBOUNCE_MS = 300L
     }
 
+    private val bannerStateHolder = BannerStateHolder(bannerRepository, viewModelScope)
+    private val versionCheckStateHolder = VersionCheckStateHolder(configRepository, settingsDataStore, viewModelScope)
+
     private val _isLoggedIn = MutableStateFlow(tokenManager.isAuthenticated)
     val isLoggedIn: StateFlow<Boolean> = _isLoggedIn.asStateFlow()
 
-    private val _versionMismatch = MutableStateFlow<VersionMismatchState?>(null)
-    val versionMismatch: StateFlow<VersionMismatchState?> = _versionMismatch.asStateFlow()
+    val versionMismatch: StateFlow<VersionMismatchState?> = versionCheckStateHolder.versionMismatch
 
     private val _recentConversations = MutableStateFlow<List<Conversation>>(emptyList())
     private val _groupedConversations = MutableStateFlow<List<Pair<String, List<Conversation>>>>(emptyList())
@@ -103,11 +94,8 @@ class NavHostViewModel(
     private val _isLoadingMore = MutableStateFlow(false)
     private val _isRefreshing = MutableStateFlow(false)
 
-    private val _banners = MutableStateFlow<List<Banner>>(emptyList())
-    val banners: StateFlow<List<Banner>> = _banners.asStateFlow()
-
-    private val _dismissedBannerIds = MutableStateFlow<Set<String>>(emptySet())
-    val dismissedBannerIds: StateFlow<Set<String>> = _dismissedBannerIds.asStateFlow()
+    val banners: StateFlow<List<Banner>> = bannerStateHolder.banners
+    val dismissedBannerIds: StateFlow<Set<String>> = bannerStateHolder.dismissedBannerIds
 
     val sessionExpired: SharedFlow<Unit> = tokenManager.sessionExpiredFlow
 
@@ -167,7 +155,7 @@ class NavHostViewModel(
                 val loggedIn = authRepository.isLoggedIn()
                 _isLoggedIn.value = loggedIn
                 if (loggedIn) {
-                    checkBackendVersion()
+                    versionCheckStateHolder.checkBackendVersion()
                 }
             } catch (e: Exception) {
                 Logger.w(e) { "Failed to check auth state on init" }
@@ -176,7 +164,7 @@ class NavHostViewModel(
         observeConversations()
         observeSearchQuery()
         observeBookmarks()
-        fetchBanners()
+        bannerStateHolder.fetchBanners()
         loadInitialConversations()
     }
 
@@ -233,8 +221,8 @@ class NavHostViewModel(
     fun onAuthComplete() {
         _isLoggedIn.value = true
         loadInitialConversations()
-        fetchBanners()
-        checkBackendVersion()
+        bannerStateHolder.fetchBanners()
+        versionCheckStateHolder.checkBackendVersion()
     }
 
     fun refreshConversations() {
@@ -304,34 +292,6 @@ class NavHostViewModel(
         }
     }
 
-    private fun fetchBanners() {
-        viewModelScope.launch {
-            try {
-                val result = bannerRepository.getBanners()
-                if (result is Result.Success) {
-                    val now = Clock.System.now()
-                    _banners.value = result.data.filter { banner ->
-                        val from = banner.displayFrom?.let {
-                            runCatching { Instant.parse(it) }
-                                .onFailure { e -> Logger.w(e) { "Failed to parse banner displayFrom: $it" } }
-                                .getOrNull()
-                        }
-                        val to = banner.displayTo?.let {
-                            runCatching { Instant.parse(it) }
-                                .onFailure { e -> Logger.w(e) { "Failed to parse banner displayTo: $it" } }
-                                .getOrNull()
-                        }
-                        val afterStart = from == null || now >= from
-                        val beforeEnd = to == null || now < to
-                        afterStart && beforeEnd
-                    }
-                }
-            } catch (e: Exception) {
-                Logger.w(e) { "Failed to fetch banners" }
-            }
-        }
-    }
-
     fun setTabletSidebarOpen(open: Boolean) {
         viewModelScope.launch {
             settingsDataStore.setTabletSidebarOpen(open)
@@ -339,45 +299,15 @@ class NavHostViewModel(
     }
 
     fun dismissBanner(bannerId: String) {
-        _dismissedBannerIds.update { it + bannerId }
-    }
-
-    private fun checkBackendVersion() {
-        viewModelScope.launch {
-            when (val result = configRepository.checkBackendVersion()) {
-                is Result.Success -> {
-                    val checkResult = result.data
-                    val detectedVersion = checkResult.backendVersion
-                    if (!checkResult.isCompatible && detectedVersion != null) {
-                        val dismissedVersion = settingsDataStore.dismissedVersionWarning.first()
-                        if (dismissedVersion != detectedVersion) {
-                            _versionMismatch.value = VersionMismatchState(
-                                supportedVersion = checkResult.supportedVersion,
-                                backendVersion = detectedVersion,
-                            )
-                        }
-                    }
-                }
-                is Result.Error -> {
-                    Logger.w(result.exception) { "Failed to check backend version: ${result.message}" }
-                }
-                else -> {}
-            }
-        }
+        bannerStateHolder.dismissBanner(bannerId)
     }
 
     fun dismissVersionWarning() {
-        _versionMismatch.value = null
+        versionCheckStateHolder.dismissVersionWarning()
     }
 
     fun dismissVersionWarningPermanently() {
-        val backendVersion = _versionMismatch.value?.backendVersion
-        _versionMismatch.value = null
-        if (backendVersion != null) {
-            viewModelScope.launch {
-                settingsDataStore.setDismissedVersionWarning(backendVersion)
-            }
-        }
+        versionCheckStateHolder.dismissVersionWarningPermanently()
     }
 
     fun logout() {
