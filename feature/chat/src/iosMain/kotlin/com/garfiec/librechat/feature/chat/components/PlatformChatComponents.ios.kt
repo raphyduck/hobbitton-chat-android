@@ -78,6 +78,8 @@ import org.jetbrains.compose.resources.stringResource
 
 private const val ACTION_AUTO_HIDE_MILLIS = 30_000L
 
+private val GFM_FLAVOUR = GFMFlavourDescriptor()
+
 // ─── MessageBubble ───────────────────────────────────────────────────
 
 @Composable
@@ -352,17 +354,13 @@ actual fun ContentPartRenderer(
 
 // ─── MarkdownContent ─────────────────────────────────────────────────
 
-private val TABLE_SEPARATOR_REGEX = Regex("^\\|?\\s*:?-{1,}:?\\s*(\\|\\s*:?-{1,}:?\\s*)*\\|?$")
-
-private enum class TableCellAlignment { LEFT, CENTER, RIGHT }
-
 @Composable
 actual fun MarkdownContent(
     text: String, modifier: Modifier, fontSizeMultiplier: Float, useKatex: Boolean,
     searchQuery: String?, searchFocusedOccurrence: Int,
     onFocusedOccurrencePositioned: ((LayoutCoordinates) -> Unit)?,
 ) {
-    val segments = remember(text) { splitTableSegments(text) }
+    val segments = remember(text) { parseMarkdownSegments(text) }
 
     val colors = markdownColor(
         text = MaterialTheme.colorScheme.onSurface,
@@ -388,10 +386,59 @@ actual fun MarkdownContent(
     Column(modifier = modifier.fillMaxWidth()) {
         segments.forEachIndexed { index, segment ->
             when (segment) {
-                is MdSegment.Text -> key(fontSizeMultiplier, index) {
-                    Markdown(content = segment.content, colors = colors, typography = typography, flavour = GFMFlavourDescriptor(), modifier = Modifier.fillMaxWidth())
+                is MarkdownSegment.CodeBlock -> {
+                    if (index > 0) Spacer(modifier = Modifier.height(8.dp))
+                    if (segment.language?.lowercase() == "mermaid") {
+                        MermaidDiagram(
+                            code = segment.code,
+                            modifier = Modifier.padding(vertical = 4.dp),
+                        )
+                    } else {
+                        CodeBlock(
+                            code = segment.code,
+                            language = segment.language,
+                            modifier = Modifier.padding(vertical = 4.dp),
+                        )
+                    }
+                    if (index < segments.lastIndex) Spacer(modifier = Modifier.height(8.dp))
                 }
-                is MdSegment.Table -> {
+                is MarkdownSegment.LatexBlock -> {
+                    if (index > 0) Spacer(modifier = Modifier.height(8.dp))
+                    LatexBlock(
+                        latex = segment.latex,
+                        modifier = Modifier.padding(vertical = 4.dp),
+                        useKatex = useKatex,
+                    )
+                    if (index < segments.lastIndex) Spacer(modifier = Modifier.height(8.dp))
+                }
+                is MarkdownSegment.InlineLatexText -> {
+                    Column {
+                        segment.segments.forEach { inlineSegment ->
+                            when (inlineSegment) {
+                                is InlineSegment.Text -> {
+                                    if (inlineSegment.text.isNotBlank()) {
+                                        key(fontSizeMultiplier) {
+                                            Markdown(
+                                                content = inlineSegment.text,
+                                                colors = colors,
+                                                typography = typography,
+                                                flavour = GFM_FLAVOUR,
+                                                modifier = Modifier.fillMaxWidth(),
+                                            )
+                                        }
+                                    }
+                                }
+                                is InlineSegment.Latex -> {
+                                    LatexInline(
+                                        latex = inlineSegment.latex,
+                                        useKatex = useKatex,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+                is MarkdownSegment.Table -> {
                     if (index > 0) Spacer(modifier = Modifier.height(8.dp))
                     IosMarkdownTableWithFullscreen(
                         headers = segment.headers,
@@ -402,82 +449,18 @@ actual fun MarkdownContent(
                     )
                     if (index < segments.lastIndex) Spacer(modifier = Modifier.height(8.dp))
                 }
+                is MarkdownSegment.TextBlock -> {
+                    key(fontSizeMultiplier, index) {
+                        Markdown(
+                            content = segment.text,
+                            colors = colors,
+                            typography = typography,
+                            flavour = GFM_FLAVOUR,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
             }
-        }
-    }
-}
-
-// ─── Table segment model ────────────────────────────────────────────
-
-private sealed interface MdSegment {
-    data class Text(val content: String) : MdSegment
-    data class Table(
-        val headers: List<String>,
-        val alignments: List<TableCellAlignment>,
-        val rows: List<List<String>>,
-    ) : MdSegment
-}
-
-private fun splitTableSegments(text: String): List<MdSegment> {
-    val lines = text.split('\n')
-    val result = mutableListOf<MdSegment>()
-    val buffer = mutableListOf<String>()
-    var i = 0
-
-    while (i < lines.size) {
-        if (i + 2 < lines.size && isTableRow(lines[i]) && isTableSeparator(lines[i + 1])) {
-            if (buffer.isNotEmpty()) {
-                val preceding = buffer.joinToString("\n").trim()
-                if (preceding.isNotEmpty()) result.add(MdSegment.Text(preceding))
-                buffer.clear()
-            }
-            val headerCells = parseTableRow(lines[i])
-            val alignments = parseAlignments(lines[i + 1], headerCells.size)
-            val dataRows = mutableListOf<List<String>>()
-            var j = i + 2
-            while (j < lines.size && isTableRow(lines[j])) {
-                val rowCells = parseTableRow(lines[j])
-                dataRows.add(List(headerCells.size) { col -> rowCells.getOrElse(col) { "" } })
-                j++
-            }
-            if (dataRows.isNotEmpty()) {
-                result.add(MdSegment.Table(headerCells, alignments, dataRows))
-                i = j
-            } else {
-                buffer.add(lines[i]); buffer.add(lines[i + 1]); i += 2
-            }
-        } else {
-            buffer.add(lines[i]); i++
-        }
-    }
-    if (buffer.isNotEmpty()) {
-        val remaining = buffer.joinToString("\n").trim()
-        if (remaining.isNotEmpty()) result.add(MdSegment.Text(remaining))
-    }
-    return result
-}
-
-private fun isTableRow(line: String): Boolean {
-    val trimmed = line.trim()
-    if (trimmed.isEmpty()) return false
-    return trimmed.startsWith('|') || trimmed.endsWith('|') || trimmed.count { it == '|' } >= 2
-}
-
-private fun isTableSeparator(line: String): Boolean = TABLE_SEPARATOR_REGEX.matches(line.trim())
-
-private fun parseTableRow(line: String): List<String> {
-    val inner = line.trim().removePrefix("|").removeSuffix("|")
-    return inner.split('|').map { it.trim() }
-}
-
-private fun parseAlignments(separatorLine: String, columnCount: Int): List<TableCellAlignment> {
-    val cells = parseTableRow(separatorLine)
-    return List(columnCount) { col ->
-        val cell = cells.getOrElse(col) { "---" }.trim()
-        when {
-            cell.startsWith(':') && cell.endsWith(':') -> TableCellAlignment.CENTER
-            cell.endsWith(':') -> TableCellAlignment.RIGHT
-            else -> TableCellAlignment.LEFT
         }
     }
 }

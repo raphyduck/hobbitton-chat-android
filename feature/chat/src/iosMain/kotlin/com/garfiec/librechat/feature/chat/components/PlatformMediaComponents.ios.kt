@@ -43,6 +43,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.interop.UIKitView
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -421,68 +422,51 @@ actual fun VideoContentPlayer(
     VideoContent(url = videoUrl, modifier = modifier)
 }
 
-@OptIn(ExperimentalForeignApi::class)
 @Composable
 actual fun LatexBlock(
     latex: String,
     modifier: Modifier,
     useKatex: Boolean,
 ) {
-    val isDarkTheme = MaterialTheme.colorScheme.surface.let { color ->
-        (color.red * 0.299 + color.green * 0.587 + color.blue * 0.114) < 0.5
-    }
-    val textColor = if (isDarkTheme) "#e0e0e0" else "#1a1a1a"
-    val html = remember(latex, textColor) {
-        buildKatexHtml(latex, displayMode = true, textColor = textColor)
-    }
-
-    var contentHeight by remember { mutableStateOf(80.dp) }
-
-    UIKitView(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(contentHeight)
-            .padding(vertical = 4.dp),
-        factory = {
-            val config = WKWebViewConfiguration()
-            val webView = WKWebView(frame = kotlinx.cinterop.cValue { }, configuration = config)
-            webView.setOpaque(false)
-            webView.scrollView.setScrollEnabled(false)
-            webView.navigationDelegate = object : NSObject(), WKNavigationDelegateProtocol {
-                override fun webView(webView: WKWebView, didFinishNavigation: WKNavigation?) {
-                    webView.evaluateJavaScript("document.body.scrollHeight") { result, _ ->
-                        val height = (result as? Number)?.toDouble()
-                        if (height != null && height > 0) {
-                            contentHeight = height.dp
-                        }
-                    }
-                }
-            }
-            webView.loadHTMLString(html, baseURL = NSURL.URLWithString("https://cdn.jsdelivr.net"))
-            webView
-        },
-        update = { webView ->
-            webView.loadHTMLString(html, baseURL = NSURL.URLWithString("https://cdn.jsdelivr.net"))
-        },
+    KatexWebView(
+        latex = latex,
+        displayMode = true,
+        modifier = modifier.fillMaxWidth().padding(vertical = 4.dp),
+        initialHeight = 80.dp,
     )
 }
 
-@OptIn(ExperimentalForeignApi::class)
 @Composable
 actual fun LatexInline(
     latex: String,
     modifier: Modifier,
     useKatex: Boolean,
 ) {
-    val isDarkTheme = MaterialTheme.colorScheme.surface.let { color ->
-        (color.red * 0.299 + color.green * 0.587 + color.blue * 0.114) < 0.5
-    }
+    KatexWebView(
+        latex = latex,
+        displayMode = false,
+        modifier = modifier,
+        initialHeight = 24.dp,
+    )
+}
+
+@OptIn(ExperimentalForeignApi::class)
+@Composable
+private fun KatexWebView(
+    latex: String,
+    displayMode: Boolean,
+    modifier: Modifier,
+    initialHeight: Dp,
+) {
+    val bgComposeColor = MaterialTheme.colorScheme.background
+    val isDarkTheme = (bgComposeColor.red * 0.299 + bgComposeColor.green * 0.587 + bgComposeColor.blue * 0.114) < 0.5
     val textColor = if (isDarkTheme) "#e0e0e0" else "#1a1a1a"
-    val html = remember(latex, textColor) {
-        buildKatexHtml(latex, displayMode = false, textColor = textColor)
+    val bgColor = remember(bgComposeColor) { colorToCssHex(bgComposeColor) }
+    val html = remember(latex, textColor, bgColor) {
+        buildKatexHtml(latex, displayMode = displayMode, textColor = textColor, bgColor = bgColor)
     }
 
-    var contentHeight by remember { mutableStateOf(24.dp) }
+    var contentHeight by remember { mutableStateOf(initialHeight) }
 
     UIKitView(
         modifier = modifier
@@ -490,7 +474,14 @@ actual fun LatexInline(
         factory = {
             val config = WKWebViewConfiguration()
             val webView = WKWebView(frame = kotlinx.cinterop.cValue { }, configuration = config)
-            webView.setOpaque(false)
+            val nativeBg = platform.UIKit.UIColor(
+                red = bgComposeColor.red.toDouble(),
+                green = bgComposeColor.green.toDouble(),
+                blue = bgComposeColor.blue.toDouble(),
+                alpha = 1.0,
+            )
+            webView.setBackgroundColor(nativeBg)
+            webView.scrollView.setBackgroundColor(nativeBg)
             webView.scrollView.setScrollEnabled(false)
             webView.navigationDelegate = object : NSObject(), WKNavigationDelegateProtocol {
                 override fun webView(webView: WKWebView, didFinishNavigation: WKNavigation?) {
@@ -511,7 +502,14 @@ actual fun LatexInline(
     )
 }
 
-private fun buildKatexHtml(latex: String, displayMode: Boolean, textColor: String): String {
+private fun colorToCssHex(color: androidx.compose.ui.graphics.Color): String {
+    val r = (color.red * 255).toInt()
+    val g = (color.green * 255).toInt()
+    val b = (color.blue * 255).toInt()
+    return "#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}"
+}
+
+private fun buildKatexHtml(latex: String, displayMode: Boolean, textColor: String, bgColor: String): String {
     val escapedLatex = latex
         .replace("\\", "\\\\")
         .replace("`", "\\`")
@@ -531,7 +529,7 @@ private fun buildKatexHtml(latex: String, displayMode: Boolean, textColor: Strin
                     display: flex;
                     justify-content: ${if (displayMode) "center" else "flex-start"};
                     align-items: center;
-                    background: transparent;
+                    background: $bgColor;
                     color: $textColor;
                     overflow: hidden;
                     min-height: 100%;
