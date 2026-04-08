@@ -1,17 +1,12 @@
 package com.garfiec.librechat.shared.navigation
 
-import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.garfiec.librechat.core.common.extensions.toInstantOrNull
-import com.garfiec.librechat.core.common.extensions.formatMonthAbbrev
 import com.garfiec.librechat.core.data.repository.AuthRepository
 import com.garfiec.librechat.core.data.repository.BannerRepository
 import com.garfiec.librechat.core.data.repository.ConfigRepository
 import com.garfiec.librechat.core.data.repository.ConversationRepository
 import com.garfiec.librechat.core.model.Banner
-import com.garfiec.librechat.core.model.Conversation
-import com.garfiec.librechat.core.model.EModelEndpoint
 import com.garfiec.librechat.core.network.client.TokenManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -23,38 +18,6 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.common.extensions.firstBlocking
-import kotlin.time.Clock
-import kotlin.time.Instant
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
-
-/**
- * Lightweight snapshot of fields DrawerConversationItem actually renders.
- * Avoids passing the full 28-field Conversation through composition.
- */
-@Immutable
-data class DrawerConversationDisplayData(
-    val conversationId: String,
-    val title: String,
-    val model: String?,
-    val endpoint: EModelEndpoint?,
-    val relativeTime: String,
-    val isActive: Boolean,
-    val isFavorite: Boolean,
-)
-
-/**
- * Combined UI state for the drawer sidebar.
- */
-@Immutable
-data class DrawerUiState(
-    val groupedConversations: List<Pair<String, List<DrawerConversationDisplayData>>> = emptyList(),
-    val favoriteConversations: List<DrawerConversationDisplayData> = emptyList(),
-    val searchQuery: String = "",
-    val isRefreshing: Boolean = false,
-    val isLoadingMore: Boolean = false,
-    val hasMore: Boolean = true,
-)
 
 class NavHostViewModel(
     private val authRepository: AuthRepository,
@@ -202,49 +165,6 @@ class NavHostViewModel(
             favoritesStateHolder.reset()
             _sidebarMode.value = SidebarMode.Conversations
             _selectedSettingsCategory.value = null
-        }
-    }
-}
-
-private data class DrawerDataSnapshot(
-    val grouped: List<Pair<String, List<Conversation>>>,
-    val activeId: String?,
-    val favIds: Set<String>,
-    val favConvos: List<Conversation>,
-    val query: String,
-)
-
-private fun Conversation.toDrawerDisplayData(
-    activeConversationId: String?,
-    favoriteIds: Set<String>,
-): DrawerConversationDisplayData {
-    val convId = conversationId ?: ""
-    return DrawerConversationDisplayData(
-        conversationId = convId,
-        title = title ?: "New Chat",
-        model = model,
-        endpoint = endpoint,
-        relativeTime = updatedAt?.toInstantOrNull()?.toRelativeTimeString() ?: "",
-        isActive = convId == activeConversationId,
-        isFavorite = convId in favoriteIds,
-    )
-}
-
-private fun Instant.toRelativeTimeString(): String {
-    val now = Clock.System.now()
-    val duration = now - this
-    val minutes = duration.inWholeMinutes
-    val hours = duration.inWholeHours
-    val days = duration.inWholeDays
-
-    return when {
-        minutes < 1 -> "Just now"
-        minutes < 60 -> "${minutes}m ago"
-        hours < 24 -> "${hours}h ago"
-        days < 7 -> "${days}d ago"
-        else -> {
-            val date = toLocalDateTime(TimeZone.currentSystemDefault()).date
-            "${formatMonthAbbrev(date.monthNumber)} ${date.dayOfMonth}"
         }
     }
 }
