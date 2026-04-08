@@ -5,7 +5,7 @@ import com.garfiec.librechat.core.model.Attachment
 import com.garfiec.librechat.core.model.Feedback
 import com.garfiec.librechat.core.model.FileReference
 import com.garfiec.librechat.core.model.Message
-import com.garfiec.librechat.core.model.MessageContentPart
+import com.garfiec.librechat.core.model.content.MessageContentPart
 import kotlin.time.Clock
 import kotlin.time.Instant
 import kotlinx.serialization.builtins.ListSerializer

@@ -33,7 +33,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.garfiec.librechat.feature.chat.McpServerDisplayData
+import com.garfiec.librechat.feature.chat.model.McpServerDisplayData
 import librechat_mobile.feature.chat.generated.resources.Res
 import librechat_mobile.feature.chat.generated.resources.*
 

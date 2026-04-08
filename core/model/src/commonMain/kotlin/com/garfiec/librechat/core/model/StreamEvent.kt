@@ -1,5 +1,7 @@
 package com.garfiec.librechat.core.model
 
+import com.garfiec.librechat.core.model.content.MessageContentPart
+
 sealed interface StreamEvent {
     data class ContentDelta(
         val chunk: String,

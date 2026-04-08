@@ -6,8 +6,8 @@ import com.garfiec.librechat.core.data.repository.PromptRepository
 import com.garfiec.librechat.core.model.EModelEndpoint
 import com.garfiec.librechat.core.model.Preset
 import com.garfiec.librechat.core.model.PromptGroup
-import com.garfiec.librechat.feature.chat.PresetDisplayData
-import com.garfiec.librechat.feature.chat.PromptMentionDisplayData
+import com.garfiec.librechat.feature.chat.model.PresetDisplayData
+import com.garfiec.librechat.feature.chat.model.PromptMentionDisplayData
 import com.garfiec.librechat.feature.chat.viewmodel.ChatStateHandle
 import kotlinx.coroutines.launch
 import co.touchlab.kermit.Logger

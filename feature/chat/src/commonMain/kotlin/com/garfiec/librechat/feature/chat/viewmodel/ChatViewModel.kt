@@ -27,8 +27,8 @@ import com.garfiec.librechat.core.model.Preset
 import com.garfiec.librechat.core.model.StreamEvent
 import com.garfiec.librechat.core.model.request.EphemeralAgent
 import com.garfiec.librechat.core.ui.components.ModelParameters
-import com.garfiec.librechat.feature.chat.PresetDisplayData
-import com.garfiec.librechat.feature.chat.PromptMentionDisplayData
+import com.garfiec.librechat.feature.chat.model.PresetDisplayData
+import com.garfiec.librechat.feature.chat.model.PromptMentionDisplayData
 import com.garfiec.librechat.feature.chat.components.AttachedFile
 import com.garfiec.librechat.feature.chat.util.NEW_CHAT_DRAFT_KEY
 import com.garfiec.librechat.feature.chat.util.buildActiveMessagePath

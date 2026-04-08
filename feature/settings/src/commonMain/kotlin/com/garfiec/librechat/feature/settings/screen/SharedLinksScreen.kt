@@ -50,7 +50,7 @@ import androidx.compose.ui.unit.dp
 import com.garfiec.librechat.core.ui.components.EmptyState
 import librechat_mobile.feature.settings.generated.resources.Res
 import librechat_mobile.feature.settings.generated.resources.*
-import com.garfiec.librechat.feature.settings.SharedLinkDisplayData
+import com.garfiec.librechat.feature.settings.model.SharedLinkDisplayData
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

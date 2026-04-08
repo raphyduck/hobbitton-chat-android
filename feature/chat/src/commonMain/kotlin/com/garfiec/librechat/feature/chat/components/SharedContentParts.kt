@@ -48,7 +48,7 @@ import coil3.compose.SubcomposeAsyncImage
 import com.garfiec.librechat.core.common.ToolConstants
 import com.garfiec.librechat.core.model.Attachment
 import com.garfiec.librechat.core.model.ContentType
-import com.garfiec.librechat.core.model.MessageContentPart
+import com.garfiec.librechat.core.model.content.MessageContentPart
 import com.garfiec.librechat.feature.chat.components.artifact.Artifact
 import com.garfiec.librechat.feature.chat.components.artifact.ArtifactButton
 import com.garfiec.librechat.feature.chat.components.artifact.ArtifactPanel

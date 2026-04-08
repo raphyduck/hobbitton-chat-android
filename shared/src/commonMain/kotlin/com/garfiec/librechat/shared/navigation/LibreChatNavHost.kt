@@ -48,11 +48,6 @@ import com.garfiec.librechat.feature.conversations.navigation.ArchivedConversati
 import com.garfiec.librechat.feature.conversations.navigation.conversationsEntries
 import com.garfiec.librechat.feature.files.navigation.Files
 import com.garfiec.librechat.feature.files.navigation.filesEntries
-import com.garfiec.librechat.feature.settings.navigation.SettingsAccount
-import com.garfiec.librechat.feature.settings.navigation.SettingsChat
-import com.garfiec.librechat.feature.settings.navigation.SettingsData
-import com.garfiec.librechat.feature.settings.navigation.SettingsGeneral
-import com.garfiec.librechat.feature.settings.navigation.SettingsRoute
 import com.garfiec.librechat.feature.settings.navigation.SettingsTabbed
 import com.garfiec.librechat.feature.settings.navigation.memoriesEntry
 import com.garfiec.librechat.feature.settings.navigation.mcpServersEntry
@@ -65,14 +60,6 @@ import librechat_mobile.shared.generated.resources.version_mismatch_message
 import librechat_mobile.shared.generated.resources.version_mismatch_title
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
-
-/** Maps a [SettingsCategory] to its corresponding typed navigation route. */
-fun SettingsCategory.toRoute(): SettingsRoute = when (this) {
-    SettingsCategory.GENERAL -> SettingsGeneral
-    SettingsCategory.CHAT -> SettingsChat
-    SettingsCategory.ACCOUNT -> SettingsAccount
-    SettingsCategory.DATA -> SettingsData
-}
 
 /**
  * Shared root composable for LibreChat navigation.

@@ -1,11 +1,11 @@
-package com.garfiec.librechat.feature.settings
+package com.garfiec.librechat.feature.chat.model
 
 import androidx.compose.runtime.Immutable
 
 @Immutable
-data class PresetManagerDisplayData(
+data class PresetDisplayData(
     val presetId: String?,
     val title: String,
-    val endpoint: String?,
+    val endpointLabel: String?,
     val model: String?,
 )

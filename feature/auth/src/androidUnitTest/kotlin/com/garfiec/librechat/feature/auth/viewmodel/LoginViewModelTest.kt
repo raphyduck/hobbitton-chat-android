@@ -6,7 +6,7 @@ import com.garfiec.librechat.core.data.datastore.ServerDataStore
 import com.garfiec.librechat.core.data.repository.AuthRepository
 import com.garfiec.librechat.core.data.repository.ConfigRepository
 import com.garfiec.librechat.core.model.LoginOutcome
-import com.garfiec.librechat.core.model.StartupConfig
+import com.garfiec.librechat.core.model.config.StartupConfig
 import com.garfiec.librechat.core.model.User
 import com.garfiec.librechat.feature.auth.oauth.OAuthLauncher
 import io.mockk.coEvery

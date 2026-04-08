@@ -52,7 +52,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.garfiec.librechat.core.common.ToolConstants
-import com.garfiec.librechat.feature.chat.McpServerDisplayData
+import com.garfiec.librechat.feature.chat.model.McpServerDisplayData
 import librechat_mobile.feature.chat.generated.resources.Res
 import librechat_mobile.feature.chat.generated.resources.*
 

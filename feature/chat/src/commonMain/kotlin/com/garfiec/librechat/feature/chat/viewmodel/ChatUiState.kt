@@ -8,9 +8,9 @@ import com.garfiec.librechat.core.data.datastore.LatexRenderer
 import com.garfiec.librechat.core.model.Agent
 import com.garfiec.librechat.core.model.EndpointConfig
 import com.garfiec.librechat.core.ui.components.ModelParameters
-import com.garfiec.librechat.feature.chat.McpServerDisplayData
-import com.garfiec.librechat.feature.chat.PresetDisplayData
-import com.garfiec.librechat.feature.chat.PromptMentionDisplayData
+import com.garfiec.librechat.feature.chat.model.McpServerDisplayData
+import com.garfiec.librechat.feature.chat.model.PresetDisplayData
+import com.garfiec.librechat.feature.chat.model.PromptMentionDisplayData
 import com.garfiec.librechat.feature.chat.util.MessageNode
 
 enum class ChatScreenState { LANDING, LOADING, ACTIVE }

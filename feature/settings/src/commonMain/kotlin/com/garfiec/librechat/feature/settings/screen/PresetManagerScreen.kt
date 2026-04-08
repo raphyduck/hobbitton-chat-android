@@ -41,7 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.garfiec.librechat.core.ui.components.EmptyState
 import com.garfiec.librechat.core.ui.components.LoadingIndicator
-import com.garfiec.librechat.feature.settings.PresetManagerDisplayData
+import com.garfiec.librechat.feature.settings.model.PresetManagerDisplayData
 import librechat_mobile.feature.settings.generated.resources.Res
 import librechat_mobile.feature.settings.generated.resources.*
 import com.garfiec.librechat.feature.settings.viewmodel.PresetManagerViewModel

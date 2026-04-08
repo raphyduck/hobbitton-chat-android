@@ -210,7 +210,7 @@ class SseEventMapper(private val json: Json) {
             aggregatedContent.mapNotNull { element ->
                 try {
                     json.decodeFromJsonElement(
-                        com.garfiec.librechat.core.model.MessageContentPart.serializer(),
+                        com.garfiec.librechat.core.model.content.MessageContentPart.serializer(),
                         element,
                     )
                 } catch (e: Exception) {

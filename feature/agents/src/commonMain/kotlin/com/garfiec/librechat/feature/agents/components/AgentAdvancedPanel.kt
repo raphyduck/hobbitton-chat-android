@@ -32,12 +32,7 @@ import androidx.compose.ui.unit.dp
 import librechat_mobile.feature.agents.generated.resources.Res
 import librechat_mobile.feature.agents.generated.resources.*
 import kotlin.math.roundToInt
-
-data class AgentAdvancedSettings(
-    val temperature: Float? = null,
-    val topP: Float? = null,
-    val maxTokens: Int? = null,
-)
+import com.garfiec.librechat.feature.agents.components.model.AgentAdvancedSettings
 
 @Composable
 fun AgentAdvancedPanel(

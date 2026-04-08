@@ -11,7 +11,7 @@ import com.garfiec.librechat.core.model.EModelEndpoint
 import com.garfiec.librechat.core.model.mcp.McpServer
 import com.garfiec.librechat.core.model.request.AddedConversation
 import com.garfiec.librechat.core.ui.components.ModelParameters
-import com.garfiec.librechat.feature.chat.McpServerDisplayData
+import com.garfiec.librechat.feature.chat.model.McpServerDisplayData
 import com.garfiec.librechat.feature.chat.viewmodel.ChatScreenState
 import com.garfiec.librechat.feature.chat.viewmodel.ChatStateHandle
 import com.garfiec.librechat.feature.chat.viewmodel.ComparisonState
@@ -343,15 +343,3 @@ internal fun McpServer.toDisplayData() = McpServerDisplayData(
     description = description,
     isConnected = isConnected,
 )
-
-internal fun EModelEndpoint.toSerialName(): String = when (this) {
-    EModelEndpoint.AZURE_OPENAI -> "azureOpenAI"
-    EModelEndpoint.OPENAI -> "openAI"
-    EModelEndpoint.GOOGLE -> "google"
-    EModelEndpoint.ANTHROPIC -> "anthropic"
-    EModelEndpoint.ASSISTANTS -> "assistants"
-    EModelEndpoint.AZURE_ASSISTANTS -> "azureAssistants"
-    EModelEndpoint.AGENTS -> "agents"
-    EModelEndpoint.CUSTOM -> "custom"
-    EModelEndpoint.BEDROCK -> "bedrock"
-}

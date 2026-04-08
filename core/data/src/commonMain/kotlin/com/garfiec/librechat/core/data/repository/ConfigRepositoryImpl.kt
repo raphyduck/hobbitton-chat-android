@@ -6,7 +6,7 @@ import com.garfiec.librechat.core.common.result.Result
 import com.garfiec.librechat.core.common.result.safeApiCall
 import com.garfiec.librechat.core.data.datastore.ConfigCacheDataStore
 import com.garfiec.librechat.core.model.EndpointConfig
-import com.garfiec.librechat.core.model.StartupConfig
+import com.garfiec.librechat.core.model.config.StartupConfig
 import com.garfiec.librechat.core.network.api.ConfigApi
 import io.ktor.client.plugins.HttpRequestTimeoutException
 import kotlinx.coroutines.flow.MutableStateFlow

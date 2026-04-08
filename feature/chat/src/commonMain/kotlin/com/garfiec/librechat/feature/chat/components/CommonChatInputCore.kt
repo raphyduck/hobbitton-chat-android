@@ -41,7 +41,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.garfiec.librechat.feature.chat.McpServerDisplayData
+import com.garfiec.librechat.feature.chat.model.McpServerDisplayData
 import librechat_mobile.feature.chat.generated.resources.Res
 import librechat_mobile.feature.chat.generated.resources.cd_send_message
 import librechat_mobile.feature.chat.generated.resources.cd_start_voice_recording
