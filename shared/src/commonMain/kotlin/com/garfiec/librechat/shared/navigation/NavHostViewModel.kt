@@ -68,14 +68,12 @@ class NavHostViewModel(
     private val bannerStateHolder = BannerStateHolder(bannerRepository, viewModelScope)
     private val versionCheckStateHolder = VersionCheckStateHolder(configRepository, settingsDataStore, viewModelScope)
     private val conversationListStateHolder = ConversationListStateHolder(conversationRepository, viewModelScope)
+    private val favoritesStateHolder = FavoritesStateHolder(settingsDataStore, conversationListStateHolder.recentConversations, viewModelScope)
 
     private val _isLoggedIn = MutableStateFlow(tokenManager.isAuthenticated)
     val isLoggedIn: StateFlow<Boolean> = _isLoggedIn.asStateFlow()
 
     val versionMismatch: StateFlow<VersionMismatchState?> = versionCheckStateHolder.versionMismatch
-
-    private val _favorites = MutableStateFlow<Set<String>>(emptySet())
-    private val _favoriteConversations = MutableStateFlow<List<Conversation>>(emptyList())
 
     val banners: StateFlow<List<Banner>> = bannerStateHolder.banners
     val dismissedBannerIds: StateFlow<Set<String>> = bannerStateHolder.dismissedBannerIds
@@ -110,8 +108,8 @@ class NavHostViewModel(
         combine(
             conversationListStateHolder.groupedConversations,
             conversationListStateHolder.activeConversationId,
-            _favorites,
-            _favoriteConversations,
+            favoritesStateHolder.favorites,
+            favoritesStateHolder.favoriteConversations,
             conversationListStateHolder.searchQuery,
         ) { grouped, activeId, favIds, favConvos, query ->
             DrawerDataSnapshot(grouped, activeId, favIds, favConvos, query)
@@ -148,17 +146,7 @@ class NavHostViewModel(
                 Logger.w(e) { "Failed to check auth state on init" }
             }
         }
-        observeBookmarks()
-        observeRecentConversationsForFavorites()
         bannerStateHolder.fetchBanners()
-    }
-
-    private fun observeRecentConversationsForFavorites() {
-        viewModelScope.launch {
-            conversationListStateHolder.recentConversations.collect {
-                updateFavoriteConversations()
-            }
-        }
     }
 
     fun loadMoreConversations() {
@@ -184,35 +172,8 @@ class NavHostViewModel(
         conversationListStateHolder.onSearchQueryChanged(query)
     }
 
-    private fun observeBookmarks() {
-        viewModelScope.launch {
-            try {
-                settingsDataStore.bookmarkedConversationIds.collect { bookmarkedIds ->
-                    _favorites.value = bookmarkedIds
-                    updateFavoriteConversations()
-                }
-            } catch (e: Exception) {
-                Logger.w(e) { "Failed to observe bookmarks" }
-            }
-        }
-    }
-
     fun toggleFavorite(conversationId: String) {
-        viewModelScope.launch {
-            settingsDataStore.toggleBookmark(conversationId)
-        }
-    }
-
-    private fun updateFavoriteConversations() {
-        val bookmarkedIds = _favorites.value
-        val allConversations = conversationListStateHolder.recentConversations.value
-        _favoriteConversations.value = allConversations.filter { conversation ->
-            conversation.conversationId in bookmarkedIds ||
-                conversation.tags.any {
-                    it.equals("favorite", ignoreCase = true) ||
-                        it.equals("bookmark", ignoreCase = true)
-                }
-        }
+        favoritesStateHolder.toggleFavorite(conversationId)
     }
 
     fun setTabletSidebarOpen(open: Boolean) {
@@ -238,8 +199,7 @@ class NavHostViewModel(
             authRepository.logout()
             _isLoggedIn.value = false
             conversationListStateHolder.reset()
-            _favorites.value = emptySet()
-            _favoriteConversations.value = emptyList()
+            favoritesStateHolder.reset()
             _sidebarMode.value = SidebarMode.Conversations
             _selectedSettingsCategory.value = null
         }
