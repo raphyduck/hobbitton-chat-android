@@ -1,0 +1,32 @@
+package com.garfiec.librechat.shared.navigation
+
+import androidx.compose.runtime.Immutable
+import com.garfiec.librechat.core.model.EModelEndpoint
+
+/**
+ * Lightweight snapshot of fields DrawerConversationItem actually renders.
+ * Avoids passing the full 28-field Conversation through composition.
+ */
+@Immutable
+data class DrawerConversationDisplayData(
+    val conversationId: String,
+    val title: String,
+    val model: String?,
+    val endpoint: EModelEndpoint?,
+    val relativeTime: String,
+    val isActive: Boolean,
+    val isFavorite: Boolean,
+)
+
+/**
+ * Combined UI state for the drawer sidebar.
+ */
+@Immutable
+data class DrawerUiState(
+    val groupedConversations: List<Pair<String, List<DrawerConversationDisplayData>>> = emptyList(),
+    val favoriteConversations: List<DrawerConversationDisplayData> = emptyList(),
+    val searchQuery: String = "",
+    val isRefreshing: Boolean = false,
+    val isLoadingMore: Boolean = false,
+    val hasMore: Boolean = true,
+)
