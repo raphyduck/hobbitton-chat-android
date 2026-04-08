@@ -1,6 +1,6 @@
 package com.garfiec.librechat.feature.chat.components
 
-import com.garfiec.librechat.feature.chat.PromptMentionDisplayData
+import com.garfiec.librechat.feature.chat.model.PromptMentionDisplayData
 
 /**
  * Extracts the @mention query from the input text.

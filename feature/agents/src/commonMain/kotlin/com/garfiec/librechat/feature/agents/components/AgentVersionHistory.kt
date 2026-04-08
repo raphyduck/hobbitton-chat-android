@@ -25,12 +25,7 @@ import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
 import librechat_mobile.feature.agents.generated.resources.Res
 import librechat_mobile.feature.agents.generated.resources.*
-
-data class AgentVersion(
-    val version: Int,
-    val updatedAt: String?,
-    val isCurrent: Boolean = false,
-)
+import com.garfiec.librechat.feature.agents.components.model.AgentVersion
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

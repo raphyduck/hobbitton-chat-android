@@ -1,5 +1,8 @@
 package com.garfiec.librechat.core.network.api
 
+import com.garfiec.librechat.core.network.api.dto.UpdateFavoritesRequest
+import com.garfiec.librechat.core.network.api.dto.UpdatePluginsRequest
+import com.garfiec.librechat.core.network.api.dto.UserUpdateRequest
 import com.garfiec.librechat.core.model.User
 import com.garfiec.librechat.core.model.UserFavorite
 import com.garfiec.librechat.core.model.request.OtpVerificationRequest
@@ -17,23 +20,6 @@ import io.ktor.client.request.setBody
 import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
 import io.ktor.http.path
-import kotlinx.serialization.Serializable
-
-@Serializable
-data class UserUpdateRequest(
-    val name: String? = null,
-    val username: String? = null,
-)
-
-@Serializable
-data class UpdateFavoritesRequest(
-    val favorites: List<UserFavorite>,
-)
-
-@Serializable
-data class UpdatePluginsRequest(
-    val plugins: List<String>,
-)
 
 class UserApi constructor(
     private val client: HttpClient,

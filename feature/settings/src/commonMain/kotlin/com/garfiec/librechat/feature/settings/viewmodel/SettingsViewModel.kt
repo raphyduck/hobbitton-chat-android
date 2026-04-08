@@ -30,15 +30,14 @@ import com.garfiec.librechat.core.model.mcp.McpServer
 import com.garfiec.librechat.core.model.mcp.McpServerStatus
 import com.garfiec.librechat.core.model.mcp.McpServerType
 import com.garfiec.librechat.core.model.speech.TtsVoice
-import com.garfiec.librechat.feature.settings.SharedLinkDisplayData
-import com.garfiec.librechat.feature.settings.UserDisplayData
+import com.garfiec.librechat.feature.settings.model.SharedLinkDisplayData
+import com.garfiec.librechat.feature.settings.model.UserDisplayData
 import com.garfiec.librechat.feature.settings.screen.DeviceVoiceInfo
 import com.garfiec.librechat.feature.settings.viewmodel.delegate.DataManagementDelegate
 import com.garfiec.librechat.feature.settings.viewmodel.delegate.McpServerDelegate
 import com.garfiec.librechat.feature.settings.viewmodel.delegate.MemoryManagementDelegate
 import com.garfiec.librechat.feature.settings.viewmodel.delegate.SpeechSettingsFactory
 import com.garfiec.librechat.feature.settings.viewmodel.delegate.TwoFactorSecurityDelegate
-import com.garfiec.librechat.feature.settings.viewmodel.delegate.isHttpStatus
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow

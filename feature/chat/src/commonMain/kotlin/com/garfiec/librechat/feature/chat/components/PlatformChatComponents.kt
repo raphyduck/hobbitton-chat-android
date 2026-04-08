@@ -5,7 +5,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.LayoutCoordinates
 import com.garfiec.librechat.core.common.ChatLayoutConstants
 import com.garfiec.librechat.core.model.Message
-import com.garfiec.librechat.core.model.MessageContentPart
+import com.garfiec.librechat.core.model.content.MessageContentPart
 
 /** Platform-specific message bubble. */
 @Composable

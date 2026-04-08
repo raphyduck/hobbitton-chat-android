@@ -11,10 +11,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
 
-enum class ThemeMode {
-    SYSTEM, LIGHT, DARK
-}
-
 class ThemeDataStore(
     private val dataStore: DataStore<Preferences>,
 ) {

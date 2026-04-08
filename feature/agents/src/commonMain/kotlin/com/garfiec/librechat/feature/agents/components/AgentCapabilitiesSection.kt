@@ -20,13 +20,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import librechat_mobile.feature.agents.generated.resources.Res
 import librechat_mobile.feature.agents.generated.resources.*
-
-data class AgentCapabilities(
-    val artifacts: Boolean = false,
-    val endAfterTools: Boolean = false,
-    val hideSequentialOutputs: Boolean = false,
-    val recursionLimit: Int = 25,
-)
+import com.garfiec.librechat.feature.agents.components.model.AgentCapabilities
 
 @Composable
 fun AgentCapabilitiesSection(

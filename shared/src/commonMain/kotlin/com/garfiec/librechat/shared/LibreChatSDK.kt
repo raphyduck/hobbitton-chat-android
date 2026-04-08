@@ -2,7 +2,7 @@ package com.garfiec.librechat.shared
 
 import com.garfiec.librechat.core.network.api.AuthApi
 import com.garfiec.librechat.core.network.api.ChatApi
-import com.garfiec.librechat.core.network.api.LoginResult
+import com.garfiec.librechat.core.network.api.dto.LoginResult
 import com.garfiec.librechat.core.network.client.TokenManager
 import com.garfiec.librechat.core.network.sse.SseClient
 

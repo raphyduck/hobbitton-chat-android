@@ -1,6 +1,6 @@
 package com.garfiec.librechat.feature.chat.components
 
-import com.garfiec.librechat.core.model.AgentToolCall
+import com.garfiec.librechat.core.model.content.AgentToolCall
 import com.garfiec.librechat.core.model.Attachment
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray

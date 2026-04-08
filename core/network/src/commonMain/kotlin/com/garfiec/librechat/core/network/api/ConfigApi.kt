@@ -1,7 +1,7 @@
 package com.garfiec.librechat.core.network.api
 
 import com.garfiec.librechat.core.model.EndpointConfig
-import com.garfiec.librechat.core.model.StartupConfig
+import com.garfiec.librechat.core.model.config.StartupConfig
 import com.garfiec.librechat.core.model.response.Category
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body

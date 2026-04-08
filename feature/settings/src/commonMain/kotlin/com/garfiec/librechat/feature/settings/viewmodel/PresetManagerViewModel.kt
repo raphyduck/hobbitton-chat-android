@@ -6,7 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.garfiec.librechat.core.common.result.Result
 import com.garfiec.librechat.core.data.repository.PresetRepository
 import com.garfiec.librechat.core.model.Preset
-import com.garfiec.librechat.feature.settings.PresetManagerDisplayData
+import com.garfiec.librechat.feature.settings.model.PresetManagerDisplayData
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

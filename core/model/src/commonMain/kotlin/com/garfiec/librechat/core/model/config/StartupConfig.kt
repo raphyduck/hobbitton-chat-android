@@ -1,8 +1,8 @@
-package com.garfiec.librechat.core.model
+package com.garfiec.librechat.core.model.config
 
+import com.garfiec.librechat.core.model.Preset
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 
 @Serializable
@@ -51,80 +51,4 @@ data class StartupConfig(
     val customFooter: String? = null,
     /** Backend version, if the server includes it in the config response (not yet standard). */
     val version: String? = null,
-)
-
-@Serializable
-data class ModelSpecs(
-    val list: List<ModelSpec> = emptyList(),
-)
-
-@Serializable
-data class ModelSpec(
-    val name: String,
-    val label: String? = null,
-    val preset: Preset? = null,
-    val iconURL: String? = null,
-    val description: String? = null,
-)
-
-@Serializable
-data class InterfaceConfig(
-    val privacyPolicy: PrivacyPolicyConfig? = null,
-    val termsOfService: TermsOfServiceConfig? = null,
-    val endpointsMenu: Boolean = true,
-    val modelSelect: Boolean = true,
-    val parameters: Boolean = true,
-    val presets: Boolean = true,
-    val sidePanel: Boolean = true,
-    val bookmarks: Boolean = true,
-    val prompts: JsonElement? = null,
-    val agents: JsonElement? = null,
-    val multiConvo: Boolean = true,
-    val memories: Boolean = true,
-    val temporaryChat: Boolean = true,
-    val runCode: Boolean = true,
-    val webSearch: Boolean = true,
-    val fileSearch: Boolean = true,
-    val fileCitations: Boolean = true,
-    val customWelcome: String? = null,
-    val remoteAgents: JsonElement? = null,
-)
-
-@Serializable
-data class PrivacyPolicyConfig(
-    val externalUrl: String? = null,
-    val openNewTab: Boolean? = null,
-)
-
-@Serializable
-data class TermsOfServiceConfig(
-    val externalUrl: String? = null,
-)
-
-@Serializable
-data class TurnstileConfig(
-    val siteKey: String? = null,
-    val options: TurnstileOptions? = null,
-)
-
-@Serializable
-data class TurnstileOptions(
-    val language: String? = null,
-    val size: String? = null,
-)
-
-@Serializable
-data class BalanceConfig(
-    val enabled: Boolean = false,
-    val startBalance: Long? = null,
-    val autoRefillEnabled: Boolean = false,
-    val refillIntervalValue: Int? = null,
-    val refillIntervalUnit: String? = null,
-    val refillAmount: Long? = null,
-)
-
-@Serializable
-data class LdapConfig(
-    val enabled: Boolean = false,
-    val username: Boolean? = null,
 )

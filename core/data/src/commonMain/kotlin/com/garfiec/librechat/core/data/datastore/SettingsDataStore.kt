@@ -10,40 +10,6 @@ import androidx.datastore.preferences.core.stringSetPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-enum class LatexRenderer {
-    NATIVE, KATEX;
-
-    companion object {
-        fun fromString(value: String?): LatexRenderer = when (value) {
-            "native" -> NATIVE
-            else -> KATEX
-        }
-    }
-
-    fun toStorageString(): String = when (this) {
-        NATIVE -> "native"
-        KATEX -> "katex"
-    }
-}
-
-enum class ChatFontSize {
-    SMALL, MEDIUM, LARGE;
-
-    companion object {
-        fun fromString(value: String?): ChatFontSize = when (value) {
-            "small" -> SMALL
-            "large" -> LARGE
-            else -> MEDIUM
-        }
-    }
-
-    fun toStorageString(): String = when (this) {
-        SMALL -> "small"
-        MEDIUM -> "medium"
-        LARGE -> "large"
-    }
-}
-
 class SettingsDataStore(
     private val dataStore: DataStore<Preferences>,
 ) {

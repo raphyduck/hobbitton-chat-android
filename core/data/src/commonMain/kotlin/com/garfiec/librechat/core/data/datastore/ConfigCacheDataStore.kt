@@ -5,7 +5,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.garfiec.librechat.core.model.EndpointConfig
-import com.garfiec.librechat.core.model.StartupConfig
+import com.garfiec.librechat.core.model.config.StartupConfig
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.MapSerializer

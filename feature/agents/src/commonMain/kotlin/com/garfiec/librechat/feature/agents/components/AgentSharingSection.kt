@@ -33,18 +33,8 @@ import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
 import librechat_mobile.feature.agents.generated.resources.Res
 import librechat_mobile.feature.agents.generated.resources.*
-
-enum class AgentVisibility(val label: String) {
-    PRIVATE("Private"),
-    TEAM("Team"),
-    PUBLIC("Public"),
-}
-
-@androidx.compose.runtime.Immutable
-data class AgentSharingState(
-    val visibility: AgentVisibility = AgentVisibility.PRIVATE,
-    val isCollaborative: Boolean = false,
-)
+import com.garfiec.librechat.feature.agents.components.model.AgentSharingState
+import com.garfiec.librechat.feature.agents.components.model.AgentVisibility
 
 /** Visibility (Private/Team/Public) and collaborative toggle; maps to agent model isPublic/isCollaborative. */
 @OptIn(ExperimentalMaterial3Api::class)

@@ -4,7 +4,7 @@ import com.google.common.truth.Truth.assertThat
 import com.garfiec.librechat.core.common.result.Result
 import com.garfiec.librechat.core.data.repository.AuthRepository
 import com.garfiec.librechat.core.data.repository.ConfigRepository
-import com.garfiec.librechat.core.model.StartupConfig
+import com.garfiec.librechat.core.model.config.StartupConfig
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every

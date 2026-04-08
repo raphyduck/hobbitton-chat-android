@@ -1,5 +1,7 @@
 package com.garfiec.librechat.core.model
 
+import com.garfiec.librechat.core.model.content.AgentToolCall
+import com.garfiec.librechat.core.model.content.MessageContentPart
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive

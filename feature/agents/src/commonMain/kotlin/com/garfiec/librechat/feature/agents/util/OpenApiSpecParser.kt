@@ -13,25 +13,6 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
 /**
- * Result of parsing an OpenAPI spec.
- */
-data class OpenApiParseResult(
-    val domain: String,
-    val functions: List<FunctionTool>,
-    val errors: List<String> = emptyList(),
-)
-
-/**
- * Represents a parsed function for display in the available actions table.
- */
-data class ParsedFunctionInfo(
-    val name: String,
-    val method: String,
-    val path: String,
-    val description: String,
-)
-
-/**
  * Parses an OpenAPI specification and extracts function definitions.
  *
  * Supports both JSON and YAML formats. The parser first attempts JSON parsing,

@@ -1,5 +1,8 @@
 package com.garfiec.librechat.core.network.api
 
+import com.garfiec.librechat.core.network.api.dto.LoginResult
+import com.garfiec.librechat.core.network.api.dto.RefreshResult
+import com.garfiec.librechat.core.network.api.dto.TwoFactorConfirmRequest
 import com.garfiec.librechat.core.model.request.LoginRequest
 import com.garfiec.librechat.core.model.request.OtpVerificationRequest
 import com.garfiec.librechat.core.model.request.PasswordResetRequest
@@ -15,23 +18,10 @@ import com.garfiec.librechat.core.model.response.TwoFactorSetupResponse
 import com.garfiec.librechat.core.network.client.CookieHelper
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
-import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.http.path
-import kotlinx.serialization.Serializable
-
-data class LoginResult(
-    val response: LoginResponse,
-    val refreshToken: String?,
-)
-
-data class RefreshResult(
-    val response: RefreshResponse,
-    /** New refresh token from Set-Cookie header, if the backend rotated it. */
-    val newRefreshToken: String?,
-)
 
 class AuthApi constructor(
     private val client: HttpClient,
@@ -169,8 +159,3 @@ class AuthApi constructor(
         }
     }
 }
-
-@Serializable
-data class TwoFactorConfirmRequest(
-    val token: String,
-)

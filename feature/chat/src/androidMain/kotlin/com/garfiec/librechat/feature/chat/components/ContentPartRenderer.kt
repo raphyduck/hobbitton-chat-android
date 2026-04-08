@@ -3,7 +3,7 @@ package com.garfiec.librechat.feature.chat.components
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.LayoutCoordinates
-import com.garfiec.librechat.core.model.MessageContentPart
+import com.garfiec.librechat.core.model.content.MessageContentPart
 
 @Composable
 actual fun ContentPartRenderer(

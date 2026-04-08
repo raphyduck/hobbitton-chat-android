@@ -82,6 +82,3 @@ class SseLineParser(
         const val DEFAULT_LINE_READ_TIMEOUT_MS = 120_000L
     }
 }
-
-/** Cross-platform exception for SSE stream errors (replaces java.io.IOException). */
-class SseStreamException(message: String, cause: Throwable? = null) : Exception(message, cause)

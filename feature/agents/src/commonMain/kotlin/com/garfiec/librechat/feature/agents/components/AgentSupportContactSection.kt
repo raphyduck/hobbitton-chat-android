@@ -13,12 +13,7 @@ import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
 import librechat_mobile.feature.agents.generated.resources.Res
 import librechat_mobile.feature.agents.generated.resources.*
-
-@androidx.compose.runtime.Immutable
-data class SupportContactState(
-    val name: String = "",
-    val email: String = "",
-)
+import com.garfiec.librechat.feature.agents.components.model.SupportContactState
 
 @Composable
 fun AgentSupportContactSection(

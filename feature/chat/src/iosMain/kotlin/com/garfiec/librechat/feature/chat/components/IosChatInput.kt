@@ -26,7 +26,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.garfiec.librechat.feature.chat.McpServerDisplayData
+import com.garfiec.librechat.feature.chat.model.McpServerDisplayData
 import librechat_mobile.feature.chat.generated.resources.Res
 import librechat_mobile.feature.chat.generated.resources.cd_attach_file
 import librechat_mobile.feature.chat.generated.resources.cd_paste_image
