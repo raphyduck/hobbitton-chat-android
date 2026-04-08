@@ -46,7 +46,7 @@ class VersionCheckStateHolder(
                 is Result.Error -> {
                     Logger.w(result.exception) { "Failed to check backend version: ${result.message}" }
                 }
-                else -> {}
+                is Result.Loading -> Unit
             }
         }
     }
