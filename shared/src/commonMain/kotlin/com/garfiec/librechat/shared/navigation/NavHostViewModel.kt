@@ -4,8 +4,7 @@ import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.garfiec.librechat.core.common.extensions.toInstantOrNull
-import com.garfiec.librechat.core.common.extensions.toRelativeDateGroup
-import com.garfiec.librechat.core.common.result.Result
+import com.garfiec.librechat.core.common.extensions.formatMonthAbbrev
 import com.garfiec.librechat.core.data.repository.AuthRepository
 import com.garfiec.librechat.core.data.repository.BannerRepository
 import com.garfiec.librechat.core.data.repository.ConfigRepository
@@ -19,16 +18,11 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.launch
 import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.common.extensions.firstBlocking
-import com.garfiec.librechat.core.common.extensions.formatMonthAbbrev
 import kotlin.time.Clock
 import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
@@ -66,33 +60,22 @@ class NavHostViewModel(
     private val authRepository: AuthRepository,
     bannerRepository: BannerRepository,
     configRepository: ConfigRepository,
-    private val conversationRepository: ConversationRepository,
+    conversationRepository: ConversationRepository,
     private val tokenManager: TokenManager,
     private val settingsDataStore: com.garfiec.librechat.core.data.datastore.SettingsDataStore,
 ) : ViewModel() {
 
-    companion object {
-        private const val SEARCH_DEBOUNCE_MS = 300L
-    }
-
     private val bannerStateHolder = BannerStateHolder(bannerRepository, viewModelScope)
     private val versionCheckStateHolder = VersionCheckStateHolder(configRepository, settingsDataStore, viewModelScope)
+    private val conversationListStateHolder = ConversationListStateHolder(conversationRepository, viewModelScope)
 
     private val _isLoggedIn = MutableStateFlow(tokenManager.isAuthenticated)
     val isLoggedIn: StateFlow<Boolean> = _isLoggedIn.asStateFlow()
 
     val versionMismatch: StateFlow<VersionMismatchState?> = versionCheckStateHolder.versionMismatch
 
-    private val _recentConversations = MutableStateFlow<List<Conversation>>(emptyList())
-    private val _groupedConversations = MutableStateFlow<List<Pair<String, List<Conversation>>>>(emptyList())
-    private val _activeConversationId = MutableStateFlow<String?>(null)
-    private val _searchQuery = MutableStateFlow("")
     private val _favorites = MutableStateFlow<Set<String>>(emptySet())
     private val _favoriteConversations = MutableStateFlow<List<Conversation>>(emptyList())
-    private var nextCursor: String? = null
-    private val _hasMore = MutableStateFlow(true)
-    private val _isLoadingMore = MutableStateFlow(false)
-    private val _isRefreshing = MutableStateFlow(false)
 
     val banners: StateFlow<List<Banner>> = bannerStateHolder.banners
     val dismissedBannerIds: StateFlow<Set<String>> = bannerStateHolder.dismissedBannerIds
@@ -125,15 +108,19 @@ class NavHostViewModel(
 
     val drawerUiState: StateFlow<DrawerUiState> = combine(
         combine(
-            _groupedConversations,
-            _activeConversationId,
+            conversationListStateHolder.groupedConversations,
+            conversationListStateHolder.activeConversationId,
             _favorites,
             _favoriteConversations,
-            _searchQuery,
+            conversationListStateHolder.searchQuery,
         ) { grouped, activeId, favIds, favConvos, query ->
             DrawerDataSnapshot(grouped, activeId, favIds, favConvos, query)
         },
-        combine(_isRefreshing, _isLoadingMore, _hasMore) { refreshing, loadingMore, hasMore ->
+        combine(
+            conversationListStateHolder.isRefreshing,
+            conversationListStateHolder.isLoadingMore,
+            conversationListStateHolder.hasMore,
+        ) { refreshing, loadingMore, hasMore ->
             Triple(refreshing, loadingMore, hasMore)
         },
     ) { data, (refreshing, loadingMore, hasMore) ->
@@ -161,104 +148,40 @@ class NavHostViewModel(
                 Logger.w(e) { "Failed to check auth state on init" }
             }
         }
-        observeConversations()
-        observeSearchQuery()
         observeBookmarks()
+        observeRecentConversationsForFavorites()
         bannerStateHolder.fetchBanners()
-        loadInitialConversations()
     }
 
-    private fun observeConversations() {
+    private fun observeRecentConversationsForFavorites() {
         viewModelScope.launch {
-            try {
-                conversationRepository.observeConversations().collect { result ->
-                    if (result is Result.Success) {
-                        _recentConversations.value = result.data
-                        if (_searchQuery.value.isBlank()) {
-                            _groupedConversations.value = groupConversationsByDate(result.data)
-                        }
-                        updateFavoriteConversations()
-                    }
-                }
-            } catch (e: Exception) {
-                Logger.w(e) { "Failed to observe conversations" }
+            conversationListStateHolder.recentConversations.collect {
+                updateFavoriteConversations()
             }
-        }
-    }
-
-    private fun loadInitialConversations() {
-        viewModelScope.launch {
-            loadPage(cursor = null)
-        }
-    }
-
-    private suspend fun loadPage(cursor: String?): Boolean {
-        return try {
-            val result = conversationRepository.loadNextPage(cursor = cursor)
-            if (result is Result.Success) {
-                nextCursor = result.data
-                _hasMore.value = result.data != null
-                true
-            } else {
-                Logger.w { "Failed to load conversations page" }
-                false
-            }
-        } catch (e: Exception) {
-            Logger.w(e) { "Failed to load conversations page" }
-            false
         }
     }
 
     fun loadMoreConversations() {
-        if (_isLoadingMore.value || !_hasMore.value) return
-        _isLoadingMore.value = true
-        viewModelScope.launch {
-            loadPage(cursor = nextCursor)
-            _isLoadingMore.value = false
-        }
+        conversationListStateHolder.loadMoreConversations()
     }
 
     fun onAuthComplete() {
         _isLoggedIn.value = true
-        loadInitialConversations()
+        conversationListStateHolder.refreshConversations()
         bannerStateHolder.fetchBanners()
         versionCheckStateHolder.checkBackendVersion()
     }
 
     fun refreshConversations() {
-        _isRefreshing.value = true
-        viewModelScope.launch {
-            nextCursor = null
-            _hasMore.value = true
-            loadPage(cursor = null)
-            _isRefreshing.value = false
-        }
+        conversationListStateHolder.refreshConversations()
     }
 
     fun setActiveConversation(conversationId: String?) {
-        _activeConversationId.value = conversationId
+        conversationListStateHolder.setActiveConversation(conversationId)
     }
 
     fun onSearchQueryChanged(query: String) {
-        _searchQuery.value = query
-        if (query.isBlank()) {
-            _groupedConversations.value = groupConversationsByDate(_recentConversations.value)
-        }
-    }
-
-    @OptIn(FlowPreview::class)
-    private fun observeSearchQuery() {
-        viewModelScope.launch {
-            _searchQuery
-                .filter { it.isNotBlank() }
-                .debounce(SEARCH_DEBOUNCE_MS)
-                .collectLatest { query ->
-                    val filtered = _recentConversations.value.filter { conversation ->
-                        conversation.title?.contains(query, ignoreCase = true) == true
-                    }
-                    _groupedConversations.value = groupConversationsByDate(filtered)
-                }
-        }
+        conversationListStateHolder.onSearchQueryChanged(query)
     }
 
     private fun observeBookmarks() {
@@ -282,7 +205,7 @@ class NavHostViewModel(
 
     private fun updateFavoriteConversations() {
         val bookmarkedIds = _favorites.value
-        val allConversations = _recentConversations.value
+        val allConversations = conversationListStateHolder.recentConversations.value
         _favoriteConversations.value = allConversations.filter { conversation ->
             conversation.conversationId in bookmarkedIds ||
                 conversation.tags.any {
@@ -314,29 +237,12 @@ class NavHostViewModel(
         viewModelScope.launch {
             authRepository.logout()
             _isLoggedIn.value = false
-            _recentConversations.value = emptyList()
-            _groupedConversations.value = emptyList()
-            _activeConversationId.value = null
-            _searchQuery.value = ""
+            conversationListStateHolder.reset()
             _favorites.value = emptySet()
             _favoriteConversations.value = emptyList()
             _sidebarMode.value = SidebarMode.Conversations
             _selectedSettingsCategory.value = null
         }
-    }
-
-    private fun groupConversationsByDate(
-        conversations: List<Conversation>,
-    ): List<Pair<String, List<Conversation>>> {
-        if (conversations.isEmpty()) return emptyList()
-        return conversations
-            .groupBy { conversation ->
-                conversation.updatedAt
-                    ?.toInstantOrNull()
-                    ?.toRelativeDateGroup()
-                    ?: "Unknown"
-            }
-            .toList()
     }
 }
 
