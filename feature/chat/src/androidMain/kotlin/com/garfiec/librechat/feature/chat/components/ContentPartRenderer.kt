@@ -3,6 +3,7 @@ package com.garfiec.librechat.feature.chat.components
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.LayoutCoordinates
+import com.garfiec.librechat.core.model.Attachment
 import com.garfiec.librechat.core.model.content.MessageContentPart
 
 @Composable
@@ -12,7 +13,7 @@ actual fun ContentPartRenderer(
     baseUrl: String,
     fontSizeMultiplier: Float,
     useKatex: Boolean,
-    attachments: List<com.garfiec.librechat.core.model.Attachment>,
+    attachments: List<Attachment>,
     showImageDescriptions: Boolean,
     searchQuery: String?,
     searchFocusedOccurrence: Int,

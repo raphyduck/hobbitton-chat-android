@@ -1,12 +1,15 @@
 package com.garfiec.librechat.feature.chat.viewmodel
 
+import androidx.compose.runtime.Immutable
 import com.garfiec.librechat.core.common.ChatLayoutConstants
 import com.garfiec.librechat.core.common.EndpointConstants
 import com.garfiec.librechat.core.common.ToolConstants
 import com.garfiec.librechat.core.data.datastore.ChatFontSize
 import com.garfiec.librechat.core.data.datastore.LatexRenderer
 import com.garfiec.librechat.core.model.Agent
+import com.garfiec.librechat.core.model.Attachment
 import com.garfiec.librechat.core.model.EndpointConfig
+import com.garfiec.librechat.core.model.Message
 import com.garfiec.librechat.core.ui.components.ModelParameters
 import com.garfiec.librechat.feature.chat.model.McpServerDisplayData
 import com.garfiec.librechat.feature.chat.model.PresetDisplayData
@@ -20,7 +23,7 @@ enum class ChatScreenState { LANDING, LOADING, ACTIVE }
  * Exposed as a single [StateFlow] to reduce the number of individual subscriptions
  * in the UI layer.
  */
-@androidx.compose.runtime.Immutable
+@Immutable
 data class ChatPreferences(
     val showImageDescriptions: Boolean = false,
     val dismissKeyboardOnSend: Boolean = false,
@@ -38,19 +41,19 @@ data class ChatPreferences(
  * @param messageIndex Index into [ChatUiState.displayMessages] containing this occurrence.
  * @param occurrenceInMessage 0-based index of this occurrence within the message text.
  */
-@androidx.compose.runtime.Immutable
+@Immutable
 data class SearchMatch(
     val messageIndex: Int,
     val occurrenceInMessage: Int,
 )
 
-@androidx.compose.runtime.Immutable
+@Immutable
 data class RetryInfo(
     val attempt: Int,
     val maxAttempts: Int,
 )
 
-@androidx.compose.runtime.Immutable
+@Immutable
 data class ActiveToolCall(
     val id: String,
     val name: String,
@@ -58,10 +61,10 @@ data class ActiveToolCall(
     val output: String? = null,
 )
 
-@androidx.compose.runtime.Immutable
+@Immutable
 data class ChatUiState(
     val screenState: ChatScreenState = ChatScreenState.LANDING,
-    val messages: List<com.garfiec.librechat.core.model.Message> = emptyList(),
+    val messages: List<Message> = emptyList(),
     val displayMessages: List<MessageNode> = emptyList(),
     val activeBranches: Map<String, Int> = emptyMap(),
     val inputText: String = "",
@@ -71,7 +74,7 @@ data class ChatUiState(
     /** Attachments received during SSE streaming (e.g., tool-generated images).
      *  Cleared when streaming ends. Used to provide attachment context while the
      *  final message (with full attachments) has not yet been persisted to Room. */
-    val streamingAttachments: List<com.garfiec.librechat.core.model.Attachment> = emptyList(),
+    val streamingAttachments: List<Attachment> = emptyList(),
     val selectedModel: String? = null,
     val selectedEndpoint: String = EndpointConstants.AGENTS,
     val endpointConfigs: Map<String, EndpointConfig> = emptyMap(),

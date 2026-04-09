@@ -3,6 +3,7 @@ package com.garfiec.librechat.core.network.sse
 import com.garfiec.librechat.core.model.Conversation
 import com.garfiec.librechat.core.model.Message
 import com.garfiec.librechat.core.model.StreamEvent
+import com.garfiec.librechat.core.model.content.MessageContentPart
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -210,7 +211,7 @@ class SseEventMapper(private val json: Json) {
             aggregatedContent.mapNotNull { element ->
                 try {
                     json.decodeFromJsonElement(
-                        com.garfiec.librechat.core.model.content.MessageContentPart.serializer(),
+                        MessageContentPart.serializer(),
                         element,
                     )
                 } catch (e: Exception) {

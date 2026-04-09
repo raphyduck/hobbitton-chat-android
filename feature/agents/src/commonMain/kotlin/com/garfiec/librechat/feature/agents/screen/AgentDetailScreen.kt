@@ -47,6 +47,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.garfiec.librechat.core.model.EModelEndpoint
 import com.garfiec.librechat.core.ui.components.AvatarImage
 import com.garfiec.librechat.core.ui.components.endpointIconPainter
 import com.garfiec.librechat.core.ui.components.ErrorBanner
@@ -216,7 +217,7 @@ fun AgentDetailScreen(
                         imageUrl = agent.avatarUrl,
                         size = 80.dp,
                         fallbackText = agent.name,
-                        fallbackIconPainter = endpointIconPainter(com.garfiec.librechat.core.model.EModelEndpoint.AGENTS),
+                        fallbackIconPainter = endpointIconPainter(EModelEndpoint.AGENTS),
                         tintIcon = true,
                     )
 

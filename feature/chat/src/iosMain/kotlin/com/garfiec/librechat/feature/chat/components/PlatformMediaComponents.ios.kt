@@ -52,8 +52,10 @@ import co.touchlab.kermit.Logger
 import coil3.compose.AsyncImage
 import kotlinx.cinterop.BetaInteropApi
 import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.cinterop.cValue
 import kotlinx.coroutines.delay
 import platform.AVFAudio.AVAudioPlayer
+import platform.AVFoundation.AVLayerVideoGravityResizeAspect
 import platform.AVFoundation.AVPlayer
 import platform.AVFoundation.AVPlayerItem
 import platform.AVFoundation.AVPlayerLayer
@@ -76,7 +78,10 @@ import platform.Foundation.writeToFile
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
 import platform.QuartzCore.CALayer
+import platform.UIKit.UIColor
 import platform.UIKit.UIView
+import platform.UIKit.UIViewController
+import platform.UIKit.UIWindowScene
 import platform.WebKit.WKNavigation
 import platform.WebKit.WKNavigationDelegateProtocol
 import platform.WebKit.WKWebView
@@ -385,7 +390,7 @@ actual fun VideoContent(
                 factory = {
                     val view = UIView()
                     val playerLayer = AVPlayerLayer.playerLayerWithPlayer(player)
-                    playerLayer.videoGravity = platform.AVFoundation.AVLayerVideoGravityResizeAspect
+                    playerLayer.videoGravity = AVLayerVideoGravityResizeAspect
                     view.layer.addSublayer(playerLayer)
                     view
                 },
@@ -473,8 +478,8 @@ private fun KatexWebView(
             .height(contentHeight),
         factory = {
             val config = WKWebViewConfiguration()
-            val webView = WKWebView(frame = kotlinx.cinterop.cValue { }, configuration = config)
-            val nativeBg = platform.UIKit.UIColor(
+            val webView = WKWebView(frame = cValue { }, configuration = config)
+            val nativeBg = UIColor(
                 red = bgComposeColor.red.toDouble(),
                 green = bgComposeColor.green.toDouble(),
                 blue = bgComposeColor.blue.toDouble(),
@@ -502,7 +507,7 @@ private fun KatexWebView(
     )
 }
 
-private fun colorToCssHex(color: androidx.compose.ui.graphics.Color): String {
+private fun colorToCssHex(color: Color): String {
     val r = (color.red * 255).toInt()
     val g = (color.green * 255).toInt()
     val b = (color.blue * 255).toInt()
@@ -690,7 +695,7 @@ private fun MermaidWKWebView(
         modifier = modifier,
         factory = {
             val config = WKWebViewConfiguration()
-            val webView = WKWebView(frame = kotlinx.cinterop.cValue { }, configuration = config)
+            val webView = WKWebView(frame = cValue { }, configuration = config)
             webView.setOpaque(false)
             webView.loadHTMLString(html, baseURL = NSURL.URLWithString("https://cdn.jsdelivr.net"))
             webView
@@ -823,8 +828,8 @@ actual fun FullscreenImageViewer(
     }
 }
 
-private fun getRootViewController(): platform.UIKit.UIViewController? {
-    val scene = UIApplication.sharedApplication.connectedScenes.firstOrNull() as? platform.UIKit.UIWindowScene
+private fun getRootViewController(): UIViewController? {
+    val scene = UIApplication.sharedApplication.connectedScenes.firstOrNull() as? UIWindowScene
     return scene?.keyWindow?.rootViewController
 }
 

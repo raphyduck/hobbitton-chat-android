@@ -1,6 +1,7 @@
 package com.garfiec.librechat.feature.files.platform
 
 import android.graphics.Bitmap
+import android.graphics.Color
 import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
 import androidx.compose.foundation.Image
@@ -115,7 +116,7 @@ actual fun PdfPreview(
                     bitmapHeight,
                     Bitmap.Config.ARGB_8888,
                 )
-                bitmap.eraseColor(android.graphics.Color.WHITE)
+                bitmap.eraseColor(Color.WHITE)
                 page.render(
                     bitmap,
                     null,

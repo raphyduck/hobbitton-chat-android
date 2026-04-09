@@ -1,5 +1,16 @@
 package com.garfiec.librechat.feature.conversations.di
 
+import android.app.Application
+import android.content.Context
+import androidx.lifecycle.SavedStateHandle
+import com.garfiec.librechat.core.data.datastore.ServerDataStore
+import com.garfiec.librechat.core.data.datastore.SettingsDataStore
+import com.garfiec.librechat.core.data.repository.ConfigRepository
+import com.garfiec.librechat.core.data.repository.ConversationRepository
+import com.garfiec.librechat.core.data.repository.MessageRepository
+import com.garfiec.librechat.core.data.repository.SearchRepository
+import com.garfiec.librechat.core.data.repository.ShareRepository
+import com.garfiec.librechat.core.data.repository.TagRepository
 import org.junit.Test
 import org.koin.test.verify.verify
 
@@ -8,17 +19,17 @@ class ConversationsModuleVerificationTest {
     fun verifyConversationsModule() {
         conversationsModule.verify(
             extraTypes = listOf(
-                android.content.Context::class,
-                android.app.Application::class,
-                androidx.lifecycle.SavedStateHandle::class,
-                com.garfiec.librechat.core.data.repository.ConversationRepository::class,
-                com.garfiec.librechat.core.data.repository.MessageRepository::class,
-                com.garfiec.librechat.core.data.repository.TagRepository::class,
-                com.garfiec.librechat.core.data.repository.ShareRepository::class,
-                com.garfiec.librechat.core.data.repository.SearchRepository::class,
-                com.garfiec.librechat.core.data.repository.ConfigRepository::class,
-                com.garfiec.librechat.core.data.datastore.ServerDataStore::class,
-                com.garfiec.librechat.core.data.datastore.SettingsDataStore::class,
+                Context::class,
+                Application::class,
+                SavedStateHandle::class,
+                ConversationRepository::class,
+                MessageRepository::class,
+                TagRepository::class,
+                ShareRepository::class,
+                SearchRepository::class,
+                ConfigRepository::class,
+                ServerDataStore::class,
+                SettingsDataStore::class,
             ),
         )
     }

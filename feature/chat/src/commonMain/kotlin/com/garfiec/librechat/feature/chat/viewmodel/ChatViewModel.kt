@@ -22,7 +22,9 @@ import com.garfiec.librechat.core.data.repository.PresetRepository
 import com.garfiec.librechat.core.data.repository.PromptRepository
 import com.garfiec.librechat.core.data.repository.ShareRepository
 import com.garfiec.librechat.core.data.repository.UserRepository
+import com.garfiec.librechat.core.model.Attachment
 import com.garfiec.librechat.core.model.EModelEndpoint
+import com.garfiec.librechat.core.model.Message
 import com.garfiec.librechat.core.model.Preset
 import com.garfiec.librechat.core.model.StreamEvent
 import com.garfiec.librechat.core.model.request.EphemeralAgent
@@ -38,6 +40,7 @@ import com.garfiec.librechat.feature.chat.viewmodel.delegate.ModelSelectionDeleg
 import com.garfiec.librechat.feature.chat.viewmodel.delegate.PlatformDelegateFactory
 import com.garfiec.librechat.feature.chat.viewmodel.delegate.PresetPromptDelegate
 import com.garfiec.librechat.feature.chat.viewmodel.delegate.toSerialName
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -467,7 +470,7 @@ class ChatViewModel(
         val messageText = text.ifBlank {
             if (hasFiles) "" else return
         }
-        val optimisticMessage = com.garfiec.librechat.core.model.Message(
+        val optimisticMessage = Message(
             messageId = Uuid.random().toString(),
             conversationId = conversationId ?: "",
             parentMessageId = lastMessageId,
@@ -637,7 +640,7 @@ class ChatViewModel(
         }
     }
 
-    private fun editUserMessage(originalMessage: com.garfiec.librechat.core.model.Message, newText: String) {
+    private fun editUserMessage(originalMessage: Message, newText: String) {
         val parentMessageId = originalMessage.parentMessageId
 
         isEditOrRegenerate = true
@@ -665,7 +668,7 @@ class ChatViewModel(
         }
     }
 
-    private fun editAiMessage(aiMessage: com.garfiec.librechat.core.model.Message, newText: String) {
+    private fun editAiMessage(aiMessage: Message, newText: String) {
         val parentUserMessage = _uiState.value.messages.find {
             it.messageId == aiMessage.parentMessageId
         } ?: return
@@ -750,7 +753,7 @@ class ChatViewModel(
     private suspend fun collectStreamSafely(stream: Flow<StreamEvent>) {
         try {
             stream.collect { event -> handleStreamEvent(event) }
-        } catch (e: kotlinx.coroutines.CancellationException) {
+        } catch (e: CancellationException) {
             throw e // Never swallow cancellation
         } catch (e: Exception) {
             Logger.e(e) { "Stream collection failed" }
@@ -1026,7 +1029,7 @@ class ChatViewModel(
                 }
             }
             is StreamEvent.AttachmentCreated -> {
-                val attachment = com.garfiec.librechat.core.model.Attachment(
+                val attachment = Attachment(
                     fileId = event.fileId,
                     filename = event.filename,
                     filepath = event.filepath,

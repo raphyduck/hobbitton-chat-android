@@ -1,5 +1,12 @@
 package com.garfiec.librechat.feature.agents.di
 
+import android.app.Application
+import android.content.Context
+import androidx.lifecycle.SavedStateHandle
+import com.garfiec.librechat.core.data.datastore.ServerDataStore
+import com.garfiec.librechat.core.data.repository.AgentRepository
+import com.garfiec.librechat.core.data.repository.ConfigRepository
+import com.garfiec.librechat.core.data.repository.McpRepository
 import org.junit.Test
 import org.koin.test.verify.verify
 
@@ -8,13 +15,13 @@ class AgentsModuleVerificationTest {
     fun verifyAgentsModule() {
         agentsModule.verify(
             extraTypes = listOf(
-                android.content.Context::class,
-                android.app.Application::class,
-                androidx.lifecycle.SavedStateHandle::class,
-                com.garfiec.librechat.core.data.repository.AgentRepository::class,
-                com.garfiec.librechat.core.data.repository.ConfigRepository::class,
-                com.garfiec.librechat.core.data.repository.McpRepository::class,
-                com.garfiec.librechat.core.data.datastore.ServerDataStore::class,
+                Context::class,
+                Application::class,
+                SavedStateHandle::class,
+                AgentRepository::class,
+                ConfigRepository::class,
+                McpRepository::class,
+                ServerDataStore::class,
             ),
         )
     }

@@ -1,6 +1,8 @@
 package com.garfiec.librechat.feature.chat.viewmodel.delegate
 
 import android.content.Context
+import android.media.MediaPlayer
+import android.os.Bundle
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import com.garfiec.librechat.core.common.result.Result
@@ -9,6 +11,7 @@ import com.garfiec.librechat.core.data.repository.SpeechRepository
 import com.garfiec.librechat.feature.chat.viewmodel.ChatStateHandle
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import java.io.File
 
 class TextToSpeechDelegate(
     private val stateHandle: ChatStateHandle,
@@ -20,7 +23,7 @@ class TextToSpeechDelegate(
 
     private var ttsEngine: TextToSpeech? = null
     private var ttsReady = false
-    private var serverTtsPlayer: android.media.MediaPlayer? = null
+    private var serverTtsPlayer: MediaPlayer? = null
 
     private fun getOrInitTts(onReady: () -> Unit) {
         if (ttsReady && ttsEngine != null) {
@@ -103,7 +106,7 @@ class TextToSpeechDelegate(
                     engine.setVoice(voice)
                 }
             }
-            val params = android.os.Bundle()
+            val params = Bundle()
             engine.speak(text, TextToSpeech.QUEUE_FLUSH, params, messageId)
         }
     }
@@ -113,12 +116,12 @@ class TextToSpeechDelegate(
             is Result.Success -> {
                 try {
                     val audioBytes = result.data
-                    val tempFile = java.io.File.createTempFile("tts_", ".mp3", appContext.cacheDir)
+                    val tempFile = File.createTempFile("tts_", ".mp3", appContext.cacheDir)
                     tempFile.deleteOnExit()
                     tempFile.writeBytes(audioBytes)
 
                     serverTtsPlayer?.release()
-                    serverTtsPlayer = android.media.MediaPlayer().apply {
+                    serverTtsPlayer = MediaPlayer().apply {
                         setDataSource(tempFile.absolutePath)
                         setOnCompletionListener {
                             it.release()

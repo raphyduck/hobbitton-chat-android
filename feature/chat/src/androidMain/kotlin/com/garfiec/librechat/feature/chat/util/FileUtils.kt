@@ -1,10 +1,13 @@
 package com.garfiec.librechat.feature.chat.util
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.provider.OpenableColumns
 import android.webkit.MimeTypeMap
 import co.touchlab.kermit.Logger
+import java.io.ByteArrayOutputStream
 
 /**
  * Resolves a human-readable filename from a content URI using the ContentResolver.
@@ -224,7 +227,7 @@ internal fun reEncodeImageIfNeeded(bytes: ByteArray, mimeType: String): ReEncode
     // converts non-matching extensions (e.g. .jpg when imageOutputType=png)
     // while storing the original MIME type, causing the Anthropic 400 error.
     return try {
-        val bitmap = android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+        val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
             ?: return null // BitmapFactory can't decode this format
 
         // If already PNG with correct magic bytes, skip re-encoding to save CPU/memory
@@ -233,8 +236,8 @@ internal fun reEncodeImageIfNeeded(bytes: ByteArray, mimeType: String): ReEncode
             return null
         }
 
-        val outputStream = java.io.ByteArrayOutputStream()
-        bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, outputStream)
+        val outputStream = ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
         bitmap.recycle()
 
         val encodedBytes = outputStream.toByteArray()

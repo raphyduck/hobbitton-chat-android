@@ -7,6 +7,7 @@ import androidx.room.testing.MigrationTestHelper
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.runBlocking
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -250,7 +251,7 @@ class RoomMigrationTest {
         ).build()
 
         // Verify we can read the migrated data via DAO
-        val conversation = kotlinx.coroutines.runBlocking {
+        val conversation = runBlocking {
             roomDb.conversationDao().getById("conv-api-test")
         }
         assertThat(conversation).isNotNull()

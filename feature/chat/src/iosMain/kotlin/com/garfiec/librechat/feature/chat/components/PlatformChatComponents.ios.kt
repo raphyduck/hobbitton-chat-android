@@ -42,9 +42,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -58,6 +60,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.garfiec.librechat.core.common.ChatLayoutConstants
+import com.garfiec.librechat.core.model.Attachment
 import com.garfiec.librechat.core.model.Message
 import com.garfiec.librechat.core.model.content.MessageContentPart
 import com.garfiec.librechat.core.ui.components.AvatarImage
@@ -334,7 +337,7 @@ private fun TwoSidedBubble(
 @Composable
 actual fun ContentPartRenderer(
     part: MessageContentPart, modifier: Modifier, baseUrl: String, fontSizeMultiplier: Float,
-    useKatex: Boolean, attachments: List<com.garfiec.librechat.core.model.Attachment>,
+    useKatex: Boolean, attachments: List<Attachment>,
     showImageDescriptions: Boolean, searchQuery: String?, searchFocusedOccurrence: Int,
     onFocusedOccurrencePositioned: ((LayoutCoordinates) -> Unit)?,
 ) {
@@ -624,7 +627,7 @@ private fun IosMarkdownTable(
 
 @Composable
 private fun TableCell(
-    text: String, style: androidx.compose.ui.text.TextStyle, color: androidx.compose.ui.graphics.Color,
+    text: String, style: TextStyle, color: Color,
     alignment: TableCellAlignment, cellWidth: Dp, paddingH: Dp, paddingV: Dp, modifier: Modifier = Modifier,
 ) {
     Box(
@@ -646,7 +649,7 @@ private fun TableCell(
     }
 }
 
-private fun androidx.compose.ui.text.TextStyle.scale(m: Float): androidx.compose.ui.text.TextStyle {
+private fun TextStyle.scale(m: Float): TextStyle {
     if (m == 1.0f) return this
     return copy(
         fontSize = if (fontSize.isSpecified) (fontSize.value * m).sp else fontSize,

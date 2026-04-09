@@ -1,6 +1,7 @@
 package com.garfiec.librechat.feature.chat.components
 
 import android.annotation.SuppressLint
+import android.graphics.Color
 import android.net.http.SslError
 import android.view.ViewGroup
 import android.webkit.SslErrorHandler
@@ -178,7 +179,7 @@ private fun KatexLatexBlock(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                 )
-                setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                setBackgroundColor(Color.TRANSPARENT)
                 settings.javaScriptEnabled = true
                 settings.allowFileAccess = false
                 settings.allowContentAccess = false
@@ -251,7 +252,7 @@ private fun KatexLatexInline(
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                 )
-                setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                setBackgroundColor(Color.TRANSPARENT)
                 settings.javaScriptEnabled = true
                 settings.allowFileAccess = false
                 settings.allowContentAccess = false

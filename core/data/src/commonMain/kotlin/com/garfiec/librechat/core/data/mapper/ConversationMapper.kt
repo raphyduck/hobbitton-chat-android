@@ -5,7 +5,9 @@ import com.garfiec.librechat.core.model.Conversation
 import com.garfiec.librechat.core.model.EModelEndpoint
 import kotlin.time.Clock
 import kotlin.time.Instant
+import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.serializer
 
 private val json = Json { ignoreUnknownKeys = true }
 
@@ -18,7 +20,7 @@ fun Conversation.toEntity(): ConversationEntity = ConversationEntity(
     model = model,
     agentId = agentId,
     isArchived = isArchived,
-    tags = json.encodeToString(kotlinx.serialization.builtins.ListSerializer(kotlinx.serialization.serializer<String>()), tags),
+    tags = json.encodeToString(ListSerializer(serializer<String>()), tags),
     iconURL = iconURL,
     greeting = greeting,
     modelParams = null,

@@ -2,6 +2,7 @@ package com.garfiec.librechat.core.data.db.dao
 
 import androidx.room.Dao
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Upsert
 import com.garfiec.librechat.core.data.db.entity.MessageEntity
 import kotlinx.coroutines.flow.Flow
@@ -29,7 +30,7 @@ interface MessageDao {
     @Query("DELETE FROM messages WHERE conversationId = :conversationId")
     suspend fun deleteAllForConversation(conversationId: String)
 
-    @androidx.room.Transaction
+    @Transaction
     suspend fun replaceAllForConversation(conversationId: String, messages: List<MessageEntity>) {
         deleteAllForConversation(conversationId)
         upsertAll(messages)

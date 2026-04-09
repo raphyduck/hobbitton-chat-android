@@ -1,6 +1,7 @@
 package com.garfiec.librechat.feature.chat.components
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -406,7 +407,7 @@ fun ChatInput(
  * Stored in the app's cache directory under `camera_photos/` which is
  * registered in the FileProvider paths XML.
  */
-private fun createCameraPhotoFile(context: android.content.Context): File {
+private fun createCameraPhotoFile(context: Context): File {
     val cameraDir = File(context.cacheDir, "camera_photos")
     if (!cameraDir.exists()) {
         cameraDir.mkdirs()

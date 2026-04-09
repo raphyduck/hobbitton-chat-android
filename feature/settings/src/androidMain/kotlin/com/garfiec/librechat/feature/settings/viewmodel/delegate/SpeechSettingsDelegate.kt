@@ -3,6 +3,7 @@ package com.garfiec.librechat.feature.settings.viewmodel.delegate
 import android.content.Context
 import android.media.MediaPlayer
 import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
 import com.garfiec.librechat.core.common.result.Result
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.repository.SpeechRepository
@@ -11,6 +12,7 @@ import com.garfiec.librechat.feature.settings.screen.DeviceVoiceInfo
 import com.garfiec.librechat.feature.settings.viewmodel.SettingsStateHandle
 import kotlinx.coroutines.launch
 import co.touchlab.kermit.Logger
+import java.io.File
 
 /**
  * Handles TTS voice selection, test playback, device voice loading, and MediaPlayer lifecycle.
@@ -102,7 +104,7 @@ class SpeechSettingsDelegate(
             }
         }
         stateHandle.update { copy(isTtsPreviewPlaying = true) }
-        tts.setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {
+        tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
             override fun onStart(utteranceId: String?) { /* no-op */ }
             override fun onDone(utteranceId: String?) {
                 stateHandle.update { copy(isTtsPreviewPlaying = false) }
@@ -217,7 +219,7 @@ class SpeechSettingsDelegate(
             currentMediaPlayer = null
 
             // Write bytes to a temporary file
-            val tempFile = java.io.File.createTempFile("voice_test", ".mp3", context.cacheDir)
+            val tempFile = File.createTempFile("voice_test", ".mp3", context.cacheDir)
             tempFile.deleteOnExit()
             tempFile.writeBytes(audioBytes)
 

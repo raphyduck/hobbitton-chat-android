@@ -12,6 +12,7 @@ import com.garfiec.librechat.feature.files.FileDisplayData
 import com.garfiec.librechat.feature.files.FilePreviewDisplayData
 import com.garfiec.librechat.feature.files.platform.FileReader
 import com.garfiec.librechat.feature.files.platform.formatFileSize
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -166,7 +167,7 @@ class FilesViewModel(
         }
     }
 
-    private var uploadJob: kotlinx.coroutines.Job? = null
+    private var uploadJob: Job? = null
 
     /**
      * Upload a file from a platform-specific file reference.

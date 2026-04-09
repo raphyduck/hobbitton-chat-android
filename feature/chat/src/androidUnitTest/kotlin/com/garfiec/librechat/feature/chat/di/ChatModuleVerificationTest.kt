@@ -1,5 +1,24 @@
 package com.garfiec.librechat.feature.chat.di
 
+import android.app.Application
+import android.content.Context
+import androidx.lifecycle.SavedStateHandle
+import com.garfiec.librechat.core.common.network.ConnectivityObserver
+import com.garfiec.librechat.core.data.datastore.ServerDataStore
+import com.garfiec.librechat.core.data.datastore.SettingsDataStore
+import com.garfiec.librechat.core.data.repository.AgentRepository
+import com.garfiec.librechat.core.data.repository.ChatRepository
+import com.garfiec.librechat.core.data.repository.ConfigRepository
+import com.garfiec.librechat.core.data.repository.ConversationRepository
+import com.garfiec.librechat.core.data.repository.DraftRepository
+import com.garfiec.librechat.core.data.repository.FileRepository
+import com.garfiec.librechat.core.data.repository.McpRepository
+import com.garfiec.librechat.core.data.repository.MessageRepository
+import com.garfiec.librechat.core.data.repository.PresetRepository
+import com.garfiec.librechat.core.data.repository.PromptRepository
+import com.garfiec.librechat.core.data.repository.ShareRepository
+import com.garfiec.librechat.core.data.repository.SpeechRepository
+import com.garfiec.librechat.core.data.repository.UserRepository
 import org.junit.Test
 import org.koin.test.verify.verify
 
@@ -8,25 +27,25 @@ class ChatModuleVerificationTest {
     fun verifyChatModule() {
         chatModule.verify(
             extraTypes = listOf(
-                android.content.Context::class,
-                android.app.Application::class,
-                androidx.lifecycle.SavedStateHandle::class,
-                com.garfiec.librechat.core.data.repository.AgentRepository::class,
-                com.garfiec.librechat.core.data.repository.ChatRepository::class,
-                com.garfiec.librechat.core.data.repository.MessageRepository::class,
-                com.garfiec.librechat.core.data.repository.ConfigRepository::class,
-                com.garfiec.librechat.core.data.repository.ConversationRepository::class,
-                com.garfiec.librechat.core.data.repository.DraftRepository::class,
-                com.garfiec.librechat.core.data.repository.FileRepository::class,
-                com.garfiec.librechat.core.data.repository.PresetRepository::class,
-                com.garfiec.librechat.core.data.repository.PromptRepository::class,
-                com.garfiec.librechat.core.data.repository.ShareRepository::class,
-                com.garfiec.librechat.core.data.repository.SpeechRepository::class,
-                com.garfiec.librechat.core.data.repository.McpRepository::class,
-                com.garfiec.librechat.core.data.repository.UserRepository::class,
-                com.garfiec.librechat.core.common.network.ConnectivityObserver::class,
-                com.garfiec.librechat.core.data.datastore.ServerDataStore::class,
-                com.garfiec.librechat.core.data.datastore.SettingsDataStore::class,
+                Context::class,
+                Application::class,
+                SavedStateHandle::class,
+                AgentRepository::class,
+                ChatRepository::class,
+                MessageRepository::class,
+                ConfigRepository::class,
+                ConversationRepository::class,
+                DraftRepository::class,
+                FileRepository::class,
+                PresetRepository::class,
+                PromptRepository::class,
+                ShareRepository::class,
+                SpeechRepository::class,
+                McpRepository::class,
+                UserRepository::class,
+                ConnectivityObserver::class,
+                ServerDataStore::class,
+                SettingsDataStore::class,
             ),
         )
     }

@@ -1,5 +1,6 @@
 package com.garfiec.librechat.core.data.di
 
+import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
@@ -17,7 +18,7 @@ import org.koin.core.module.Module
 import org.koin.dsl.binds
 import org.koin.dsl.module
 
-private val android.content.Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(
+private val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(
     name = DATASTORE_FILE_NAME,
 )
 

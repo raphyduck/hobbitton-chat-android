@@ -10,7 +10,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import co.touchlab.kermit.Logger
+import platform.Foundation.NSTimer
+import platform.UIKit.UIAlertController
+import platform.UIKit.UIAlertControllerStyleAlert
+import platform.UIKit.UIApplication
 import platform.UIKit.UIPasteboard
+import platform.UIKit.UIWindow
+import platform.UIKit.UIWindowScene
 
 actual fun copyToClipboard(text: String, label: String) {
     UIPasteboard.generalPasteboard.string = text
@@ -20,19 +26,19 @@ actual fun showToast(message: String) {
     // iOS doesn't have native Toast — show a brief alert-style overlay.
     Logger.i("Toast") { message }
     // Use UIAlertController as a lightweight toast replacement
-    val scene = platform.UIKit.UIApplication.sharedApplication.connectedScenes
-        .firstOrNull() as? platform.UIKit.UIWindowScene
+    val scene = UIApplication.sharedApplication.connectedScenes
+        .firstOrNull() as? UIWindowScene
     val rootVc = scene?.windows?.firstOrNull {
-        (it as? platform.UIKit.UIWindow)?.isKeyWindow() == true
-    }?.let { (it as platform.UIKit.UIWindow).rootViewController } ?: return
-    val alert = platform.UIKit.UIAlertController.alertControllerWithTitle(
+        (it as? UIWindow)?.isKeyWindow() == true
+    }?.let { (it as UIWindow).rootViewController } ?: return
+    val alert = UIAlertController.alertControllerWithTitle(
         title = null,
         message = message,
-        preferredStyle = platform.UIKit.UIAlertControllerStyleAlert,
+        preferredStyle = UIAlertControllerStyleAlert,
     )
     rootVc.presentViewController(alert, animated = true, completion = null)
     // Auto-dismiss after 1.5 seconds
-    platform.Foundation.NSTimer.scheduledTimerWithTimeInterval(
+    NSTimer.scheduledTimerWithTimeInterval(
         interval = 1.5,
         repeats = false,
     ) {

@@ -26,6 +26,7 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.garfiec.librechat.core.model.Banner
 import com.garfiec.librechat.core.ui.components.BannerDisplay
 import com.garfiec.librechat.shared.navigation.NavHostViewModel
 import com.garfiec.librechat.shared.navigation.Navigator
@@ -226,7 +227,7 @@ private fun MainContent(
     navigator: Navigator,
     navHostViewModel: NavHostViewModel,
     isInAuthFlow: Boolean,
-    banners: List<com.garfiec.librechat.core.model.Banner>,
+    banners: List<Banner>,
     dismissedBannerIds: Set<String>,
     onToggleDrawer: () -> Unit,
     modifier: Modifier = Modifier,
