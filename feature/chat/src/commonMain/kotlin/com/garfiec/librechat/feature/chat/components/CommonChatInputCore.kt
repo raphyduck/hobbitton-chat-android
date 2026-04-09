@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -79,7 +80,6 @@ fun CommonChatInputCore(
     onStop: () -> Unit,
     onRemoveFile: (AttachedFile) -> Unit,
     modifier: Modifier = Modifier,
-    columnModifier: Modifier = Modifier,
     leadingButtons: @Composable RowScope.() -> Unit = {},
     textFieldContent: @Composable RowScope.() -> Unit,
     trailingSpacer: @Composable RowScope.() -> Unit = {},
@@ -102,7 +102,7 @@ fun CommonChatInputCore(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .then(columnModifier)
+                .navigationBarsPadding()
                 .padding(horizontal = 12.dp, vertical = 8.dp),
         ) {
             AttachmentChipsRow(
