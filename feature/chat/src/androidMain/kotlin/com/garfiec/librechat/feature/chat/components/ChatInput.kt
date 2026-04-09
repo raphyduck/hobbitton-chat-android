@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -227,7 +226,6 @@ fun ChatInput(
         onStop = onStop,
         onRemoveFile = onRemoveFile,
         modifier = modifier,
-        columnModifier = Modifier.navigationBarsPadding(),
         leadingButtons = {
             // "+" button to open tools bottom sheet
             Box {
