@@ -2,7 +2,9 @@ package com.garfiec.librechat.feature.settings.screen
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.rememberScrollState
@@ -130,7 +132,11 @@ internal fun McpServerDialog(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 val typeOptions = listOf(McpServerType.SSE, McpServerType.STREAMABLE_HTTP)
-                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                SingleChoiceSegmentedButtonRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(IntrinsicSize.Max),
+                ) {
                     typeOptions.forEachIndexed { index, type ->
                         SegmentedButton(
                             selected = selectedType == type,
@@ -139,6 +145,7 @@ internal fun McpServerDialog(
                                 index = index,
                                 count = typeOptions.size,
                             ),
+                            modifier = Modifier.fillMaxHeight(),
                         ) {
                             Text(
                                 when (type) {
