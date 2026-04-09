@@ -1,6 +1,7 @@
 package com.garfiec.librechat.core.data.datastore
 
 import io.ktor.client.HttpClient
+import kotlinx.cinterop.BetaInteropApi
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.alloc
 import kotlinx.cinterop.memScoped
@@ -36,7 +37,7 @@ import platform.Security.kSecReturnData
 import platform.Security.kSecValueData
 import co.touchlab.kermit.Logger
 
-@OptIn(ExperimentalForeignApi::class, kotlinx.cinterop.BetaInteropApi::class)
+@OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
 class IosTokenDataStore(
     refreshClient: Lazy<HttpClient>,
 ) : CommonTokenDataStore(refreshClient), ServerUrlKeychainFallback {

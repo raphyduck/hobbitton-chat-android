@@ -23,6 +23,7 @@ import com.garfiec.librechat.core.data.repository.ShareRepository
 import com.garfiec.librechat.core.data.repository.SpeechRepository
 import com.garfiec.librechat.core.data.repository.UserRepository
 import com.garfiec.librechat.core.model.User
+import io.mockk.Ordering
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -182,7 +183,7 @@ class SettingsViewModelTest {
         viewModel.deleteAccount()
         advanceUntilIdle()
 
-        coVerify(ordering = io.mockk.Ordering.ORDERED) {
+        coVerify(ordering = Ordering.ORDERED) {
             userRepository.deleteUser()
             authRepository.logout()
         }

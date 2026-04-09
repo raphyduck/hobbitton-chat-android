@@ -103,7 +103,7 @@ internal fun McpSettingsSection(
 @Composable
 private fun McpServerItem(
     server: McpServer,
-    serverStatus: com.garfiec.librechat.core.model.mcp.McpServerStatus?,
+    serverStatus: McpServerStatus?,
     isReinitializing: Boolean,
     onEdit: () -> Unit,
     onDelete: () -> Unit,

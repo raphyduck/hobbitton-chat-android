@@ -39,6 +39,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.floatOrNull
@@ -820,7 +821,7 @@ class AgentEditorViewModel(
          * Parse model_parameters JsonElement into AgentAdvancedSettings.
          * The backend stores these as: { "temperature": 0.7, "top_p": 0.9, "max_tokens": 4096 }
          */
-        private fun parseModelParameters(params: kotlinx.serialization.json.JsonElement?): AgentAdvancedSettings {
+        private fun parseModelParameters(params: JsonElement?): AgentAdvancedSettings {
             if (params == null) return AgentAdvancedSettings()
             return try {
                 val obj = params.jsonObject
@@ -839,7 +840,7 @@ class AgentEditorViewModel(
          * Returns null if no parameters are set (to avoid sending empty objects).
          */
         private fun buildModelParameters(settings: AgentAdvancedSettings): JsonObject? {
-            val map = mutableMapOf<String, kotlinx.serialization.json.JsonElement>()
+            val map = mutableMapOf<String, JsonElement>()
             settings.temperature?.let { map["temperature"] = JsonPrimitive(it) }
             settings.topP?.let { map["top_p"] = JsonPrimitive(it) }
             settings.maxTokens?.let { map["max_tokens"] = JsonPrimitive(it) }
@@ -921,13 +922,13 @@ class AgentEditorViewModel(
         private fun Agent.parseSupportContact(): SupportContactState {
             val json = supportContact ?: return SupportContactState()
             return try {
-                val obj = json as? kotlinx.serialization.json.JsonObject
+                val obj = json as? JsonObject
                     ?: return SupportContactState()
                 val name = obj["name"]
-                    ?.let { (it as? kotlinx.serialization.json.JsonPrimitive)?.content }
+                    ?.let { (it as? JsonPrimitive)?.content }
                     ?: ""
                 val email = obj["email"]
-                    ?.let { (it as? kotlinx.serialization.json.JsonPrimitive)?.content }
+                    ?.let { (it as? JsonPrimitive)?.content }
                     ?: ""
                 SupportContactState(name = name, email = email)
             } catch (_: Exception) {

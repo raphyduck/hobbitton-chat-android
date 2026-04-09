@@ -1,5 +1,35 @@
 package com.garfiec.librechat.core.data.di
 
+import android.app.Application
+import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.lifecycle.SavedStateHandle
+import com.garfiec.librechat.core.common.network.ConnectivityObserver
+import com.garfiec.librechat.core.network.api.AgentsApi
+import com.garfiec.librechat.core.network.api.ApiKeysApi
+import com.garfiec.librechat.core.network.api.AuthApi
+import com.garfiec.librechat.core.network.api.BalanceApi
+import com.garfiec.librechat.core.network.api.BannerApi
+import com.garfiec.librechat.core.network.api.ChatApi
+import com.garfiec.librechat.core.network.api.ConfigApi
+import com.garfiec.librechat.core.network.api.ConversationsApi
+import com.garfiec.librechat.core.network.api.FilesApi
+import com.garfiec.librechat.core.network.api.FilesExtApi
+import com.garfiec.librechat.core.network.api.KeysApi
+import com.garfiec.librechat.core.network.api.McpApi
+import com.garfiec.librechat.core.network.api.MemoriesApi
+import com.garfiec.librechat.core.network.api.MessagesApi
+import com.garfiec.librechat.core.network.api.PresetsApi
+import com.garfiec.librechat.core.network.api.PromptsApi
+import com.garfiec.librechat.core.network.api.SearchApi
+import com.garfiec.librechat.core.network.api.ShareApi
+import com.garfiec.librechat.core.network.api.SpeechApi
+import com.garfiec.librechat.core.network.api.TagsApi
+import com.garfiec.librechat.core.network.api.UserApi
+import com.garfiec.librechat.core.network.sse.SseClient
+import io.ktor.client.HttpClient
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.serialization.json.Json
 import org.junit.Test
 import org.koin.test.verify.verify
 
@@ -8,37 +38,37 @@ class DataModuleVerificationTest {
     fun verifyDataModule() {
         dataModule.verify(
             extraTypes = listOf(
-                android.content.Context::class,
-                android.app.Application::class,
-                androidx.lifecycle.SavedStateHandle::class,
-                kotlin.Lazy::class,
-                io.ktor.client.HttpClient::class,
-                kotlinx.serialization.json.Json::class,
-                kotlinx.coroutines.CoroutineDispatcher::class,
-                com.garfiec.librechat.core.common.network.ConnectivityObserver::class,
-                com.garfiec.librechat.core.network.sse.SseClient::class,
-                com.garfiec.librechat.core.network.api.AuthApi::class,
-                com.garfiec.librechat.core.network.api.UserApi::class,
-                com.garfiec.librechat.core.network.api.ChatApi::class,
-                com.garfiec.librechat.core.network.api.ConversationsApi::class,
-                com.garfiec.librechat.core.network.api.MessagesApi::class,
-                com.garfiec.librechat.core.network.api.FilesApi::class,
-                com.garfiec.librechat.core.network.api.FilesExtApi::class,
-                com.garfiec.librechat.core.network.api.AgentsApi::class,
-                com.garfiec.librechat.core.network.api.PresetsApi::class,
-                com.garfiec.librechat.core.network.api.PromptsApi::class,
-                com.garfiec.librechat.core.network.api.TagsApi::class,
-                com.garfiec.librechat.core.network.api.ShareApi::class,
-                com.garfiec.librechat.core.network.api.ConfigApi::class,
-                com.garfiec.librechat.core.network.api.BalanceApi::class,
-                com.garfiec.librechat.core.network.api.SearchApi::class,
-                com.garfiec.librechat.core.network.api.KeysApi::class,
-                com.garfiec.librechat.core.network.api.ApiKeysApi::class,
-                com.garfiec.librechat.core.network.api.McpApi::class,
-                com.garfiec.librechat.core.network.api.MemoriesApi::class,
-                com.garfiec.librechat.core.network.api.SpeechApi::class,
-                com.garfiec.librechat.core.network.api.BannerApi::class,
-                androidx.datastore.core.DataStore::class,
+                Context::class,
+                Application::class,
+                SavedStateHandle::class,
+                Lazy::class,
+                HttpClient::class,
+                Json::class,
+                CoroutineDispatcher::class,
+                ConnectivityObserver::class,
+                SseClient::class,
+                AuthApi::class,
+                UserApi::class,
+                ChatApi::class,
+                ConversationsApi::class,
+                MessagesApi::class,
+                FilesApi::class,
+                FilesExtApi::class,
+                AgentsApi::class,
+                PresetsApi::class,
+                PromptsApi::class,
+                TagsApi::class,
+                ShareApi::class,
+                ConfigApi::class,
+                BalanceApi::class,
+                SearchApi::class,
+                KeysApi::class,
+                ApiKeysApi::class,
+                McpApi::class,
+                MemoriesApi::class,
+                SpeechApi::class,
+                BannerApi::class,
+                DataStore::class,
             ),
         )
     }

@@ -33,6 +33,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.garfiec.librechat.feature.chat.components.shareArtifact
 import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.cinterop.cValue
 import platform.Foundation.NSURL
 import platform.WebKit.WKWebView
 import platform.WebKit.WKWebViewConfiguration
@@ -131,7 +132,7 @@ actual fun ArtifactPanel(
                             defaultWebpagePreferences.allowsContentJavaScript = true
                         }
                         val webView = WKWebView(
-                            frame = kotlinx.cinterop.cValue { },
+                            frame = cValue { },
                             configuration = config,
                         )
                         webView.setOpaque(false)

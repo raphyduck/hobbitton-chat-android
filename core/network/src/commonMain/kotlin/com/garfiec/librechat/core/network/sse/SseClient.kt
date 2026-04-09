@@ -11,6 +11,7 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.isSuccess
 import io.ktor.http.path
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -127,7 +128,7 @@ class SseClient(
                 shouldResume = true
             }
         }
-        } catch (e: kotlinx.coroutines.CancellationException) {
+        } catch (e: CancellationException) {
             throw e // Re-throw cancellation — SKIE handles this gracefully
         } catch (e: Exception) {
             Logger.e("SSE", e) { "SSE: unhandled exception escaped flow" }

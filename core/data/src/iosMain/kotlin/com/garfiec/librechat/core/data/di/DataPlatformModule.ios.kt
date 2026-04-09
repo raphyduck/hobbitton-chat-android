@@ -14,16 +14,20 @@ import com.garfiec.librechat.core.data.repository.SessionCacheCleaner
 import com.garfiec.librechat.core.network.client.SecureTokenStorage
 import com.garfiec.librechat.core.network.client.TokenManager
 import io.ktor.client.HttpClient
+import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import okio.Path.Companion.toPath
 import org.koin.core.module.Module
 import org.koin.dsl.binds
 import org.koin.dsl.module
+import platform.Foundation.NSCachesDirectory
 import platform.Foundation.NSFileManager
 import platform.Foundation.NSHomeDirectory
+import platform.Foundation.NSSearchPathForDirectoriesInDomains
+import platform.Foundation.NSUserDomainMask
 
-@OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
+@OptIn(ExperimentalForeignApi::class)
 private fun ensureDirectoryExists(path: String) {
     NSFileManager.defaultManager.createDirectoryAtPath(path, withIntermediateDirectories = true, attributes = null, error = null)
 }
@@ -59,10 +63,10 @@ actual val dataPlatformModule: Module = module {
 
     // --- Session Cache Cleaner ---
     single<SessionCacheCleaner> {
-        @OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
-        val cachePath = platform.Foundation.NSSearchPathForDirectoriesInDomains(
-            platform.Foundation.NSCachesDirectory,
-            platform.Foundation.NSUserDomainMask,
+        @OptIn(ExperimentalForeignApi::class)
+        val cachePath = NSSearchPathForDirectoriesInDomains(
+            NSCachesDirectory,
+            NSUserDomainMask,
             true,
         ).firstOrNull() as? String ?: error("Unable to resolve NSCachesDirectory")
         CommonSessionCacheCleaner(cachePath)

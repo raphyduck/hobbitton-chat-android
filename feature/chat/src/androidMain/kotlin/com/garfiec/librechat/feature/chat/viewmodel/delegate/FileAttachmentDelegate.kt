@@ -1,6 +1,7 @@
 package com.garfiec.librechat.feature.chat.viewmodel.delegate
 
 import android.content.Context
+import android.graphics.BitmapFactory
 import android.net.Uri
 import com.garfiec.librechat.core.common.EndpointConstants
 import com.garfiec.librechat.core.common.result.Result
@@ -134,10 +135,10 @@ class FileAttachmentDelegate(
                 var imageHeight: Int? = null
                 if (actualIsImage) {
                     try {
-                        val options = android.graphics.BitmapFactory.Options().apply {
+                        val options = BitmapFactory.Options().apply {
                             inJustDecodeBounds = true
                         }
-                        android.graphics.BitmapFactory.decodeByteArray(uploadBytes, 0, uploadBytes.size, options)
+                        BitmapFactory.decodeByteArray(uploadBytes, 0, uploadBytes.size, options)
                         if (options.outWidth > 0 && options.outHeight > 0) {
                             imageWidth = options.outWidth
                             imageHeight = options.outHeight

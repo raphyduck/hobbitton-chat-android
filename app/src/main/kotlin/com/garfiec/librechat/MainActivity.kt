@@ -47,7 +47,7 @@ class MainActivity : ComponentActivity() {
     private val connectivityObserver: ConnectivityObserver by inject()
     private val themeDataStore: ThemeDataStore by inject()
 
-    private var deepLinkUri by mutableStateOf<android.net.Uri?>(null)
+    private var deepLinkUri by mutableStateOf<Uri?>(null)
 
     /**
      * Incremented each time a share intent arrives.

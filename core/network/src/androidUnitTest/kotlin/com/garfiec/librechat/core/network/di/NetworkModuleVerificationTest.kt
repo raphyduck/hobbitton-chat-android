@@ -1,5 +1,11 @@
 package com.garfiec.librechat.core.network.di
 
+import android.app.Application
+import android.content.Context
+import com.garfiec.librechat.core.network.client.ServerUrlProvider
+import com.garfiec.librechat.core.network.client.TokenManager
+import io.ktor.client.engine.HttpClientEngine
+import io.ktor.client.engine.HttpClientEngineFactory
 import org.junit.Test
 import org.koin.test.verify.verify
 
@@ -8,12 +14,12 @@ class NetworkModuleVerificationTest {
     fun verifyNetworkModule() {
         networkModule.verify(
             extraTypes = listOf(
-                android.content.Context::class,
-                android.app.Application::class,
-                io.ktor.client.engine.HttpClientEngine::class,
-                io.ktor.client.engine.HttpClientEngineFactory::class,
-                com.garfiec.librechat.core.network.client.TokenManager::class,
-                com.garfiec.librechat.core.network.client.ServerUrlProvider::class,
+                Context::class,
+                Application::class,
+                HttpClientEngine::class,
+                HttpClientEngineFactory::class,
+                TokenManager::class,
+                ServerUrlProvider::class,
             ),
         )
     }

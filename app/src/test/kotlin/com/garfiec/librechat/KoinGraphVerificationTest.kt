@@ -1,5 +1,8 @@
 package com.garfiec.librechat
 
+import android.app.Application
+import android.content.Context
+import androidx.lifecycle.SavedStateHandle
 import com.garfiec.librechat.core.common.di.commonModule
 import com.garfiec.librechat.core.common.network.ConnectivityObserver
 import com.garfiec.librechat.core.data.datastore.ConfigCacheDataStore
@@ -65,7 +68,9 @@ import com.garfiec.librechat.feature.settings.di.settingsModule
 import com.garfiec.librechat.shared.navigation.sharedAppModule
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import java.io.File
 import org.junit.Test
+import org.koin.core.annotation.KoinExperimentalAPI
 import org.koin.core.module.Module
 import org.koin.test.verify.verify
 import kotlin.reflect.KClass
@@ -93,14 +98,14 @@ class KoinGraphVerificationTest {
      * framework types so every module is verified in a single test class.
      * If a type is renamed or removed, this test will catch it.
      */
-    @OptIn(org.koin.core.annotation.KoinExperimentalAPI::class)
+    @OptIn(KoinExperimentalAPI::class)
     @Test
     fun verifyFullKoinGraph() {
         val extraTypes = mutableListOf<KClass<*>>(
             // Android framework
-            android.content.Context::class,
-            android.app.Application::class,
-            androidx.lifecycle.SavedStateHandle::class,
+            Context::class,
+            Application::class,
+            SavedStateHandle::class,
             // core:common provides
             CoroutineDispatcher::class,
             CoroutineScope::class,
@@ -162,8 +167,8 @@ class KoinGraphVerificationTest {
             // feature:files platform provides
             FileReader::class,
             // Wrappers/DSL types that verify can't resolve via constructor
-            kotlin.Lazy::class,
-            java.io.File::class,
+            Lazy::class,
+            File::class,
         )
 
         // Types whose libraries aren't on the app test classpath (transitive

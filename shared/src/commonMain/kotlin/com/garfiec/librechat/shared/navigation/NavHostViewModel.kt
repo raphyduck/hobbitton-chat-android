@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.garfiec.librechat.core.data.repository.AuthRepository
 import com.garfiec.librechat.core.data.repository.BannerRepository
+import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.repository.ConfigRepository
 import com.garfiec.librechat.core.data.repository.ConversationRepository
 import com.garfiec.librechat.core.model.Banner
@@ -25,7 +26,7 @@ class NavHostViewModel(
     configRepository: ConfigRepository,
     conversationRepository: ConversationRepository,
     private val tokenManager: TokenManager,
-    private val settingsDataStore: com.garfiec.librechat.core.data.datastore.SettingsDataStore,
+    private val settingsDataStore: SettingsDataStore,
 ) : ViewModel() {
 
     private val bannerStateHolder = BannerStateHolder(bannerRepository, viewModelScope)

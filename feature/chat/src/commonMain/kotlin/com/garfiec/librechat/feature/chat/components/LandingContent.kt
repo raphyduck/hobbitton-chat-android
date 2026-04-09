@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import librechat_mobile.feature.chat.generated.resources.Res
 import librechat_mobile.feature.chat.generated.resources.*
 import kotlin.time.Clock
+import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
@@ -114,7 +115,7 @@ private fun getTimeBasedGreeting(): String {
     val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
     val hour = now.hour
     val dayOfWeek = now.dayOfWeek
-    val isWeekend = dayOfWeek == kotlinx.datetime.DayOfWeek.SATURDAY || dayOfWeek == kotlinx.datetime.DayOfWeek.SUNDAY
+    val isWeekend = dayOfWeek == DayOfWeek.SATURDAY || dayOfWeek == DayOfWeek.SUNDAY
 
     if (isWeekend) {
         return when {

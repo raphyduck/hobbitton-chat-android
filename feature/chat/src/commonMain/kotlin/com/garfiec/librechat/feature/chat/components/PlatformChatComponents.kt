@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.LayoutCoordinates
 import com.garfiec.librechat.core.common.ChatLayoutConstants
+import com.garfiec.librechat.core.model.Attachment
 import com.garfiec.librechat.core.model.Message
 import com.garfiec.librechat.core.model.content.MessageContentPart
 
@@ -56,7 +57,7 @@ expect fun ContentPartRenderer(
     baseUrl: String = "",
     fontSizeMultiplier: Float = 1.0f,
     useKatex: Boolean = false,
-    attachments: List<com.garfiec.librechat.core.model.Attachment> = emptyList(),
+    attachments: List<Attachment> = emptyList(),
     showImageDescriptions: Boolean = true,
     searchQuery: String? = null,
     searchFocusedOccurrence: Int = -1,

@@ -7,6 +7,7 @@ import com.garfiec.librechat.core.data.repository.SpeechRepository
 import com.garfiec.librechat.core.model.speech.TtsVoice
 import com.garfiec.librechat.feature.settings.screen.DeviceVoiceInfo
 import com.garfiec.librechat.feature.settings.viewmodel.SettingsStateHandle
+import kotlinx.cinterop.ObjCSignatureOverride
 import kotlinx.coroutines.launch
 import platform.AVFAudio.AVSpeechBoundary
 import platform.AVFAudio.AVSpeechSynthesisVoice
@@ -28,7 +29,7 @@ class IosSpeechSettingsDelegate(
     private val synthesizer = AVSpeechSynthesizer()
 
     private val synthesizerDelegate = object : NSObject(), AVSpeechSynthesizerDelegateProtocol {
-        @kotlinx.cinterop.ObjCSignatureOverride
+        @ObjCSignatureOverride
         override fun speechSynthesizer(
             synthesizer: AVSpeechSynthesizer,
             didFinishSpeechUtterance: AVSpeechUtterance,
@@ -36,7 +37,7 @@ class IosSpeechSettingsDelegate(
             stateHandle.update { copy(isTtsPreviewPlaying = false) }
         }
 
-        @kotlinx.cinterop.ObjCSignatureOverride
+        @ObjCSignatureOverride
         override fun speechSynthesizer(
             synthesizer: AVSpeechSynthesizer,
             didCancelSpeechUtterance: AVSpeechUtterance,

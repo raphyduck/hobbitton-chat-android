@@ -6,8 +6,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -18,6 +20,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import org.jetbrains.compose.resources.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import librechat_mobile.feature.settings.generated.resources.Res
 import librechat_mobile.feature.settings.generated.resources.*
@@ -50,7 +53,7 @@ internal fun TwoFactorSetupDialog(
                         color = MaterialTheme.colorScheme.surfaceVariant,
                         shape = MaterialTheme.shapes.small,
                     ) {
-                        androidx.compose.foundation.text.selection.SelectionContainer {
+                        SelectionContainer {
                             Text(
                                 text = otpauthUrl,
                                 style = MaterialTheme.typography.bodySmall,
@@ -59,7 +62,7 @@ internal fun TwoFactorSetupDialog(
                         }
                     }
                 }
-                androidx.compose.material3.OutlinedTextField(
+                OutlinedTextField(
                     value = code,
                     onValueChange = { code = it.filter { ch -> ch.isDigit() }.take(6) },
                     label = { Text(stringResource(Res.string.hint_verification_code)) },
@@ -105,7 +108,7 @@ internal fun TwoFactorCodeDialog(
                     text = description,
                     style = MaterialTheme.typography.bodyMedium,
                 )
-                androidx.compose.material3.OutlinedTextField(
+                OutlinedTextField(
                     value = code,
                     onValueChange = { code = it.filter { ch -> ch.isDigit() }.take(6) },
                     label = { Text(stringResource(Res.string.hint_verification_code)) },
@@ -160,7 +163,7 @@ internal fun BackupCodesDialog(
                             Text(
                                 text = code,
                                 style = MaterialTheme.typography.bodyMedium,
-                                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                fontFamily = FontFamily.Monospace,
                             )
                         }
                     }

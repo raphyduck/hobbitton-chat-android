@@ -24,6 +24,7 @@ import org.koin.android.ext.android.get
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
 import org.koin.core.context.startKoin
+import org.koin.core.logger.Level
 import co.touchlab.kermit.Logger
 
 class LibreChatApplication : Application(), SingletonImageLoader.Factory {
@@ -33,7 +34,7 @@ class LibreChatApplication : Application(), SingletonImageLoader.Factory {
         try {
             startKoin {
                 if (BuildConfig.DEBUG) {
-                    androidLogger(org.koin.core.logger.Level.DEBUG)
+                    androidLogger(Level.DEBUG)
                 }
                 androidContext(this@LibreChatApplication)
                 allowOverride(false)

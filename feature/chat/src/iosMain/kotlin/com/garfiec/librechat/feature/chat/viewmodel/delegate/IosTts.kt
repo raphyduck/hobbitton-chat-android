@@ -4,6 +4,7 @@ import com.garfiec.librechat.core.common.result.Result
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.repository.SpeechRepository
 import com.garfiec.librechat.feature.chat.viewmodel.ChatStateHandle
+import kotlinx.cinterop.ObjCSignatureOverride
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import platform.AVFAudio.AVSpeechBoundary
@@ -29,7 +30,7 @@ class IosTts(
     private val synthesizer = AVSpeechSynthesizer()
 
     private val delegate = object : NSObject(), AVSpeechSynthesizerDelegateProtocol {
-        @kotlinx.cinterop.ObjCSignatureOverride
+        @ObjCSignatureOverride
         override fun speechSynthesizer(
             synthesizer: AVSpeechSynthesizer,
             didFinishSpeechUtterance: AVSpeechUtterance,
@@ -37,7 +38,7 @@ class IosTts(
             stateHandle.update { copy(currentlyReadingMessageId = null) }
         }
 
-        @kotlinx.cinterop.ObjCSignatureOverride
+        @ObjCSignatureOverride
         override fun speechSynthesizer(
             synthesizer: AVSpeechSynthesizer,
             didCancelSpeechUtterance: AVSpeechUtterance,

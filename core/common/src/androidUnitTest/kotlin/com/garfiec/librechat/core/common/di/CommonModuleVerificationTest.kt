@@ -1,5 +1,7 @@
 package com.garfiec.librechat.core.common.di
 
+import android.app.Application
+import android.content.Context
 import org.junit.Test
 import org.koin.test.verify.verify
 
@@ -8,8 +10,8 @@ class CommonModuleVerificationTest {
     fun verifyCommonModule() {
         commonModule.verify(
             extraTypes = listOf(
-                android.content.Context::class,
-                android.app.Application::class,
+                Context::class,
+                Application::class,
             ),
         )
     }

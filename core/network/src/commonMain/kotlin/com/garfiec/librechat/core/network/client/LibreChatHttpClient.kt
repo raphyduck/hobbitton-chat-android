@@ -9,6 +9,7 @@ import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.plugins.logging.LogLevel
+import io.ktor.client.plugins.logging.Logger as KtorLogger
 import io.ktor.client.plugins.logging.Logging
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
@@ -36,7 +37,7 @@ object LibreChatHttpClient {
         }
 
         install(Logging) {
-            logger = object : io.ktor.client.plugins.logging.Logger {
+            logger = object : KtorLogger {
                 override fun log(message: String) {
                     val sanitized = message
                         .replace(Regex("Authorization: Bearer [^\\s]+"), "Authorization: Bearer [REDACTED]")
