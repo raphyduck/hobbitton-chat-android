@@ -18,6 +18,8 @@ complexity:
     thresholdInInterfaces: 25
     thresholdInObjects: 20
     thresholdInEnums: 10
+    ignoreAnnotatedFunctions:
+      - "Preview"
   NestedBlockDepth:
     threshold: 6
   CyclomaticComplexMethod:
@@ -54,6 +56,7 @@ style:
     active: true
     excludeImports:
       - "kotlinx.coroutines.flow.*"
+      - "*.generated.resources.*"
   LoopWithTooManyJumpStatements:
     maxJumpCount: 3
   ThrowsCount:
@@ -96,8 +99,25 @@ exceptions:
 coroutines:
   active: true
 
+# detekt-koin rule overrides (defaults ship in plugin jar; buildUponDefaultConfig = true)
+koin-rules:
+  # Scope "test hygiene" rule to test sources only; the rule's heuristic
+  # ("any class calling startKoin without stopKoin") incorrectly flags
+  # production Application classes otherwise.
+  MissingKoinStopInTest:
+    active: true
+    excludes:
+      - "**/src/main/**"
+      - "**/src/commonMain/**"
+      - "**/src/androidMain/**"
+      - "**/src/iosMain/**"
+
 formatting:
+  Indentation:
+    active: false
   MaximumLineLength:
+    active: false
+  NoWildcardImports:
     active: false
   TrailingCommaOnCallSite:
     active: false

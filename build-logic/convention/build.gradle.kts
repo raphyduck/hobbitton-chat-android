@@ -43,9 +43,9 @@ gradlePlugin {
             id = "librechat.kotlin.serialization"
             implementationClass = "KotlinSerializationConventionPlugin"
         }
-        register("androidDetekt") {
-            id = "librechat.mobile.detekt"
-            implementationClass = "AndroidDetektConventionPlugin"
+        register("detekt") {
+            id = "librechat.detekt"
+            implementationClass = "DetektConventionPlugin"
         }
         register("kmpLibrary") {
             id = "librechat.kmp.library"

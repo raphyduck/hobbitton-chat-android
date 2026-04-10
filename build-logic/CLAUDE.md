@@ -13,7 +13,7 @@ Convention plugins that apply consistent Gradle configuration across all modules
 | `librechat.mobile.koin` | `AndroidKoinConventionPlugin` | Koin core + Android dependencies |
 | `librechat.mobile.feature` | `AndroidFeatureConventionPlugin` | Auto-applies: library + compose + koin + serialization + Nav 3 |
 | `librechat.mobile.room` | `AndroidRoomConventionPlugin` | Room + KSP, schema export config |
-| `librechat.mobile.detekt` | `AndroidDetektConventionPlugin` | Detekt static analysis |
+| `librechat.detekt` | `DetektConventionPlugin` | Detekt static analysis (cross-platform, applied to all modules) |
 
 ### KMP
 | Plugin ID | Class | What it does |

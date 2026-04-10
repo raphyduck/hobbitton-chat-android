@@ -1,31 +1,42 @@
 # GitHub CI/CD
 
-## Workflow: Android CI
+## Workflow: CI
 
-File: `.github/workflows/android.yml`
+File: `.github/workflows/ci.yml`
 
 ### Triggers
 
-- Push to `main` or `develop`
-- Pull requests targeting `main`
+- Push to `develop`
+- Pull requests targeting `develop`
 
-### Pipeline Steps
+### Jobs
 
-1. Checkout code
-2. Set up JDK 17 (Temurin)
-3. Setup Gradle with caching (`~/.gradle/caches` and `~/.gradle/wrapper`)
-4. `./gradlew lint` -- Android lint checks
-5. `./gradlew test` -- unit tests across all modules
-6. `./gradlew assembleDebug` -- build debug APK
-7. Upload `app/build/outputs/apk/debug/app-debug.apk` as artifact (named `debug-apk`)
+#### `lint`
+- `./gradlew detekt detektMetadataCommonMain :app:lint --continue`
+- Uploads merged detekt SARIF to GitHub Code Scanning + lint HTML report
+
+#### `test`
+- `./gradlew test`
+- Uploads test results XML
+
+#### `android` (Build Android App)
+- `./gradlew :app:assembleDebug`
+
+#### `ios` (Build iOS App)
+- Selects latest stable Xcode
+- Caches `~/.konan`
+- Builds shared KMP framework via `./gradlew :shared:linkDebugFrameworkIosSimulatorArm64`
+- Runs `xcodebuild` for the iOS simulator (arm64-only, no signing)
 
 ### Environment
 
-- Runs on `ubuntu-latest`
-- Gradle cache key based on `**/*.gradle*` and `gradle-wrapper.properties`
+- `lint` + `test` + `android` jobs: `ubuntu-latest`, JDK 21
+- `ios` job: `macos-latest` (Apple Silicon — required since there's no `iosSimulatorX64` target), JDK 21
+- Concurrency: cancels in-progress runs for same branch
 
 ### Notes
 
-- No release signing configured yet (debug builds only)
+- No release signing configured yet
 - No instrumented/UI tests in CI (only unit tests)
-- APK artifact is available for download from the Actions run summary
+- APK / iOS app are built but NOT uploaded as artifacts
+- Detekt SARIF is uploaded to GitHub Code Scanning (requires GitHub Advanced Security for private repos)

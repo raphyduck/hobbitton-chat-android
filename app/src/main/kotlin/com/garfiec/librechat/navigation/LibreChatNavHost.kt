@@ -6,12 +6,12 @@ import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
+import co.touchlab.kermit.Logger
 import com.garfiec.librechat.MainActivity
-import com.garfiec.librechat.shared.navigation.LibreChatNavHost as SharedLibreChatNavHost
-import com.garfiec.librechat.shared.navigation.PhoneLayout
 import com.garfiec.librechat.feature.chat.navigation.Chat
 import com.garfiec.librechat.feature.chat.navigation.NewChat
-import co.touchlab.kermit.Logger
+import com.garfiec.librechat.shared.navigation.PhoneLayout
+import com.garfiec.librechat.shared.navigation.LibreChatNavHost as SharedLibreChatNavHost
 
 /**
  * Android-specific entry point that wraps the shared [SharedLibreChatNavHost]

@@ -28,7 +28,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.garfiec.librechat.core.model.mcp.McpApiKeyConfig
@@ -38,8 +37,9 @@ import com.garfiec.librechat.core.model.mcp.McpAuthorizationType
 import com.garfiec.librechat.core.model.mcp.McpOAuthConfig
 import com.garfiec.librechat.core.model.mcp.McpServer
 import com.garfiec.librechat.core.model.mcp.McpServerType
-import librechat_mobile.feature.settings.generated.resources.Res
 import librechat_mobile.feature.settings.generated.resources.*
+import librechat_mobile.feature.settings.generated.resources.Res
+import org.jetbrains.compose.resources.stringResource
 
 /** Add/edit MCP server dialog with server type dropdown and auth configuration. */
 @OptIn(ExperimentalMaterial3Api::class)
