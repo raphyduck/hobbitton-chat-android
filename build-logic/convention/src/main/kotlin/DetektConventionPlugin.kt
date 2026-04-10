@@ -4,7 +4,7 @@ import org.gradle.api.Project
 import org.gradle.kotlin.dsl.configure
 import org.gradle.kotlin.dsl.dependencies
 
-class AndroidDetektConventionPlugin : Plugin<Project> {
+class DetektConventionPlugin : Plugin<Project> {
     override fun apply(target: Project) {
         with(target) {
             pluginManager.apply("io.gitlab.arturbosch.detekt")
@@ -14,10 +14,13 @@ class AndroidDetektConventionPlugin : Plugin<Project> {
                 buildUponDefaultConfig = true
                 allRules = false
                 parallel = true
+                baseline = file("detekt-baseline.xml")
             }
 
             dependencies {
                 add("detektPlugins", libs.findLibrary("detekt-formatting").get())
+                add("detektPlugins", libs.findLibrary("detekt-koin").get())
+                add("detektPlugins", libs.findLibrary("detekt-compose").get())
             }
         }
     }

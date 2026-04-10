@@ -1,6 +1,7 @@
 package com.garfiec.librechat
 
 import android.app.Application
+import co.touchlab.kermit.Logger
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
 import coil3.disk.DiskCache
@@ -20,14 +21,15 @@ import com.garfiec.librechat.feature.files.di.filesModule
 import com.garfiec.librechat.feature.settings.di.settingsModule
 import com.garfiec.librechat.shared.navigation.sharedAppModule
 import io.ktor.client.HttpClient
-import org.koin.android.ext.android.get
+import org.koin.android.ext.android.inject
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
 import org.koin.core.context.startKoin
 import org.koin.core.logger.Level
-import co.touchlab.kermit.Logger
 
 class LibreChatApplication : Application(), SingletonImageLoader.Factory {
+
+    private val httpClient: HttpClient by inject()
 
     override fun onCreate() {
         super.onCreate()
@@ -59,8 +61,6 @@ class LibreChatApplication : Application(), SingletonImageLoader.Factory {
     }
 
     override fun newImageLoader(context: coil3.PlatformContext): ImageLoader {
-        val httpClient: HttpClient = get()
-
         return ImageLoader.Builder(context)
             .components {
                 add(KtorNetworkFetcherFactory(httpClient))
