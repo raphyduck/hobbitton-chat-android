@@ -22,36 +22,38 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import librechat_mobile.feature.auth.generated.resources.Res
-import librechat_mobile.feature.auth.generated.resources.*
+import com.garfiec.librechat.feature.auth.resources.*
+import com.garfiec.librechat.feature.auth.resources.Res
 import com.garfiec.librechat.feature.auth.viewmodel.VerifyEmailViewModel
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VerifyEmailScreen(
-    onVerified: () -> Unit,
+    onVerify: () -> Unit,
     onBack: () -> Unit,
-    email: String? = null,
     modifier: Modifier = Modifier,
+    email: String? = null,
     viewModel: VerifyEmailViewModel = koinViewModel { parametersOf(email) },
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val email = uiState.email
+    val displayEmail = uiState.email
+    val currentOnVerify by rememberUpdatedState(onVerify)
 
     LaunchedEffect(uiState.isVerified) {
         if (uiState.isVerified) {
             viewModel.consumeVerified()
-            onVerified()
+            currentOnVerify()
         }
     }
 
@@ -94,10 +96,10 @@ fun VerifyEmailScreen(
                 textAlign = TextAlign.Center,
             )
 
-            if (email.isNotBlank()) {
+            if (displayEmail.isNotBlank()) {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = email,
+                    text = displayEmail,
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.primary,
                     textAlign = TextAlign.Center,

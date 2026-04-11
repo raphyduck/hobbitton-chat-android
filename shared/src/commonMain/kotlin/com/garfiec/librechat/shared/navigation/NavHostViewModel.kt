@@ -2,9 +2,11 @@ package com.garfiec.librechat.shared.navigation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import co.touchlab.kermit.Logger
+import com.garfiec.librechat.core.common.extensions.firstBlocking
+import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.repository.AuthRepository
 import com.garfiec.librechat.core.data.repository.BannerRepository
-import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.repository.ConfigRepository
 import com.garfiec.librechat.core.data.repository.ConversationRepository
 import com.garfiec.librechat.core.model.Banner
@@ -17,8 +19,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import co.touchlab.kermit.Logger
-import com.garfiec.librechat.core.common.extensions.firstBlocking
 
 class NavHostViewModel(
     private val authRepository: AuthRepository,
@@ -32,7 +32,8 @@ class NavHostViewModel(
     private val bannerStateHolder = BannerStateHolder(bannerRepository, viewModelScope)
     private val versionCheckStateHolder = VersionCheckStateHolder(configRepository, settingsDataStore, viewModelScope)
     private val conversationListStateHolder = ConversationListStateHolder(conversationRepository, viewModelScope)
-    private val favoritesStateHolder = FavoritesStateHolder(settingsDataStore, conversationListStateHolder.recentConversations, viewModelScope)
+    private val favoritesStateHolder =
+        FavoritesStateHolder(settingsDataStore, conversationListStateHolder.recentConversations, viewModelScope)
 
     private val _isLoggedIn = MutableStateFlow(tokenManager.isAuthenticated)
     val isLoggedIn: StateFlow<Boolean> = _isLoggedIn.asStateFlow()

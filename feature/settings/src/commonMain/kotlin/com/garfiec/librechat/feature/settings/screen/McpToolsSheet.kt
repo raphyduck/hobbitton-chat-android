@@ -16,13 +16,13 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.garfiec.librechat.core.model.mcp.McpTool
-import librechat_mobile.feature.settings.generated.resources.Res
-import librechat_mobile.feature.settings.generated.resources.*
+import com.garfiec.librechat.feature.settings.resources.*
+import com.garfiec.librechat.feature.settings.resources.Res
+import org.jetbrains.compose.resources.stringResource
 
 /** Bottom sheet listing MCP tools grouped by server; optional serverFilter narrows to one server. */
 @OptIn(ExperimentalMaterial3Api::class)

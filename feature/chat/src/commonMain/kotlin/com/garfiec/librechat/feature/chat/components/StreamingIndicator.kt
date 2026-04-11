@@ -13,14 +13,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import librechat_mobile.feature.chat.generated.resources.Res
-import librechat_mobile.feature.chat.generated.resources.*
+import com.garfiec.librechat.feature.chat.resources.*
+import com.garfiec.librechat.feature.chat.resources.Res
+import org.jetbrains.compose.resources.stringResource
 
 /**
  * Blinking cursor indicator shown during streaming. Displays a pipe character (|)

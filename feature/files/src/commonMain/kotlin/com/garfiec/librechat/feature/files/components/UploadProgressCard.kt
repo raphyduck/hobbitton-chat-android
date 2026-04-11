@@ -27,9 +27,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.garfiec.librechat.feature.files.resources.*
+import com.garfiec.librechat.feature.files.resources.Res
 import org.jetbrains.compose.resources.stringResource
-import librechat_mobile.feature.files.generated.resources.Res
-import librechat_mobile.feature.files.generated.resources.*
 
 /** Animated card showing upload filename, progress bar, and cancel button with slide/fade visibility transitions. */
 @Composable

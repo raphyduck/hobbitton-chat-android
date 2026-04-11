@@ -14,17 +14,22 @@ val agentsModule = module {
     includes(agentsPlatformModule)
 
     viewModelOf(::AgentMarketplaceViewModel)
+    // Koin's constructor-DSL (`viewModelOf`) wires every argument via `get()` and cannot read
+    // values passed through `parametersOf`. Both VMs below receive `initialAgentId` from the
+    // navigation layer via `parametersOf`, so the lambda-form `viewModel { params -> ... }` is
+    // the only DSL that works here. Detekt's `DeprecatedKoinApi` is a blanket stylistic rule,
+    // not a real `@Deprecated` API, so we suppress it in the narrow places it applies.
+    @Suppress("DeprecatedKoinApi")
     viewModel { params ->
         AgentDetailViewModel(
-            savedStateHandle = get(),
             agentRepository = get(),
             serverDataStore = get(),
             initialAgentId = params.getOrNull(),
         )
     }
+    @Suppress("DeprecatedKoinApi")
     viewModel { params ->
         AgentEditorViewModel(
-            savedStateHandle = get(),
             agentRepository = get(),
             configRepository = get(),
             mcpRepository = get(),

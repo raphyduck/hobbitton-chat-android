@@ -28,12 +28,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import librechat_mobile.feature.chat.generated.resources.Res
-import librechat_mobile.feature.chat.generated.resources.*
+import com.garfiec.librechat.feature.chat.resources.*
+import com.garfiec.librechat.feature.chat.resources.Res
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun ArtifactButton(

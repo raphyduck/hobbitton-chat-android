@@ -12,17 +12,18 @@ import kotlinx.serialization.modules.subclass
 @Serializable sealed interface ConversationsRoute : NavKey
 
 @Serializable data object Conversations : ConversationsRoute
+
 @Serializable data object ArchivedConversations : ConversationsRoute
 
 fun EntryProviderScope<NavKey>.conversationsEntries(
     onConversationClick: (String) -> Unit,
-    onNavigateToArchived: () -> Unit = {},
+    onNavigateToArchive: () -> Unit = {},
     onBack: () -> Unit = {},
 ) {
     entry<Conversations> {
         ConversationListScreen(
             onConversationClick = onConversationClick,
-            onNavigateToArchived = onNavigateToArchived,
+            onNavigateToArchive = onNavigateToArchive,
         )
     }
     entry<ArchivedConversations> {

@@ -1,7 +1,6 @@
 package com.garfiec.librechat.feature.auth.viewmodel
 
 import androidx.compose.runtime.Immutable
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.garfiec.librechat.core.common.result.Result
@@ -22,7 +21,6 @@ data class TwoFactorUiState(
 )
 
 class TwoFactorViewModel(
-    savedStateHandle: SavedStateHandle,
     private val authRepository: AuthRepository,
     initialTempToken: String? = null,
 ) : ViewModel() {

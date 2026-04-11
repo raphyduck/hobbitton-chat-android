@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -19,32 +20,33 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import librechat_mobile.feature.auth.generated.resources.Res
-import librechat_mobile.feature.auth.generated.resources.*
+import com.garfiec.librechat.feature.auth.resources.*
+import com.garfiec.librechat.feature.auth.resources.Res
 import com.garfiec.librechat.feature.auth.viewmodel.RegisterViewModel
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 fun RegisterScreen(
-    onRegistered: () -> Unit,
+    onRegister: () -> Unit,
     onNavigateToLogin: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: RegisterViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val currentOnRegister by rememberUpdatedState(onRegister)
 
     LaunchedEffect(uiState.isRegistered) {
         if (uiState.isRegistered) {
-            onRegistered()
+            currentOnRegister()
         }
     }
 

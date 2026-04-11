@@ -18,7 +18,6 @@ actual val chatPlatformModule: Module = module {
 
     viewModel { params ->
         ChatViewModel(
-            savedStateHandle = get(),
             initialConversationId = params.getOrNull(),
             agentRepository = get(),
             chatRepository = get(),

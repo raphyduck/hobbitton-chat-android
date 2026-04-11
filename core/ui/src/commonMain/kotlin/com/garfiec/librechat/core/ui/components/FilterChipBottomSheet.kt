@@ -35,7 +35,7 @@ import androidx.compose.ui.unit.dp
  *
  * @param items All available items to display as chips.
  * @param selectedItems Currently selected items.
- * @param onSelectionChanged Called with the final selection when the sheet is dismissed.
+ * @param onSelectionChange Called with the final selection when the sheet is dismissed.
  * @param label Extracts a display label from each item.
  * @param onDismiss Called when the sheet is dismissed.
  * @param title Title displayed at the top of the sheet.
@@ -50,15 +50,15 @@ import androidx.compose.ui.unit.dp
 fun <T : Any> FilterChipBottomSheet(
     items: List<T>,
     selectedItems: Set<T>,
-    onSelectionChanged: (Set<T>) -> Unit,
+    onSelectionChange: (Set<T>) -> Unit,
     label: (T) -> String,
     onDismiss: () -> Unit,
     title: String,
+    modifier: Modifier = Modifier,
     emptyMessage: String = "",
     onAdd: ((String) -> T?)? = null,
     addPlaceholder: String = "",
     addContentDescription: String = "",
-    modifier: Modifier = Modifier,
 ) {
     val sheetState = rememberModalBottomSheetState()
     var currentSelection by remember { mutableStateOf(selectedItems) }
@@ -66,7 +66,7 @@ fun <T : Any> FilterChipBottomSheet(
 
     ModalBottomSheet(
         onDismissRequest = {
-            onSelectionChanged(currentSelection)
+            onSelectionChange(currentSelection)
             onDismiss()
         },
         modifier = modifier,

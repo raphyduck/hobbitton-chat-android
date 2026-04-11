@@ -29,14 +29,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
-import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.garfiec.librechat.core.ui.components.LoadingIndicator
-import librechat_mobile.feature.chat.generated.resources.Res
-import librechat_mobile.feature.chat.generated.resources.*
+import com.garfiec.librechat.feature.chat.resources.*
+import com.garfiec.librechat.feature.chat.resources.Res
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
@@ -50,6 +51,7 @@ fun PromptEditorScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val currentOnBack by rememberUpdatedState(onBack)
 
     LaunchedEffect(uiState.error) {
         val error = uiState.error
@@ -62,7 +64,7 @@ fun PromptEditorScreen(
     LaunchedEffect(uiState.saved) {
         if (uiState.saved) {
             viewModel.consumeSaved()
-            onBack()
+            currentOnBack()
         }
     }
 
@@ -180,7 +182,7 @@ fun PromptEditorScreen(
                 PromptVariablesSection(
                     promptText = uiState.promptText,
                     variableValues = uiState.variableValues,
-                    onVariableChanged = viewModel::updateVariable,
+                    onVariableChange = viewModel::updateVariable,
                     modifier = Modifier.fillMaxWidth(),
                 )
             }

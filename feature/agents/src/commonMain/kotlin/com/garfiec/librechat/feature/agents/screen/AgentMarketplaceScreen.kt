@@ -41,23 +41,22 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.garfiec.librechat.core.model.EModelEndpoint
 import com.garfiec.librechat.core.ui.components.AvatarImage
-import com.garfiec.librechat.core.ui.components.endpointIconPainter
 import com.garfiec.librechat.core.ui.components.EmptyState
 import com.garfiec.librechat.core.ui.components.ErrorBanner
 import com.garfiec.librechat.core.ui.components.LibreChatTopBar
 import com.garfiec.librechat.core.ui.components.LoadingIndicator
+import com.garfiec.librechat.core.ui.components.endpointIconPainter
 import com.garfiec.librechat.feature.agents.AgentCardDisplayData
-import librechat_mobile.feature.agents.generated.resources.Res
-import librechat_mobile.feature.agents.generated.resources.*
+import com.garfiec.librechat.feature.agents.resources.*
+import com.garfiec.librechat.feature.agents.resources.Res
 import com.garfiec.librechat.feature.agents.viewmodel.AgentMarketplaceViewModel
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

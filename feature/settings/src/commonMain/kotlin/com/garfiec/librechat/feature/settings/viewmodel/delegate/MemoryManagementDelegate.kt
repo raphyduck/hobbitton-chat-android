@@ -1,5 +1,6 @@
 package com.garfiec.librechat.feature.settings.viewmodel.delegate
 
+import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.common.result.Result
 import com.garfiec.librechat.core.data.repository.MemoryRepository
 import com.garfiec.librechat.core.model.Memory
@@ -8,7 +9,6 @@ import com.garfiec.librechat.core.model.request.UpdateMemoryPreferencesRequest
 import com.garfiec.librechat.core.model.request.UpdateMemoryRequest
 import com.garfiec.librechat.feature.settings.viewmodel.SettingsStateHandle
 import kotlinx.coroutines.launch
-import co.touchlab.kermit.Logger
 
 /**
  * Handles memory CRUD operations and memory preferences.

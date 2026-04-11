@@ -29,7 +29,7 @@ expect fun MessageBubble(
     currentFeedback: String? = null,
     isEditing: Boolean = false,
     editText: String = "",
-    onEditTextChanged: ((String) -> Unit)? = null,
+    onEditTextChange: ((String) -> Unit)? = null,
     onEditSaveAndSubmit: (() -> Unit)? = null,
     onEditSaveOnly: (() -> Unit)? = null,
     onEditCancel: (() -> Unit)? = null,
@@ -42,7 +42,7 @@ expect fun MessageBubble(
     isSearchMatch: Boolean = false,
     isCurrentSearchMatch: Boolean = false,
     searchFocusedOccurrence: Int = -1,
-    onFocusedOccurrencePositioned: ((LayoutCoordinates) -> Unit)? = null,
+    onFocusedOccurrencePosition: ((LayoutCoordinates) -> Unit)? = null,
     useKatex: Boolean = false,
     chatLayoutStyle: String = ChatLayoutConstants.THREAD,
     showAvatars: Boolean = true,
@@ -61,7 +61,7 @@ expect fun ContentPartRenderer(
     showImageDescriptions: Boolean = true,
     searchQuery: String? = null,
     searchFocusedOccurrence: Int = -1,
-    onFocusedOccurrencePositioned: ((LayoutCoordinates) -> Unit)? = null,
+    onFocusedOccurrencePosition: ((LayoutCoordinates) -> Unit)? = null,
 )
 
 /** Platform-specific markdown content rendering. */
@@ -73,5 +73,5 @@ expect fun MarkdownContent(
     useKatex: Boolean = false,
     searchQuery: String? = null,
     searchFocusedOccurrence: Int = -1,
-    onFocusedOccurrencePositioned: ((LayoutCoordinates) -> Unit)? = null,
+    onFocusedOccurrencePosition: ((LayoutCoordinates) -> Unit)? = null,
 )

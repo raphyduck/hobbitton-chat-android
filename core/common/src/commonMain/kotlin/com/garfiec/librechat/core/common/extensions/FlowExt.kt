@@ -4,8 +4,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.retryWhen
-import kotlin.time.Clock
 import kotlin.math.pow
+import kotlin.time.Clock
 
 fun <T> Flow<T>.retryWithBackoff(
     maxRetries: Int = 3,

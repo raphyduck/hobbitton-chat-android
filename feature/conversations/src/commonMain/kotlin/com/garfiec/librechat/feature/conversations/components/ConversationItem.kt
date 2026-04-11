@@ -21,20 +21,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-
-import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.garfiec.librechat.core.common.extensions.toInstantOrNull
 import com.garfiec.librechat.core.model.EModelEndpoint
 import com.garfiec.librechat.core.ui.components.endpointIconPainter
 import com.garfiec.librechat.core.ui.components.isMonochromeIcon
-import librechat_mobile.feature.conversations.generated.resources.Res
-import librechat_mobile.feature.conversations.generated.resources.*
-import kotlin.time.Clock
-import kotlin.time.Instant
+import com.garfiec.librechat.feature.conversations.resources.*
+import com.garfiec.librechat.feature.conversations.resources.Res
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import org.jetbrains.compose.resources.stringResource
+import kotlin.time.Clock
+import kotlin.time.Instant
 
 @Composable
 fun ConversationItem(

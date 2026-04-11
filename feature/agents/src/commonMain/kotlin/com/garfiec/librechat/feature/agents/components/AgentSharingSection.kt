@@ -29,19 +29,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
-import librechat_mobile.feature.agents.generated.resources.Res
-import librechat_mobile.feature.agents.generated.resources.*
 import com.garfiec.librechat.feature.agents.components.model.AgentSharingState
 import com.garfiec.librechat.feature.agents.components.model.AgentVisibility
+import com.garfiec.librechat.feature.agents.resources.*
+import com.garfiec.librechat.feature.agents.resources.Res
+import org.jetbrains.compose.resources.stringResource
 
 /** Visibility (Private/Team/Public) and collaborative toggle; maps to agent model isPublic/isCollaborative. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AgentSharingSection(
     sharingState: AgentSharingState,
-    onSharingChanged: (AgentSharingState) -> Unit,
+    onSharingChange: (AgentSharingState) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -97,7 +97,7 @@ fun AgentSharingSection(
                             DropdownMenuItem(
                                 text = { Text(visibility.label) },
                                 onClick = {
-                                    onSharingChanged(sharingState.copy(visibility = visibility))
+                                    onSharingChange(sharingState.copy(visibility = visibility))
                                     dropdownExpanded = false
                                 },
                             )
@@ -129,7 +129,7 @@ fun AgentSharingSection(
                     Switch(
                         checked = sharingState.isCollaborative,
                         onCheckedChange = {
-                            onSharingChanged(sharingState.copy(isCollaborative = it))
+                            onSharingChange(sharingState.copy(isCollaborative = it))
                         },
                     )
                 }

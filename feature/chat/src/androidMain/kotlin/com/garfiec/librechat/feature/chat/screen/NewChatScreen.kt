@@ -5,20 +5,20 @@ import androidx.compose.ui.Modifier
 
 /**
  * Thin wrapper that shows ChatScreen with no conversationId.
- * When a conversation starts via streaming, the [onConversationStarted]
+ * When a conversation starts via streaming, the [onConversationStart]
  * callback is invoked with the new conversationId, allowing navigation
  * to the full chat route.
  */
 @Composable
 actual fun NewChatScreen(
-    onConversationStarted: (String) -> Unit,
+    onConversationStart: (String) -> Unit,
     modifier: Modifier,
     onOpenDrawer: (() -> Unit)?,
     onNavigateToPromptsLibrary: (() -> Unit)?,
 ) {
     ChatScreen(
         modifier = modifier,
-        onConversationStarted = onConversationStarted,
+        onConversationStart = onConversationStart,
         onOpenDrawer = onOpenDrawer,
         onNavigateToPromptsLibrary = onNavigateToPromptsLibrary,
     )

@@ -41,7 +41,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -49,12 +48,13 @@ import com.garfiec.librechat.core.ui.components.EmptyState
 import com.garfiec.librechat.core.ui.components.ErrorBanner
 import com.garfiec.librechat.core.ui.components.LibreChatTopBar
 import com.garfiec.librechat.core.ui.components.LoadingIndicator
-import librechat_mobile.feature.chat.generated.resources.Res
-import librechat_mobile.feature.chat.generated.resources.*
 import com.garfiec.librechat.feature.chat.prompts.components.PromptFilterSheet
 import com.garfiec.librechat.feature.chat.prompts.components.PromptShareDialog
 import com.garfiec.librechat.feature.chat.prompts.components.PromptSortOrder
 import com.garfiec.librechat.feature.chat.prompts.components.VariableInputDialog
+import com.garfiec.librechat.feature.chat.resources.*
+import com.garfiec.librechat.feature.chat.resources.Res
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -117,7 +117,7 @@ fun PromptsLibraryScreen(
             PromptShareDialog(
                 promptName = selectedGroup.name,
                 isCurrentlyShared = false,
-                onShareToggled = { _, _ -> viewModel.dismissShareDialog() },
+                onShareToggle = { _, _ -> viewModel.dismissShareDialog() },
                 onDismiss = viewModel::dismissShareDialog,
             )
         }
@@ -130,9 +130,9 @@ fun PromptsLibraryScreen(
         PromptFilterSheet(
             categories = uiState.availableCategories,
             selectedCategory = uiState.selectedCategory,
-            onCategorySelected = viewModel::onCategorySelected,
+            onCategorySelect = viewModel::onCategorySelected,
             sortOrder = uiState.sortOrder,
-            onSortOrderChanged = viewModel::onSortOrderChanged,
+            onSortOrderChange = viewModel::onSortOrderChanged,
             onDismiss = viewModel::dismissFilterSheet,
         )
     }
@@ -269,7 +269,7 @@ fun PromptsLibraryScreen(
         PromptShareDialog(
             promptName = shareGroup?.name ?: "",
             isCurrentlyShared = false,
-            onShareToggled = { _, _ -> viewModel.dismissShareDialog() },
+            onShareToggle = { _, _ -> viewModel.dismissShareDialog() },
             onDismiss = viewModel::dismissShareDialog,
         )
     }

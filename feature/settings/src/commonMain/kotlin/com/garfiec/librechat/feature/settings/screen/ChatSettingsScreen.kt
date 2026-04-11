@@ -33,14 +33,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import librechat_mobile.feature.settings.generated.resources.Res
-import librechat_mobile.feature.settings.generated.resources.*
+import com.garfiec.librechat.feature.settings.resources.*
+import com.garfiec.librechat.feature.settings.resources.Res
 import com.garfiec.librechat.feature.settings.viewmodel.SettingsViewModel
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -49,7 +49,6 @@ fun ChatSettingsScreen(
     onNavigateBack: () -> Unit,
     onNavigateToPresets: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: SettingsViewModel = koinViewModel(),
 ) {
     Scaffold(
         modifier = modifier,
@@ -72,7 +71,6 @@ fun ChatSettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            viewModel = viewModel,
         )
     }
 }
@@ -89,9 +87,9 @@ fun ChatSettingsContent(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    Box {
+    Box(modifier = modifier) {
         LazyColumn(
-            modifier = modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize(),
         ) {
             // Chat Preferences section
             item(key = "chat_header") {
@@ -167,7 +165,7 @@ fun ChatSettingsContent(
                     ttsSource = uiState.ttsSource,
                     onAutoSendAfterSttChange = viewModel::setAutoSendAfterStt,
                     onAutoReadChange = viewModel::setAutoReadEnabled,
-                    onVoiceSelected = viewModel::selectVoice,
+                    onVoiceSelect = viewModel::selectVoice,
                     onTestVoice = viewModel::testVoice,
                 )
             }
@@ -186,7 +184,7 @@ fun ChatSettingsContent(
         if (uiState.showForkSettingsDialog) {
             ForkSettingsDialog(
                 selectedMode = ForkMode.fromApiValue(uiState.forkMode),
-                onModeSelected = { mode ->
+                onModeSelect = { mode ->
                     viewModel.setForkMode(mode.apiValue)
                 },
                 onDismiss = viewModel::dismissForkSettingsDialog,

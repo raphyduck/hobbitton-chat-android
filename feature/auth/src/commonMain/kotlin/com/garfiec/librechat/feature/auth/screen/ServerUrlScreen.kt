@@ -18,29 +18,31 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import librechat_mobile.feature.auth.generated.resources.Res
-import librechat_mobile.feature.auth.generated.resources.*
+import com.garfiec.librechat.feature.auth.resources.*
+import com.garfiec.librechat.feature.auth.resources.Res
 import com.garfiec.librechat.feature.auth.viewmodel.ServerUrlViewModel
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 fun ServerUrlScreen(
-    onServerValidated: () -> Unit,
+    onServerValidate: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ServerUrlViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val currentOnServerValidated by rememberUpdatedState(onServerValidate)
 
     LaunchedEffect(uiState.isValidated) {
         if (uiState.isValidated) {
-            onServerValidated()
+            currentOnServerValidated()
         }
     }
 

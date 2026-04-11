@@ -18,10 +18,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
-import librechat_mobile.feature.chat.generated.resources.Res
-import librechat_mobile.feature.chat.generated.resources.*
+import com.garfiec.librechat.feature.chat.resources.*
+import com.garfiec.librechat.feature.chat.resources.Res
+import org.jetbrains.compose.resources.stringResource
 
 enum class PromptSortOrder(val label: String) {
     RECENT("Recent"),
@@ -34,9 +34,9 @@ enum class PromptSortOrder(val label: String) {
 fun PromptFilterSheet(
     categories: List<String>,
     selectedCategory: String?,
-    onCategorySelected: (String?) -> Unit,
+    onCategorySelect: (String?) -> Unit,
     sortOrder: PromptSortOrder,
-    onSortOrderChanged: (PromptSortOrder) -> Unit,
+    onSortOrderChange: (PromptSortOrder) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     sheetState: SheetState = rememberModalBottomSheetState(),
@@ -72,14 +72,14 @@ fun PromptFilterSheet(
             ) {
                 FilterChip(
                     selected = selectedCategory == null,
-                    onClick = { onCategorySelected(null) },
+                    onClick = { onCategorySelect(null) },
                     label = { Text(stringResource(Res.string.label_all)) },
                 )
                 categories.forEach { category ->
                     FilterChip(
                         selected = selectedCategory == category,
                         onClick = {
-                            onCategorySelected(
+                            onCategorySelect(
                                 if (selectedCategory == category) null else category,
                             )
                         },
@@ -105,7 +105,7 @@ fun PromptFilterSheet(
                 PromptSortOrder.entries.forEach { order ->
                     FilterChip(
                         selected = sortOrder == order,
-                        onClick = { onSortOrderChanged(order) },
+                        onClick = { onSortOrderChange(order) },
                         label = { Text(order.label) },
                     )
                 }

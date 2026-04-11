@@ -10,7 +10,6 @@ import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -43,10 +42,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import co.touchlab.kermit.Logger
 import com.garfiec.librechat.feature.files.FilePreviewDisplayData
+import com.garfiec.librechat.feature.files.resources.*
+import com.garfiec.librechat.feature.files.resources.Res
 import com.garfiec.librechat.feature.files.screen.InfoRow
 import org.jetbrains.compose.resources.stringResource
-import librechat_mobile.feature.files.generated.resources.Res
-import librechat_mobile.feature.files.generated.resources.*
 import java.io.File
 
 private sealed interface PdfLoadState {

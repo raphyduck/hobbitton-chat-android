@@ -1,7 +1,6 @@
 package com.garfiec.librechat.feature.auth.viewmodel
 
 import androidx.compose.runtime.Immutable
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.garfiec.librechat.core.common.result.Result
@@ -21,7 +20,6 @@ data class ResetPasswordUiState(
 )
 
 class ResetPasswordViewModel(
-    savedStateHandle: SavedStateHandle,
     private val authRepository: AuthRepository,
     initialUserId: String? = null,
     initialToken: String? = null,

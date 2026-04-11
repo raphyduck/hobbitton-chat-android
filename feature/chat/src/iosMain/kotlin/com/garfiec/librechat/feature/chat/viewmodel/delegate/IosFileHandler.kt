@@ -91,7 +91,9 @@ class IosFileHandler(
                                         width = fileObject.width,
                                         height = fileObject.height,
                                     )
-                                } else f
+                                } else {
+                                    f
+                                }
                             }
                         }
                     }
@@ -167,7 +169,9 @@ class IosFileHandler(
                                         filepath = fileObject.filepath,
                                         type = fileObject.type,
                                     )
-                                } else f
+                                } else {
+                                    f
+                                }
                             }
                         }
                     }

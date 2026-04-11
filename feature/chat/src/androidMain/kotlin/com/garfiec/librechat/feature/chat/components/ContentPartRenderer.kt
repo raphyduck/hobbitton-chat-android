@@ -17,7 +17,7 @@ actual fun ContentPartRenderer(
     showImageDescriptions: Boolean,
     searchQuery: String?,
     searchFocusedOccurrence: Int,
-    onFocusedOccurrencePositioned: ((LayoutCoordinates) -> Unit)?,
+    onFocusedOccurrencePosition: ((LayoutCoordinates) -> Unit)?,
 ) {
     ContentPartDispatcher(
         part = part,
@@ -29,6 +29,6 @@ actual fun ContentPartRenderer(
         showImageDescriptions = showImageDescriptions,
         searchQuery = searchQuery,
         searchFocusedOccurrence = searchFocusedOccurrence,
-        onFocusedOccurrencePositioned = onFocusedOccurrencePositioned,
+        onFocusedOccurrencePosition = onFocusedOccurrencePosition,
     )
 }

@@ -7,6 +7,6 @@ import androidx.compose.ui.Modifier
 expect fun AgentAvatarPicker(
     avatarUrl: String?,
     agentName: String,
-    onImageSelected: (Any) -> Unit,
+    onImageSelect: (Any) -> Unit,
     modifier: Modifier = Modifier,
 )

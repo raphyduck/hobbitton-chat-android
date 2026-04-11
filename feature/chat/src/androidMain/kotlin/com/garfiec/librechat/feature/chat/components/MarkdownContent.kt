@@ -44,7 +44,6 @@ import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
-import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
@@ -60,11 +59,12 @@ import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import librechat_mobile.feature.chat.generated.resources.Res
-import librechat_mobile.feature.chat.generated.resources.*
+import com.garfiec.librechat.feature.chat.resources.*
+import com.garfiec.librechat.feature.chat.resources.Res
 import com.mikepenz.markdown.m3.Markdown
 import com.mikepenz.markdown.m3.markdownColor
 import com.mikepenz.markdown.m3.markdownTypography
+import org.jetbrains.compose.resources.stringResource
 
 /**
  * Markdown content rendering with full CommonMark support. Uses a hybrid approach:
@@ -82,7 +82,7 @@ import com.mikepenz.markdown.m3.markdownTypography
  * @param searchFocusedOccurrence When >= 0, the occurrence at this index (counted
  *   across all text segments in this message, 0-based) is highlighted in orange
  *   instead of yellow to indicate the currently focused search result.
- * @param onFocusedOccurrencePositioned Callback invoked with the [LayoutCoordinates]
+ * @param onFocusedOccurrencePosition Callback invoked with the [LayoutCoordinates]
  *   of the text segment containing the focused search occurrence, after it has been
  *   laid out. Used by the parent to fine-tune scroll position within a long message.
  */
@@ -94,7 +94,7 @@ actual fun MarkdownContent(
     useKatex: Boolean,
     searchQuery: String?,
     searchFocusedOccurrence: Int,
-    onFocusedOccurrencePositioned: ((LayoutCoordinates) -> Unit)?,
+    onFocusedOccurrencePosition: ((LayoutCoordinates) -> Unit)?,
 ) {
     val segments = remember(text) { parseMarkdownSegments(text) }
     val isSearchActive = !searchQuery.isNullOrBlank()
@@ -155,7 +155,7 @@ actual fun MarkdownContent(
                                                 searchQuery = searchQuery,
                                                 focusedOccurrence = focusedInSegment,
                                                 fontSizeMultiplier = fontSizeMultiplier,
-                                                onPositioned = if (hasFocus) onFocusedOccurrencePositioned else null,
+                                                onPositioned = if (hasFocus) onFocusedOccurrencePosition else null,
                                             )
                                             occurrenceOffset += segmentOccurrences
                                         } else {
@@ -201,7 +201,7 @@ actual fun MarkdownContent(
                             searchQuery = searchQuery,
                             focusedOccurrence = focusedInSegment,
                             fontSizeMultiplier = fontSizeMultiplier,
-                            onPositioned = if (hasFocus) onFocusedOccurrencePositioned else null,
+                            onPositioned = if (hasFocus) onFocusedOccurrencePosition else null,
                         )
                         occurrenceOffset += segmentOccurrences
                     } else {
@@ -325,7 +325,6 @@ private fun MarkdownTextSegment(
         )
     }
 }
-
 
 /**
  * Wraps a [MarkdownTable] in a [Box] with a fullscreen expand button overlaid on
@@ -590,4 +589,3 @@ private fun TableCell(
         )
     }
 }
-

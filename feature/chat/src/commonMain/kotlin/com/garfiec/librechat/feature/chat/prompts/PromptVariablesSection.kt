@@ -13,10 +13,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
-import librechat_mobile.feature.chat.generated.resources.Res
-import librechat_mobile.feature.chat.generated.resources.*
+import com.garfiec.librechat.feature.chat.resources.*
+import com.garfiec.librechat.feature.chat.resources.Res
+import org.jetbrains.compose.resources.stringResource
 
 private val VARIABLE_REGEX = Regex("\\{\\{\\s*(\\w+)\\s*\\}\\}")
 
@@ -51,7 +51,7 @@ fun substituteVariables(promptText: String, variableValues: Map<String, String>)
 fun PromptVariablesSection(
     promptText: String,
     variableValues: Map<String, String>,
-    onVariableChanged: (name: String, value: String) -> Unit,
+    onVariableChange: (name: String, value: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val variables = remember(promptText) { extractVariables(promptText) }
@@ -68,7 +68,7 @@ fun PromptVariablesSection(
         variables.forEach { varName ->
             OutlinedTextField(
                 value = variableValues[varName] ?: "",
-                onValueChange = { onVariableChanged(varName, it) },
+                onValueChange = { onVariableChange(varName, it) },
                 label = { Text(varName) },
                 singleLine = true,
                 modifier = Modifier

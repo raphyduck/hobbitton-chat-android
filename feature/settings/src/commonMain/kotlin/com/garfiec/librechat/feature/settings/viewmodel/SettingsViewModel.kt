@@ -1,10 +1,9 @@
 package com.garfiec.librechat.feature.settings.viewmodel
 
 import androidx.compose.runtime.Immutable
-import com.garfiec.librechat.feature.settings.util.ContentReader
-import com.garfiec.librechat.feature.settings.util.PlatformCacheCleaner
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.common.ChatLayoutConstants
 import com.garfiec.librechat.core.common.result.Result
 import com.garfiec.librechat.core.data.datastore.ChatFontSize
@@ -20,7 +19,6 @@ import com.garfiec.librechat.core.data.repository.KeyRepository
 import com.garfiec.librechat.core.data.repository.McpRepository
 import com.garfiec.librechat.core.data.repository.MemoryRepository
 import com.garfiec.librechat.core.data.repository.ShareRepository
-import com.garfiec.librechat.core.data.repository.SpeechRepository
 import com.garfiec.librechat.core.data.repository.UserRepository
 import com.garfiec.librechat.core.model.Memory
 import com.garfiec.librechat.core.model.User
@@ -33,6 +31,8 @@ import com.garfiec.librechat.core.model.speech.TtsVoice
 import com.garfiec.librechat.feature.settings.model.SharedLinkDisplayData
 import com.garfiec.librechat.feature.settings.model.UserDisplayData
 import com.garfiec.librechat.feature.settings.screen.DeviceVoiceInfo
+import com.garfiec.librechat.feature.settings.util.ContentReader
+import com.garfiec.librechat.feature.settings.util.PlatformCacheCleaner
 import com.garfiec.librechat.feature.settings.viewmodel.delegate.DataManagementDelegate
 import com.garfiec.librechat.feature.settings.viewmodel.delegate.McpServerDelegate
 import com.garfiec.librechat.feature.settings.viewmodel.delegate.MemoryManagementDelegate
@@ -45,7 +45,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import co.touchlab.kermit.Logger
 
 data class SettingsCommand(
     val name: String,

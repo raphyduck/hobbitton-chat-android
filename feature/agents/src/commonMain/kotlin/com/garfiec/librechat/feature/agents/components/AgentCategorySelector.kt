@@ -14,10 +14,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import org.jetbrains.compose.resources.stringResource
 import com.garfiec.librechat.core.model.AgentCategory
-import librechat_mobile.feature.agents.generated.resources.Res
-import librechat_mobile.feature.agents.generated.resources.*
+import com.garfiec.librechat.feature.agents.resources.*
+import com.garfiec.librechat.feature.agents.resources.Res
+import org.jetbrains.compose.resources.stringResource
 
 /**
  * Maps category values to human-readable English labels.
@@ -51,7 +51,7 @@ private fun AgentCategory.displayLabel(): String {
 fun AgentCategorySelector(
     selectedCategory: String,
     categories: List<AgentCategory>,
-    onCategorySelected: (String) -> Unit,
+    onCategorySelect: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -90,7 +90,7 @@ fun AgentCategorySelector(
                 DropdownMenuItem(
                     text = { Text(category.displayLabel()) },
                     onClick = {
-                        onCategorySelected(category.value)
+                        onCategorySelect(category.value)
                         expanded = false
                     },
                 )

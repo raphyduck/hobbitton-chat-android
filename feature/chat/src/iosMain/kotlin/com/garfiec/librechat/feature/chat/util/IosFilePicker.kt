@@ -219,7 +219,9 @@ private class PhotoPickerDelegate(
                                 width = cgImage?.let { CGImageGetWidth(it).toInt() },
                                 height = cgImage?.let { CGImageGetHeight(it).toInt() },
                             )
-                        } else null
+                        } else {
+                            null
+                        }
                     }
                     if (imageData == null) {
                         Logger.e { "PHPicker: failed to load image: ${error?.localizedDescription}" }
@@ -321,4 +323,3 @@ private fun guessMimeType(filename: String): String {
         else -> "application/octet-stream"
     }
 }
-

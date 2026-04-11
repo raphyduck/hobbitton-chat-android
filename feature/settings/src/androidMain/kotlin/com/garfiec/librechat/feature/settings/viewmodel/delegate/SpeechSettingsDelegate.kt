@@ -4,6 +4,7 @@ import android.content.Context
 import android.media.MediaPlayer
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
+import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.common.result.Result
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.repository.SpeechRepository
@@ -11,7 +12,6 @@ import com.garfiec.librechat.core.model.speech.TtsVoice
 import com.garfiec.librechat.feature.settings.screen.DeviceVoiceInfo
 import com.garfiec.librechat.feature.settings.viewmodel.SettingsStateHandle
 import kotlinx.coroutines.launch
-import co.touchlab.kermit.Logger
 import java.io.File
 
 /**

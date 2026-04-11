@@ -4,6 +4,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
+import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.model.EndpointConfig
 import com.garfiec.librechat.core.model.config.StartupConfig
 import kotlinx.coroutines.flow.first
@@ -11,7 +12,6 @@ import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
-import co.touchlab.kermit.Logger
 
 class ConfigCacheDataStore(
     private val dataStore: DataStore<Preferences>,

@@ -36,7 +36,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
-import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -44,9 +43,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.garfiec.librechat.core.data.datastore.ThemeMode
-import librechat_mobile.feature.settings.generated.resources.Res
-import librechat_mobile.feature.settings.generated.resources.*
+import com.garfiec.librechat.feature.settings.resources.*
+import com.garfiec.librechat.feature.settings.resources.Res
 import com.garfiec.librechat.feature.settings.viewmodel.SettingsViewModel
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -54,7 +54,6 @@ import org.koin.compose.viewmodel.koinViewModel
 fun GeneralSettingsScreen(
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: SettingsViewModel = koinViewModel(),
 ) {
     Scaffold(
         modifier = modifier,
@@ -76,7 +75,6 @@ fun GeneralSettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            viewModel = viewModel,
         )
     }
 }
@@ -92,9 +90,9 @@ fun GeneralSettingsContent(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    Column {
+    Column(modifier = modifier) {
         LazyColumn(
-            modifier = modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize(),
         ) {
             // Appearance section
             item(key = "appearance_header") {
@@ -164,7 +162,7 @@ fun GeneralSettingsContent(
         if (uiState.showLanguageDialog) {
             LanguageSelectorDialog(
                 selectedLanguage = uiState.selectedLanguage,
-                onLanguageSelected = viewModel::setLanguage,
+                onLanguageSelect = viewModel::setLanguage,
                 onDismiss = viewModel::dismissLanguageDialog,
             )
         }

@@ -24,11 +24,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import com.garfiec.librechat.feature.chat.resources.*
+import com.garfiec.librechat.feature.chat.resources.Res
 import com.garfiec.librechat.feature.chat.util.copyToClipboard
 import org.jetbrains.compose.resources.stringResource
-import androidx.compose.ui.unit.dp
-import librechat_mobile.feature.chat.generated.resources.Res
-import librechat_mobile.feature.chat.generated.resources.*
 
 enum class SharePermission(val label: String) {
     VIEW_ONLY("View only"),
@@ -39,7 +39,7 @@ enum class SharePermission(val label: String) {
 fun PromptShareDialog(
     promptName: String,
     isCurrentlyShared: Boolean,
-    onShareToggled: (shared: Boolean, permission: SharePermission) -> Unit,
+    onShareToggle: (shared: Boolean, permission: SharePermission) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -117,7 +117,7 @@ fun PromptShareDialog(
         },
         confirmButton = {
             TextButton(
-                onClick = { onShareToggled(isShared, permission) },
+                onClick = { onShareToggle(isShared, permission) },
             ) {
                 Text(stringResource(Res.string.save))
             }

@@ -69,7 +69,8 @@ class FilesApi constructor(
         }.body()
 
         Logger.d("FilesApi") {
-            "uploadFile success: fileId=${response.fileId}, filepath=${response.filepath}, type=${response.type}, width=${response.width}, height=${response.height}"
+            "uploadFile success: fileId=${response.fileId}, filepath=${response.filepath}, " +
+                "type=${response.type}, width=${response.width}, height=${response.height}"
         }
         return response
     }

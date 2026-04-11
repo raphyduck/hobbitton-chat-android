@@ -23,7 +23,7 @@ import org.jetbrains.compose.ui.tooling.preview.Preview
 fun DynamicParameterPanel(
     definitions: List<ParameterDefinition>,
     values: Map<String, String>,
-    onValueChanged: (key: String, value: String) -> Unit,
+    onValueChange: (key: String, value: String) -> Unit,
     modifier: Modifier = Modifier,
     title: String = "Endpoint Parameters",
 ) {
@@ -50,7 +50,7 @@ fun DynamicParameterPanel(
                     DynamicSlider(
                         label = definition.label,
                         value = floatValue,
-                        onValueChange = { onValueChanged(definition.key, it.toString()) },
+                        onValueChange = { onValueChange(definition.key, it.toString()) },
                         min = min,
                         max = max,
                         step = step,
@@ -63,7 +63,7 @@ fun DynamicParameterPanel(
                         label = definition.label,
                         selectedValue = currentValue,
                         options = definition.options ?: emptyList(),
-                        onValueChange = { onValueChanged(definition.key, it) },
+                        onValueChange = { onValueChange(definition.key, it) },
                         description = definition.description,
                     )
                 }
@@ -73,7 +73,7 @@ fun DynamicParameterPanel(
                     DynamicCheckbox(
                         label = definition.label,
                         checked = checked,
-                        onCheckedChange = { onValueChanged(definition.key, it.toString()) },
+                        onCheckedChange = { onValueChange(definition.key, it.toString()) },
                         description = definition.description,
                     )
                 }
@@ -82,7 +82,7 @@ fun DynamicParameterPanel(
                     DynamicInput(
                         label = definition.label,
                         value = currentValue,
-                        onValueChange = { onValueChanged(definition.key, it) },
+                        onValueChange = { onValueChange(definition.key, it) },
                         placeholder = definition.default,
                         description = definition.description,
                     )
@@ -93,7 +93,7 @@ fun DynamicParameterPanel(
                     DynamicCheckbox(
                         label = definition.label,
                         checked = checked,
-                        onCheckedChange = { onValueChanged(definition.key, it.toString()) },
+                        onCheckedChange = { onValueChange(definition.key, it.toString()) },
                         description = definition.description,
                     )
                 }
@@ -102,7 +102,7 @@ fun DynamicParameterPanel(
                     DynamicTextarea(
                         label = definition.label,
                         value = currentValue,
-                        onValueChange = { onValueChanged(definition.key, it) },
+                        onValueChange = { onValueChange(definition.key, it) },
                         placeholder = definition.default,
                         description = definition.description,
                     )
@@ -116,8 +116,8 @@ fun DynamicParameterPanel(
                         } else {
                             currentValue.split("\n").filter { it.isNotBlank() }
                         },
-                        onTagsChanged = { tags ->
-                            onValueChanged(definition.key, tags.joinToString("\n"))
+                        onTagsChange = { tags ->
+                            onValueChange(definition.key, tags.joinToString("\n"))
                         },
                         description = definition.description,
                         maxTags = definition.max?.toInt() ?: 4,
@@ -167,7 +167,7 @@ private fun DynamicParameterPanelPreview() {
     DynamicParameterPanel(
         definitions = definitions,
         values = values,
-        onValueChanged = { key, value ->
+        onValueChange = { key, value ->
             values = values.toMutableMap().apply { this[key] = value }
         },
     )

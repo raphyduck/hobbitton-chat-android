@@ -43,13 +43,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.garfiec.librechat.feature.chat.model.McpServerDisplayData
-import librechat_mobile.feature.chat.generated.resources.Res
-import librechat_mobile.feature.chat.generated.resources.cd_send_message
-import librechat_mobile.feature.chat.generated.resources.cd_start_voice_recording
-import librechat_mobile.feature.chat.generated.resources.cd_stop_generation
-import librechat_mobile.feature.chat.generated.resources.hint_message
-import librechat_mobile.feature.chat.generated.resources.hint_message_model
-import librechat_mobile.feature.chat.generated.resources.recording
+import com.garfiec.librechat.feature.chat.resources.Res
+import com.garfiec.librechat.feature.chat.resources.cd_send_message
+import com.garfiec.librechat.feature.chat.resources.cd_start_voice_recording
+import com.garfiec.librechat.feature.chat.resources.cd_stop_generation
+import com.garfiec.librechat.feature.chat.resources.hint_message
+import com.garfiec.librechat.feature.chat.resources.hint_message_model
+import com.garfiec.librechat.feature.chat.resources.recording
 import org.jetbrains.compose.resources.stringResource
 
 @Immutable
@@ -81,9 +81,9 @@ fun CommonChatInputCore(
     onRemoveFile: (AttachedFile) -> Unit,
     modifier: Modifier = Modifier,
     leadingButtons: @Composable RowScope.() -> Unit = {},
-    textFieldContent: @Composable RowScope.() -> Unit,
     trailingSpacer: @Composable RowScope.() -> Unit = {},
     bottomContent: @Composable BoxScope.() -> Unit = {},
+    textFieldContent: @Composable RowScope.() -> Unit,
 ) {
     val surfaceColor = MaterialTheme.colorScheme.surface
     Box(
@@ -255,6 +255,7 @@ fun VoiceMicIndicator(
 fun ChatInputPlaceholder(
     isRecording: Boolean,
     selectedModelDisplay: String?,
+    modifier: Modifier = Modifier,
 ) {
     Text(
         text = if (isRecording) {
@@ -268,5 +269,6 @@ fun ChatInputPlaceholder(
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
+        modifier = modifier,
     )
 }

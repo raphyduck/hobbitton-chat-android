@@ -24,6 +24,7 @@ import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSiz
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -55,7 +56,7 @@ class MainActivity : ComponentActivity() {
      * - Navigates to NewChat if the user is not on a chat screen, or
      * - Lets the active ChatViewModel consume the shared content in-place if already on a chat screen.
      */
-    private var shareNavigationTrigger by mutableStateOf(0)
+    private var shareNavigationTrigger by mutableIntStateOf(0)
 
     @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -108,7 +109,7 @@ class MainActivity : ComponentActivity() {
                         LibreChatNavHost(
                             windowSizeClass = windowSizeClass,
                             deepLinkUri = deepLinkUri,
-                            onDeepLinkConsumed = { deepLinkUri = null },
+                            onDeepLinkConsume = { deepLinkUri = null },
                             shareNavigationTrigger = shareNavigationTrigger,
                             modifier = Modifier.weight(1f),
                         )

@@ -14,11 +14,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
 import com.garfiec.librechat.core.model.Memory
-import librechat_mobile.feature.settings.generated.resources.Res
-import librechat_mobile.feature.settings.generated.resources.*
+import com.garfiec.librechat.feature.settings.resources.*
+import com.garfiec.librechat.feature.settings.resources.Res
+import org.jetbrains.compose.resources.stringResource
 
 /** Add/edit memory dialog; key field is immutable when editing an existing memory. */
 @Composable

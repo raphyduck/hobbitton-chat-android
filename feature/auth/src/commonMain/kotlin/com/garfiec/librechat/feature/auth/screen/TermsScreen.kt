@@ -24,34 +24,36 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import librechat_mobile.feature.auth.generated.resources.Res
-import librechat_mobile.feature.auth.generated.resources.*
+import com.garfiec.librechat.feature.auth.resources.*
+import com.garfiec.librechat.feature.auth.resources.Res
 import com.garfiec.librechat.feature.auth.viewmodel.TermsViewModel
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 
 /** Displays server terms of service loaded from the backend; gates navigation on user acceptance. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TermsScreen(
-    onAccepted: () -> Unit,
+    onAccept: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: TermsViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val currentOnAccepted by rememberUpdatedState(onAccept)
 
     LaunchedEffect(uiState.isAccepted) {
         if (uiState.isAccepted) {
             viewModel.consumeAccepted()
-            onAccepted()
+            currentOnAccepted()
         }
     }
 

@@ -27,17 +27,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
-import librechat_mobile.feature.settings.generated.resources.Res
-import librechat_mobile.feature.settings.generated.resources.*
+import com.garfiec.librechat.feature.settings.resources.*
+import com.garfiec.librechat.feature.settings.resources.Res
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 internal fun DataSettingsSection(
     archivedCount: Int,
     isClearing: Boolean,
     onClearAllChats: () -> Unit,
-    onViewArchived: () -> Unit,
+    onViewArchive: () -> Unit,
     onExportAllData: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -65,7 +65,7 @@ internal fun DataSettingsSection(
 
             // Archived conversations
             OutlinedButton(
-                onClick = onViewArchived,
+                onClick = onViewArchive,
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(

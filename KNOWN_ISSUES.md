@@ -16,7 +16,7 @@
 **Key files**:
 - `feature/chat/.../components/MessageList.kt` — scroll logic, `pendingFineTuneScroll` flag
 - `feature/chat/.../components/MarkdownContent.kt` — `HighlightedTextSegment` with `onGloballyPositioned`
-- `feature/chat/.../components/ContentPartRenderer.kt` — forwards `onFocusedOccurrencePositioned` callback
+- `feature/chat/.../components/ContentPartRenderer.kt` — forwards `onFocusedOccurrencePosition` callback
 - `feature/chat/.../components/MessageBubble.kt` — forwards callback when `isCurrentSearchMatch`
 
 **What's needed**: On-device debugging session with Logcat/Timber to trace:

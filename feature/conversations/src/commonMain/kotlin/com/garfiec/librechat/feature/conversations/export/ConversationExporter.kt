@@ -5,10 +5,10 @@ import com.garfiec.librechat.core.data.repository.ConversationRepository
 import com.garfiec.librechat.core.data.repository.MessageRepository
 import com.garfiec.librechat.core.model.ConversationExport
 import com.garfiec.librechat.core.model.Message
-import kotlin.time.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.json.Json
+import kotlin.time.Clock
 
 class ConversationExporter(
     private val conversationRepository: ConversationRepository,
@@ -52,7 +52,11 @@ class ConversationExporter(
         }
 
         val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
-        val exportDate = "${now.year}-${now.monthNumber.toString().padStart(2, '0')}-${now.dayOfMonth.toString().padStart(2, '0')} ${now.hour.toString().padStart(2, '0')}:${now.minute.toString().padStart(2, '0')}"
+        val month = now.monthNumber.toString().padStart(2, '0')
+        val day = now.dayOfMonth.toString().padStart(2, '0')
+        val hour = now.hour.toString().padStart(2, '0')
+        val minute = now.minute.toString().padStart(2, '0')
+        val exportDate = "${now.year}-$month-$day $hour:$minute"
 
         val sb = StringBuilder()
         sb.appendLine("# ${conversation.title ?: "Untitled Conversation"}")

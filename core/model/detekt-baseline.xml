@@ -1,7 +1,0 @@
-<?xml version="1.0" ?>
-<SmellBaseline>
-  <ManuallySuppressedIssues/>
-  <CurrentIssues>
-    <ID>NoUnusedImports:StartupConfig.kt$com.garfiec.librechat.core.model.config.StartupConfig.kt</ID>
-  </CurrentIssues>
-</SmellBaseline>

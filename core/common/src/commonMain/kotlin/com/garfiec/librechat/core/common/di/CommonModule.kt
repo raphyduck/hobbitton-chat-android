@@ -1,12 +1,10 @@
 package com.garfiec.librechat.core.common.di
 
-import com.garfiec.librechat.core.common.network.ConnectivityObserver
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import org.koin.core.module.Module
-import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.module
 
 expect val commonPlatformModule: Module

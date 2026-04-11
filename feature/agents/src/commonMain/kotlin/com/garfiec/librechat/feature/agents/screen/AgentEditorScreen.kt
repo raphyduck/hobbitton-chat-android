@@ -44,17 +44,15 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.garfiec.librechat.core.ui.components.ErrorBanner
 import com.garfiec.librechat.core.ui.components.LoadingIndicator
-import librechat_mobile.feature.agents.generated.resources.Res
-import librechat_mobile.feature.agents.generated.resources.*
 import com.garfiec.librechat.feature.agents.components.AgentActionsPanel
 import com.garfiec.librechat.feature.agents.components.AgentAdvancedPanel
 import com.garfiec.librechat.feature.agents.components.AgentAvatarPicker
@@ -68,8 +66,11 @@ import com.garfiec.librechat.feature.agents.components.AgentSharingSection
 import com.garfiec.librechat.feature.agents.components.AgentSupportContactSection
 import com.garfiec.librechat.feature.agents.components.AgentVersionHistory
 import com.garfiec.librechat.feature.agents.components.ToolSelectDialog
+import com.garfiec.librechat.feature.agents.resources.*
+import com.garfiec.librechat.feature.agents.resources.Res
 import com.garfiec.librechat.feature.agents.viewmodel.AgentEditorEvent
 import com.garfiec.librechat.feature.agents.viewmodel.AgentEditorViewModel
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
@@ -77,22 +78,25 @@ import org.koin.core.parameter.parametersOf
 @Composable
 fun AgentEditorScreen(
     onBack: () -> Unit,
-    onSaved: (String) -> Unit,
-    agentId: String? = null,
+    onSave: (String) -> Unit,
     modifier: Modifier = Modifier,
-    onDeleted: () -> Unit = onBack,
-    onDuplicated: (String) -> Unit = onSaved,
+    agentId: String? = null,
+    onDelete: () -> Unit = onBack,
+    onDuplicate: (String) -> Unit = onSave,
     viewModel: AgentEditorViewModel = koinViewModel { parametersOf(agentId) },
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var showToolDialog by rememberSaveable { mutableStateOf(false) }
+    val currentOnSaved by rememberUpdatedState(onSave)
+    val currentOnDuplicated by rememberUpdatedState(onDuplicate)
+    val currentOnDeleted by rememberUpdatedState(onDelete)
 
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
             when (event) {
-                is AgentEditorEvent.SaveSuccess -> onSaved(event.agentId)
-                is AgentEditorEvent.DuplicateSuccess -> onDuplicated(event.agentId)
-                is AgentEditorEvent.DeleteSuccess -> onDeleted()
+                is AgentEditorEvent.SaveSuccess -> currentOnSaved(event.agentId)
+                is AgentEditorEvent.DuplicateSuccess -> currentOnDuplicated(event.agentId)
+                is AgentEditorEvent.DeleteSuccess -> currentOnDeleted()
             }
         }
     }
@@ -149,8 +153,8 @@ fun AgentEditorScreen(
         ToolSelectDialog(
             tools = uiState.availableTools,
             selectedToolIds = uiState.selectedTools,
-            onToolAdded = viewModel::onToolAdded,
-            onToolRemoved = viewModel::onToolRemoved,
+            onToolAdd = viewModel::onToolAdded,
+            onToolRemove = viewModel::onToolRemoved,
             onDismiss = { showToolDialog = false },
         )
     }
@@ -283,7 +287,7 @@ fun AgentEditorScreen(
                         AgentAvatarPicker(
                             avatarUrl = uiState.avatarUrl,
                             agentName = uiState.name,
-                            onImageSelected = viewModel::uploadAvatar,
+                            onImageSelect = viewModel::uploadAvatar,
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
@@ -330,7 +334,7 @@ fun AgentEditorScreen(
                     AgentCategorySelector(
                         selectedCategory = uiState.category,
                         categories = uiState.categories,
-                        onCategorySelected = viewModel::onCategoryChanged,
+                        onCategorySelect = viewModel::onCategoryChanged,
                         modifier = Modifier.fillMaxWidth(),
                     )
 
@@ -353,7 +357,7 @@ fun AgentEditorScreen(
                     AgentModelPicker(
                         selectedModel = uiState.model,
                         availableModels = uiState.availableModels,
-                        onModelSelected = viewModel::onModelSelected,
+                        onModelSelect = viewModel::onModelSelected,
                         modifier = Modifier.fillMaxWidth(),
                     )
 
@@ -389,7 +393,7 @@ fun AgentEditorScreen(
                         AgentMcpToolsSelector(
                             mcpTools = uiState.mcpTools,
                             selectedToolNames = uiState.selectedMcpTools,
-                            onToolToggled = viewModel::onMcpToolToggled,
+                            onToolToggle = viewModel::onMcpToolToggled,
                         )
 
                         Spacer(modifier = Modifier.height(12.dp))
@@ -472,7 +476,7 @@ fun AgentEditorScreen(
                     // 10. Support Contact
                     AgentSupportContactSection(
                         supportContact = uiState.supportContact,
-                        onSupportContactChanged = viewModel::onSupportContactChanged,
+                        onSupportContactChange = viewModel::onSupportContactChanged,
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -533,7 +537,7 @@ fun AgentEditorScreen(
                     // Sharing & Permissions
                     AgentSharingSection(
                         sharingState = uiState.sharingState,
-                        onSharingChanged = viewModel::onSharingChanged,
+                        onSharingChange = viewModel::onSharingChanged,
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -551,7 +555,7 @@ fun AgentEditorScreen(
                     // 12. Advanced settings (collapsible)
                     AgentAdvancedPanel(
                         settings = uiState.advancedSettings,
-                        onSettingsChanged = viewModel::onAdvancedSettingsChanged,
+                        onSettingsChange = viewModel::onAdvancedSettingsChanged,
                     )
 
                     Spacer(modifier = Modifier.height(24.dp))

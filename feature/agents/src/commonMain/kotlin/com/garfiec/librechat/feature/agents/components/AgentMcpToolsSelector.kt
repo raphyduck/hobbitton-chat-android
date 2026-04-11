@@ -21,18 +21,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
 import com.garfiec.librechat.core.model.mcp.McpTool
-import librechat_mobile.feature.agents.generated.resources.Res
-import librechat_mobile.feature.agents.generated.resources.*
+import com.garfiec.librechat.feature.agents.resources.*
+import com.garfiec.librechat.feature.agents.resources.Res
+import org.jetbrains.compose.resources.stringResource
 
 /** Hierarchical MCP tool picker grouped by server with checkbox selection. */
 @Composable
 fun AgentMcpToolsSelector(
     mcpTools: List<McpTool>,
     selectedToolNames: Set<String>,
-    onToolToggled: (toolName: String) -> Unit,
+    onToolToggle: (toolName: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -80,7 +80,7 @@ fun AgentMcpToolsSelector(
                             serverName = serverName,
                             tools = tools,
                             selectedToolNames = selectedToolNames,
-                            onToolToggled = onToolToggled,
+                            onToolToggle = onToolToggle,
                         )
                     }
                 }
@@ -94,7 +94,7 @@ private fun McpServerToolsGroup(
     serverName: String,
     tools: List<McpTool>,
     selectedToolNames: Set<String>,
-    onToolToggled: (String) -> Unit,
+    onToolToggle: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var serverExpanded by remember { mutableStateOf(true) }
@@ -125,7 +125,7 @@ private fun McpServerToolsGroup(
                     McpToolRow(
                         tool = tool,
                         isSelected = tool.name in selectedToolNames,
-                        onToggle = { onToolToggled(tool.name) },
+                        onToggle = { onToolToggle(tool.name) },
                     )
                 }
             }

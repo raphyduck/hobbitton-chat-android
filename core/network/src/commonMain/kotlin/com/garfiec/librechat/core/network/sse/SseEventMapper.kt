@@ -1,5 +1,6 @@
 package com.garfiec.librechat.core.network.sse
 
+import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.model.Conversation
 import com.garfiec.librechat.core.model.Message
 import com.garfiec.librechat.core.model.StreamEvent
@@ -14,7 +15,6 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import co.touchlab.kermit.Logger
 
 /**
  * Maps raw SSE events into domain [StreamEvent]s.

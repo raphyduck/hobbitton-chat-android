@@ -325,5 +325,3 @@ internal fun parseAlignments(separatorLine: String, columnCount: Int): List<Tabl
         }
     }
 }
-
-

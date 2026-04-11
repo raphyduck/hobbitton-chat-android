@@ -149,7 +149,6 @@ fun TabletLayout(
                 // Slot 0: Sidebar -- always 320dp, slides from off-screen left to x=0
                 Row(modifier = Modifier.fillMaxHeight()) {
                     SidebarScaffold(
-                        viewModel = navHostViewModel,
                         onNewChat = {
                             if (navigator.currentRoute !is NewChat) {
                                 navigator.navigateToTopLevel(NewChat)
@@ -161,7 +160,7 @@ fun TabletLayout(
                         onSettingsClick = {
                             navigator.navigate(SettingsTabbed)
                         },
-                        onSettingsCategorySelected = { category ->
+                        onSettingsCategorySelect = { category ->
                             navigator.navigate(category.toRoute())
                         },
                         onAgentsClick = {
@@ -181,10 +180,10 @@ fun TabletLayout(
                 // Slot 1: Main content -- resizes to fill remaining space
                 MainContent(
                     navigator = navigator,
-                    navHostViewModel = navHostViewModel,
                     isInAuthFlow = false,
                     banners = banners,
                     dismissedBannerIds = dismissedBannerIds,
+                    onDismissBanner = navHostViewModel::dismissBanner,
                     onToggleDrawer = {
                         navHostViewModel.setTabletSidebarOpen(!isSidebarOpen)
                     },
@@ -212,10 +211,10 @@ fun TabletLayout(
         // Auth flow -- no sidebar, just main content
         MainContent(
             navigator = navigator,
-            navHostViewModel = navHostViewModel,
             isInAuthFlow = true,
             banners = banners,
             dismissedBannerIds = dismissedBannerIds,
+            onDismissBanner = navHostViewModel::dismissBanner,
             onToggleDrawer = {},
             modifier = Modifier.fillMaxSize(),
         )
@@ -225,10 +224,10 @@ fun TabletLayout(
 @Composable
 private fun MainContent(
     navigator: Navigator,
-    navHostViewModel: NavHostViewModel,
     isInAuthFlow: Boolean,
     banners: List<Banner>,
     dismissedBannerIds: Set<String>,
+    onDismissBanner: (String) -> Unit,
     onToggleDrawer: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -237,13 +236,12 @@ private fun MainContent(
             BannerDisplay(
                 banners = banners,
                 dismissedIds = dismissedBannerIds,
-                onDismiss = navHostViewModel::dismissBanner,
+                onDismiss = onDismissBanner,
                 modifier = Modifier.padding(top = 4.dp),
             )
         }
         MainNavDisplay(
             navigator = navigator,
-            navHostViewModel = navHostViewModel,
             onMenuClick = onToggleDrawer,
             modifier = Modifier.fillMaxSize(),
         )

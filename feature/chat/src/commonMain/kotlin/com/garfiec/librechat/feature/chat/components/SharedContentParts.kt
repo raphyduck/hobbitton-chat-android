@@ -55,8 +55,8 @@ import com.garfiec.librechat.feature.chat.components.artifact.ArtifactPanel
 import com.garfiec.librechat.feature.chat.components.artifact.ArtifactSegment
 import com.garfiec.librechat.feature.chat.components.artifact.detectArtifacts
 import com.garfiec.librechat.feature.chat.components.artifact.groupArtifactVersions
-import librechat_mobile.feature.chat.generated.resources.Res
-import librechat_mobile.feature.chat.generated.resources.*
+import com.garfiec.librechat.feature.chat.resources.*
+import com.garfiec.librechat.feature.chat.resources.Res
 import org.jetbrains.compose.resources.stringResource
 
 // ─── ContentPartDispatcher ──────────────────────────────────────────
@@ -77,7 +77,7 @@ internal fun ContentPartDispatcher(
     showImageDescriptions: Boolean = true,
     searchQuery: String? = null,
     searchFocusedOccurrence: Int = -1,
-    onFocusedOccurrencePositioned: ((LayoutCoordinates) -> Unit)? = null,
+    onFocusedOccurrencePosition: ((LayoutCoordinates) -> Unit)? = null,
 ) {
     val mod = modifier.fillMaxWidth()
     when (part.type) {
@@ -89,7 +89,7 @@ internal fun ContentPartDispatcher(
                 useKatex = useKatex,
                 searchQuery = searchQuery,
                 searchFocusedOccurrence = searchFocusedOccurrence,
-                onFocusedOccurrencePositioned = onFocusedOccurrencePositioned,
+                onFocusedOccurrencePosition = onFocusedOccurrencePosition,
             )
         }
         ContentType.THINK -> {
@@ -100,7 +100,7 @@ internal fun ContentPartDispatcher(
                 useKatex = useKatex,
                 searchQuery = searchQuery,
                 searchFocusedOccurrence = searchFocusedOccurrence,
-                onFocusedOccurrencePositioned = onFocusedOccurrencePositioned,
+                onFocusedOccurrencePosition = onFocusedOccurrencePosition,
             )
         }
         ContentType.TOOL_CALL -> {
@@ -134,9 +134,18 @@ internal fun ContentPartDispatcher(
                 VideoContent(url = videoUrl, modifier = mod)
             } else {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = mod) {
-                    Icon(Icons.Filled.Videocam, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                    Icon(
+                        Icons.Filled.Videocam,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp),
+                    )
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text(stringResource(Res.string.video_not_supported), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        stringResource(Res.string.video_not_supported),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
         }
@@ -170,10 +179,10 @@ internal fun ContentPartDispatcher(
 @Composable
 private fun ToolCallDispatcher(
     part: MessageContentPart,
-    modifier: Modifier,
     baseUrl: String,
     attachments: List<Attachment>,
     showImageDescriptions: Boolean,
+    modifier: Modifier = Modifier,
 ) {
     val toolCall = part.toolCall
     val toolName = toolCall?.name ?: toolCall?.function?.name ?: "Tool Call"
@@ -234,12 +243,12 @@ private fun ToolCallDispatcher(
 @Composable
 private fun TextContentPart(
     text: String,
-    modifier: Modifier,
+    modifier: Modifier = Modifier,
     fontSizeMultiplier: Float = 1.0f,
     useKatex: Boolean = false,
     searchQuery: String? = null,
     searchFocusedOccurrence: Int = -1,
-    onFocusedOccurrencePositioned: ((LayoutCoordinates) -> Unit)? = null,
+    onFocusedOccurrencePosition: ((LayoutCoordinates) -> Unit)? = null,
 ) {
     if (text.isBlank()) return
 
@@ -247,7 +256,7 @@ private fun TextContentPart(
     val hasArtifacts = remember(segments) { segments.any { it is ArtifactSegment.ArtifactReference } }
 
     if (!hasArtifacts) {
-        MarkdownContent(text, modifier, fontSizeMultiplier, useKatex, searchQuery, searchFocusedOccurrence, onFocusedOccurrencePositioned)
+        MarkdownContent(text, modifier, fontSizeMultiplier, useKatex, searchQuery, searchFocusedOccurrence, onFocusedOccurrencePosition)
     } else {
         val versionMap = remember(segments) { groupArtifactVersions(segments) }
         var activeArtifact by remember {
@@ -257,7 +266,15 @@ private fun TextContentPart(
             segments.forEach { segment ->
                 when (segment) {
                     is ArtifactSegment.Text -> {
-                        MarkdownContent(segment.text, Modifier.fillMaxWidth(), fontSizeMultiplier, useKatex, searchQuery, searchFocusedOccurrence, onFocusedOccurrencePositioned)
+                        MarkdownContent(
+                            segment.text,
+                            Modifier.fillMaxWidth(),
+                            fontSizeMultiplier,
+                            useKatex,
+                            searchQuery,
+                            searchFocusedOccurrence,
+                            onFocusedOccurrencePosition,
+                        )
                     }
                     is ArtifactSegment.ArtifactReference -> {
                         val versions = versionMap[segment.artifact.identifier] ?: listOf(segment.artifact)
@@ -288,12 +305,12 @@ private fun TextContentPart(
 @Composable
 private fun ThinkingContentPart(
     thinkingText: String,
-    modifier: Modifier,
+    modifier: Modifier = Modifier,
     fontSizeMultiplier: Float = 1.0f,
     useKatex: Boolean = false,
     searchQuery: String? = null,
     searchFocusedOccurrence: Int = -1,
-    onFocusedOccurrencePositioned: ((LayoutCoordinates) -> Unit)? = null,
+    onFocusedOccurrencePosition: ((LayoutCoordinates) -> Unit)? = null,
 ) {
     var isExpanded by remember { mutableStateOf(false) }
     val thinkingToggleCd =
@@ -317,9 +334,19 @@ private fun ThinkingContentPart(
                 },
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(Icons.Default.Psychology, stringResource(Res.string.cd_thinking_indicator), Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+            Icon(
+                Icons.Default.Psychology,
+                stringResource(Res.string.cd_thinking_indicator),
+                Modifier.size(18.dp),
+                tint = MaterialTheme.colorScheme.primary,
+            )
             Spacer(modifier = Modifier.width(8.dp))
-            Text(stringResource(Res.string.label_thinking), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f))
+            Text(
+                stringResource(Res.string.label_thinking),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.weight(1f),
+            )
             Icon(
                 if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                 stringResource(if (isExpanded) Res.string.cd_collapse else Res.string.cd_expand),
@@ -330,7 +357,14 @@ private fun ThinkingContentPart(
         AnimatedVisibility(visible = isExpanded, enter = expandVertically(), exit = shrinkVertically()) {
             Column(modifier = Modifier.padding(start = 12.dp, end = 12.dp, bottom = 12.dp)) {
                 Spacer(modifier = Modifier.height(8.dp))
-                MarkdownContent(thinkingText, fontSizeMultiplier = fontSizeMultiplier, useKatex = useKatex, searchQuery = searchQuery, searchFocusedOccurrence = searchFocusedOccurrence, onFocusedOccurrencePositioned = onFocusedOccurrencePositioned)
+                MarkdownContent(
+                    thinkingText,
+                    fontSizeMultiplier = fontSizeMultiplier,
+                    useKatex = useKatex,
+                    searchQuery = searchQuery,
+                    searchFocusedOccurrence = searchFocusedOccurrence,
+                    onFocusedOccurrencePosition = onFocusedOccurrencePosition,
+                )
             }
         }
     }
@@ -365,9 +399,19 @@ internal fun GenericToolCallCard(
                     },
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(Icons.Default.Build, stringResource(Res.string.cd_tool_call), Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(
+                    Icons.Default.Build,
+                    stringResource(Res.string.cd_tool_call),
+                    Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(toolName, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
+                Text(
+                    toolName,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f),
+                )
                 Icon(
                     if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                     stringResource(if (isExpanded) Res.string.cd_collapse else Res.string.cd_expand),
@@ -379,13 +423,21 @@ internal fun GenericToolCallCard(
                 Column {
                     if (!args.isNullOrBlank()) {
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text(stringResource(Res.string.label_input), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            stringResource(Res.string.label_input),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                         Spacer(modifier = Modifier.height(4.dp))
                         CodeBlock(code = args, language = "json")
                     }
                     if (!output.isNullOrBlank()) {
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text(stringResource(Res.string.label_output), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            stringResource(Res.string.label_output),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                         Spacer(modifier = Modifier.height(4.dp))
                         CodeBlock(code = output, language = null)
                     }
@@ -435,7 +487,12 @@ internal fun ImageContentPart(
                     .background(MaterialTheme.colorScheme.surfaceContainerHigh, RoundedCornerShape(12.dp)),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Default.BrokenImage, stringResource(Res.string.cd_failed_to_load_image), Modifier.size(32.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(
+                    Icons.Default.BrokenImage,
+                    stringResource(Res.string.cd_failed_to_load_image),
+                    Modifier.size(32.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         },
     )

@@ -20,25 +20,31 @@ val authModule = module {
     viewModelOf(::ServerUrlViewModel)
     viewModelOf(::LoginViewModel)
     viewModelOf(::RegisterViewModel)
+    // Koin's constructor-DSL (`viewModelOf`) wires every argument via `get()` and cannot read
+    // values passed through `parametersOf`. The VMs below receive initial seeds (email, user
+    // id, token, temp token) from the navigation layer via `parametersOf`, so the lambda-form
+    // `viewModel { params -> ... }` is the only DSL that works here. Detekt's `DeprecatedKoinApi`
+    // is a blanket stylistic rule, not a real `@Deprecated` API, so we suppress it in the
+    // narrow places it applies.
+    @Suppress("DeprecatedKoinApi")
     viewModel { params ->
         VerifyEmailViewModel(
-            savedStateHandle = get(),
             userRepository = get(),
             initialEmail = params.getOrNull(),
         )
     }
     viewModelOf(::ForgotPasswordViewModel)
+    @Suppress("DeprecatedKoinApi")
     viewModel { params ->
         ResetPasswordViewModel(
-            savedStateHandle = get(),
             authRepository = get(),
             initialUserId = params.getOrNull(),
             initialToken = params.getOrNull(),
         )
     }
+    @Suppress("DeprecatedKoinApi")
     viewModel { params ->
         TwoFactorViewModel(
-            savedStateHandle = get(),
             authRepository = get(),
             initialTempToken = params.getOrNull(),
         )

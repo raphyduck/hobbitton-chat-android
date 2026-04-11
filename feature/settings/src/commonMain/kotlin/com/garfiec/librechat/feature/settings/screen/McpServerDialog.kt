@@ -37,8 +37,8 @@ import com.garfiec.librechat.core.model.mcp.McpAuthorizationType
 import com.garfiec.librechat.core.model.mcp.McpOAuthConfig
 import com.garfiec.librechat.core.model.mcp.McpServer
 import com.garfiec.librechat.core.model.mcp.McpServerType
-import librechat_mobile.feature.settings.generated.resources.*
-import librechat_mobile.feature.settings.generated.resources.Res
+import com.garfiec.librechat.feature.settings.resources.*
+import com.garfiec.librechat.feature.settings.resources.Res
 import org.jetbrains.compose.resources.stringResource
 
 /** Add/edit MCP server dialog with server type dropdown and auth configuration. */

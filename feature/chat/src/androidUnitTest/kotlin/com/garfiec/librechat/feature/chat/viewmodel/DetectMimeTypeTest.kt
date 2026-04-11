@@ -1,7 +1,7 @@
 package com.garfiec.librechat.feature.chat.viewmodel
 
-import com.google.common.truth.Truth.assertThat
 import com.garfiec.librechat.feature.chat.util.detectMimeTypeFromBytes
+import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
 class DetectMimeTypeTest {

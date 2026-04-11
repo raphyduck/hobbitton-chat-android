@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.koin.compose.viewmodel.koinViewModel
 
 /**
  * Sidebar scaffold that switches between Conversations and Settings modes.
@@ -15,14 +16,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
  */
 @Composable
 fun SidebarScaffold(
-    viewModel: NavHostViewModel,
     onNewChat: () -> Unit,
     onConversationClick: (String) -> Unit,
     onSettingsClick: () -> Unit,
-    onSettingsCategorySelected: (SettingsCategory) -> Unit,
+    onSettingsCategorySelect: (SettingsCategory) -> Unit,
     onAgentsClick: () -> Unit,
     onFilesClick: () -> Unit,
     modifier: Modifier = Modifier,
+    viewModel: NavHostViewModel = koinViewModel(),
 ) {
     val sidebarMode by viewModel.sidebarMode.collectAsStateWithLifecycle()
     val selectedCategory by viewModel.selectedSettingsCategory.collectAsStateWithLifecycle()
@@ -44,7 +45,6 @@ fun SidebarScaffold(
         when (mode) {
             is SidebarMode.Conversations -> {
                 DrawerContent(
-                    viewModel = viewModel,
                     onNewChat = onNewChat,
                     onConversationClick = onConversationClick,
                     onSettingsClick = onSettingsClick,
@@ -58,9 +58,9 @@ fun SidebarScaffold(
                     onBackToConversations = {
                         viewModel.setSidebarMode(SidebarMode.Conversations)
                     },
-                    onCategorySelected = { category ->
+                    onCategorySelect = { category ->
                         viewModel.selectSettingsCategory(category)
-                        onSettingsCategorySelected(category)
+                        onSettingsCategorySelect(category)
                     },
                 )
             }

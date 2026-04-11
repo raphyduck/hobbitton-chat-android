@@ -11,7 +11,6 @@ import org.koin.dsl.module
 import platform.Foundation.NSData
 import platform.Foundation.NSURL
 import platform.Foundation.dataWithContentsOfURL
-import platform.Foundation.lastPathComponent
 import platform.Foundation.pathExtension
 import platform.posix.memcpy
 

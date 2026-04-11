@@ -1,5 +1,6 @@
 package com.garfiec.librechat.core.data.repository
 
+import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.common.BackendVersion
 import com.garfiec.librechat.core.common.result.ApiException
 import com.garfiec.librechat.core.common.result.Result
@@ -13,7 +14,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.SerializationException
-import co.touchlab.kermit.Logger
 
 class ConfigRepositoryImpl(
     private val configApi: ConfigApi,

@@ -20,15 +20,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
-import librechat_mobile.feature.conversations.generated.resources.Res
-import librechat_mobile.feature.conversations.generated.resources.*
+import com.garfiec.librechat.feature.conversations.resources.*
+import com.garfiec.librechat.feature.conversations.resources.Res
+import org.jetbrains.compose.resources.stringResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExportFormatPicker(
-    onFormatSelected: (ExportFormat) -> Unit,
+    onFormatSelect: (ExportFormat) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -55,7 +55,7 @@ fun ExportFormatPicker(
                 description = stringResource(Res.string.format_json_description),
                 onClick = {
                     onDismiss()
-                    onFormatSelected(ExportFormat.JSON)
+                    onFormatSelect(ExportFormat.JSON)
                 },
             )
 
@@ -65,7 +65,7 @@ fun ExportFormatPicker(
                 description = stringResource(Res.string.format_markdown_description),
                 onClick = {
                     onDismiss()
-                    onFormatSelected(ExportFormat.MARKDOWN)
+                    onFormatSelect(ExportFormat.MARKDOWN)
                 },
             )
         }

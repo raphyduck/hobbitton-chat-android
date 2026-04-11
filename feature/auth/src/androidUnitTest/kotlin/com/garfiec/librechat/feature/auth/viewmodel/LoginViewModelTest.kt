@@ -1,14 +1,14 @@
 package com.garfiec.librechat.feature.auth.viewmodel
 
-import com.google.common.truth.Truth.assertThat
 import com.garfiec.librechat.core.common.result.Result
 import com.garfiec.librechat.core.data.datastore.ServerDataStore
 import com.garfiec.librechat.core.data.repository.AuthRepository
 import com.garfiec.librechat.core.data.repository.ConfigRepository
 import com.garfiec.librechat.core.model.LoginOutcome
-import com.garfiec.librechat.core.model.config.StartupConfig
 import com.garfiec.librechat.core.model.User
+import com.garfiec.librechat.core.model.config.StartupConfig
 import com.garfiec.librechat.feature.auth.oauth.OAuthLauncher
+import com.google.common.truth.Truth.assertThat
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk

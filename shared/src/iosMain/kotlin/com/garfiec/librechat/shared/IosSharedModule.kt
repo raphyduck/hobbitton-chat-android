@@ -3,12 +3,6 @@ package com.garfiec.librechat.shared
 import com.garfiec.librechat.core.common.di.KoinQualifiers
 import com.garfiec.librechat.core.common.di.commonModule
 import com.garfiec.librechat.core.data.di.dataModule
-import com.garfiec.librechat.feature.agents.di.agentsModule
-import com.garfiec.librechat.feature.files.di.filesModule
-import com.garfiec.librechat.feature.auth.di.authModule
-import com.garfiec.librechat.feature.chat.di.chatModule
-import com.garfiec.librechat.feature.conversations.di.conversationsModule
-import com.garfiec.librechat.feature.settings.di.settingsModule
 import com.garfiec.librechat.core.network.api.AgentsApi
 import com.garfiec.librechat.core.network.api.ApiKeysApi
 import com.garfiec.librechat.core.network.api.AuthApi
@@ -35,6 +29,12 @@ import com.garfiec.librechat.core.network.client.LibreChatHttpClient
 import com.garfiec.librechat.core.network.client.ServerUrlProvider
 import com.garfiec.librechat.core.network.client.TokenManager
 import com.garfiec.librechat.core.network.sse.SseClient
+import com.garfiec.librechat.feature.agents.di.agentsModule
+import com.garfiec.librechat.feature.auth.di.authModule
+import com.garfiec.librechat.feature.chat.di.chatModule
+import com.garfiec.librechat.feature.conversations.di.conversationsModule
+import com.garfiec.librechat.feature.files.di.filesModule
+import com.garfiec.librechat.feature.settings.di.settingsModule
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.darwin.Darwin
 import io.ktor.client.plugins.HttpTimeout

@@ -1,6 +1,5 @@
 package com.garfiec.librechat.feature.settings.screen
 
-import com.garfiec.librechat.feature.settings.util.copyToClipboard
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,17 +40,19 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.garfiec.librechat.core.ui.components.EmptyState
-import librechat_mobile.feature.settings.generated.resources.Res
-import librechat_mobile.feature.settings.generated.resources.*
 import com.garfiec.librechat.feature.settings.model.SharedLinkDisplayData
+import com.garfiec.librechat.feature.settings.resources.*
+import com.garfiec.librechat.feature.settings.resources.Res
+import com.garfiec.librechat.feature.settings.util.copyToClipboard
+import org.jetbrains.compose.resources.stringResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -69,6 +70,7 @@ fun SharedLinksScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val listState = rememberLazyListState()
     var deleteTarget by remember { mutableStateOf<SharedLinkDisplayData?>(null) }
+    val currentOnLoadMore by rememberUpdatedState(onLoadMore)
 
     // Pagination: load more when near the end
     LaunchedEffect(listState) {
@@ -79,7 +81,7 @@ fun SharedLinksScreen(
             lastVisible >= totalItems - 3
         }.collect { shouldLoad ->
             if (shouldLoad && hasNextPage && !isLoading) {
-                onLoadMore()
+                currentOnLoadMore()
             }
         }
     }

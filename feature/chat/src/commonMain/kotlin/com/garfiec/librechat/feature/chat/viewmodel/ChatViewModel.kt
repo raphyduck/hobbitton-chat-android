@@ -1,8 +1,8 @@
 package com.garfiec.librechat.feature.chat.viewmodel
 
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.common.EndpointConstants
 import com.garfiec.librechat.core.common.ToolConstants
 import com.garfiec.librechat.core.common.network.ConnectivityObserver
@@ -29,9 +29,9 @@ import com.garfiec.librechat.core.model.Preset
 import com.garfiec.librechat.core.model.StreamEvent
 import com.garfiec.librechat.core.model.request.EphemeralAgent
 import com.garfiec.librechat.core.ui.components.ModelParameters
+import com.garfiec.librechat.feature.chat.components.AttachedFile
 import com.garfiec.librechat.feature.chat.model.PresetDisplayData
 import com.garfiec.librechat.feature.chat.model.PromptMentionDisplayData
-import com.garfiec.librechat.feature.chat.components.AttachedFile
 import com.garfiec.librechat.feature.chat.util.NEW_CHAT_DRAFT_KEY
 import com.garfiec.librechat.feature.chat.util.buildActiveMessagePath
 import com.garfiec.librechat.feature.chat.viewmodel.delegate.ConversationActionsDelegate
@@ -54,13 +54,11 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import co.touchlab.kermit.Logger
 import kotlin.time.Clock
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
 class ChatViewModel(
-    savedStateHandle: SavedStateHandle,
     initialConversationId: String? = null,
     private val agentRepository: AgentRepository,
     private val chatRepository: ChatRepository,
@@ -509,7 +507,13 @@ class ChatViewModel(
         val isAgent = _uiState.value.selectedEndpoint == EndpointConstants.AGENTS
         val webSearchEnabled = _uiState.value.modelParameters.webSearch
         val ephemeralAgent = buildEphemeralAgent()
-        Logger.d { "sendMessage: webSearch=$webSearchEnabled, endpoint=${_uiState.value.selectedEndpoint}, model=${_uiState.value.selectedModel}, files=${fileRefs.size}, ephemeralAgent=$ephemeralAgent" }
+        Logger.d {
+            "sendMessage: webSearch=$webSearchEnabled, " +
+                "endpoint=${_uiState.value.selectedEndpoint}, " +
+                "model=${_uiState.value.selectedModel}, " +
+                "files=${fileRefs.size}, " +
+                "ephemeralAgent=$ephemeralAgent"
+        }
 
         // Build addedConvo if comparison mode is enabled
         val addedConvo = if (_uiState.value.comparisonState.isEnabled) {

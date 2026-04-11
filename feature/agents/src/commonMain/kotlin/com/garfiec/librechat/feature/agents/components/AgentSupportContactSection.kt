@@ -9,16 +9,16 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
-import librechat_mobile.feature.agents.generated.resources.Res
-import librechat_mobile.feature.agents.generated.resources.*
 import com.garfiec.librechat.feature.agents.components.model.SupportContactState
+import com.garfiec.librechat.feature.agents.resources.*
+import com.garfiec.librechat.feature.agents.resources.Res
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun AgentSupportContactSection(
     supportContact: SupportContactState,
-    onSupportContactChanged: (SupportContactState) -> Unit,
+    onSupportContactChange: (SupportContactState) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
@@ -37,7 +37,7 @@ fun AgentSupportContactSection(
         OutlinedTextField(
             value = supportContact.name,
             onValueChange = {
-                onSupportContactChanged(supportContact.copy(name = it))
+                onSupportContactChange(supportContact.copy(name = it))
             },
             placeholder = { Text(stringResource(Res.string.support_contact_placeholder)) },
             singleLine = true,
@@ -55,7 +55,7 @@ fun AgentSupportContactSection(
         OutlinedTextField(
             value = supportContact.email,
             onValueChange = {
-                onSupportContactChanged(supportContact.copy(email = it))
+                onSupportContactChange(supportContact.copy(email = it))
             },
             placeholder = { Text("support@example.com") },
             singleLine = true,

@@ -18,12 +18,19 @@ import kotlinx.serialization.modules.subclass
 @Serializable sealed interface AuthRoute : NavKey
 
 @Serializable data object ServerUrl : AuthRoute
+
 @Serializable data object Login : AuthRoute
+
 @Serializable data object Register : AuthRoute
+
 @Serializable data object ForgotPassword : AuthRoute
+
 @Serializable data class TwoFactor(val tempToken: String) : AuthRoute
+
 @Serializable data class VerifyEmail(val email: String) : AuthRoute
+
 @Serializable data object Terms : AuthRoute
+
 @Serializable data class ResetPassword(val userId: String, val token: String) : AuthRoute
 
 fun EntryProviderScope<NavKey>.authEntries(
@@ -33,7 +40,7 @@ fun EntryProviderScope<NavKey>.authEntries(
 ) {
     entry<ServerUrl> {
         ServerUrlScreen(
-            onServerValidated = { onNavigate(Login) },
+            onServerValidate = { onNavigate(Login) },
         )
     }
     entry<Login> {
@@ -48,7 +55,7 @@ fun EntryProviderScope<NavKey>.authEntries(
     }
     entry<Register> {
         RegisterScreen(
-            onRegistered = onBack,
+            onRegister = onBack,
             onNavigateToLogin = onBack,
         )
     }
@@ -59,21 +66,21 @@ fun EntryProviderScope<NavKey>.authEntries(
     }
     entry<TwoFactor> { key ->
         TwoFactorScreen(
-            onVerified = onAuthComplete,
+            onVerify = onAuthComplete,
             onBack = onBack,
             tempToken = key.tempToken,
         )
     }
     entry<VerifyEmail> { key ->
         VerifyEmailScreen(
-            onVerified = onBack,
+            onVerify = onBack,
             onBack = onBack,
             email = key.email,
         )
     }
     entry<Terms> {
         TermsScreen(
-            onAccepted = onAuthComplete,
+            onAccept = onAuthComplete,
             onBack = onBack,
         )
     }

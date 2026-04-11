@@ -34,7 +34,7 @@ import org.jetbrains.compose.ui.tooling.preview.Preview
 fun DynamicTagsInput(
     label: String,
     tags: List<String>,
-    onTagsChanged: (List<String>) -> Unit,
+    onTagsChange: (List<String>) -> Unit,
     modifier: Modifier = Modifier,
     description: String? = null,
     maxTags: Int = 4,
@@ -67,7 +67,7 @@ fun DynamicTagsInput(
                         label = { Text(tag) },
                         trailingIcon = {
                             IconButton(
-                                onClick = { onTagsChanged(tags - tag) },
+                                onClick = { onTagsChange(tags - tag) },
                                 modifier = Modifier.size(18.dp),
                             ) {
                                 Icon(
@@ -95,7 +95,7 @@ fun DynamicTagsInput(
                     onDone = {
                         val trimmed = inputText.trim()
                         if (trimmed.isNotEmpty() && tags.size < maxTags) {
-                            onTagsChanged(tags + trimmed)
+                            onTagsChange(tags + trimmed)
                             inputText = ""
                         }
                     },
@@ -112,7 +112,7 @@ private fun DynamicTagsInputPreview() {
     DynamicTagsInput(
         label = "Stop Sequences",
         tags = tags,
-        onTagsChanged = { tags = it },
+        onTagsChange = { tags = it },
         description = "Up to 4 sequences where the model will stop generating.",
         maxTags = 4,
     )

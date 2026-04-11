@@ -1,5 +1,6 @@
 package com.garfiec.librechat.feature.chat.viewmodel.delegate
 
+import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.common.EndpointConstants
 import com.garfiec.librechat.core.common.ToolConstants
 import com.garfiec.librechat.core.common.result.Result
@@ -16,7 +17,6 @@ import com.garfiec.librechat.feature.chat.viewmodel.ChatScreenState
 import com.garfiec.librechat.feature.chat.viewmodel.ChatStateHandle
 import com.garfiec.librechat.feature.chat.viewmodel.ComparisonState
 import kotlinx.coroutines.launch
-import co.touchlab.kermit.Logger
 
 class ModelSelectionDelegate(
     private val stateHandle: ChatStateHandle,

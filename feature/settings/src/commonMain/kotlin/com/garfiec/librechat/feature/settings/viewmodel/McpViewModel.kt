@@ -3,6 +3,7 @@ package com.garfiec.librechat.feature.settings.viewmodel
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.common.result.Result
 import com.garfiec.librechat.core.data.repository.McpRepository
 import com.garfiec.librechat.core.model.mcp.McpApiKeyConfig
@@ -15,7 +16,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import co.touchlab.kermit.Logger
 
 @Immutable
 data class McpUiState(

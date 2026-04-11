@@ -45,6 +45,8 @@ style:
     excludePackageStatements: true
     excludeImportStatements: true
     excludeRawStrings: true
+    excludes:
+      - "**/build/generated/compose/resourceGenerator/**"
   ForbiddenComment:
     active: false
   UnusedPrivateMember:
@@ -52,11 +54,14 @@ style:
     allowedNames: "(_|ignored|expected|serialVersionUID)"
     ignoreAnnotated:
       - "Preview"
+  UnusedPrivateProperty:
+    active: true
+    allowedNames: "(_|ignored|expected|serialVersionUID)"
   WildcardImport:
     active: true
     excludeImports:
       - "kotlinx.coroutines.flow.*"
-      - "*.generated.resources.*"
+      - "*.resources.*"
   LoopWithTooManyJumpStatements:
     maxJumpCount: 3
   ThrowsCount:
@@ -70,6 +75,19 @@ naming:
   FunctionNaming:
     ignoreAnnotated:
       - "Composable"
+    # Detekt's `excludes:` REPLACES (does not merge with) the default value, so
+    # the default test-source exemptions must be repeated here alongside the
+    # generated-resources exclude.
+    excludes:
+      - "**/test/**"
+      - "**/androidTest/**"
+      - "**/commonTest/**"
+      - "**/jvmTest/**"
+      - "**/androidUnitTest/**"
+      - "**/androidInstrumentedTest/**"
+      - "**/jsTest/**"
+      - "**/iosTest/**"
+      - "**/build/generated/compose/resourceGenerator/**"
   TopLevelPropertyNaming:
     constantPattern: "[A-Z][A-Za-z0-9_]*"
   MatchingDeclarationName:
@@ -131,3 +149,6 @@ formatting:
     active: false
   FunctionSignature:
     active: false
+  ImportOrdering:
+    excludes:
+      - "**/build/generated/compose/resourceGenerator/**"
