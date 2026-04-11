@@ -3,8 +3,6 @@ package com.garfiec.librechat.feature.settings.util
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
-import org.koin.core.component.KoinComponent
-import org.koin.core.component.inject
 import org.koin.mp.KoinPlatformTools
 
 actual fun copyToClipboard(text: String, label: String) {

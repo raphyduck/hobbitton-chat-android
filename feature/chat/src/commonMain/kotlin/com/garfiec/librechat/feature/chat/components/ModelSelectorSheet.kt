@@ -50,9 +50,9 @@ import com.garfiec.librechat.core.model.Agent
 import com.garfiec.librechat.core.model.EndpointConfig
 import com.garfiec.librechat.core.ui.components.endpointIconPainter
 import com.garfiec.librechat.core.ui.components.isMonochromeEndpointIcon
+import com.garfiec.librechat.feature.chat.resources.*
+import com.garfiec.librechat.feature.chat.resources.Res
 import com.garfiec.librechat.feature.chat.util.FuzzyMatch
-import librechat_mobile.feature.chat.generated.resources.Res
-import librechat_mobile.feature.chat.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 
 private val IconSize = 20.dp
@@ -92,7 +92,7 @@ fun ModelSelectorSheet(
     agents: List<Agent>,
     selectedEndpoint: String?,
     selectedModel: String?,
-    onModelSelected: (endpoint: String, model: String) -> Unit,
+    onModelSelect: (endpoint: String, model: String) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     serverUrl: String = "",
@@ -193,7 +193,7 @@ fun ModelSelectorSheet(
                                 agent = agent,
                                 isSelected = selectedEndpoint == EndpointConstants.AGENTS && agent.id == selectedModel,
                                 serverUrl = serverUrl,
-                                onClick = { onModelSelected(EndpointConstants.AGENTS, agent.id) },
+                                onClick = { onModelSelect(EndpointConstants.AGENTS, agent.id) },
                             )
                         }
                     }
@@ -232,7 +232,7 @@ fun ModelSelectorSheet(
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .clickable { onModelSelected(endpointName, model) }
+                                        .clickable { onModelSelect(endpointName, model) }
                                         .padding(vertical = 12.dp, horizontal = 8.dp)
                                         .animateItem(),
                                     verticalAlignment = Alignment.CenterVertically,
@@ -289,7 +289,10 @@ private fun EndpointGroupHeader(
         )
         Icon(
             imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-            contentDescription = stringResource(if (isExpanded) Res.string.cd_collapse_section else Res.string.cd_expand_section, displayLabel),
+            contentDescription = stringResource(
+                if (isExpanded) Res.string.cd_collapse_section else Res.string.cd_expand_section,
+                displayLabel,
+            ),
             tint = MaterialTheme.colorScheme.onSurface,
         )
     }

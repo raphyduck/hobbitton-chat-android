@@ -5,15 +5,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import com.garfiec.librechat.core.model.ConversationTag
 import com.garfiec.librechat.core.ui.components.FilterChipBottomSheet
-import librechat_mobile.feature.conversations.generated.resources.Res
-import librechat_mobile.feature.conversations.generated.resources.*
+import com.garfiec.librechat.feature.conversations.resources.*
+import com.garfiec.librechat.feature.conversations.resources.Res
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun TagPicker(
     availableTags: List<ConversationTag>,
     currentTags: List<String>,
-    onTagsChanged: (List<String>) -> Unit,
+    onTagsChange: (List<String>) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -27,7 +27,7 @@ fun TagPicker(
     FilterChipBottomSheet(
         items = allTagStrings,
         selectedItems = currentTags.toSet(),
-        onSelectionChanged = { onTagsChanged(it.toList()) },
+        onSelectionChange = { onTagsChange(it.toList()) },
         label = { it },
         onDismiss = onDismiss,
         title = stringResource(Res.string.tags),

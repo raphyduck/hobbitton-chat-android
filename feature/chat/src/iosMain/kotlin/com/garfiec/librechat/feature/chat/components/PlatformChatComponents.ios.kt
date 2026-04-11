@@ -28,9 +28,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -66,17 +66,17 @@ import com.garfiec.librechat.core.model.content.MessageContentPart
 import com.garfiec.librechat.core.ui.components.AvatarImage
 import com.garfiec.librechat.core.ui.components.endpointIconPainter
 import com.garfiec.librechat.core.ui.components.isMonochromeEndpointIcon
+import com.garfiec.librechat.feature.chat.resources.Res
+import com.garfiec.librechat.feature.chat.resources.cd_close
+import com.garfiec.librechat.feature.chat.resources.cd_expand_table
+import com.garfiec.librechat.feature.chat.resources.dialog_table
+import com.garfiec.librechat.feature.chat.resources.sender_assistant
+import com.garfiec.librechat.feature.chat.resources.sender_you
 import com.mikepenz.markdown.m3.Markdown
 import com.mikepenz.markdown.m3.markdownColor
 import com.mikepenz.markdown.m3.markdownTypography
-import org.intellij.markdown.flavours.gfm.GFMFlavourDescriptor
 import kotlinx.coroutines.delay
-import librechat_mobile.feature.chat.generated.resources.Res
-import librechat_mobile.feature.chat.generated.resources.cd_expand_table
-import librechat_mobile.feature.chat.generated.resources.cd_close
-import librechat_mobile.feature.chat.generated.resources.dialog_table
-import librechat_mobile.feature.chat.generated.resources.sender_assistant
-import librechat_mobile.feature.chat.generated.resources.sender_you
+import org.intellij.markdown.flavours.gfm.GFMFlavourDescriptor
 import org.jetbrains.compose.resources.stringResource
 
 private const val ACTION_AUTO_HIDE_MILLIS = 30_000L
@@ -105,7 +105,7 @@ actual fun MessageBubble(
     currentFeedback: String?,
     isEditing: Boolean,
     editText: String,
-    onEditTextChanged: ((String) -> Unit)?,
+    onEditTextChange: ((String) -> Unit)?,
     onEditSaveAndSubmit: (() -> Unit)?,
     onEditSaveOnly: (() -> Unit)?,
     onEditCancel: (() -> Unit)?,
@@ -118,7 +118,7 @@ actual fun MessageBubble(
     isSearchMatch: Boolean,
     isCurrentSearchMatch: Boolean,
     searchFocusedOccurrence: Int,
-    onFocusedOccurrencePositioned: ((LayoutCoordinates) -> Unit)?,
+    onFocusedOccurrencePosition: ((LayoutCoordinates) -> Unit)?,
     useKatex: Boolean,
     chatLayoutStyle: String,
     showAvatars: Boolean,
@@ -131,18 +131,18 @@ actual fun MessageBubble(
         TwoSidedBubble(
             message, modifier, siblingIndex, siblingCount, onSiblingNavigation, onEdit, onRegenerate, onCopy, onFeedback,
             onContinue, onReadAloud, onFork, baseUrl, fontSizeMultiplier, useKatex, isReading, currentFeedback,
-            isEditing, editText, onEditTextChanged, onEditSaveAndSubmit, onEditSaveOnly, onEditCancel,
+            isEditing, editText, onEditTextChange, onEditSaveAndSubmit, onEditSaveOnly, onEditCancel,
             userAvatarUrl, userName, resolvedEndpoint, tintEndpointIcon, showImageDescriptions, showActionsInitially,
-            searchQuery, isSearchMatch, isCurrentSearchMatch, searchFocusedOccurrence, onFocusedOccurrencePositioned,
+            searchQuery, isSearchMatch, isCurrentSearchMatch, searchFocusedOccurrence, onFocusedOccurrencePosition,
             showAvatars, showBubbles,
         )
     } else {
         ThreadBubble(
             message, modifier, siblingIndex, siblingCount, onSiblingNavigation, onEdit, onRegenerate, onCopy, onFeedback,
             onContinue, onReadAloud, onFork, baseUrl, fontSizeMultiplier, useKatex, isReading, currentFeedback,
-            isEditing, editText, onEditTextChanged, onEditSaveAndSubmit, onEditSaveOnly, onEditCancel,
+            isEditing, editText, onEditTextChange, onEditSaveAndSubmit, onEditSaveOnly, onEditCancel,
             userAvatarUrl, userName, resolvedEndpoint, tintEndpointIcon, showImageDescriptions, showActionsInitially,
-            searchQuery, isSearchMatch, isCurrentSearchMatch, searchFocusedOccurrence, onFocusedOccurrencePositioned,
+            searchQuery, isSearchMatch, isCurrentSearchMatch, searchFocusedOccurrence, onFocusedOccurrencePosition,
             showAvatars, showBubbles,
         )
     }
@@ -156,12 +156,12 @@ private fun ThreadBubble(
     onCopy: (() -> Unit)?, onFeedback: ((String?) -> Unit)?, onContinue: (() -> Unit)?,
     onReadAloud: (() -> Unit)?, onFork: (() -> Unit)?, baseUrl: String, fontSizeMultiplier: Float,
     useKatex: Boolean, isReading: Boolean, currentFeedback: String?, isEditing: Boolean, editText: String,
-    onEditTextChanged: ((String) -> Unit)?, onEditSaveAndSubmit: (() -> Unit)?, onEditSaveOnly: (() -> Unit)?,
+    onEditTextChange: ((String) -> Unit)?, onEditSaveAndSubmit: (() -> Unit)?, onEditSaveOnly: (() -> Unit)?,
     onEditCancel: (() -> Unit)?, userAvatarUrl: String?, userName: String?,
     resolvedEndpoint: String?, tintEndpointIcon: Boolean,
     showImageDescriptions: Boolean, showActionsInitially: Boolean, searchQuery: String?,
     isSearchMatch: Boolean, isCurrentSearchMatch: Boolean, searchFocusedOccurrence: Int,
-    onFocusedOccurrencePositioned: ((LayoutCoordinates) -> Unit)?, showAvatars: Boolean, showBubbles: Boolean,
+    onFocusedOccurrencePosition: ((LayoutCoordinates) -> Unit)?, showAvatars: Boolean, showBubbles: Boolean,
 ) {
     val isUser = message.isCreatedByUser
     var showActions by remember(message.messageId) { mutableStateOf(showActionsInitially) }
@@ -192,8 +192,11 @@ private fun ThreadBubble(
             if (showAvatars) {
                 AvatarImage(
                     imageUrl = if (isUser) userAvatarUrl else message.iconURL,
-                    fallbackText = if (isUser) userName ?: stringResource(Res.string.sender_you)
-                    else message.sender ?: stringResource(Res.string.sender_assistant),
+                    fallbackText = if (isUser) {
+                        userName ?: stringResource(Res.string.sender_you)
+                    } else {
+                        message.sender ?: stringResource(Res.string.sender_assistant)
+                    },
                     fallbackIconPainter = if (!isUser && message.iconURL == null) endpointIconPainter(resolvedEndpoint) else null,
                     showPersonIcon = isUser && userAvatarUrl == null,
                     tintIcon = if (!isUser && message.iconURL == null) tintEndpointIcon else false,
@@ -202,8 +205,11 @@ private fun ThreadBubble(
                 Spacer(Modifier.width(8.dp))
             }
             Text(
-                text = if (isUser) userName ?: stringResource(Res.string.sender_you)
-                else message.sender ?: stringResource(Res.string.sender_assistant),
+                text = if (isUser) {
+                    userName ?: stringResource(Res.string.sender_you)
+                } else {
+                    message.sender ?: stringResource(Res.string.sender_assistant)
+                },
                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
                 color = MaterialTheme.colorScheme.onSurface,
             )
@@ -215,7 +221,9 @@ private fun ThreadBubble(
         val contentPad = if (showAvatars) 36.dp else 0.dp
         val bubbleBg = if (showBubbles) {
             if (isUser) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceVariant
-        } else null
+        } else {
+            null
+        }
 
         Column(
             modifier = Modifier.padding(start = contentPad).then(
@@ -223,9 +231,9 @@ private fun ThreadBubble(
             ),
         ) {
             MessageContentAndActions(
-                message, isUser, isEditing, editText, onEditTextChanged, onEditSaveAndSubmit, onEditSaveOnly, onEditCancel,
+                message, isUser, isEditing, editText, onEditTextChange, onEditSaveAndSubmit, onEditSaveOnly, onEditCancel,
                 baseUrl, fontSizeMultiplier, useKatex, showImageDescriptions, searchQuery, isSearchMatch,
-                isCurrentSearchMatch, searchFocusedOccurrence, onFocusedOccurrencePositioned, showActions,
+                isCurrentSearchMatch, searchFocusedOccurrence, onFocusedOccurrencePosition, showActions,
                 siblingIndex, siblingCount, onSiblingNavigation, onEdit, onRegenerate, onCopy, onFeedback,
                 onContinue, onReadAloud, onFork, isReading, currentFeedback, { showFeedbackDialog = true },
             )
@@ -241,12 +249,12 @@ private fun TwoSidedBubble(
     onCopy: (() -> Unit)?, onFeedback: ((String?) -> Unit)?, onContinue: (() -> Unit)?,
     onReadAloud: (() -> Unit)?, onFork: (() -> Unit)?, baseUrl: String, fontSizeMultiplier: Float,
     useKatex: Boolean, isReading: Boolean, currentFeedback: String?, isEditing: Boolean, editText: String,
-    onEditTextChanged: ((String) -> Unit)?, onEditSaveAndSubmit: (() -> Unit)?, onEditSaveOnly: (() -> Unit)?,
+    onEditTextChange: ((String) -> Unit)?, onEditSaveAndSubmit: (() -> Unit)?, onEditSaveOnly: (() -> Unit)?,
     onEditCancel: (() -> Unit)?, userAvatarUrl: String?, userName: String?,
     resolvedEndpoint: String?, tintEndpointIcon: Boolean,
     showImageDescriptions: Boolean, showActionsInitially: Boolean, searchQuery: String?,
     isSearchMatch: Boolean, isCurrentSearchMatch: Boolean, searchFocusedOccurrence: Int,
-    onFocusedOccurrencePositioned: ((LayoutCoordinates) -> Unit)?, showAvatars: Boolean, showBubbles: Boolean,
+    onFocusedOccurrencePosition: ((LayoutCoordinates) -> Unit)?, showAvatars: Boolean, showBubbles: Boolean,
 ) {
     val isUser = message.isCreatedByUser
     var showActions by remember(message.messageId) { mutableStateOf(showActionsInitially) }
@@ -268,9 +276,14 @@ private fun TwoSidedBubble(
     }
     val bubbleBg = if (showBubbles) {
         if (isUser) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceVariant
-    } else null
-    val effectiveBg = if (searchBg != null && bubbleBg != null) searchBg.compositeOver(bubbleBg)
-    else searchBg ?: bubbleBg
+    } else {
+        null
+    }
+    val effectiveBg = if (searchBg != null && bubbleBg != null) {
+        searchBg.compositeOver(bubbleBg)
+    } else {
+        searchBg ?: bubbleBg
+    }
 
     Row(
         modifier = modifier.fillMaxWidth()
@@ -292,28 +305,36 @@ private fun TwoSidedBubble(
 
         Column(
             modifier = Modifier.weight(1f).then(
-                if (effectiveBg != null) Modifier.background(effectiveBg, BubbleShape).padding(12.dp)
-                else Modifier.padding(horizontal = 4.dp, vertical = 8.dp),
+                if (effectiveBg != null) {
+                    Modifier.background(effectiveBg, BubbleShape).padding(12.dp)
+                } else {
+                    Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
+                },
             ),
             horizontalAlignment = if (isUser) Alignment.End else Alignment.Start,
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = if (isUser) userName ?: stringResource(Res.string.sender_you)
-                    else message.sender ?: stringResource(Res.string.sender_assistant),
+                    text = if (isUser) {
+                        userName ?: stringResource(Res.string.sender_you)
+                    } else {
+                        message.sender ?: stringResource(Res.string.sender_assistant)
+                    },
                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
                     color = if (showBubbles) {
                         if (isUser) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
-                    } else MaterialTheme.colorScheme.onSurface,
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    },
                 )
                 message.createdAt?.let { ts -> Spacer(Modifier.width(6.dp)); MessageTimestamp(isoTimestamp = ts) }
             }
             Spacer(Modifier.height(4.dp))
 
             MessageContentAndActions(
-                message, isUser, isEditing, editText, onEditTextChanged, onEditSaveAndSubmit, onEditSaveOnly, onEditCancel,
+                message, isUser, isEditing, editText, onEditTextChange, onEditSaveAndSubmit, onEditSaveOnly, onEditCancel,
                 baseUrl, fontSizeMultiplier, useKatex, showImageDescriptions, searchQuery, isSearchMatch,
-                isCurrentSearchMatch, searchFocusedOccurrence, onFocusedOccurrencePositioned, showActions,
+                isCurrentSearchMatch, searchFocusedOccurrence, onFocusedOccurrencePosition, showActions,
                 siblingIndex, siblingCount, onSiblingNavigation, onEdit, onRegenerate, onCopy, onFeedback,
                 onContinue, onReadAloud, onFork, isReading, currentFeedback, { showFeedbackDialog = true },
             )
@@ -331,7 +352,6 @@ private fun TwoSidedBubble(
     }
 }
 
-
 // ─── ContentPartRenderer ─────────────────────────────────────────────
 
 @Composable
@@ -339,7 +359,7 @@ actual fun ContentPartRenderer(
     part: MessageContentPart, modifier: Modifier, baseUrl: String, fontSizeMultiplier: Float,
     useKatex: Boolean, attachments: List<Attachment>,
     showImageDescriptions: Boolean, searchQuery: String?, searchFocusedOccurrence: Int,
-    onFocusedOccurrencePositioned: ((LayoutCoordinates) -> Unit)?,
+    onFocusedOccurrencePosition: ((LayoutCoordinates) -> Unit)?,
 ) {
     ContentPartDispatcher(
         part = part,
@@ -351,7 +371,7 @@ actual fun ContentPartRenderer(
         showImageDescriptions = showImageDescriptions,
         searchQuery = searchQuery,
         searchFocusedOccurrence = searchFocusedOccurrence,
-        onFocusedOccurrencePositioned = onFocusedOccurrencePositioned,
+        onFocusedOccurrencePosition = onFocusedOccurrencePosition,
     )
 }
 
@@ -361,7 +381,7 @@ actual fun ContentPartRenderer(
 actual fun MarkdownContent(
     text: String, modifier: Modifier, fontSizeMultiplier: Float, useKatex: Boolean,
     searchQuery: String?, searchFocusedOccurrence: Int,
-    onFocusedOccurrencePositioned: ((LayoutCoordinates) -> Unit)?,
+    onFocusedOccurrencePosition: ((LayoutCoordinates) -> Unit)?,
 ) {
     val segments = remember(text) { parseMarkdownSegments(text) }
 
@@ -656,4 +676,3 @@ private fun TextStyle.scale(m: Float): TextStyle {
         lineHeight = if (lineHeight.isSpecified) (lineHeight.value * m).sp else lineHeight,
     )
 }
-

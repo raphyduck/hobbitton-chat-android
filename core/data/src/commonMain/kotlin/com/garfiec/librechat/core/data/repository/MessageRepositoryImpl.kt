@@ -1,5 +1,6 @@
 package com.garfiec.librechat.core.data.repository
 
+import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.common.result.Result
 import com.garfiec.librechat.core.common.result.safeApiCall
 import com.garfiec.librechat.core.data.db.dao.MessageDao
@@ -12,7 +13,6 @@ import com.garfiec.librechat.core.network.api.MessagesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import co.touchlab.kermit.Logger
 
 class MessageRepositoryImpl(
     private val messagesApi: MessagesApi,

@@ -30,9 +30,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -40,8 +40,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.garfiec.librechat.core.ui.components.ErrorBanner
 import com.garfiec.librechat.core.ui.components.LoadingIndicator
 import com.garfiec.librechat.core.ui.components.OtpVerificationDialog
-import librechat_mobile.feature.settings.generated.resources.Res
-import librechat_mobile.feature.settings.generated.resources.*
+import com.garfiec.librechat.feature.settings.resources.*
+import com.garfiec.librechat.feature.settings.resources.Res
 import com.garfiec.librechat.feature.settings.screen.sections.AboutInfo
 import com.garfiec.librechat.feature.settings.screen.sections.AccountInfo
 import com.garfiec.librechat.feature.settings.screen.sections.BackupCodesDialog
@@ -54,6 +54,7 @@ import com.garfiec.librechat.feature.settings.screen.sections.ThemeSelector
 import com.garfiec.librechat.feature.settings.screen.sections.TwoFactorCodeDialog
 import com.garfiec.librechat.feature.settings.screen.sections.TwoFactorSetupDialog
 import com.garfiec.librechat.feature.settings.viewmodel.SettingsViewModel
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -61,13 +62,14 @@ import org.koin.compose.viewmodel.koinViewModel
 fun SettingsScreen(
     onLogout: () -> Unit,
     onNavigateBack: () -> Unit,
-    onNavigateToArchived: () -> Unit,
+    onNavigateToArchive: () -> Unit,
     modifier: Modifier = Modifier,
     onNavigateToSharedLinks: () -> Unit = {},
     onNavigateToApiKeys: () -> Unit = {},
     viewModel: SettingsViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val currentOnLogout by rememberUpdatedState(onLogout)
 
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
@@ -102,7 +104,7 @@ fun SettingsScreen(
 
     LaunchedEffect(uiState.isLoggedOut, uiState.isAccountDeleted) {
         if (uiState.isLoggedOut || uiState.isAccountDeleted) {
-            onLogout()
+            currentOnLogout()
         }
     }
 
@@ -269,7 +271,7 @@ fun SettingsScreen(
                         ttsSource = uiState.ttsSource,
                         onAutoSendAfterSttChange = viewModel::setAutoSendAfterStt,
                         onAutoReadChange = viewModel::setAutoReadEnabled,
-                        onVoiceSelected = viewModel::selectVoice,
+                        onVoiceSelect = viewModel::selectVoice,
                         onTestVoice = viewModel::testVoice,
                     )
                 }
@@ -290,7 +292,7 @@ fun SettingsScreen(
                         memoriesEnabled = uiState.memoriesEnabled,
                         showMemoryDialog = uiState.showMemoryDialog,
                         editingMemory = uiState.editingMemory,
-                        onToggleEnabled = viewModel::toggleMemoriesEnabled,
+                        onToggleEnable = viewModel::toggleMemoriesEnabled,
                         onAddMemory = viewModel::showAddMemoryDialog,
                         onEditMemory = viewModel::showEditMemoryDialog,
                         onDeleteMemory = viewModel::deleteMemory,
@@ -308,7 +310,7 @@ fun SettingsScreen(
                         archivedCount = uiState.archivedCount,
                         isClearing = uiState.isClearing,
                         onClearAllChats = viewModel::clearAllChats,
-                        onViewArchived = onNavigateToArchived,
+                        onViewArchive = onNavigateToArchive,
                         onExportAllData = viewModel::exportAllData,
                     )
                 }
@@ -634,7 +636,7 @@ fun SettingsScreen(
     if (uiState.showLanguageDialog) {
         LanguageSelectorDialog(
             selectedLanguage = uiState.selectedLanguage,
-            onLanguageSelected = viewModel::setLanguage,
+            onLanguageSelect = viewModel::setLanguage,
             onDismiss = viewModel::dismissLanguageDialog,
         )
     }
@@ -643,7 +645,7 @@ fun SettingsScreen(
     if (uiState.showForkSettingsDialog) {
         ForkSettingsDialog(
             selectedMode = ForkMode.fromApiValue(uiState.forkMode),
-            onModeSelected = { mode ->
+            onModeSelect = { mode ->
                 viewModel.setForkMode(mode.apiValue)
             },
             onDismiss = viewModel::dismissForkSettingsDialog,

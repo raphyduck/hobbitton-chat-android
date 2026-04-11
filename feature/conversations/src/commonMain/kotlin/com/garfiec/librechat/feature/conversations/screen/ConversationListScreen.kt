@@ -31,19 +31,17 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.garfiec.librechat.core.model.Conversation
 import com.garfiec.librechat.core.ui.components.EmptyState
 import com.garfiec.librechat.core.ui.components.ErrorBanner
 import com.garfiec.librechat.core.ui.components.LoadingIndicator
-import librechat_mobile.feature.conversations.generated.resources.Res
-import librechat_mobile.feature.conversations.generated.resources.*
 import com.garfiec.librechat.feature.conversations.components.ConversationActions
 import com.garfiec.librechat.feature.conversations.components.ConversationItem
 import com.garfiec.librechat.feature.conversations.components.ConversationSearchBar
@@ -55,8 +53,11 @@ import com.garfiec.librechat.feature.conversations.export.ExportFormatPicker
 import com.garfiec.librechat.feature.conversations.platform.FileSaver
 import com.garfiec.librechat.feature.conversations.platform.copyToClipboard
 import com.garfiec.librechat.feature.conversations.platform.showToast
+import com.garfiec.librechat.feature.conversations.resources.*
+import com.garfiec.librechat.feature.conversations.resources.Res
 import com.garfiec.librechat.feature.conversations.viewmodel.ConversationListEvent
 import com.garfiec.librechat.feature.conversations.viewmodel.ConversationListViewModel
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -65,7 +66,7 @@ fun ConversationListScreen(
     onConversationClick: (String) -> Unit,
     modifier: Modifier = Modifier,
     onNewChatClick: () -> Unit = {},
-    onNavigateToArchived: () -> Unit = {},
+    onNavigateToArchive: () -> Unit = {},
     viewModel: ConversationListViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -81,6 +82,7 @@ fun ConversationListScreen(
     var pendingExportContent by remember { mutableStateOf<String?>(null) }
 
     val snackbarHostState = remember { SnackbarHostState() }
+    val currentOnConversationClick by rememberUpdatedState(onConversationClick)
 
     val copyOfPrefix = stringResource(Res.string.copy_of)
     val newChatLabel = stringResource(Res.string.new_chat)
@@ -114,7 +116,7 @@ fun ConversationListScreen(
                     snackbarHostState.showSnackbar(linkCopiedMsg)
                 }
                 is ConversationListEvent.NavigateToConversation -> {
-                    onConversationClick(event.conversationId)
+                    currentOnConversationClick(event.conversationId)
                 }
                 is ConversationListEvent.ShowError -> {
                     snackbarHostState.showSnackbar(event.message)
@@ -188,10 +190,10 @@ fun ConversationListScreen(
                 ) {
                     ConversationSearchBar(
                         query = uiState.searchQuery,
-                        onQueryChanged = viewModel::onSearchQueryChanged,
+                        onQueryChange = viewModel::onSearchQueryChanged,
                         modifier = Modifier.weight(1f),
                     )
-                    IconButton(onClick = onNavigateToArchived) {
+                    IconButton(onClick = onNavigateToArchive) {
                         Icon(
                             imageVector = Icons.Default.Archive,
                             contentDescription = stringResource(Res.string.cd_archived_conversations),
@@ -382,7 +384,7 @@ fun ConversationListScreen(
         TagPicker(
             availableTags = uiState.tags,
             currentTags = tagPickerConversation?.tags ?: emptyList(),
-            onTagsChanged = { newTags ->
+            onTagsChange = { newTags ->
                 tagPickerConversation?.conversationId?.let { id ->
                     viewModel.updateConversationTags(id, newTags)
                 }
@@ -397,7 +399,7 @@ fun ConversationListScreen(
     // Export format picker
     if (showExportFormatPicker && exportConversation != null) {
         ExportFormatPicker(
-            onFormatSelected = { format ->
+            onFormatSelect = { format ->
                 exportConversation?.conversationId?.let { id ->
                     viewModel.exportConversation(id, exportConversation?.title, format)
                 }

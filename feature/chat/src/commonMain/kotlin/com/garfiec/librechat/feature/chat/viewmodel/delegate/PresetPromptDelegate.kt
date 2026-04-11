@@ -1,5 +1,6 @@
 package com.garfiec.librechat.feature.chat.viewmodel.delegate
 
+import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.common.result.Result
 import com.garfiec.librechat.core.data.repository.PresetRepository
 import com.garfiec.librechat.core.data.repository.PromptRepository
@@ -10,7 +11,6 @@ import com.garfiec.librechat.feature.chat.model.PresetDisplayData
 import com.garfiec.librechat.feature.chat.model.PromptMentionDisplayData
 import com.garfiec.librechat.feature.chat.viewmodel.ChatStateHandle
 import kotlinx.coroutines.launch
-import co.touchlab.kermit.Logger
 
 class PresetPromptDelegate(
     private val stateHandle: ChatStateHandle,

@@ -45,7 +45,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -57,11 +56,12 @@ import com.garfiec.librechat.core.model.ActionAuth
 import com.garfiec.librechat.core.model.ActionMetadata
 import com.garfiec.librechat.core.model.request.FunctionTool
 import com.garfiec.librechat.feature.agents.AgentActionDisplayData
-import librechat_mobile.feature.agents.generated.resources.Res
-import librechat_mobile.feature.agents.generated.resources.*
+import com.garfiec.librechat.feature.agents.resources.*
+import com.garfiec.librechat.feature.agents.resources.Res
 import com.garfiec.librechat.feature.agents.util.OpenApiSpecParser
 import com.garfiec.librechat.feature.agents.util.ParsedFunctionInfo
 import kotlinx.coroutines.delay
+import org.jetbrains.compose.resources.stringResource
 
 private const val VALIDATION_DEBOUNCE_MS = 800L
 private const val HIDDEN_PLACEHOLDER = "<HIDDEN>"

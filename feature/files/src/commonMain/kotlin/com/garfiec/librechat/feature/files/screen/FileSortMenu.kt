@@ -16,18 +16,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import org.jetbrains.compose.resources.stringResource
-import librechat_mobile.feature.files.generated.resources.Res
-import librechat_mobile.feature.files.generated.resources.*
+import com.garfiec.librechat.feature.files.resources.*
+import com.garfiec.librechat.feature.files.resources.Res
 import com.garfiec.librechat.feature.files.viewmodel.FileSortField
 import com.garfiec.librechat.feature.files.viewmodel.FileSortOrder
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun FileSortMenu(
     expanded: Boolean,
     currentSortField: FileSortField,
     currentSortOrder: FileSortOrder,
-    onSortSelected: (FileSortField, FileSortOrder) -> Unit,
+    onSortSelect: (FileSortField, FileSortOrder) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -64,9 +64,9 @@ fun FileSortMenu(
                         } else {
                             FileSortOrder.ASCENDING
                         }
-                        onSortSelected(field, newOrder)
+                        onSortSelect(field, newOrder)
                     } else {
-                        onSortSelected(field, FileSortOrder.DESCENDING)
+                        onSortSelect(field, FileSortOrder.DESCENDING)
                     }
                     onDismiss()
                 },

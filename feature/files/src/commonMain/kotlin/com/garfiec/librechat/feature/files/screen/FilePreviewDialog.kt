@@ -53,13 +53,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import coil3.compose.AsyncImage
 import co.touchlab.kermit.Logger
+import coil3.compose.AsyncImage
 import com.garfiec.librechat.feature.files.FilePreviewDisplayData
 import com.garfiec.librechat.feature.files.platform.PdfPreview
+import com.garfiec.librechat.feature.files.resources.*
+import com.garfiec.librechat.feature.files.resources.Res
 import org.jetbrains.compose.resources.stringResource
-import librechat_mobile.feature.files.generated.resources.Res
-import librechat_mobile.feature.files.generated.resources.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

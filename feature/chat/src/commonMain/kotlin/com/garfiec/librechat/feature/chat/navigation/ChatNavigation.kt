@@ -14,8 +14,11 @@ import kotlinx.serialization.modules.subclass
 @Serializable sealed interface ChatRoute : NavKey
 
 @Serializable data object NewChat : ChatRoute
+
 @Serializable data class Chat(val conversationId: String? = null) : ChatRoute
+
 @Serializable data object PromptsLibrary : ChatRoute
+
 @Serializable data class PromptEditor(val groupId: String? = null) : ChatRoute
 
 fun EntryProviderScope<NavKey>.chatEntries(
@@ -26,7 +29,7 @@ fun EntryProviderScope<NavKey>.chatEntries(
 ) {
     entry<NewChat> {
         NewChatScreen(
-            onConversationStarted = { conversationId ->
+            onConversationStart = { conversationId ->
                 onNavigateToChat(conversationId)
             },
             onOpenDrawer = onOpenDrawer,

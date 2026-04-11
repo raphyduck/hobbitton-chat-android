@@ -23,7 +23,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.layout.LayoutCoordinates
-import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.garfiec.librechat.core.common.ChatLayoutConstants
@@ -31,9 +30,10 @@ import com.garfiec.librechat.core.model.Message
 import com.garfiec.librechat.core.ui.components.AvatarImage
 import com.garfiec.librechat.core.ui.components.endpointIconPainter
 import com.garfiec.librechat.core.ui.components.isMonochromeEndpointIcon
-import librechat_mobile.feature.chat.generated.resources.Res
-import librechat_mobile.feature.chat.generated.resources.*
+import com.garfiec.librechat.feature.chat.resources.*
+import com.garfiec.librechat.feature.chat.resources.Res
 import kotlinx.coroutines.delay
+import org.jetbrains.compose.resources.stringResource
 
 private const val ACTION_AUTO_HIDE_MILLIS = 30_000L
 
@@ -57,7 +57,7 @@ actual fun MessageBubble(
     currentFeedback: String?,
     isEditing: Boolean,
     editText: String,
-    onEditTextChanged: ((String) -> Unit)?,
+    onEditTextChange: ((String) -> Unit)?,
     onEditSaveAndSubmit: (() -> Unit)?,
     onEditSaveOnly: (() -> Unit)?,
     onEditCancel: (() -> Unit)?,
@@ -70,7 +70,7 @@ actual fun MessageBubble(
     isSearchMatch: Boolean,
     isCurrentSearchMatch: Boolean,
     searchFocusedOccurrence: Int,
-    onFocusedOccurrencePositioned: ((LayoutCoordinates) -> Unit)?,
+    onFocusedOccurrencePosition: ((LayoutCoordinates) -> Unit)?,
     useKatex: Boolean,
     chatLayoutStyle: String,
     showAvatars: Boolean,
@@ -97,7 +97,7 @@ actual fun MessageBubble(
             currentFeedback = currentFeedback,
             isEditing = isEditing,
             editText = editText,
-            onEditTextChanged = onEditTextChanged,
+            onEditTextChange = onEditTextChange,
             onEditSaveAndSubmit = onEditSaveAndSubmit,
             onEditSaveOnly = onEditSaveOnly,
             onEditCancel = onEditCancel,
@@ -110,7 +110,7 @@ actual fun MessageBubble(
             isSearchMatch = isSearchMatch,
             isCurrentSearchMatch = isCurrentSearchMatch,
             searchFocusedOccurrence = searchFocusedOccurrence,
-            onFocusedOccurrencePositioned = onFocusedOccurrencePositioned,
+            onFocusedOccurrencePosition = onFocusedOccurrencePosition,
             showAvatars = showAvatars,
             showBubbles = showBubbles,
         )
@@ -135,7 +135,7 @@ actual fun MessageBubble(
             currentFeedback = currentFeedback,
             isEditing = isEditing,
             editText = editText,
-            onEditTextChanged = onEditTextChanged,
+            onEditTextChange = onEditTextChange,
             onEditSaveAndSubmit = onEditSaveAndSubmit,
             onEditSaveOnly = onEditSaveOnly,
             onEditCancel = onEditCancel,
@@ -148,7 +148,7 @@ actual fun MessageBubble(
             isSearchMatch = isSearchMatch,
             isCurrentSearchMatch = isCurrentSearchMatch,
             searchFocusedOccurrence = searchFocusedOccurrence,
-            onFocusedOccurrencePositioned = onFocusedOccurrencePositioned,
+            onFocusedOccurrencePosition = onFocusedOccurrencePosition,
             showAvatars = showAvatars,
             showBubbles = showBubbles,
         )
@@ -179,7 +179,7 @@ private fun ThreadMessageBubble(
     currentFeedback: String?,
     isEditing: Boolean,
     editText: String,
-    onEditTextChanged: ((String) -> Unit)?,
+    onEditTextChange: ((String) -> Unit)?,
     onEditSaveAndSubmit: (() -> Unit)?,
     onEditSaveOnly: (() -> Unit)?,
     onEditCancel: (() -> Unit)?,
@@ -192,7 +192,7 @@ private fun ThreadMessageBubble(
     isSearchMatch: Boolean,
     isCurrentSearchMatch: Boolean,
     searchFocusedOccurrence: Int,
-    onFocusedOccurrencePositioned: ((LayoutCoordinates) -> Unit)?,
+    onFocusedOccurrencePosition: ((LayoutCoordinates) -> Unit)?,
     showAvatars: Boolean,
     showBubbles: Boolean,
 ) {
@@ -326,7 +326,7 @@ private fun ThreadMessageBubble(
                 isUser = isUser,
                 isEditing = isEditing,
                 editText = editText,
-                onEditTextChanged = onEditTextChanged,
+                onEditTextChange = onEditTextChange,
                 onEditSaveAndSubmit = onEditSaveAndSubmit,
                 onEditSaveOnly = onEditSaveOnly,
                 onEditCancel = onEditCancel,
@@ -338,7 +338,7 @@ private fun ThreadMessageBubble(
                 isSearchMatch = isSearchMatch,
                 isCurrentSearchMatch = isCurrentSearchMatch,
                 searchFocusedOccurrence = searchFocusedOccurrence,
-                onFocusedOccurrencePositioned = onFocusedOccurrencePositioned,
+                onFocusedOccurrencePosition = onFocusedOccurrencePosition,
                 showActions = showActions,
                 siblingIndex = siblingIndex,
                 siblingCount = siblingCount,
@@ -382,7 +382,7 @@ private fun TwoSidedMessageBubble(
     currentFeedback: String?,
     isEditing: Boolean,
     editText: String,
-    onEditTextChanged: ((String) -> Unit)?,
+    onEditTextChange: ((String) -> Unit)?,
     onEditSaveAndSubmit: (() -> Unit)?,
     onEditSaveOnly: (() -> Unit)?,
     onEditCancel: (() -> Unit)?,
@@ -395,7 +395,7 @@ private fun TwoSidedMessageBubble(
     isSearchMatch: Boolean,
     isCurrentSearchMatch: Boolean,
     searchFocusedOccurrence: Int,
-    onFocusedOccurrencePositioned: ((LayoutCoordinates) -> Unit)?,
+    onFocusedOccurrencePosition: ((LayoutCoordinates) -> Unit)?,
     showAvatars: Boolean,
     showBubbles: Boolean,
 ) {
@@ -538,7 +538,7 @@ private fun TwoSidedMessageBubble(
                 isUser = isUser,
                 isEditing = isEditing,
                 editText = editText,
-                onEditTextChanged = onEditTextChanged,
+                onEditTextChange = onEditTextChange,
                 onEditSaveAndSubmit = onEditSaveAndSubmit,
                 onEditSaveOnly = onEditSaveOnly,
                 onEditCancel = onEditCancel,
@@ -550,7 +550,7 @@ private fun TwoSidedMessageBubble(
                 isSearchMatch = isSearchMatch,
                 isCurrentSearchMatch = isCurrentSearchMatch,
                 searchFocusedOccurrence = searchFocusedOccurrence,
-                onFocusedOccurrencePositioned = onFocusedOccurrencePositioned,
+                onFocusedOccurrencePosition = onFocusedOccurrencePosition,
                 showActions = showActions,
                 siblingIndex = siblingIndex,
                 siblingCount = siblingCount,
@@ -580,4 +580,3 @@ private fun TwoSidedMessageBubble(
         }
     }
 }
-

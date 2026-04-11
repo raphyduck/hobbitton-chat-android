@@ -3,6 +3,7 @@ package com.garfiec.librechat.feature.chat.viewmodel.delegate
 import android.content.Context
 import android.graphics.BitmapFactory
 import android.net.Uri
+import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.common.EndpointConstants
 import com.garfiec.librechat.core.common.result.Result
 import com.garfiec.librechat.core.data.repository.FileRepository
@@ -21,7 +22,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import co.touchlab.kermit.Logger
 import java.util.UUID
 
 class FileAttachmentDelegate(
@@ -143,7 +143,7 @@ class FileAttachmentDelegate(
                             imageWidth = options.outWidth
                             imageHeight = options.outHeight
                         }
-                        Logger.d { "uploadFile: image dimensions ${imageWidth}x${imageHeight} for $uploadFilename" }
+                        Logger.d { "uploadFile: image dimensions ${imageWidth}x$imageHeight for $uploadFilename" }
                     } catch (e: Exception) {
                         Logger.w(e) { "uploadFile: could not read image dimensions for $uploadFilename" }
                     }

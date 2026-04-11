@@ -15,17 +15,17 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import librechat_mobile.feature.agents.generated.resources.Res
-import librechat_mobile.feature.agents.generated.resources.*
 import com.garfiec.librechat.feature.agents.components.model.AgentCapabilities
+import com.garfiec.librechat.feature.agents.resources.*
+import com.garfiec.librechat.feature.agents.resources.Res
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun AgentCapabilitiesSection(
     capabilities: AgentCapabilities,
-    onCapabilitiesChanged: (AgentCapabilities) -> Unit,
+    onCapabilitiesChange: (AgentCapabilities) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
@@ -40,7 +40,7 @@ fun AgentCapabilitiesSection(
             description = stringResource(Res.string.artifacts_description),
             checked = capabilities.artifacts,
             onCheckedChange = {
-                onCapabilitiesChanged(capabilities.copy(artifacts = it))
+                onCapabilitiesChange(capabilities.copy(artifacts = it))
             },
         )
 
@@ -49,7 +49,7 @@ fun AgentCapabilitiesSection(
             description = stringResource(Res.string.end_after_tools_description),
             checked = capabilities.endAfterTools,
             onCheckedChange = {
-                onCapabilitiesChanged(capabilities.copy(endAfterTools = it))
+                onCapabilitiesChange(capabilities.copy(endAfterTools = it))
             },
         )
 
@@ -58,7 +58,7 @@ fun AgentCapabilitiesSection(
             description = stringResource(Res.string.hide_sequential_description),
             checked = capabilities.hideSequentialOutputs,
             onCheckedChange = {
-                onCapabilitiesChanged(capabilities.copy(hideSequentialOutputs = it))
+                onCapabilitiesChange(capabilities.copy(hideSequentialOutputs = it))
             },
         )
 
@@ -80,7 +80,7 @@ fun AgentCapabilitiesSection(
                 onValueChange = { newValue ->
                     val filtered = newValue.filter { it.isDigit() }
                     val intVal = filtered.toIntOrNull() ?: 0
-                    onCapabilitiesChanged(
+                    onCapabilitiesChange(
                         capabilities.copy(recursionLimit = intVal.coerceIn(1, 100)),
                     )
                 },

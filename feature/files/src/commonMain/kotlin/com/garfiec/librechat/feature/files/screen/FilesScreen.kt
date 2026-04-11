@@ -79,12 +79,12 @@ import com.garfiec.librechat.core.ui.components.ErrorBanner
 import com.garfiec.librechat.feature.files.FileDisplayData
 import com.garfiec.librechat.feature.files.components.UploadProgressCard
 import com.garfiec.librechat.feature.files.platform.rememberFilePickerLauncher
+import com.garfiec.librechat.feature.files.resources.*
+import com.garfiec.librechat.feature.files.resources.Res
 import com.garfiec.librechat.feature.files.viewmodel.FileTypeFilter
 import com.garfiec.librechat.feature.files.viewmodel.FileViewMode
 import com.garfiec.librechat.feature.files.viewmodel.FilesViewModel
 import org.jetbrains.compose.resources.stringResource
-import librechat_mobile.feature.files.generated.resources.Res
-import librechat_mobile.feature.files.generated.resources.*
 import org.koin.compose.viewmodel.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -101,7 +101,7 @@ fun FilesScreen(
     var showSortMenu by remember { mutableStateOf(false) }
 
     val filePickerLauncher = rememberFilePickerLauncher(
-        onFilePicked = { fileRef -> viewModel.uploadFile(fileRef) },
+        onFilePick = { fileRef -> viewModel.uploadFile(fileRef) },
     )
 
     LaunchedEffect(uiState.error) {
@@ -205,7 +205,7 @@ fun FilesScreen(
                                 expanded = showSortMenu,
                                 currentSortField = uiState.sortField,
                                 currentSortOrder = uiState.sortOrder,
-                                onSortSelected = { field, order ->
+                                onSortSelect = { field, order ->
                                     viewModel.setSort(field, order)
                                 },
                                 onDismiss = { showSortMenu = false },

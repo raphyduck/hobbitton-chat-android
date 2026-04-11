@@ -42,15 +42,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil3.compose.AsyncImage
 import com.garfiec.librechat.feature.agents.AgentToolDisplayData
-import librechat_mobile.feature.agents.generated.resources.Res
-import librechat_mobile.feature.agents.generated.resources.*
+import com.garfiec.librechat.feature.agents.resources.*
+import com.garfiec.librechat.feature.agents.resources.Res
+import org.jetbrains.compose.resources.stringResource
 
 /**
  * Full-screen dialog for selecting agent tools, matching the web app's ToolSelectDialog.
@@ -60,8 +60,8 @@ import librechat_mobile.feature.agents.generated.resources.*
 fun ToolSelectDialog(
     tools: List<AgentToolDisplayData>,
     selectedToolIds: List<String>,
-    onToolAdded: (String) -> Unit,
-    onToolRemoved: (String) -> Unit,
+    onToolAdd: (String) -> Unit,
+    onToolRemove: (String) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -175,9 +175,9 @@ fun ToolSelectDialog(
                                 isInstalled = isInstalled,
                                 onToggle = {
                                     if (isInstalled) {
-                                        onToolRemoved(toolId)
+                                        onToolRemove(toolId)
                                     } else {
-                                        onToolAdded(toolId)
+                                        onToolAdd(toolId)
                                     }
                                 },
                             )

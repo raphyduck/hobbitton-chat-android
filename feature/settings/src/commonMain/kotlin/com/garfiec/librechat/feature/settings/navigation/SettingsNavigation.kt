@@ -22,25 +22,32 @@ import org.koin.compose.viewmodel.koinViewModel
 @Serializable sealed interface SettingsRoute : NavKey
 
 @Serializable data object SettingsTabbed : SettingsRoute
+
 @Serializable data object SettingsGeneral : SettingsRoute
+
 @Serializable data object SettingsChat : SettingsRoute
+
 @Serializable data object SettingsAccount : SettingsRoute
+
 @Serializable data object SettingsData : SettingsRoute
+
 @Serializable data object SharedLinks : SettingsRoute
+
 @Serializable data object PresetManager : SettingsRoute
+
 @Serializable data object ApiKeys : SettingsRoute
 
 fun EntryProviderScope<NavKey>.settingsEntries(
     onNavigate: (NavKey) -> Unit,
     onBack: () -> Unit,
     onLogout: () -> Unit,
-    onNavigateToArchived: () -> Unit = {},
+    onNavigateToArchive: () -> Unit = {},
 ) {
     entry<SettingsTabbed> {
         TabbedSettingsScreen(
             onNavigateBack = onBack,
             onLogout = onLogout,
-            onNavigateToArchived = onNavigateToArchived,
+            onNavigateToArchive = onNavigateToArchive,
             onNavigateToSharedLinks = { onNavigate(SharedLinks) },
             onNavigateToPresets = { onNavigate(PresetManager) },
             onNavigateToApiKeys = { onNavigate(ApiKeys) },
@@ -67,7 +74,7 @@ fun EntryProviderScope<NavKey>.settingsEntries(
     entry<SettingsData> {
         DataSettingsScreen(
             onNavigateBack = onBack,
-            onNavigateToArchived = onNavigateToArchived,
+            onNavigateToArchive = onNavigateToArchive,
             onNavigateToSharedLinks = { onNavigate(SharedLinks) },
         )
     }

@@ -1,5 +1,6 @@
 package com.garfiec.librechat.core.data.datastore
 
+import co.touchlab.kermit.Logger
 import io.ktor.client.HttpClient
 import kotlinx.cinterop.BetaInteropApi
 import kotlinx.cinterop.ExperimentalForeignApi
@@ -9,9 +10,7 @@ import kotlinx.cinterop.ptr
 import kotlinx.cinterop.value
 import platform.CoreFoundation.CFDictionaryAddValue
 import platform.CoreFoundation.CFDictionaryCreateMutable
-import platform.CoreFoundation.CFMutableDictionaryRef
 import platform.CoreFoundation.CFRelease
-import platform.CoreFoundation.CFTypeRef
 import platform.CoreFoundation.CFTypeRefVar
 import platform.CoreFoundation.kCFBooleanTrue
 import platform.Foundation.CFBridgingRelease
@@ -35,7 +34,6 @@ import platform.Security.kSecMatchLimit
 import platform.Security.kSecMatchLimitOne
 import platform.Security.kSecReturnData
 import platform.Security.kSecValueData
-import co.touchlab.kermit.Logger
 
 @OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
 class IosTokenDataStore(

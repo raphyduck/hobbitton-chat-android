@@ -13,8 +13,11 @@ import kotlinx.serialization.modules.subclass
 @Serializable sealed interface AgentsRoute : NavKey
 
 @Serializable data object AgentMarketplace : AgentsRoute
+
 @Serializable data class AgentDetail(val agentId: String) : AgentsRoute
+
 @Serializable data object AgentEditorCreate : AgentsRoute
+
 @Serializable data class AgentEditorEdit(val agentId: String) : AgentsRoute
 
 fun EntryProviderScope<NavKey>.agentsEntries(
@@ -34,21 +37,21 @@ fun EntryProviderScope<NavKey>.agentsEntries(
             onBack = onBack,
             onStartChat = onStartChat,
             onEdit = { agentId -> onNavigate(AgentEditorEdit(agentId = agentId)) },
-            onDuplicated = { agentId -> onNavigate(AgentDetail(agentId = agentId)) },
+            onDuplicate = { agentId -> onNavigate(AgentDetail(agentId = agentId)) },
             agentId = key.agentId,
         )
     }
     entry<AgentEditorCreate> {
         AgentEditorScreen(
             onBack = onBack,
-            onSaved = { agentId -> onNavigate(AgentDetail(agentId = agentId)) },
+            onSave = { agentId -> onNavigate(AgentDetail(agentId = agentId)) },
             agentId = null,
         )
     }
     entry<AgentEditorEdit> { key ->
         AgentEditorScreen(
             onBack = onBack,
-            onSaved = { agentId -> onNavigate(AgentDetail(agentId = agentId)) },
+            onSave = { agentId -> onNavigate(AgentDetail(agentId = agentId)) },
             agentId = key.agentId,
         )
     }

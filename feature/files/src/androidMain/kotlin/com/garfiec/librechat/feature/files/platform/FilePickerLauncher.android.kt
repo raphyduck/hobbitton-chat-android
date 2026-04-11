@@ -7,13 +7,13 @@ import androidx.compose.runtime.remember
 
 @Composable
 actual fun rememberFilePickerLauncher(
-    onFilePicked: (fileRef: Any) -> Unit,
+    onFilePick: (fileRef: Any) -> Unit,
 ): FilePickerLauncher {
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent(),
     ) { uri ->
         if (uri != null) {
-            onFilePicked(uri)
+            onFilePick(uri)
         }
     }
     return remember(launcher) {

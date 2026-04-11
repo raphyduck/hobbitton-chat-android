@@ -104,7 +104,7 @@ data class ModelParameters(
 @Composable
 fun ModelParameterSheet(
     parameters: ModelParameters,
-    onParametersChanged: (ModelParameters) -> Unit,
+    onParametersChange: (ModelParameters) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     selectedEndpoint: String = "",
@@ -119,7 +119,7 @@ fun ModelParameterSheet(
     ) {
         ModelParameterContent(
             parameters = parameters,
-            onParametersChanged = onParametersChanged,
+            onParametersChange = onParametersChange,
             selectedEndpoint = selectedEndpoint,
             dynamicParameterDefinitions = dynamicParameterDefinitions,
             onSaveAsPreset = onSaveAsPreset,
@@ -133,7 +133,7 @@ fun ModelParameterSheet(
 @Composable
 fun ModelParameterContent(
     parameters: ModelParameters,
-    onParametersChanged: (ModelParameters) -> Unit,
+    onParametersChange: (ModelParameters) -> Unit,
     modifier: Modifier = Modifier,
     selectedEndpoint: String = "",
     dynamicParameterDefinitions: List<ParameterDefinition>? = null,
@@ -170,7 +170,7 @@ fun ModelParameterContent(
                         label = definition.label,
                         value = currentValue,
                         onValueChange = { newValue ->
-                            onParametersChanged(parameters.withUpdatedKey(definition.key, newValue))
+                            onParametersChange(parameters.withUpdatedKey(definition.key, newValue))
                         },
                         placeholder = definition.default?.ifEmpty { "Default" } ?: "Default",
                         description = definition.description,
@@ -182,7 +182,7 @@ fun ModelParameterContent(
                         label = definition.label,
                         value = currentValue,
                         onValueChange = { newValue ->
-                            onParametersChanged(parameters.withUpdatedKey(definition.key, newValue))
+                            onParametersChange(parameters.withUpdatedKey(definition.key, newValue))
                         },
                         placeholder = definition.default?.ifEmpty { null },
                         description = definition.description,
@@ -199,7 +199,7 @@ fun ModelParameterContent(
                         label = definition.label,
                         value = floatValue.coerceIn(min, max),
                         onValueChange = { newValue ->
-                            onParametersChanged(parameters.withUpdatedKey(definition.key, newValue.toString()))
+                            onParametersChange(parameters.withUpdatedKey(definition.key, newValue.toString()))
                         },
                         min = min,
                         max = max,
@@ -216,7 +216,7 @@ fun ModelParameterContent(
                         label = definition.label,
                         checked = checked,
                         onCheckedChange = { newChecked ->
-                            onParametersChanged(parameters.withUpdatedKey(definition.key, newChecked.toString()))
+                            onParametersChange(parameters.withUpdatedKey(definition.key, newChecked.toString()))
                         },
                         description = definition.description,
                     )
@@ -234,7 +234,7 @@ fun ModelParameterContent(
                         selectedValue = displayValue,
                         options = definition.options ?: emptyList(),
                         onValueChange = { newValue ->
-                            onParametersChanged(parameters.withUpdatedKey(definition.key, newValue))
+                            onParametersChange(parameters.withUpdatedKey(definition.key, newValue))
                         },
                         description = definition.description,
                     )
@@ -250,8 +250,8 @@ fun ModelParameterContent(
                     DynamicTagsInput(
                         label = definition.label,
                         tags = tags,
-                        onTagsChanged = { newTags ->
-                            onParametersChanged(
+                        onTagsChange = { newTags ->
+                            onParametersChange(
                                 parameters.withUpdatedKey(definition.key, newTags.joinToString("\n")),
                             )
                         },
@@ -265,7 +265,7 @@ fun ModelParameterContent(
         // Reset to defaults
         OutlinedButton(
             onClick = {
-                onParametersChanged(ModelParameters.DEFAULT)
+                onParametersChange(ModelParameters.DEFAULT)
             },
             modifier = Modifier.fillMaxWidth(),
         ) {

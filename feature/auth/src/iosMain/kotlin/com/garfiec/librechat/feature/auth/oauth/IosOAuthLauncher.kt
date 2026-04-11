@@ -56,6 +56,7 @@ class IosOAuthLauncher : OAuthLauncher {
     override fun extractTokenFromCookies(serverUrl: String): String? {
         val url = NSURL.URLWithString(serverUrl) ?: return null
         val cookies = NSHTTPCookieStorage.sharedHTTPCookieStorage.cookiesForURL(url) ?: return null
+
         @Suppress("UNCHECKED_CAST")
         val cookieList = cookies as List<NSHTTPCookie>
         return cookieList.firstOrNull { it.name == "refreshToken" }?.value
@@ -64,6 +65,7 @@ class IosOAuthLauncher : OAuthLauncher {
     override fun clearOAuthCookie(serverUrl: String) {
         val url = NSURL.URLWithString(serverUrl) ?: return
         val cookies = NSHTTPCookieStorage.sharedHTTPCookieStorage.cookiesForURL(url) ?: return
+
         @Suppress("UNCHECKED_CAST")
         val cookieList = cookies as List<NSHTTPCookie>
         cookieList.filter { it.name == "refreshToken" }.forEach {

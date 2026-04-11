@@ -35,11 +35,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
 import com.garfiec.librechat.core.model.Conversation
-import librechat_mobile.feature.conversations.generated.resources.Res
-import librechat_mobile.feature.conversations.generated.resources.*
+import com.garfiec.librechat.feature.conversations.resources.*
+import com.garfiec.librechat.feature.conversations.resources.Res
+import org.jetbrains.compose.resources.stringResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

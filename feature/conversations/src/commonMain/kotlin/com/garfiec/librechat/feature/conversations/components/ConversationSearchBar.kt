@@ -16,20 +16,20 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
-import librechat_mobile.feature.conversations.generated.resources.Res
-import librechat_mobile.feature.conversations.generated.resources.*
+import com.garfiec.librechat.feature.conversations.resources.*
+import com.garfiec.librechat.feature.conversations.resources.Res
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun ConversationSearchBar(
     query: String,
-    onQueryChanged: (String) -> Unit,
+    onQueryChange: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     TextField(
         value = query,
-        onValueChange = onQueryChanged,
+        onValueChange = onQueryChange,
         leadingIcon = {
             Icon(
                 imageVector = Icons.Default.Search,
@@ -39,7 +39,7 @@ fun ConversationSearchBar(
         },
         trailingIcon = {
             if (query.isNotEmpty()) {
-                IconButton(onClick = { onQueryChanged("") }) {
+                IconButton(onClick = { onQueryChange("") }) {
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = stringResource(Res.string.cd_clear_search),

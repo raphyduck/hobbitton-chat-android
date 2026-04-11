@@ -1,7 +1,6 @@
 package com.garfiec.librechat.feature.agents.viewmodel
 
 import androidx.compose.runtime.Immutable
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.garfiec.librechat.core.common.result.Result
@@ -33,7 +32,6 @@ sealed interface AgentDetailEvent {
 }
 
 class AgentDetailViewModel(
-    savedStateHandle: SavedStateHandle,
     private val agentRepository: AgentRepository,
     private val serverDataStore: ServerDataStore,
     initialAgentId: String? = null,

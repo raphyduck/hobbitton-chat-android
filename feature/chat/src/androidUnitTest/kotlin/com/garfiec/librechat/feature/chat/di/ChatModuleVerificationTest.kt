@@ -2,7 +2,6 @@ package com.garfiec.librechat.feature.chat.di
 
 import android.app.Application
 import android.content.Context
-import androidx.lifecycle.SavedStateHandle
 import com.garfiec.librechat.core.common.network.ConnectivityObserver
 import com.garfiec.librechat.core.data.datastore.ServerDataStore
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
@@ -29,7 +28,6 @@ class ChatModuleVerificationTest {
             extraTypes = listOf(
                 Context::class,
                 Application::class,
-                SavedStateHandle::class,
                 AgentRepository::class,
                 ChatRepository::class,
                 MessageRepository::class,

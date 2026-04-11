@@ -29,17 +29,14 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation3.runtime.NavKey
+import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
-import androidx.navigation3.ui.NavDisplay
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
-import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
+import androidx.navigation3.ui.NavDisplay
 import com.garfiec.librechat.core.ui.components.BannerDisplay
 import com.garfiec.librechat.feature.agents.navigation.AgentMarketplace
 import com.garfiec.librechat.feature.agents.navigation.agentsEntries
-import com.garfiec.librechat.feature.auth.navigation.AuthRoute
-import com.garfiec.librechat.feature.auth.navigation.ServerUrl
 import com.garfiec.librechat.feature.auth.navigation.authEntries
 import com.garfiec.librechat.feature.chat.navigation.Chat
 import com.garfiec.librechat.feature.chat.navigation.NewChat
@@ -49,15 +46,15 @@ import com.garfiec.librechat.feature.conversations.navigation.conversationsEntri
 import com.garfiec.librechat.feature.files.navigation.Files
 import com.garfiec.librechat.feature.files.navigation.filesEntries
 import com.garfiec.librechat.feature.settings.navigation.SettingsTabbed
-import com.garfiec.librechat.feature.settings.navigation.memoriesEntry
 import com.garfiec.librechat.feature.settings.navigation.mcpServersEntry
+import com.garfiec.librechat.feature.settings.navigation.memoriesEntry
 import com.garfiec.librechat.feature.settings.navigation.settingsEntries
+import com.garfiec.librechat.shared.resources.Res
+import com.garfiec.librechat.shared.resources.dismiss
+import com.garfiec.librechat.shared.resources.dont_warn_again
+import com.garfiec.librechat.shared.resources.version_mismatch_message
+import com.garfiec.librechat.shared.resources.version_mismatch_title
 import kotlinx.coroutines.launch
-import librechat_mobile.shared.generated.resources.Res
-import librechat_mobile.shared.generated.resources.dismiss
-import librechat_mobile.shared.generated.resources.dont_warn_again
-import librechat_mobile.shared.generated.resources.version_mismatch_message
-import librechat_mobile.shared.generated.resources.version_mismatch_title
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -106,7 +103,6 @@ fun LibreChatNavHost(
     } else {
         PhoneLayout(
             navigator = navigator,
-            navHostViewModel = navHostViewModel,
             modifier = modifier,
         )
     }
@@ -161,8 +157,8 @@ private fun VersionMismatchDialog(
 @Composable
 fun PhoneLayout(
     navigator: Navigator,
-    navHostViewModel: NavHostViewModel,
     modifier: Modifier = Modifier,
+    navHostViewModel: NavHostViewModel = koinViewModel(),
 ) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -182,7 +178,6 @@ fun PhoneLayout(
         drawerContent = {
             ModalDrawerSheet {
                 SidebarScaffold(
-                    viewModel = navHostViewModel,
                     onNewChat = {
                         scope.launch { drawerState.close() }
                         if (navigator.currentRoute !is NewChat) {
@@ -197,7 +192,7 @@ fun PhoneLayout(
                         scope.launch { drawerState.close() }
                         navigator.navigate(SettingsTabbed)
                     },
-                    onSettingsCategorySelected = { category ->
+                    onSettingsCategorySelect = { category ->
                         navigator.navigate(category.toRoute())
                     },
                     onAgentsClick = {
@@ -223,7 +218,6 @@ fun PhoneLayout(
             }
             MainNavDisplay(
                 navigator = navigator,
-                navHostViewModel = navHostViewModel,
                 onMenuClick = { scope.launch { drawerState.open() } },
                 modifier = Modifier.fillMaxSize(),
             )
@@ -235,9 +229,9 @@ fun PhoneLayout(
 @Composable
 fun MainNavDisplay(
     navigator: Navigator,
-    navHostViewModel: NavHostViewModel,
-    onMenuClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
+    onMenuClick: (() -> Unit)? = null,
+    navHostViewModel: NavHostViewModel = koinViewModel(),
 ) {
     NavDisplay(
         backStack = navigator.backStack,
@@ -290,7 +284,7 @@ fun MainNavDisplay(
             )
             conversationsEntries(
                 onConversationClick = { navigator.navigateToChat(it) },
-                onNavigateToArchived = { navigator.navigate(ArchivedConversations) },
+                onNavigateToArchive = { navigator.navigate(ArchivedConversations) },
                 onBack = { navigator.goBack() },
             )
             agentsEntries(
@@ -310,7 +304,7 @@ fun MainNavDisplay(
                     navHostViewModel.logout()
                     navigator.navigateToAuth()
                 },
-                onNavigateToArchived = { navigator.navigate(ArchivedConversations) },
+                onNavigateToArchive = { navigator.navigate(ArchivedConversations) },
             )
             memoriesEntry(
                 onBack = { navigator.goBack() },

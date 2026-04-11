@@ -2,7 +2,6 @@ package com.garfiec.librechat.feature.settings.di
 
 import android.app.Application
 import android.content.Context
-import androidx.lifecycle.SavedStateHandle
 import com.garfiec.librechat.core.data.datastore.ServerDataStore
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.datastore.ThemeDataStore
@@ -30,7 +29,6 @@ class SettingsModuleVerificationTest {
             extraTypes = listOf(
                 Context::class,
                 Application::class,
-                SavedStateHandle::class,
                 UserRepository::class,
                 AuthRepository::class,
                 ConversationRepository::class,

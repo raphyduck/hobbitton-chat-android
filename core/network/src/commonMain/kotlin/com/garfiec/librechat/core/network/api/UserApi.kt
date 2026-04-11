@@ -1,14 +1,14 @@
 package com.garfiec.librechat.core.network.api
 
-import com.garfiec.librechat.core.network.api.dto.UpdateFavoritesRequest
-import com.garfiec.librechat.core.network.api.dto.UpdatePluginsRequest
-import com.garfiec.librechat.core.network.api.dto.UserUpdateRequest
 import com.garfiec.librechat.core.model.User
 import com.garfiec.librechat.core.model.UserFavorite
 import com.garfiec.librechat.core.model.request.OtpVerificationRequest
 import com.garfiec.librechat.core.model.request.ResendVerificationRequest
 import com.garfiec.librechat.core.model.request.VerifyEmailRequest
 import com.garfiec.librechat.core.model.response.TermsResponse
+import com.garfiec.librechat.core.network.api.dto.UpdateFavoritesRequest
+import com.garfiec.librechat.core.network.api.dto.UpdatePluginsRequest
+import com.garfiec.librechat.core.network.api.dto.UserUpdateRequest
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.delete

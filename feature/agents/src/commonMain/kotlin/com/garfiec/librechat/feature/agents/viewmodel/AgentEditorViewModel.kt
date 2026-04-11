@@ -1,10 +1,9 @@
 package com.garfiec.librechat.feature.agents.viewmodel
 
 import androidx.compose.runtime.Immutable
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.garfiec.librechat.feature.agents.util.ContentReader
+import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.common.result.Result
 import com.garfiec.librechat.core.data.repository.AgentRepository
 import com.garfiec.librechat.core.data.repository.ConfigRepository
@@ -31,6 +30,7 @@ import com.garfiec.librechat.feature.agents.components.model.AgentSharingState
 import com.garfiec.librechat.feature.agents.components.model.AgentVersion
 import com.garfiec.librechat.feature.agents.components.model.AgentVisibility
 import com.garfiec.librechat.feature.agents.components.model.SupportContactState
+import com.garfiec.librechat.feature.agents.util.ContentReader
 import com.garfiec.librechat.feature.agents.util.OpenApiSpecParser
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -46,7 +46,6 @@ import kotlinx.serialization.json.floatOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import co.touchlab.kermit.Logger
 
 @Immutable
 data class AgentEditorUiState(
@@ -103,7 +102,6 @@ sealed interface AgentEditorEvent {
 }
 
 class AgentEditorViewModel(
-    savedStateHandle: SavedStateHandle,
     private val agentRepository: AgentRepository,
     private val configRepository: ConfigRepository,
     private val mcpRepository: McpRepository,
@@ -171,7 +169,8 @@ class AgentEditorViewModel(
                     val agent = result.data
                     Logger.d {
                         "AgentEditor: Loaded agent fields BEFORE mapping - " +
-                            "name=${agent.name}, description=${agent.description}, instructions=${agent.instructions}, model=${agent.model}, " +
+                            "name=${agent.name}, description=${agent.description}, " +
+                            "instructions=${agent.instructions}, model=${agent.model}, " +
                             "provider=${agent.provider}, category=${agent.category}, tools=${agent.tools}, " +
                             "conversationStarters=${agent.conversationStarters}, avatarUrl=${agent.avatarUrl}, " +
                             "artifacts=${agent.artifacts}, recursionLimit=${agent.recursionLimit}, " +
@@ -185,7 +184,8 @@ class AgentEditorViewModel(
                         .copy(isLoading = false)
                     Logger.d {
                         "AgentEditor: UI state AFTER mapping - " +
-                            "name=${newState.name}, description=${newState.description}, instructions=${newState.instructions}, model=${newState.model}, " +
+                            "name=${newState.name}, description=${newState.description}, " +
+                            "instructions=${newState.instructions}, model=${newState.model}, " +
                             "provider=${newState.provider}, category=${newState.category}, selectedTools=${newState.selectedTools}, " +
                             "conversationStarters=${newState.conversationStarters}, avatarUrl=${newState.avatarUrl}, " +
                             "codeInterpreterEnabled=${newState.codeInterpreterEnabled}, fileSearchEnabled=${newState.fileSearchEnabled}, " +

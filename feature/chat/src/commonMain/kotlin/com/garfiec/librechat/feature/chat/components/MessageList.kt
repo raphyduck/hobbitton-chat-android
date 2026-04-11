@@ -35,17 +35,17 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.platform.LocalDensity
-import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
 import com.garfiec.librechat.core.common.ChatLayoutConstants
 import com.garfiec.librechat.core.model.FeedbackRating
-import librechat_mobile.feature.chat.generated.resources.Res
-import librechat_mobile.feature.chat.generated.resources.*
+import com.garfiec.librechat.feature.chat.resources.*
+import com.garfiec.librechat.feature.chat.resources.Res
 import com.garfiec.librechat.feature.chat.util.MessageNode
 import com.garfiec.librechat.feature.chat.viewmodel.ActiveToolCall
 import com.garfiec.librechat.feature.chat.viewmodel.SearchMatch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.stringResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -66,7 +66,7 @@ fun MessageList(
     currentlyReadingMessageId: String? = null,
     editingMessageId: String? = null,
     editingText: String = "",
-    onEditTextChanged: (String) -> Unit = {},
+    onEditTextChange: (String) -> Unit = {},
     onEditSaveAndSubmit: () -> Unit = {},
     onEditSaveOnly: () -> Unit = {},
     onEditCancel: () -> Unit = {},
@@ -87,7 +87,7 @@ fun MessageList(
     searchMatchIndices: List<SearchMatch> = emptyList(),
     currentSearchMatchIndex: Int = 0,
     searchScrollToIndex: Int? = null,
-    onSearchScrollHandled: () -> Unit = {},
+    onSearchScrollHandle: () -> Unit = {},
 ) {
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
@@ -171,6 +171,7 @@ fun MessageList(
     // When the focused occurrence's HighlightedTextSegment reports its layout position,
     // we compare it against the viewport and animateScrollBy the delta if needed.
     var pendingFineTuneScroll by remember { mutableStateOf(false) }
+    val currentOnSearchScrollHandled by rememberUpdatedState(onSearchScrollHandle)
 
     // Scroll to search match when navigating prev/next
     LaunchedEffect(searchScrollToIndex) {
@@ -180,7 +181,7 @@ fun MessageList(
             listState.animateScrollToItem(index)
             // After scroll completes, the focused segment will report its position
             // via onGloballyPositioned, and the fine-tune scroll will happen there.
-            onSearchScrollHandled()
+            currentOnSearchScrollHandled()
         }
     }
 
@@ -369,7 +370,7 @@ fun MessageList(
                     currentFeedback = currentFeedbackStr,
                     isEditing = editingMessageId == node.message.messageId,
                     editText = if (editingMessageId == node.message.messageId) editingText else "",
-                    onEditTextChanged = onEditTextChanged,
+                    onEditTextChange = onEditTextChange,
                     onEditSaveAndSubmit = onEditSaveAndSubmit,
                     onEditSaveOnly = onEditSaveOnly,
                     onEditCancel = onEditCancel,
@@ -385,7 +386,7 @@ fun MessageList(
                     isSearchMatch = isMatch,
                     isCurrentSearchMatch = isCurrent,
                     searchFocusedOccurrence = focusedOccurrenceInMessage,
-                    onFocusedOccurrencePositioned = if (isCurrent) {
+                    onFocusedOccurrencePosition = if (isCurrent) {
                         { coordinates ->
                             if (!pendingFineTuneScroll) return@MessageBubble
                             pendingFineTuneScroll = false

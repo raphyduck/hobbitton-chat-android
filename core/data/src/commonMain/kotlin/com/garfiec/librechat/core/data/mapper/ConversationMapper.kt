@@ -3,11 +3,11 @@ package com.garfiec.librechat.core.data.mapper
 import com.garfiec.librechat.core.data.db.entity.ConversationEntity
 import com.garfiec.librechat.core.model.Conversation
 import com.garfiec.librechat.core.model.EModelEndpoint
-import kotlin.time.Clock
-import kotlin.time.Instant
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.serializer
+import kotlin.time.Clock
+import kotlin.time.Instant
 
 private val json = Json { ignoreUnknownKeys = true }
 

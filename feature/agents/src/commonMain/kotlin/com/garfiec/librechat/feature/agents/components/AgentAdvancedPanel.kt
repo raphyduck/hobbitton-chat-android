@@ -26,18 +26,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import librechat_mobile.feature.agents.generated.resources.Res
-import librechat_mobile.feature.agents.generated.resources.*
-import kotlin.math.roundToInt
 import com.garfiec.librechat.feature.agents.components.model.AgentAdvancedSettings
+import com.garfiec.librechat.feature.agents.resources.*
+import com.garfiec.librechat.feature.agents.resources.Res
+import org.jetbrains.compose.resources.stringResource
+import kotlin.math.roundToInt
 
 @Composable
 fun AgentAdvancedPanel(
     settings: AgentAdvancedSettings,
-    onSettingsChanged: (AgentAdvancedSettings) -> Unit,
+    onSettingsChange: (AgentAdvancedSettings) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -71,7 +71,7 @@ fun AgentAdvancedPanel(
                     label = stringResource(Res.string.label_temperature),
                     value = settings.temperature ?: 1.0f,
                     onValueChange = {
-                        onSettingsChanged(settings.copy(temperature = roundToStep(it, 0.1f)))
+                        onSettingsChange(settings.copy(temperature = roundToStep(it, 0.1f)))
                     },
                     valueRange = 0f..2f,
                     steps = 19,
@@ -83,7 +83,7 @@ fun AgentAdvancedPanel(
                     label = stringResource(Res.string.label_top_p),
                     value = settings.topP ?: 1.0f,
                     onValueChange = {
-                        onSettingsChanged(settings.copy(topP = roundToStep(it, 0.05f)))
+                        onSettingsChange(settings.copy(topP = roundToStep(it, 0.05f)))
                     },
                     valueRange = 0f..1f,
                     steps = 19,
@@ -106,7 +106,7 @@ fun AgentAdvancedPanel(
                         value = settings.maxTokens?.toString() ?: "",
                         onValueChange = { newValue ->
                             val filtered = newValue.filter { it.isDigit() }
-                            onSettingsChanged(
+                            onSettingsChange(
                                 settings.copy(maxTokens = filtered.toIntOrNull()),
                             )
                         },

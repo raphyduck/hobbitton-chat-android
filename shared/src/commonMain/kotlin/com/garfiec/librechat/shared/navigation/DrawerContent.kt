@@ -42,6 +42,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -53,19 +54,20 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.garfiec.librechat.core.ui.components.endpointIconPainter
 import com.garfiec.librechat.core.ui.components.isMonochromeIcon
-import librechat_mobile.shared.generated.resources.Res
-import librechat_mobile.shared.generated.resources.agents
-import librechat_mobile.shared.generated.resources.bookmark
-import librechat_mobile.shared.generated.resources.cd_clear_search
-import librechat_mobile.shared.generated.resources.cd_search
-import librechat_mobile.shared.generated.resources.favorites
-import librechat_mobile.shared.generated.resources.files
-import librechat_mobile.shared.generated.resources.new_chat
-import librechat_mobile.shared.generated.resources.no_conversations_found
-import librechat_mobile.shared.generated.resources.remove_bookmark
-import librechat_mobile.shared.generated.resources.search_conversations_placeholder
-import librechat_mobile.shared.generated.resources.settings
+import com.garfiec.librechat.shared.resources.Res
+import com.garfiec.librechat.shared.resources.agents
+import com.garfiec.librechat.shared.resources.bookmark
+import com.garfiec.librechat.shared.resources.cd_clear_search
+import com.garfiec.librechat.shared.resources.cd_search
+import com.garfiec.librechat.shared.resources.favorites
+import com.garfiec.librechat.shared.resources.files
+import com.garfiec.librechat.shared.resources.new_chat
+import com.garfiec.librechat.shared.resources.no_conversations_found
+import com.garfiec.librechat.shared.resources.remove_bookmark
+import com.garfiec.librechat.shared.resources.search_conversations_placeholder
+import com.garfiec.librechat.shared.resources.settings
 import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.viewmodel.koinViewModel
 
 // Pre-computed shapes to avoid creating new ones per item per frame
 private val ItemShape = RoundedCornerShape(8.dp)
@@ -76,18 +78,18 @@ private val ActiveIndicatorShape = RoundedCornerShape(2.dp)
  */
 @Composable
 fun DrawerContent(
-    viewModel: NavHostViewModel,
     onNewChat: () -> Unit,
     onConversationClick: (String) -> Unit,
     onSettingsClick: () -> Unit,
     onAgentsClick: () -> Unit,
     onFilesClick: () -> Unit,
     modifier: Modifier = Modifier,
+    viewModel: NavHostViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.drawerUiState.collectAsStateWithLifecycle()
     DrawerContent(
         uiState = uiState,
-        onSearchQueryChanged = viewModel::onSearchQueryChanged,
+        onSearchQueryChange = viewModel::onSearchQueryChanged,
         onNewChat = onNewChat,
         onConversationClick = onConversationClick,
         onSettingsClick = onSettingsClick,
@@ -104,7 +106,7 @@ fun DrawerContent(
 @Composable
 fun DrawerContent(
     uiState: DrawerUiState,
-    onSearchQueryChanged: (String) -> Unit,
+    onSearchQueryChange: (String) -> Unit,
     onNewChat: () -> Unit,
     onConversationClick: (String) -> Unit,
     onSettingsClick: () -> Unit,
@@ -154,7 +156,7 @@ fun DrawerContent(
         // Search bar
         OutlinedTextField(
             value = uiState.searchQuery,
-            onValueChange = onSearchQueryChanged,
+            onValueChange = onSearchQueryChange,
             leadingIcon = {
                 Icon(
                     imageVector = Icons.Default.Search,
@@ -165,7 +167,7 @@ fun DrawerContent(
             },
             trailingIcon = {
                 if (uiState.searchQuery.isNotEmpty()) {
-                    IconButton(onClick = { onSearchQueryChanged("") }) {
+                    IconButton(onClick = { onSearchQueryChange("") }) {
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = stringResource(Res.string.cd_clear_search),
@@ -192,6 +194,7 @@ fun DrawerContent(
 
         // Conversation list with favorites section and date groups
         val listState = rememberLazyListState()
+        val currentOnLoadMore by rememberUpdatedState(onLoadMore)
 
         val shouldLoadMore = remember {
             derivedStateOf {
@@ -203,7 +206,7 @@ fun DrawerContent(
 
         LaunchedEffect(shouldLoadMore.value) {
             if (shouldLoadMore.value && uiState.hasMore && !uiState.isLoadingMore) {
-                onLoadMore()
+                currentOnLoadMore()
             }
         }
 

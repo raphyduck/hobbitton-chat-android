@@ -5,6 +5,8 @@ import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import co.touchlab.kermit.Logger
 import com.garfiec.librechat.MainActivity
@@ -22,11 +24,12 @@ fun LibreChatNavHost(
     modifier: Modifier = Modifier,
     windowSizeClass: WindowSizeClass? = null,
     deepLinkUri: Uri? = null,
-    onDeepLinkConsumed: () -> Unit = {},
+    onDeepLinkConsume: () -> Unit = {},
     shareNavigationTrigger: Int = 0,
 ) {
     SharedLibreChatNavHost(modifier = modifier) { navigator, navHostViewModel, mod ->
         // Handle deep links
+        val currentOnDeepLinkConsume by rememberUpdatedState(onDeepLinkConsume)
         LaunchedEffect(deepLinkUri) {
             deepLinkUri?.let { uri ->
                 if (uri.scheme == "librechat" && uri.host == "conversation") {
@@ -38,7 +41,7 @@ fun LibreChatNavHost(
                         }
                     }
                 }
-                onDeepLinkConsumed()
+                currentOnDeepLinkConsume()
             }
         }
 
@@ -65,7 +68,6 @@ fun LibreChatNavHost(
         } else {
             PhoneLayout(
                 navigator = navigator,
-                navHostViewModel = navHostViewModel,
                 modifier = mod,
             )
         }

@@ -99,6 +99,9 @@ private fun roundToDecimals(value: Float, decimals: Int): String {
     val dot = str.indexOf('.')
     if (dot < 0) return str + "." + "0".repeat(decimals)
     val existing = str.length - dot - 1
-    return if (existing >= decimals) str.substring(0, dot + decimals + 1)
-    else str + "0".repeat(decimals - existing)
+    return if (existing >= decimals) {
+        str.substring(0, dot + decimals + 1)
+    } else {
+        str + "0".repeat(decimals - existing)
+    }
 }

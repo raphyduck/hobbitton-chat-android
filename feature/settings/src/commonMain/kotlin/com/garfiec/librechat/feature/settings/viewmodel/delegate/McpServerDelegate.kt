@@ -1,5 +1,6 @@
 package com.garfiec.librechat.feature.settings.viewmodel.delegate
 
+import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.common.result.Result
 import com.garfiec.librechat.core.data.repository.McpRepository
 import com.garfiec.librechat.core.model.mcp.McpApiKeyConfig
@@ -8,7 +9,6 @@ import com.garfiec.librechat.core.model.mcp.McpServer
 import com.garfiec.librechat.core.model.mcp.McpServerType
 import com.garfiec.librechat.feature.settings.viewmodel.SettingsStateHandle
 import kotlinx.coroutines.launch
-import co.touchlab.kermit.Logger
 
 /**
  * Handles MCP server management, connection status, and reinitialization.

@@ -16,10 +16,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
-import librechat_mobile.feature.agents.generated.resources.Res
-import librechat_mobile.feature.agents.generated.resources.*
+import com.garfiec.librechat.feature.agents.resources.*
+import com.garfiec.librechat.feature.agents.resources.Res
+import org.jetbrains.compose.resources.stringResource
 
 data class ModelOption(
     val id: String,
@@ -32,7 +32,7 @@ data class ModelOption(
 fun AgentModelPicker(
     selectedModel: String,
     availableModels: List<ModelOption>,
-    onModelSelected: (modelId: String, provider: String) -> Unit,
+    onModelSelect: (modelId: String, provider: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -107,7 +107,7 @@ fun AgentModelPicker(
                         DropdownMenuItem(
                             text = { Text(model.name) },
                             onClick = {
-                                onModelSelected(model.id, model.endpoint)
+                                onModelSelect(model.id, model.endpoint)
                                 expanded = false
                                 searchQuery = ""
                             },

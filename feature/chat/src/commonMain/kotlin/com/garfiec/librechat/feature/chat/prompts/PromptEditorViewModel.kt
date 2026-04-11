@@ -1,7 +1,6 @@
 package com.garfiec.librechat.feature.chat.prompts
 
 import androidx.compose.runtime.Immutable
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.garfiec.librechat.core.common.result.Result
@@ -39,7 +38,6 @@ data class PromptEditorUiState(
 
 class PromptEditorViewModel(
     private val promptRepository: PromptRepository,
-    savedStateHandle: SavedStateHandle,
     initialGroupId: String? = null,
 ) : ViewModel() {
 

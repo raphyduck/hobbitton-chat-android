@@ -20,17 +20,17 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import librechat_mobile.feature.chat.generated.resources.Res
-import librechat_mobile.feature.chat.generated.resources.*
+import com.garfiec.librechat.feature.chat.resources.*
+import com.garfiec.librechat.feature.chat.resources.Res
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun InlineEditInput(
     text: String,
-    onTextChanged: (String) -> Unit,
+    onTextChange: (String) -> Unit,
     onSaveAndSubmit: () -> Unit,
     onSaveOnly: () -> Unit,
     onCancel: () -> Unit,
@@ -39,7 +39,7 @@ fun InlineEditInput(
     Column(modifier = modifier.fillMaxWidth()) {
         OutlinedTextField(
             value = text,
-            onValueChange = onTextChanged,
+            onValueChange = onTextChange,
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = 56.dp, max = 200.dp),

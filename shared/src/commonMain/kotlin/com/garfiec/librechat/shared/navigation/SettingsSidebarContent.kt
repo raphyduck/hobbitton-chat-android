@@ -29,9 +29,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import librechat_mobile.shared.generated.resources.Res
-import librechat_mobile.shared.generated.resources.cd_back_to_conversations
-import librechat_mobile.shared.generated.resources.settings
+import com.garfiec.librechat.shared.resources.Res
+import com.garfiec.librechat.shared.resources.cd_back_to_conversations
+import com.garfiec.librechat.shared.resources.settings
 import org.jetbrains.compose.resources.stringResource
 
 private val CategoryItemShape = RoundedCornerShape(12.dp)
@@ -43,7 +43,7 @@ private val CategoryItemShape = RoundedCornerShape(12.dp)
 fun SettingsSidebarContent(
     selectedCategory: SettingsCategory?,
     onBackToConversations: () -> Unit,
-    onCategorySelected: (SettingsCategory) -> Unit,
+    onCategorySelect: (SettingsCategory) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -80,25 +80,25 @@ fun SettingsSidebarContent(
             icon = Icons.Default.Settings,
             category = SettingsCategory.GENERAL,
             isSelected = selectedCategory == SettingsCategory.GENERAL,
-            onClick = { onCategorySelected(SettingsCategory.GENERAL) },
+            onClick = { onCategorySelect(SettingsCategory.GENERAL) },
         )
         SettingsCategoryItem(
             icon = Icons.AutoMirrored.Filled.Chat,
             category = SettingsCategory.CHAT,
             isSelected = selectedCategory == SettingsCategory.CHAT,
-            onClick = { onCategorySelected(SettingsCategory.CHAT) },
+            onClick = { onCategorySelect(SettingsCategory.CHAT) },
         )
         SettingsCategoryItem(
             icon = Icons.Default.AccountCircle,
             category = SettingsCategory.ACCOUNT,
             isSelected = selectedCategory == SettingsCategory.ACCOUNT,
-            onClick = { onCategorySelected(SettingsCategory.ACCOUNT) },
+            onClick = { onCategorySelect(SettingsCategory.ACCOUNT) },
         )
         SettingsCategoryItem(
             icon = Icons.Default.Storage,
             category = SettingsCategory.DATA,
             isSelected = selectedCategory == SettingsCategory.DATA,
-            onClick = { onCategorySelected(SettingsCategory.DATA) },
+            onClick = { onCategorySelect(SettingsCategory.DATA) },
         )
 
         Spacer(modifier = Modifier.weight(1f))

@@ -1,8 +1,5 @@
 package com.garfiec.librechat.core.network.api
 
-import com.garfiec.librechat.core.network.api.dto.LoginResult
-import com.garfiec.librechat.core.network.api.dto.RefreshResult
-import com.garfiec.librechat.core.network.api.dto.TwoFactorConfirmRequest
 import com.garfiec.librechat.core.model.request.LoginRequest
 import com.garfiec.librechat.core.model.request.OtpVerificationRequest
 import com.garfiec.librechat.core.model.request.PasswordResetRequest
@@ -15,6 +12,9 @@ import com.garfiec.librechat.core.model.response.LoginResponse
 import com.garfiec.librechat.core.model.response.RefreshResponse
 import com.garfiec.librechat.core.model.response.RegisterResponse
 import com.garfiec.librechat.core.model.response.TwoFactorSetupResponse
+import com.garfiec.librechat.core.network.api.dto.LoginResult
+import com.garfiec.librechat.core.network.api.dto.RefreshResult
+import com.garfiec.librechat.core.network.api.dto.TwoFactorConfirmRequest
 import com.garfiec.librechat.core.network.client.CookieHelper
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body

@@ -25,16 +25,16 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import librechat_mobile.feature.chat.generated.resources.Res
-import librechat_mobile.feature.chat.generated.resources.*
+import com.garfiec.librechat.feature.chat.resources.*
+import com.garfiec.librechat.feature.chat.resources.Res
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.filter
+import org.jetbrains.compose.resources.stringResource
 
 /**
  * Search overlay bar for finding text within the current conversation.
@@ -44,7 +44,7 @@ import kotlinx.coroutines.flow.filter
 @Composable
 fun InConvoSearchBar(
     query: String,
-    onQueryChanged: (String) -> Unit,
+    onQueryChange: (String) -> Unit,
     currentMatchIndex: Int,
     totalMatches: Int,
     onPreviousMatch: () -> Unit,
@@ -77,7 +77,7 @@ fun InConvoSearchBar(
             val searchCd = stringResource(Res.string.cd_search_in_conversation)
             OutlinedTextField(
                 value = query,
-                onValueChange = onQueryChanged,
+                onValueChange = onQueryChange,
                 modifier = Modifier
                     .weight(1f)
                     .height(48.dp)

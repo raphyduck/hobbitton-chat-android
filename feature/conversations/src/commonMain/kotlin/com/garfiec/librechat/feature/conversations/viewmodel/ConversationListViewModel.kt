@@ -3,6 +3,7 @@ package com.garfiec.librechat.feature.conversations.viewmodel
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.common.extensions.toInstantOrNull
 import com.garfiec.librechat.core.common.extensions.toRelativeDateGroup
 import com.garfiec.librechat.core.common.result.Result
@@ -27,7 +28,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import co.touchlab.kermit.Logger
 
 @Immutable
 data class ConversationListUiState(

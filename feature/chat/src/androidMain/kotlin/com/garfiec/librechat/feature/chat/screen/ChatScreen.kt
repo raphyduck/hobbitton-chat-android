@@ -64,7 +64,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -78,8 +77,6 @@ import com.garfiec.librechat.core.model.ContentType
 import com.garfiec.librechat.core.model.content.MessageContentPart
 import com.garfiec.librechat.core.ui.components.LoadingIndicator
 import com.garfiec.librechat.core.ui.components.ModelParameterSheet
-import librechat_mobile.feature.chat.generated.resources.Res
-import librechat_mobile.feature.chat.generated.resources.*
 import com.garfiec.librechat.feature.chat.components.ChatInput
 import com.garfiec.librechat.feature.chat.components.ComparisonDualPane
 import com.garfiec.librechat.feature.chat.components.ComparisonTabBar
@@ -93,10 +90,13 @@ import com.garfiec.librechat.feature.chat.components.PresetPicker
 import com.garfiec.librechat.feature.chat.components.SavePresetDialog
 import com.garfiec.librechat.feature.chat.components.SecondaryMessageList
 import com.garfiec.librechat.feature.chat.components.TempChatToggle
+import com.garfiec.librechat.feature.chat.resources.*
+import com.garfiec.librechat.feature.chat.resources.Res
 import com.garfiec.librechat.feature.chat.util.MessageNode
 import com.garfiec.librechat.feature.chat.viewmodel.ChatScreenState
 import com.garfiec.librechat.feature.chat.viewmodel.ChatViewModel
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
@@ -105,7 +105,7 @@ import org.koin.core.parameter.parametersOf
 actual fun ChatScreen(
     modifier: Modifier,
     conversationId: String?,
-    onConversationStarted: ((String) -> Unit)?,
+    onConversationStart: ((String) -> Unit)?,
     onNavigateToConversation: ((String) -> Unit)?,
     onOpenDrawer: (() -> Unit)?,
     onNavigateToPromptsLibrary: (() -> Unit)?,
@@ -241,8 +241,8 @@ actual fun ChatScreen(
     // onPendingNavigationHandled() resets this ViewModel to a fresh landing state.
     LaunchedEffect(uiState.pendingNavigationConversationId) {
         val pendingId = uiState.pendingNavigationConversationId
-        if (pendingId != null && onConversationStarted != null) {
-            onConversationStarted(pendingId)
+        if (pendingId != null && onConversationStart != null) {
+            onConversationStart(pendingId)
             viewModel.onPendingNavigationHandled()
         }
     }
@@ -270,8 +270,8 @@ actual fun ChatScreen(
             viewModel.onForkedConversationHandled()
             if (onNavigateToConversation != null) {
                 onNavigateToConversation(forkId)
-            } else if (onConversationStarted != null) {
-                onConversationStarted(forkId)
+            } else if (onConversationStart != null) {
+                onConversationStart(forkId)
             }
         }
     }
@@ -283,8 +283,8 @@ actual fun ChatScreen(
             viewModel.onDuplicatedConversationHandled()
             if (onNavigateToConversation != null) {
                 onNavigateToConversation(dupId)
-            } else if (onConversationStarted != null) {
-                onConversationStarted(dupId)
+            } else if (onConversationStart != null) {
+                onConversationStart(dupId)
             }
         }
     }
@@ -338,7 +338,7 @@ actual fun ChatScreen(
                 if (uiState.isSearchOpen) {
                     InConvoSearchBar(
                         query = uiState.searchQuery,
-                        onQueryChanged = viewModel::onSearchQueryChanged,
+                        onQueryChange = viewModel::onSearchQueryChanged,
                         currentMatchIndex = uiState.currentSearchMatchIndex,
                         totalMatches = uiState.searchMatchIndices.size,
                         onPreviousMatch = viewModel::previousSearchMatch,
@@ -453,7 +453,7 @@ actual fun ChatScreen(
                                     currentlyReadingMessageId = uiState.currentlyReadingMessageId,
                                     editingMessageId = uiState.editingMessageId,
                                     editingText = uiState.editingText,
-                                    onEditTextChanged = viewModel::onEditTextChanged,
+                                    onEditTextChange = viewModel::onEditTextChanged,
                                     onEditSaveAndSubmit = viewModel::submitEdit,
                                     onEditSaveOnly = viewModel::saveEditOnly,
                                     onEditCancel = viewModel::cancelEditing,
@@ -474,7 +474,7 @@ actual fun ChatScreen(
                                     searchMatchIndices = uiState.searchMatchIndices,
                                     currentSearchMatchIndex = uiState.currentSearchMatchIndex,
                                     searchScrollToIndex = uiState.searchScrollToIndex,
-                                    onSearchScrollHandled = viewModel::onSearchScrollHandled,
+                                    onSearchScrollHandle = viewModel::onSearchScrollHandled,
                                     modifier = Modifier.fillMaxSize(),
                                 )
                             }
@@ -545,7 +545,7 @@ actual fun ChatScreen(
                                     secondaryContent = secondaryMessageList,
                                     onContinueWithPrimary = onContinuePrimary,
                                     onContinueWithSecondary = onContinueSecondary,
-                                    onTabChanged = { activeComparisonTab = it },
+                                    onTabChange = { activeComparisonTab = it },
                                     modifier = Modifier.weight(1f),
                                 )
                             }
@@ -573,7 +573,7 @@ actual fun ChatScreen(
                                 currentlyReadingMessageId = uiState.currentlyReadingMessageId,
                                 editingMessageId = uiState.editingMessageId,
                                 editingText = uiState.editingText,
-                                onEditTextChanged = viewModel::onEditTextChanged,
+                                onEditTextChange = viewModel::onEditTextChanged,
                                 onEditSaveAndSubmit = viewModel::submitEdit,
                                 onEditSaveOnly = viewModel::saveEditOnly,
                                 onEditCancel = viewModel::cancelEditing,
@@ -601,7 +601,7 @@ actual fun ChatScreen(
                                 searchMatchIndices = uiState.searchMatchIndices,
                                 currentSearchMatchIndex = uiState.currentSearchMatchIndex,
                                 searchScrollToIndex = uiState.searchScrollToIndex,
-                                onSearchScrollHandled = viewModel::onSearchScrollHandled,
+                                onSearchScrollHandle = viewModel::onSearchScrollHandled,
                                 modifier = Modifier.weight(1f),
                             )
                         }
@@ -663,7 +663,7 @@ actual fun ChatScreen(
     if (showPresetPicker) {
         PresetPicker(
             presets = uiState.presets,
-            onPresetSelected = { preset ->
+            onPresetSelect = { preset ->
                 viewModel.loadPreset(preset)
                 showPresetPicker = false
             },
@@ -706,7 +706,7 @@ actual fun ChatScreen(
     if (uiState.showModelParameters) {
         ModelParameterSheet(
             parameters = uiState.modelParameters,
-            onParametersChanged = viewModel::updateModelParameters,
+            onParametersChange = viewModel::updateModelParameters,
             onDismiss = viewModel::hideModelParameters,
             selectedEndpoint = uiState.selectedEndpoint,
         )
@@ -735,7 +735,7 @@ actual fun ChatScreen(
             agents = uiState.agents,
             selectedEndpoint = uiState.selectedEndpoint,
             selectedModel = uiState.selectedModel,
-            onModelSelected = { endpoint, model ->
+            onModelSelect = { endpoint, model ->
                 viewModel.onModelSelected(endpoint, model)
                 showModelSheet = false
             },
@@ -752,7 +752,7 @@ actual fun ChatScreen(
             agents = uiState.agents,
             selectedEndpoint = uiState.comparisonState.secondaryEndpoint,
             selectedModel = uiState.comparisonState.secondaryModel,
-            onModelSelected = { endpoint, model ->
+            onModelSelect = { endpoint, model ->
                 viewModel.setSecondaryModel(endpoint, model)
                 showSecondaryModelSheet = false
             },

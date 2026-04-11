@@ -25,13 +25,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.garfiec.librechat.core.model.speech.TtsVoice
-import librechat_mobile.feature.settings.generated.resources.Res
-import librechat_mobile.feature.settings.generated.resources.*
+import com.garfiec.librechat.feature.settings.resources.*
+import com.garfiec.librechat.feature.settings.resources.Res
+import org.jetbrains.compose.resources.stringResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,7 +43,7 @@ internal fun SpeechSettingsSection(
     ttsSource: String,
     onAutoSendAfterSttChange: (Boolean) -> Unit,
     onAutoReadChange: (Boolean) -> Unit,
-    onVoiceSelected: (TtsVoice) -> Unit,
+    onVoiceSelect: (TtsVoice) -> Unit,
     onTestVoice: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -162,7 +162,7 @@ internal fun SpeechSettingsSection(
                                         }
                                     },
                                     onClick = {
-                                        onVoiceSelected(voice)
+                                        onVoiceSelect(voice)
                                         expanded = false
                                     },
                                 )

@@ -54,19 +54,11 @@ private class YamlParser(input: String) {
         val entries = mutableMapOf<String, JsonElement>()
         while (pos < lines.size) {
             skipBlanksAndComments()
-            if (pos >= lines.size) break
-            val indent = currentIndent()
-            if (indent < baseIndent) break
-            if (indent > baseIndent) break // belongs to parent
+            if (shouldStopParsingMap(baseIndent)) break
 
             val line = lines[pos]
             val trimmed = line.trimStart()
-
-            // Must be a map entry, not a list item
-            if (trimmed.startsWith("- ")) break
-
             val colonIdx = findKeyColonIndex(trimmed)
-            if (colonIdx < 0) break
 
             val key = trimmed.substring(0, colonIdx).trim().unquoteYaml()
             val afterColon = trimmed.substring(colonIdx + 1).trim()
@@ -97,17 +89,59 @@ private class YamlParser(input: String) {
         return JsonObject(entries)
     }
 
+    /**
+     * Returns true when [parseMap] should stop consuming lines at the current position.
+     * Extracted from the main loop to reduce jump count — preserves the original behaviour
+     * exactly: end-of-input, dedent to parent, indent into child, list item, or a line
+     * without a key colon all terminate the map.
+     */
+    private fun shouldStopParsingMap(baseIndent: Int): Boolean {
+        if (pos >= lines.size) return true
+        val indent = currentIndent()
+        if (indent < baseIndent) return true
+        if (indent > baseIndent) return true // belongs to parent
+        val trimmed = lines[pos].trimStart()
+        if (trimmed.startsWith("- ")) return true // must be a map entry, not a list item
+        if (findKeyColonIndex(trimmed) < 0) return true
+        return false
+    }
+
+    /**
+     * Returns true when [parseList] should stop consuming lines at the current position.
+     * Extracted from the main loop to reduce jump count — preserves the original behaviour
+     * exactly: end-of-input, any indent mismatch, or a line that is not a list item all
+     * terminate the list.
+     */
+    private fun shouldStopParsingList(baseIndent: Int): Boolean {
+        if (pos >= lines.size) return true
+        if (currentIndent() != baseIndent) return true
+        val trimmed = lines[pos].trimStart()
+        if (!trimmed.startsWith("- ") && trimmed != "-") return true
+        return false
+    }
+
+    /**
+     * Returns true when the continuation loop in [parseListItemMap] should stop at the
+     * current position. Extracted from the main loop to reduce jump count — preserves the
+     * original behaviour exactly: end-of-input, dedent below the content indent, next list
+     * item, or a line without a key colon all terminate the continuation.
+     */
+    private fun shouldStopParsingListItemMap(contentIndent: Int): Boolean {
+        if (pos >= lines.size) return true
+        if (currentIndent() < contentIndent) return true
+        val line = lines[pos].trimStart()
+        if (line.startsWith("- ")) return true // next list item
+        if (findKeyColonIndex(line) < 0) return true
+        return false
+    }
+
     private fun parseList(baseIndent: Int): JsonArray {
         val items = mutableListOf<JsonElement>()
         while (pos < lines.size) {
             skipBlanksAndComments()
-            if (pos >= lines.size) break
-            val indent = currentIndent()
-            if (indent != baseIndent) break
+            if (shouldStopParsingList(baseIndent)) break
 
             val trimmed = lines[pos].trimStart()
-            if (!trimmed.startsWith("- ") && trimmed != "-") break
-
             val afterDash = if (trimmed == "-") "" else trimmed.substring(2).trim()
             pos++
 
@@ -175,15 +209,11 @@ private class YamlParser(input: String) {
         // Continuation lines at contentIndent
         while (pos < lines.size) {
             skipBlanksAndComments()
-            if (pos >= lines.size) break
+            if (shouldStopParsingListItemMap(contentIndent)) break
+
             val indent = currentIndent()
-            if (indent < contentIndent) break
-
             val line = lines[pos].trimStart()
-            if (line.startsWith("- ")) break // next list item
-
             val ci = findKeyColonIndex(line)
-            if (ci < 0) break
 
             val key = line.substring(0, ci).trim().unquoteYaml()
             val afterColon = line.substring(ci + 1).trim()

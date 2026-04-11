@@ -31,14 +31,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.garfiec.librechat.core.model.Memory
-import librechat_mobile.feature.settings.generated.resources.Res
-import librechat_mobile.feature.settings.generated.resources.*
+import com.garfiec.librechat.feature.settings.resources.*
+import com.garfiec.librechat.feature.settings.resources.Res
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 internal fun MemoriesSettingsSection(
@@ -46,7 +46,7 @@ internal fun MemoriesSettingsSection(
     memoriesEnabled: Boolean,
     showMemoryDialog: Boolean,
     editingMemory: Memory?,
-    onToggleEnabled: (Boolean) -> Unit,
+    onToggleEnable: (Boolean) -> Unit,
     onAddMemory: () -> Unit,
     onEditMemory: (Memory) -> Unit,
     onDeleteMemory: (String) -> Unit,
@@ -81,7 +81,7 @@ internal fun MemoriesSettingsSection(
                 val toggleMemoriesCd = stringResource(Res.string.cd_toggle_memories)
                 Switch(
                     checked = memoriesEnabled,
-                    onCheckedChange = onToggleEnabled,
+                    onCheckedChange = onToggleEnable,
                     modifier = Modifier.semantics {
                         contentDescription = toggleMemoriesCd
                     },

@@ -40,7 +40,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
-import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
@@ -53,8 +52,9 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import com.garfiec.librechat.feature.chat.model.McpServerDisplayData
 import com.garfiec.librechat.feature.chat.model.PromptMentionDisplayData
-import librechat_mobile.feature.chat.generated.resources.Res
-import librechat_mobile.feature.chat.generated.resources.*
+import com.garfiec.librechat.feature.chat.resources.*
+import com.garfiec.librechat.feature.chat.resources.Res
+import org.jetbrains.compose.resources.stringResource
 import java.io.File
 
 @Composable
@@ -371,7 +371,7 @@ fun ChatInput(
                 // Slash command dropdown
                 SlashCommandMenu(
                     filteredCommands = filteredSlashCommands,
-                    onCommandSelected = onSlashCommandSelected,
+                    onCommandSelect = onSlashCommandSelected,
                 )
             }
         },

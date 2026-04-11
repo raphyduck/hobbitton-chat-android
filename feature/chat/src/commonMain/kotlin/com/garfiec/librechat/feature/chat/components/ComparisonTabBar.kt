@@ -19,12 +19,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import librechat_mobile.feature.chat.generated.resources.Res
-import librechat_mobile.feature.chat.generated.resources.*
+import com.garfiec.librechat.feature.chat.resources.*
+import com.garfiec.librechat.feature.chat.resources.Res
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.stringResource
 
 /**
  * Phone-layout comparison view with tabs and a horizontal pager.
@@ -46,14 +46,14 @@ fun ComparisonTabBar(
     modifier: Modifier = Modifier,
     onContinueWithPrimary: (() -> Unit)? = null,
     onContinueWithSecondary: (() -> Unit)? = null,
-    onTabChanged: ((Int) -> Unit)? = null,
+    onTabChange: ((Int) -> Unit)? = null,
 ) {
     val pagerState = rememberPagerState(pageCount = { 2 })
     val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(pagerState) {
         snapshotFlow { pagerState.currentPage }.collect { page ->
-            onTabChanged?.invoke(page)
+            onTabChange?.invoke(page)
         }
     }
 

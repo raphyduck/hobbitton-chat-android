@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -27,13 +29,9 @@ import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.FileOpen
 import androidx.compose.material.icons.outlined.SaveAs
 import androidx.compose.material.icons.outlined.Share
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -42,6 +40,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -70,6 +70,8 @@ import com.garfiec.librechat.feature.chat.components.ModelSelectorSheet
 import com.garfiec.librechat.feature.chat.components.PresetPicker
 import com.garfiec.librechat.feature.chat.components.SavePresetDialog
 import com.garfiec.librechat.feature.chat.components.TempChatToggle
+import com.garfiec.librechat.feature.chat.resources.*
+import com.garfiec.librechat.feature.chat.resources.Res
 import com.garfiec.librechat.feature.chat.util.clipboardHasImage
 import com.garfiec.librechat.feature.chat.util.openCamera
 import com.garfiec.librechat.feature.chat.util.openDocumentPicker
@@ -77,8 +79,6 @@ import com.garfiec.librechat.feature.chat.util.openPhotoPicker
 import com.garfiec.librechat.feature.chat.util.readClipboardImage
 import com.garfiec.librechat.feature.chat.viewmodel.ChatScreenState
 import com.garfiec.librechat.feature.chat.viewmodel.ChatViewModel
-import librechat_mobile.feature.chat.generated.resources.Res
-import librechat_mobile.feature.chat.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -88,7 +88,7 @@ import org.koin.core.parameter.parametersOf
 actual fun ChatScreen(
     modifier: Modifier,
     conversationId: String?,
-    onConversationStarted: ((String) -> Unit)?,
+    onConversationStart: ((String) -> Unit)?,
     onNavigateToConversation: ((String) -> Unit)?,
     onOpenDrawer: (() -> Unit)?,
     onNavigateToPromptsLibrary: (() -> Unit)?,
@@ -121,11 +121,11 @@ actual fun ChatScreen(
     // Navigate when a new conversation is created from landing page.
     // Navigate first, then reset — matches Android order so the new
     // ViewModel can resume the active stream before the old one cancels it.
-    if (onConversationStarted != null) {
+    if (onConversationStart != null) {
         LaunchedEffect(uiState.pendingNavigationConversationId) {
             val navId = uiState.pendingNavigationConversationId
             if (navId != null) {
-                onConversationStarted(navId)
+                onConversationStart(navId)
                 viewModel.onPendingNavigationHandled()
             }
         }
@@ -375,7 +375,7 @@ actual fun ChatScreen(
                 ) {
                     InConvoSearchBar(
                         query = uiState.searchQuery,
-                        onQueryChanged = viewModel::onSearchQueryChanged,
+                        onQueryChange = viewModel::onSearchQueryChanged,
                         currentMatchIndex = uiState.currentSearchMatchIndex,
                         totalMatches = uiState.searchMatchIndices.size,
                         onPreviousMatch = viewModel::previousSearchMatch,
@@ -428,7 +428,7 @@ actual fun ChatScreen(
                         currentlyReadingMessageId = uiState.currentlyReadingMessageId,
                         editingMessageId = uiState.editingMessageId,
                         editingText = uiState.editingText,
-                        onEditTextChanged = viewModel::onEditTextChanged,
+                        onEditTextChange = viewModel::onEditTextChanged,
                         onEditSaveAndSubmit = viewModel::submitEdit,
                         onEditSaveOnly = viewModel::saveEditOnly,
                         onEditCancel = viewModel::cancelEditing,
@@ -456,7 +456,7 @@ actual fun ChatScreen(
                         searchMatchIndices = uiState.searchMatchIndices,
                         currentSearchMatchIndex = uiState.currentSearchMatchIndex,
                         searchScrollToIndex = uiState.searchScrollToIndex,
-                        onSearchScrollHandled = viewModel::onSearchScrollHandled,
+                        onSearchScrollHandle = viewModel::onSearchScrollHandled,
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
@@ -529,7 +529,7 @@ actual fun ChatScreen(
             agents = uiState.agents,
             selectedEndpoint = uiState.selectedEndpoint,
             selectedModel = uiState.selectedModel,
-            onModelSelected = { endpoint, model ->
+            onModelSelect = { endpoint, model ->
                 viewModel.onModelSelected(endpoint, model)
                 showModelSheet = false
             },
@@ -542,7 +542,7 @@ actual fun ChatScreen(
     if (showPresetPicker) {
         PresetPicker(
             presets = uiState.presets,
-            onPresetSelected = { preset ->
+            onPresetSelect = { preset ->
                 viewModel.loadPreset(preset)
                 showPresetPicker = false
             },
@@ -610,14 +610,14 @@ actual fun ChatScreen(
 
 @Composable
 actual fun NewChatScreen(
-    onConversationStarted: (String) -> Unit,
+    onConversationStart: (String) -> Unit,
     modifier: Modifier,
     onOpenDrawer: (() -> Unit)?,
     onNavigateToPromptsLibrary: (() -> Unit)?,
 ) {
     ChatScreen(
         modifier = modifier,
-        onConversationStarted = onConversationStarted,
+        onConversationStart = onConversationStart,
         onOpenDrawer = onOpenDrawer,
         onNavigateToPromptsLibrary = onNavigateToPromptsLibrary,
     )

@@ -8,7 +8,7 @@ import androidx.compose.ui.Modifier
 expect fun ChatScreen(
     modifier: Modifier = Modifier,
     conversationId: String? = null,
-    onConversationStarted: ((String) -> Unit)? = null,
+    onConversationStart: ((String) -> Unit)? = null,
     onNavigateToConversation: ((String) -> Unit)? = null,
     onOpenDrawer: (() -> Unit)? = null,
     onNavigateToPromptsLibrary: (() -> Unit)? = null,
@@ -18,7 +18,7 @@ expect fun ChatScreen(
 /** Platform-specific new chat screen. */
 @Composable
 expect fun NewChatScreen(
-    onConversationStarted: (String) -> Unit,
+    onConversationStart: (String) -> Unit,
     modifier: Modifier = Modifier,
     onOpenDrawer: (() -> Unit)? = null,
     onNavigateToPromptsLibrary: (() -> Unit)? = null,

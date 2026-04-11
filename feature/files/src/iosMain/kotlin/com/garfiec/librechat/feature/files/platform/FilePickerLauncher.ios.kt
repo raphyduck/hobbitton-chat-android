@@ -5,7 +5,7 @@ import androidx.compose.runtime.remember
 
 @Composable
 actual fun rememberFilePickerLauncher(
-    onFilePicked: (fileRef: Any) -> Unit,
+    onFilePick: (fileRef: Any) -> Unit,
 ): FilePickerLauncher {
     // iOS file picker — stub for now.
     // A proper implementation would use UIDocumentPickerViewController.

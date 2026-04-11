@@ -1,5 +1,6 @@
 package com.garfiec.librechat.core.network.api
 
+import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.model.Agent
 import com.garfiec.librechat.core.model.AgentAction
 import com.garfiec.librechat.core.model.AgentCategory
@@ -28,7 +29,6 @@ import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
 import io.ktor.http.path
 import kotlinx.serialization.json.JsonArray
-import co.touchlab.kermit.Logger
 
 class AgentsApi constructor(
     private val client: HttpClient,

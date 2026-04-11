@@ -25,10 +25,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
-import librechat_mobile.feature.settings.generated.resources.Res
-import librechat_mobile.feature.settings.generated.resources.*
+import com.garfiec.librechat.feature.settings.resources.*
+import com.garfiec.librechat.feature.settings.resources.Res
+import org.jetbrains.compose.resources.stringResource
 
 data class LanguageOption(
     val code: String,
@@ -80,7 +80,7 @@ private val SUPPORTED_LANGUAGES = listOf(
 @Composable
 internal fun LanguageSelectorDialog(
     selectedLanguage: String,
-    onLanguageSelected: (String) -> Unit,
+    onLanguageSelect: (String) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -120,7 +120,7 @@ internal fun LanguageSelectorDialog(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { onLanguageSelected(language.code) }
+                                .clickable { onLanguageSelect(language.code) }
                                 .padding(vertical = 12.dp, horizontal = 4.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {

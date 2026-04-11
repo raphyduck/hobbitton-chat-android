@@ -20,7 +20,7 @@ class AuthFlowTest {
         composeTestRule.setContent {
             LibreChatTheme {
                 ServerUrlScreen(
-                    onServerValidated = {},
+                    onServerValidate = {},
                 )
             }
         }

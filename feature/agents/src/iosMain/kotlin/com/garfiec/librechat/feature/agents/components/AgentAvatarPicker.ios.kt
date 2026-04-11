@@ -16,7 +16,7 @@ import androidx.compose.ui.unit.dp
 actual fun AgentAvatarPicker(
     avatarUrl: String?,
     agentName: String,
-    onImageSelected: (Any) -> Unit,
+    onImageSelect: (Any) -> Unit,
     modifier: Modifier,
 ) {
     // iOS: placeholder avatar display only (no image picker yet)

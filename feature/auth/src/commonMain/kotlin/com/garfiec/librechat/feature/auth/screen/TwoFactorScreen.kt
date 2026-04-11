@@ -27,36 +27,38 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import librechat_mobile.feature.auth.generated.resources.Res
-import librechat_mobile.feature.auth.generated.resources.*
+import com.garfiec.librechat.feature.auth.resources.*
+import com.garfiec.librechat.feature.auth.resources.Res
 import com.garfiec.librechat.feature.auth.viewmodel.TwoFactorViewModel
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TwoFactorScreen(
-    onVerified: () -> Unit,
+    onVerify: () -> Unit,
     onBack: () -> Unit,
-    tempToken: String? = null,
     modifier: Modifier = Modifier,
+    tempToken: String? = null,
     viewModel: TwoFactorViewModel = koinViewModel { parametersOf(tempToken) },
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val currentOnVerify by rememberUpdatedState(onVerify)
 
     LaunchedEffect(uiState.isVerified) {
-        if (uiState.isVerified) onVerified()
+        if (uiState.isVerified) currentOnVerify()
     }
 
     Scaffold(
@@ -111,13 +113,13 @@ fun TwoFactorScreen(
             if (uiState.isBackupMode) {
                 BackupCodeInput(
                     code = uiState.backupCode,
-                    onCodeChanged = viewModel::onBackupCodeChanged,
+                    onCodeChange = viewModel::onBackupCodeChanged,
                     enabled = !uiState.isLoading,
                 )
             } else {
                 DigitBoxes(
                     digits = uiState.digits,
-                    onDigitChanged = viewModel::onDigitChanged,
+                    onDigitChange = viewModel::onDigitChanged,
                     enabled = !uiState.isLoading,
                 )
             }
@@ -155,7 +157,11 @@ fun TwoFactorScreen(
 
             TextButton(onClick = viewModel::toggleBackupMode) {
                 Text(
-                    if (uiState.isBackupMode) stringResource(Res.string.use_authenticator_code) else stringResource(Res.string.use_backup_code),
+                    if (uiState.isBackupMode) {
+                        stringResource(Res.string.use_authenticator_code)
+                    } else {
+                        stringResource(Res.string.use_backup_code)
+                    },
                 )
             }
         }
@@ -165,7 +171,7 @@ fun TwoFactorScreen(
 @Composable
 private fun DigitBoxes(
     digits: List<String>,
-    onDigitChanged: (Int, String) -> Unit,
+    onDigitChange: (Int, String) -> Unit,
     enabled: Boolean,
     modifier: Modifier = Modifier,
 ) {
@@ -181,7 +187,7 @@ private fun DigitBoxes(
                 value = digit,
                 onValueChange = { value ->
                     val filtered = value.filter { it.isDigit() }.take(1)
-                    onDigitChanged(index, filtered)
+                    onDigitChange(index, filtered)
                     if (filtered.isNotEmpty() && index < 5) {
                         focusRequesters[index + 1].requestFocus()
                     }
@@ -208,13 +214,13 @@ private fun DigitBoxes(
 @Composable
 private fun BackupCodeInput(
     code: String,
-    onCodeChanged: (String) -> Unit,
+    onCodeChange: (String) -> Unit,
     enabled: Boolean,
     modifier: Modifier = Modifier,
 ) {
     OutlinedTextField(
         value = code,
-        onValueChange = onCodeChanged,
+        onValueChange = onCodeChange,
         modifier = modifier.fillMaxWidth(),
         enabled = enabled,
         singleLine = true,

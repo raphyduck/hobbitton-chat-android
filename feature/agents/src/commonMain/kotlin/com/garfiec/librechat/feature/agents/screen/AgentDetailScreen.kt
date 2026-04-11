@@ -39,26 +39,26 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.garfiec.librechat.core.model.EModelEndpoint
 import com.garfiec.librechat.core.ui.components.AvatarImage
-import com.garfiec.librechat.core.ui.components.endpointIconPainter
 import com.garfiec.librechat.core.ui.components.ErrorBanner
 import com.garfiec.librechat.core.ui.components.LoadingIndicator
-import librechat_mobile.feature.agents.generated.resources.Res
-import librechat_mobile.feature.agents.generated.resources.*
+import com.garfiec.librechat.core.ui.components.endpointIconPainter
+import com.garfiec.librechat.feature.agents.resources.*
+import com.garfiec.librechat.feature.agents.resources.Res
 import com.garfiec.librechat.feature.agents.viewmodel.AgentDetailEvent
 import com.garfiec.librechat.feature.agents.viewmodel.AgentDetailViewModel
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
-
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -66,18 +66,20 @@ fun AgentDetailScreen(
     onBack: () -> Unit,
     onStartChat: (String) -> Unit,
     onEdit: (String) -> Unit,
-    onDuplicated: (String) -> Unit,
-    agentId: String? = null,
+    onDuplicate: (String) -> Unit,
     modifier: Modifier = Modifier,
+    agentId: String? = null,
     viewModel: AgentDetailViewModel = koinViewModel { parametersOf(agentId) },
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val currentOnBack by rememberUpdatedState(onBack)
+    val currentOnDuplicated by rememberUpdatedState(onDuplicate)
 
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
             when (event) {
-                is AgentDetailEvent.Deleted -> onBack()
-                is AgentDetailEvent.Duplicated -> onDuplicated(event.agentId)
+                is AgentDetailEvent.Deleted -> currentOnBack()
+                is AgentDetailEvent.Duplicated -> currentOnDuplicated(event.agentId)
             }
         }
     }

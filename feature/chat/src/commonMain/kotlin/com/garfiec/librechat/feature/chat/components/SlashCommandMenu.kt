@@ -20,7 +20,7 @@ import com.garfiec.librechat.feature.chat.model.PromptMentionDisplayData
 @Composable
 fun SlashCommandMenu(
     filteredCommands: List<PromptMentionDisplayData>,
-    onCommandSelected: (PromptMentionDisplayData) -> Unit,
+    onCommandSelect: (PromptMentionDisplayData) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     DropdownMenu(
@@ -48,7 +48,7 @@ fun SlashCommandMenu(
                         }
                     }
                 },
-                onClick = { onCommandSelected(group) },
+                onClick = { onCommandSelect(group) },
             )
         }
     }

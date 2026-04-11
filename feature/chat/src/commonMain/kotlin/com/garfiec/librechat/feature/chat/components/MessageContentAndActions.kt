@@ -32,8 +32,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.unit.dp
 import com.garfiec.librechat.core.model.Message
-import librechat_mobile.feature.chat.generated.resources.Res
-import librechat_mobile.feature.chat.generated.resources.*
+import com.garfiec.librechat.feature.chat.resources.*
+import com.garfiec.librechat.feature.chat.resources.Res
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -166,7 +166,7 @@ internal fun MessageContentAndActions(
     isUser: Boolean,
     isEditing: Boolean,
     editText: String,
-    onEditTextChanged: ((String) -> Unit)?,
+    onEditTextChange: ((String) -> Unit)?,
     onEditSaveAndSubmit: (() -> Unit)?,
     onEditSaveOnly: (() -> Unit)?,
     onEditCancel: (() -> Unit)?,
@@ -178,7 +178,7 @@ internal fun MessageContentAndActions(
     isSearchMatch: Boolean,
     isCurrentSearchMatch: Boolean,
     searchFocusedOccurrence: Int,
-    onFocusedOccurrencePositioned: ((LayoutCoordinates) -> Unit)?,
+    onFocusedOccurrencePosition: ((LayoutCoordinates) -> Unit)?,
     showActions: Boolean,
     siblingIndex: Int,
     siblingCount: Int,
@@ -194,10 +194,10 @@ internal fun MessageContentAndActions(
     currentFeedback: String?,
     onShowFeedbackDialog: () -> Unit,
 ) {
-    if (isEditing && onEditTextChanged != null && onEditSaveAndSubmit != null && onEditSaveOnly != null && onEditCancel != null) {
+    if (isEditing && onEditTextChange != null && onEditSaveAndSubmit != null && onEditSaveOnly != null && onEditCancel != null) {
         InlineEditInput(
             text = editText,
-            onTextChanged = onEditTextChanged,
+            onTextChange = onEditTextChange,
             onSaveAndSubmit = onEditSaveAndSubmit,
             onSaveOnly = onEditSaveOnly,
             onCancel = onEditCancel,
@@ -225,7 +225,7 @@ internal fun MessageContentAndActions(
                     showImageDescriptions = showImageDescriptions,
                     searchQuery = if (isSearchMatch) searchQuery else null,
                     searchFocusedOccurrence = if (isCurrentSearchMatch) searchFocusedOccurrence else -1,
-                    onFocusedOccurrencePositioned = if (isCurrentSearchMatch) onFocusedOccurrencePositioned else null,
+                    onFocusedOccurrencePosition = if (isCurrentSearchMatch) onFocusedOccurrencePosition else null,
                     modifier = Modifier.padding(vertical = 2.dp),
                 )
             }
@@ -236,7 +236,7 @@ internal fun MessageContentAndActions(
                 useKatex = useKatex,
                 searchQuery = if (isSearchMatch) searchQuery else null,
                 searchFocusedOccurrence = if (isCurrentSearchMatch) searchFocusedOccurrence else -1,
-                onFocusedOccurrencePositioned = if (isCurrentSearchMatch) onFocusedOccurrencePositioned else null,
+                onFocusedOccurrencePosition = if (isCurrentSearchMatch) onFocusedOccurrencePosition else null,
             )
         }
     }

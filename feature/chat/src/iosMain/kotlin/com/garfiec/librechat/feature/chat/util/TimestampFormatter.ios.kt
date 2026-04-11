@@ -1,12 +1,12 @@
 package com.garfiec.librechat.feature.chat.util
 
-import platform.Foundation.NSDateFormatter
 import platform.Foundation.NSDate
+import platform.Foundation.NSDateFormatter
 import platform.Foundation.NSLocale
 import platform.Foundation.NSTimeZone
+import platform.Foundation.localeWithLocaleIdentifier
 import platform.Foundation.timeIntervalSince1970
 import platform.Foundation.timeZoneWithName
-import platform.Foundation.localeWithLocaleIdentifier
 
 actual fun formatRelativeTimestamp(isoTimestamp: String): String {
     val date = parseTimestamp(isoTimestamp) ?: return ""

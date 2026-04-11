@@ -22,12 +22,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
-import org.jetbrains.compose.resources.stringResource
-import librechat_mobile.feature.settings.generated.resources.Res
-import librechat_mobile.feature.settings.generated.resources.*
-import com.garfiec.librechat.feature.settings.viewmodel.SettingsViewModel
+import com.garfiec.librechat.feature.settings.resources.*
+import com.garfiec.librechat.feature.settings.resources.Res
 import kotlinx.coroutines.launch
-import org.koin.compose.viewmodel.koinViewModel
+import org.jetbrains.compose.resources.stringResource
 
 private val SettingsTabs = listOf("General", "Chat", "Account", "Data")
 
@@ -41,12 +39,11 @@ private val SettingsTabs = listOf("General", "Chat", "Account", "Data")
 fun TabbedSettingsScreen(
     onNavigateBack: () -> Unit,
     onLogout: () -> Unit,
-    onNavigateToArchived: () -> Unit,
+    onNavigateToArchive: () -> Unit,
     onNavigateToSharedLinks: () -> Unit,
     onNavigateToPresets: () -> Unit,
     onNavigateToApiKeys: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: SettingsViewModel = koinViewModel(),
 ) {
     val pagerState = rememberPagerState(pageCount = { SettingsTabs.size })
     val scope = rememberCoroutineScope()
@@ -97,26 +94,22 @@ fun TabbedSettingsScreen(
             when (page) {
                 0 -> GeneralSettingsContent(
                     modifier = Modifier.fillMaxSize(),
-                    viewModel = viewModel,
                 )
                 1 -> ChatSettingsContent(
                     onNavigateToPresets = onNavigateToPresets,
                     modifier = Modifier.fillMaxSize(),
-                    viewModel = viewModel,
                 )
                 2 -> AccountSettingsContent(
                     onLogout = onLogout,
                     onNavigateToApiKeys = onNavigateToApiKeys,
                     snackbarHostState = snackbarHostState,
                     modifier = Modifier.fillMaxSize(),
-                    viewModel = viewModel,
                 )
                 3 -> DataSettingsContent(
-                    onNavigateToArchived = onNavigateToArchived,
+                    onNavigateToArchive = onNavigateToArchive,
                     onNavigateToSharedLinks = onNavigateToSharedLinks,
                     snackbarHostState = snackbarHostState,
                     modifier = Modifier.fillMaxSize(),
-                    viewModel = viewModel,
                 )
             }
         }

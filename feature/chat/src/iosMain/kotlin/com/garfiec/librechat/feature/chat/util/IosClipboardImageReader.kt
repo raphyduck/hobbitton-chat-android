@@ -42,7 +42,7 @@ fun readClipboardImage(): IosImageData? {
 
     return IosImageData(
         bytes = bytes,
-        filename = "clipboard_${timestamp}.png",
+        filename = "clipboard_$timestamp.png",
         mimeType = "image/png",
         width = width,
         height = height,

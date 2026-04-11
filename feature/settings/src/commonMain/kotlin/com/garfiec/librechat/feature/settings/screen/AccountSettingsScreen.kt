@@ -40,13 +40,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
@@ -56,12 +56,13 @@ import coil3.compose.AsyncImage
 import com.garfiec.librechat.core.ui.components.ErrorBanner
 import com.garfiec.librechat.core.ui.components.LoadingIndicator
 import com.garfiec.librechat.core.ui.components.OtpVerificationDialog
-import librechat_mobile.feature.settings.generated.resources.Res
-import librechat_mobile.feature.settings.generated.resources.*
+import com.garfiec.librechat.feature.settings.resources.*
+import com.garfiec.librechat.feature.settings.resources.Res
 import com.garfiec.librechat.feature.settings.screen.sections.BackupCodesDialog
 import com.garfiec.librechat.feature.settings.screen.sections.TwoFactorCodeDialog
 import com.garfiec.librechat.feature.settings.screen.sections.TwoFactorSetupDialog
 import com.garfiec.librechat.feature.settings.viewmodel.SettingsViewModel
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -71,7 +72,6 @@ fun AccountSettingsScreen(
     onNavigateBack: () -> Unit,
     onNavigateToApiKeys: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: SettingsViewModel = koinViewModel(),
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -99,7 +99,6 @@ fun AccountSettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            viewModel = viewModel,
         )
     }
 }
@@ -117,6 +116,7 @@ fun AccountSettingsContent(
     viewModel: SettingsViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val currentOnLogout by rememberUpdatedState(onLogout)
 
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
@@ -135,22 +135,21 @@ fun AccountSettingsContent(
 
     LaunchedEffect(uiState.isLoggedOut, uiState.isAccountDeleted) {
         if (uiState.isLoggedOut || uiState.isAccountDeleted) {
-            onLogout()
+            currentOnLogout()
         }
     }
 
-    Column {
+    Column(modifier = modifier) {
         if (uiState.isLoading && uiState.user == null) {
             LoadingIndicator()
         } else if (uiState.error != null && uiState.user == null) {
             ErrorBanner(
                 message = uiState.error ?: stringResource(Res.string.error_could_not_load_settings),
-                modifier = modifier,
                 onRetry = { viewModel.retry() },
             )
         } else {
             LazyColumn(
-                modifier = modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize(),
             ) {
                 // Account section
                 item(key = "account_header") {

@@ -1,7 +1,7 @@
 package com.garfiec.librechat.feature.chat.util
 
-import com.google.common.truth.Truth.assertThat
 import com.garfiec.librechat.core.model.Message
+import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
 class MessageTreeTest {

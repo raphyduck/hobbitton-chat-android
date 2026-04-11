@@ -35,24 +35,23 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import librechat_mobile.feature.settings.generated.resources.Res
-import librechat_mobile.feature.settings.generated.resources.*
+import com.garfiec.librechat.feature.settings.resources.*
+import com.garfiec.librechat.feature.settings.resources.Res
 import com.garfiec.librechat.feature.settings.viewmodel.SettingsViewModel
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DataSettingsScreen(
     onNavigateBack: () -> Unit,
-    onNavigateToArchived: () -> Unit,
+    onNavigateToArchive: () -> Unit,
     onNavigateToSharedLinks: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: SettingsViewModel = koinViewModel(),
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -74,13 +73,12 @@ fun DataSettingsScreen(
         },
     ) { innerPadding ->
         DataSettingsContent(
-            onNavigateToArchived = onNavigateToArchived,
+            onNavigateToArchive = onNavigateToArchive,
             onNavigateToSharedLinks = onNavigateToSharedLinks,
             snackbarHostState = snackbarHostState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            viewModel = viewModel,
         )
     }
 }
@@ -91,7 +89,7 @@ fun DataSettingsScreen(
  */
 @Composable
 fun DataSettingsContent(
-    onNavigateToArchived: () -> Unit,
+    onNavigateToArchive: () -> Unit,
     onNavigateToSharedLinks: () -> Unit,
     modifier: Modifier = Modifier,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
@@ -121,9 +119,9 @@ fun DataSettingsContent(
         viewModel.dismissMcpReinitializeMessage()
     }
 
-    Column {
+    Column(modifier = modifier) {
         LazyColumn(
-            modifier = modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize(),
         ) {
             // Conversations section
             item(key = "conversations_header") {
@@ -134,7 +132,7 @@ fun DataSettingsContent(
                     archivedCount = uiState.archivedCount,
                     isClearing = uiState.isClearing,
                     onClearAllChats = viewModel::clearAllChats,
-                    onViewArchived = onNavigateToArchived,
+                    onViewArchive = onNavigateToArchive,
                     onExportAllData = viewModel::exportAllData,
                 )
             }
@@ -158,7 +156,7 @@ fun DataSettingsContent(
                     memoriesEnabled = uiState.memoriesEnabled,
                     showMemoryDialog = uiState.showMemoryDialog,
                     editingMemory = uiState.editingMemory,
-                    onToggleEnabled = viewModel::toggleMemoriesEnabled,
+                    onToggleEnable = viewModel::toggleMemoriesEnabled,
                     onAddMemory = viewModel::showAddMemoryDialog,
                     onEditMemory = viewModel::showEditMemoryDialog,
                     onDeleteMemory = viewModel::deleteMemory,
