@@ -7,19 +7,20 @@ import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.common.extensions.toInstantOrNull
 import com.garfiec.librechat.core.common.extensions.toRelativeDateGroup
 import com.garfiec.librechat.core.common.result.Result
-import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.repository.ConversationRepository
 import com.garfiec.librechat.core.data.repository.SearchRepository
 import com.garfiec.librechat.core.data.repository.ShareRepository
 import com.garfiec.librechat.core.data.repository.TagRepository
 import com.garfiec.librechat.core.model.Conversation
 import com.garfiec.librechat.core.model.ConversationTag
+import com.garfiec.librechat.core.model.SAVED_TAG
 import com.garfiec.librechat.feature.conversations.components.ConversationDisplayData
 import com.garfiec.librechat.feature.conversations.components.toDisplayData
 import com.garfiec.librechat.feature.conversations.export.ConversationExporter
 import com.garfiec.librechat.feature.conversations.export.ConversationImporter
 import com.garfiec.librechat.feature.conversations.export.ExportFormat
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -59,7 +60,6 @@ class ConversationListViewModel(
     private val shareRepository: ShareRepository,
     private val conversationExporter: ConversationExporter,
     private val conversationImporter: ConversationImporter,
-    private val settingsDataStore: SettingsDataStore,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ConversationListUiState())
@@ -70,14 +70,12 @@ class ConversationListViewModel(
 
     /** Raw conversations kept for internal lookups (action sheets, etc.). */
     private var conversations: List<Conversation> = emptyList()
-    private var bookmarkedIds: Set<String> = emptySet()
     private var searchJob: Job? = null
 
     init {
         loadConversations()
         observeConversations()
-        observeBookmarks()
-        loadTags()
+        observeTags()
     }
 
     private fun observeConversations() {
@@ -104,17 +102,18 @@ class ConversationListViewModel(
         }
     }
 
-    private fun observeBookmarks() {
+    private fun observeTags() {
         viewModelScope.launch {
-            settingsDataStore.bookmarkedConversationIds.collect { ids ->
-                bookmarkedIds = ids
-                recomputeGroupedConversations()
+            tagRepository.observeTags().collect { tags ->
+                _uiState.value = _uiState.value.copy(
+                    tags = tags.filter { it.count > 0 && it.tag != SAVED_TAG },
+                )
             }
         }
     }
 
     private fun recomputeGroupedConversations() {
-        val grouped = groupConversationsByDate(conversations, bookmarkedIds)
+        val grouped = groupConversationsByDate(conversations)
         _uiState.value = _uiState.value.copy(
             groupedConversations = grouped,
             conversationCount = conversations.size,
@@ -124,12 +123,20 @@ class ConversationListViewModel(
     fun getConversation(conversationId: String): Conversation? =
         conversations.firstOrNull { it.conversationId == conversationId }
 
-    fun isBookmarked(conversationId: String): Boolean =
-        conversationId in bookmarkedIds
-
-    fun toggleBookmark(conversationId: String) {
+    fun toggleFavorite(conversation: Conversation) {
+        val id = conversation.conversationId ?: return
         viewModelScope.launch {
-            settingsDataStore.toggleBookmark(conversationId)
+            when (val result = tagRepository.toggleFavorite(id, conversation.tags)) {
+                is Result.Error -> {
+                    _events.emit(
+                        ConversationListEvent.ShowError(
+                            result.message ?: "Failed to update favorite",
+                        ),
+                    )
+                }
+                is Result.Success -> { /* no-op */ }
+                is Result.Loading -> { /* no-op */ }
+            }
         }
     }
 
@@ -181,40 +188,25 @@ class ConversationListViewModel(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isRefreshing = true)
             val activeTags = _uiState.value.selectedTags.toList().ifEmpty { null }
-            when (val result = conversationRepository.loadNextPage(null, tags = activeTags)) {
-                is Result.Success -> {
-                    _uiState.value = _uiState.value.copy(
-                        isRefreshing = false,
-                        nextCursor = result.data,
-                        hasMore = result.data != null,
-                    )
+            coroutineScope {
+                launch {
+                    when (val result = conversationRepository.loadNextPage(null, tags = activeTags)) {
+                        is Result.Success -> {
+                            _uiState.value = _uiState.value.copy(
+                                nextCursor = result.data,
+                                hasMore = result.data != null,
+                            )
+                        }
+                        is Result.Error -> {
+                            _uiState.value = _uiState.value.copy(error = result.message)
+                        }
+                        is Result.Loading -> { /* no-op */ }
+                    }
                 }
-                is Result.Error -> {
-                    _uiState.value = _uiState.value.copy(
-                        isRefreshing = false,
-                        error = result.message,
-                    )
-                }
-                is Result.Loading -> { /* no-op */ }
+                launch { tagRepository.refreshTags() }
+                launch { conversationRepository.syncFavoritesFromServer() }
             }
-            loadTags()
-        }
-    }
-
-    private fun loadTags() {
-        viewModelScope.launch {
-            when (val result = tagRepository.getTags()) {
-                is Result.Success -> {
-                    _uiState.value = _uiState.value.copy(
-                        tags = result.data.filter { it.count > 0 },
-                    )
-                }
-                is Result.Error -> {
-                    // Tags are non-critical, silently fail
-                    Logger.d(result.exception) { "Failed to load tags: ${result.message}" }
-                }
-                is Result.Loading -> { /* no-op */ }
-            }
+            _uiState.value = _uiState.value.copy(isRefreshing = false)
         }
     }
 
@@ -265,12 +257,17 @@ class ConversationListViewModel(
         }
     }
 
-    fun updateConversationTags(conversationId: String, tags: List<String>) {
+    fun updateConversationTags(conversation: Conversation, userTags: List<String>) {
+        val id = conversation.conversationId ?: return
+        val wasFavorited = SAVED_TAG in conversation.tags
+        val cleaned = userTags.filterNot { it == SAVED_TAG }
+        val finalTags = if (wasFavorited) cleaned + SAVED_TAG else cleaned
         viewModelScope.launch {
-            when (tagRepository.updateConversationTags(conversationId, tags)) {
+            when (tagRepository.setConversationTags(id, finalTags)) {
                 is Result.Success -> {
-                    loadTags()
-                    refresh()
+                    // Room Flow already emits the updated conversation via
+                    // observeConversations; we only need fresh tag counts.
+                    tagRepository.refreshTags()
                 }
                 is Result.Error -> {
                     _events.emit(ConversationListEvent.ShowError("Failed to update tags"))
@@ -434,7 +431,6 @@ class ConversationListViewModel(
     companion object {
         private fun groupConversationsByDate(
             conversations: List<Conversation>,
-            bookmarkedIds: Set<String>,
         ): List<Pair<String, List<ConversationDisplayData>>> {
             if (conversations.isEmpty()) return emptyList()
             return conversations
@@ -445,7 +441,7 @@ class ConversationListViewModel(
                         ?: "Unknown"
                 }
                 .map { (group, convos) ->
-                    group to convos.map { it.toDisplayData(bookmarkedIds) }
+                    group to convos.map { it.toDisplayData() }
                 }
         }
     }

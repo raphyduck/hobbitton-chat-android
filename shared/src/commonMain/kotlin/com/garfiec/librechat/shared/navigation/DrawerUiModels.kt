@@ -16,6 +16,7 @@ data class DrawerConversationDisplayData(
     val relativeTime: String,
     val isActive: Boolean,
     val isFavorite: Boolean,
+    val tags: List<String>,
 )
 
 /**

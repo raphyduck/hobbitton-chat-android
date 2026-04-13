@@ -30,4 +30,6 @@ interface ConversationRepository {
     suspend fun importConversation(jsonContent: String): Result<Conversation>
     suspend fun deleteAll(): Result<Unit>
     suspend fun saveConversation(conversation: Conversation)
+    suspend fun updateConversationTagsLocal(id: String, tags: List<String>)
+    suspend fun syncFavoritesFromServer(): Result<Unit>
 }

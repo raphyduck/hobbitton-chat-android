@@ -3,7 +3,6 @@ package com.garfiec.librechat.core.data.repository
 import com.garfiec.librechat.core.common.result.Result
 import com.garfiec.librechat.core.common.result.safeApiCall
 import com.garfiec.librechat.core.model.User
-import com.garfiec.librechat.core.model.UserFavorite
 import com.garfiec.librechat.core.model.request.ResendVerificationRequest
 import com.garfiec.librechat.core.model.request.VerifyEmailRequest
 import com.garfiec.librechat.core.model.response.TermsResponse
@@ -39,13 +38,5 @@ class UserRepositoryImpl(
 
     override suspend fun acceptTerms(): Result<Unit> = safeApiCall {
         userApi.acceptTerms()
-    }
-
-    override suspend fun getFavorites(): Result<List<UserFavorite>> = safeApiCall {
-        userApi.getFavorites()
-    }
-
-    override suspend fun updateFavorites(favorites: List<UserFavorite>): Result<User> = safeApiCall {
-        userApi.updateFavorites(favorites)
     }
 }

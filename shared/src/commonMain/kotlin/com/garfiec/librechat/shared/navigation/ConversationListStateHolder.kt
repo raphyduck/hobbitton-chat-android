@@ -8,6 +8,7 @@ import com.garfiec.librechat.core.data.repository.ConversationRepository
 import com.garfiec.librechat.core.model.Conversation
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -108,7 +109,10 @@ class ConversationListStateHolder(
         scope.launch {
             nextCursor = null
             _hasMore.value = true
-            loadPage(cursor = null)
+            coroutineScope {
+                launch { loadPage(cursor = null) }
+                launch { conversationRepository.syncFavoritesFromServer() }
+            }
             _isRefreshing.value = false
         }
     }

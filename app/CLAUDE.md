@@ -52,11 +52,6 @@ Conversations are integrated into the drawer body. Agents, Files, and Settings a
 This module depends on `:shared`, all `:core:*`, and all `:feature:*` modules.
 It applies convention plugins: `librechat.mobile.application`, `librechat.mobile.compose`, `librechat.mobile.koin`.
 
-### Server-Synced Favorites
-- `NavHostViewModel` (shared) exposes `favorites: StateFlow<Set<String>>` and `toggleFavorite()`
-- Currently backed by `SettingsDataStore` (local) — server sync via `UserApi.getFavorites()/updateFavorites()` available but needs wiring
-- `DrawerContent` (shared) shows star icon per conversation (filled = bookmarked)
-
 ### Server Banners
 - `NavHostViewModel` (shared) fetches banners from `BannerRepository` on init, filters expired via `displayFrom`/`displayTo` with `Instant.parse()`
 - Dismissed banner IDs tracked in-memory via `dismissedBannerIds: StateFlow<Set<String>>` (session-scoped, not persisted)

@@ -100,7 +100,6 @@ class SettingsViewModelTest {
         every { settingsDataStore.showAvatars } returns MutableStateFlow(true)
         every { settingsDataStore.showBubbles } returns MutableStateFlow(false)
         every { settingsDataStore.latexRenderer } returns MutableStateFlow(LatexRenderer.KATEX)
-        every { settingsDataStore.bookmarkedConversationIds } returns MutableStateFlow(emptySet())
 
         // Setup default API responses
         coEvery { userRepository.getUser() } returns Result.Success(testUser)

@@ -1,12 +1,10 @@
 package com.garfiec.librechat.core.network.api
 
 import com.garfiec.librechat.core.model.User
-import com.garfiec.librechat.core.model.UserFavorite
 import com.garfiec.librechat.core.model.request.OtpVerificationRequest
 import com.garfiec.librechat.core.model.request.ResendVerificationRequest
 import com.garfiec.librechat.core.model.request.VerifyEmailRequest
 import com.garfiec.librechat.core.model.response.TermsResponse
-import com.garfiec.librechat.core.network.api.dto.UpdateFavoritesRequest
 import com.garfiec.librechat.core.network.api.dto.UpdatePluginsRequest
 import com.garfiec.librechat.core.network.api.dto.UserUpdateRequest
 import io.ktor.client.HttpClient
@@ -80,17 +78,6 @@ class UserApi constructor(
             },
         ) {
             url { path("api/user/avatar") }
-        }.body()
-
-    suspend fun getFavorites(): List<UserFavorite> =
-        client.get {
-            url { path("api/user/favorites") }
-        }.body()
-
-    suspend fun updateFavorites(favorites: List<UserFavorite>): User =
-        client.post {
-            url { path("api/user/favorites") }
-            setBody(UpdateFavoritesRequest(favorites = favorites))
         }.body()
 
     suspend fun updatePlugins(plugins: List<String>): User =

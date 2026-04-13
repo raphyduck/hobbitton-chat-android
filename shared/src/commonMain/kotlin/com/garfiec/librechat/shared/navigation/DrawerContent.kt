@@ -95,7 +95,7 @@ fun DrawerContent(
         onSettingsClick = onSettingsClick,
         onAgentsClick = onAgentsClick,
         onFilesClick = onFilesClick,
-        onToggleFavorite = viewModel::toggleFavorite,
+        onToggleFavorite = { data -> viewModel.toggleFavorite(data.conversationId, data.tags) },
         onRefresh = viewModel::refreshConversations,
         onLoadMore = viewModel::loadMoreConversations,
         modifier = modifier,
@@ -113,7 +113,7 @@ fun DrawerContent(
     onAgentsClick: () -> Unit,
     onFilesClick: () -> Unit,
     modifier: Modifier = Modifier,
-    onToggleFavorite: (String) -> Unit = {},
+    onToggleFavorite: (DrawerConversationDisplayData) -> Unit = {},
     onRefresh: () -> Unit = {},
     onLoadMore: () -> Unit = {},
 ) {
@@ -257,7 +257,7 @@ fun DrawerContent(
                         DrawerConversationItem(
                             data = data,
                             onClick = { onConversationClick(data.conversationId) },
-                            onToggleFavorite = { onToggleFavorite(data.conversationId) },
+                            onToggleFavorite = { onToggleFavorite(data) },
                         )
                     }
 
@@ -303,7 +303,7 @@ fun DrawerContent(
                         DrawerConversationItem(
                             data = data,
                             onClick = { onConversationClick(data.conversationId) },
-                            onToggleFavorite = { onToggleFavorite(data.conversationId) },
+                            onToggleFavorite = { onToggleFavorite(data) },
                         )
                     }
                 }

@@ -3,7 +3,6 @@ package com.garfiec.librechat.feature.conversations.di
 import android.app.Application
 import android.content.Context
 import com.garfiec.librechat.core.data.datastore.ServerDataStore
-import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.repository.ConfigRepository
 import com.garfiec.librechat.core.data.repository.ConversationRepository
 import com.garfiec.librechat.core.data.repository.MessageRepository
@@ -27,7 +26,6 @@ class ConversationsModuleVerificationTest {
                 SearchRepository::class,
                 ConfigRepository::class,
                 ServerDataStore::class,
-                SettingsDataStore::class,
             ),
         )
     }

@@ -16,14 +16,6 @@ data class User(
     val role: String = "USER",
     val twoFactorEnabled: Boolean = false,
     val termsAccepted: Boolean = false,
-    val favorites: List<UserFavorite> = emptyList(),
     val createdAt: String? = null,
     val updatedAt: String? = null,
-)
-
-@Serializable
-data class UserFavorite(
-    val agentId: String? = null,
-    val model: String? = null,
-    val endpoint: String? = null,
 )

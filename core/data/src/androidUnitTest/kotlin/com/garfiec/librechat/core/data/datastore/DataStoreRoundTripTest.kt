@@ -174,24 +174,6 @@ class DataStoreRoundTripTest {
     }
 
     @Test
-    fun settingsDataStore_roundTrip_bookmarks() = runTest(testDispatcher) {
-        val ds = createDataStore("settings-bookmarks")
-        val store = SettingsDataStore(ds)
-
-        assertThat(store.bookmarkedConversationIds.first()).isEmpty()
-
-        store.toggleBookmark("conv-001")
-        assertThat(store.bookmarkedConversationIds.first()).containsExactly("conv-001")
-
-        store.toggleBookmark("conv-002")
-        assertThat(store.bookmarkedConversationIds.first()).containsExactly("conv-001", "conv-002")
-
-        // Toggle off
-        store.toggleBookmark("conv-001")
-        assertThat(store.bookmarkedConversationIds.first()).containsExactly("conv-002")
-    }
-
-    @Test
     fun settingsDataStore_roundTrip_mcpServers() = runTest(testDispatcher) {
         val ds = createDataStore("settings-mcp")
         val store = SettingsDataStore(ds)

@@ -4,12 +4,16 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.common.extensions.firstBlocking
+import com.garfiec.librechat.core.common.result.Result
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.repository.AuthRepository
 import com.garfiec.librechat.core.data.repository.BannerRepository
 import com.garfiec.librechat.core.data.repository.ConfigRepository
 import com.garfiec.librechat.core.data.repository.ConversationRepository
+import com.garfiec.librechat.core.data.repository.TagRepository
 import com.garfiec.librechat.core.model.Banner
+import com.garfiec.librechat.core.model.Conversation
+import com.garfiec.librechat.core.model.SAVED_TAG
 import com.garfiec.librechat.core.network.client.TokenManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -17,6 +21,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -24,7 +29,8 @@ class NavHostViewModel(
     private val authRepository: AuthRepository,
     bannerRepository: BannerRepository,
     configRepository: ConfigRepository,
-    conversationRepository: ConversationRepository,
+    private val conversationRepository: ConversationRepository,
+    private val tagRepository: TagRepository,
     private val tokenManager: TokenManager,
     private val settingsDataStore: SettingsDataStore,
 ) : ViewModel() {
@@ -32,8 +38,11 @@ class NavHostViewModel(
     private val bannerStateHolder = BannerStateHolder(bannerRepository, viewModelScope)
     private val versionCheckStateHolder = VersionCheckStateHolder(configRepository, settingsDataStore, viewModelScope)
     private val conversationListStateHolder = ConversationListStateHolder(conversationRepository, viewModelScope)
-    private val favoritesStateHolder =
-        FavoritesStateHolder(settingsDataStore, conversationListStateHolder.recentConversations, viewModelScope)
+
+    private val favoriteConversations: StateFlow<List<Conversation>> =
+        conversationListStateHolder.recentConversations
+            .map { list -> list.filter { SAVED_TAG in it.tags } }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _isLoggedIn = MutableStateFlow(tokenManager.isAuthenticated)
     val isLoggedIn: StateFlow<Boolean> = _isLoggedIn.asStateFlow()
@@ -73,11 +82,10 @@ class NavHostViewModel(
         combine(
             conversationListStateHolder.groupedConversations,
             conversationListStateHolder.activeConversationId,
-            favoritesStateHolder.favorites,
-            favoritesStateHolder.favoriteConversations,
+            favoriteConversations,
             conversationListStateHolder.searchQuery,
-        ) { grouped, activeId, favIds, favConvos, query ->
-            DrawerDataSnapshot(grouped, activeId, favIds, favConvos, query)
+        ) { grouped, activeId, favConvos, query ->
+            DrawerDataSnapshot(grouped, activeId, favConvos, query)
         },
         combine(
             conversationListStateHolder.isRefreshing,
@@ -89,9 +97,9 @@ class NavHostViewModel(
     ) { data, (refreshing, loadingMore, hasMore) ->
         DrawerUiState(
             groupedConversations = data.grouped.map { (group, convos) ->
-                group to convos.map { it.toDrawerDisplayData(data.activeId, data.favIds) }
+                group to convos.map { it.toDrawerDisplayData(data.activeId) }
             },
-            favoriteConversations = data.favConvos.map { it.toDrawerDisplayData(data.activeId, data.favIds) },
+            favoriteConversations = data.favConvos.map { it.toDrawerDisplayData(data.activeId) },
             searchQuery = data.query,
             isRefreshing = refreshing,
             isLoadingMore = loadingMore,
@@ -106,6 +114,8 @@ class NavHostViewModel(
                 _isLoggedIn.value = loggedIn
                 if (loggedIn) {
                     versionCheckStateHolder.checkBackendVersion()
+                    launch { tagRepository.refreshTags() }
+                    launch { conversationRepository.syncFavoritesFromServer() }
                 }
             } catch (e: Exception) {
                 Logger.w(e) { "Failed to check auth state on init" }
@@ -121,12 +131,17 @@ class NavHostViewModel(
     fun onAuthComplete() {
         _isLoggedIn.value = true
         conversationListStateHolder.refreshConversations()
+        viewModelScope.launch {
+            launch { tagRepository.refreshTags() }
+            launch { conversationRepository.syncFavoritesFromServer() }
+        }
         bannerStateHolder.fetchBanners()
         versionCheckStateHolder.checkBackendVersion()
     }
 
     fun refreshConversations() {
         conversationListStateHolder.refreshConversations()
+        viewModelScope.launch { tagRepository.refreshTags() }
     }
 
     fun setActiveConversation(conversationId: String?) {
@@ -137,8 +152,13 @@ class NavHostViewModel(
         conversationListStateHolder.onSearchQueryChanged(query)
     }
 
-    fun toggleFavorite(conversationId: String) {
-        favoritesStateHolder.toggleFavorite(conversationId)
+    fun toggleFavorite(conversationId: String, currentTags: List<String>) {
+        viewModelScope.launch {
+            val result = tagRepository.toggleFavorite(conversationId, currentTags)
+            if (result is Result.Error) {
+                Logger.w(result.exception) { "Failed to toggle favorite for $conversationId" }
+            }
+        }
     }
 
     fun setTabletSidebarOpen(open: Boolean) {
@@ -164,7 +184,7 @@ class NavHostViewModel(
             authRepository.logout()
             _isLoggedIn.value = false
             conversationListStateHolder.reset()
-            favoritesStateHolder.reset()
+            tagRepository.clearCache()
             _sidebarMode.value = SidebarMode.Conversations
             _selectedSettingsCategory.value = null
         }

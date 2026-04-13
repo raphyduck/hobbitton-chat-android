@@ -6,7 +6,6 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.core.stringSetPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -67,10 +66,6 @@ class SettingsDataStore(
 
     val ttsVoiceName: Flow<String> = dataStore.data.map { prefs ->
         prefs[KEY_TTS_VOICE_NAME] ?: ""
-    }
-
-    val bookmarkedConversationIds: Flow<Set<String>> = dataStore.data.map { prefs ->
-        prefs[KEY_BOOKMARKED_CONVERSATIONS] ?: emptySet()
     }
 
     val tabletSidebarOpen: Flow<Boolean> = dataStore.data.map { prefs ->
@@ -308,17 +303,6 @@ class SettingsDataStore(
         }
     }
 
-    suspend fun toggleBookmark(conversationId: String) {
-        dataStore.edit { prefs ->
-            val current = prefs[KEY_BOOKMARKED_CONVERSATIONS] ?: emptySet()
-            prefs[KEY_BOOKMARKED_CONVERSATIONS] = if (conversationId in current) {
-                current - conversationId
-            } else {
-                current + conversationId
-            }
-        }
-    }
-
     companion object {
         private val KEY_LATEX_RENDERER = stringPreferencesKey("latex_renderer")
         private val KEY_CHAT_FONT_SIZE = stringPreferencesKey("chat_font_size")
@@ -334,7 +318,6 @@ class SettingsDataStore(
         private val KEY_TTS_SPEECH_RATE = floatPreferencesKey("tts_speech_rate")
         private val KEY_TTS_PITCH = floatPreferencesKey("tts_pitch")
         private val KEY_TTS_VOICE_NAME = stringPreferencesKey("tts_voice_name")
-        private val KEY_BOOKMARKED_CONVERSATIONS = stringSetPreferencesKey("bookmarked_conversations")
         private val KEY_TABLET_SIDEBAR_OPEN = booleanPreferencesKey("tablet_sidebar_open")
         private val KEY_TABLET_SIDEBAR_GESTURE_ENABLED = booleanPreferencesKey("tablet_sidebar_gesture_enabled")
         private val KEY_AUTO_SEND_AFTER_STT = booleanPreferencesKey("auto_send_after_stt")
