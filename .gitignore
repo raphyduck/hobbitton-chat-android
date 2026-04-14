@@ -20,6 +20,7 @@ local.properties
 # Keystore
 *.jks
 *.keystore
+!app/debug.keystore
 
 # OS
 .DS_Store

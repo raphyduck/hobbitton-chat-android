@@ -82,6 +82,10 @@ jobs:
     name: Build Android App
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: read
+      pull-requests: write
+
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -97,6 +101,48 @@ jobs:
 
       - name: Build debug APK
         run: ./gradlew :app:assembleDebug
+
+      - name: Upload debug APK
+        id: upload_apk
+        if: always() && hashFiles('app/build/outputs/apk/debug/app-debug.apk') != ''
+        uses: actions/upload-artifact@v6
+        with:
+          name: librechat-android-debug-${{ github.event.pull_request.number || github.sha }}
+          path: app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: Write APK summary
+        if: always() && steps.upload_apk.outputs.artifact-url != ''
+        env:
+          ARTIFACT_NAME: librechat-android-debug-${{ github.event.pull_request.number || github.sha }}
+          ARTIFACT_URL: ${{ steps.upload_apk.outputs.artifact-url }}
+        run: |
+          {
+            echo "## Android debug APK"
+            echo ""
+            echo "- **Artifact:** \`$ARTIFACT_NAME\`"
+            echo "- **Download:** [$ARTIFACT_NAME.zip]($ARTIFACT_URL)"
+            echo "- **Retention:** 90 days"
+            echo ""
+            echo "> Download requires a GitHub login. Installs over previous debug builds without uninstalling (stable signing key)."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Post APK link to PR
+        if: always() && github.event_name == 'pull_request' && steps.upload_apk.outputs.artifact-url != ''
+        continue-on-error: true
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: android-debug-apk
+          message: |
+            ## Android debug APK
+
+            **Artifact:** `librechat-android-debug-${{ github.event.pull_request.number }}`
+            **Download:** [librechat-android-debug-${{ github.event.pull_request.number }}.zip](${{ steps.upload_apk.outputs.artifact-url }})
+            **Retention:** 90 days
+            **Commit:** `${{ github.event.pull_request.head.sha }}`
+
+            > Download requires a GitHub login. Installs over previous debug builds without uninstalling (stable signing key).
 
   ios:
     name: Build iOS App
