@@ -98,7 +98,6 @@ val dataModule = module {
         ChatRepositoryImpl(
             chatApi = get(),
             sseClient = get(),
-            sseHttpClient = get(KoinQualifiers.Streaming),
             connectivityObserver = get(),
         )
     }

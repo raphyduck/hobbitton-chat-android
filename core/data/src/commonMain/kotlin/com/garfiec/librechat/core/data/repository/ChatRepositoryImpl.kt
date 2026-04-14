@@ -10,7 +10,6 @@ import com.garfiec.librechat.core.model.request.EphemeralAgent
 import com.garfiec.librechat.core.model.response.ChatStatusResponse
 import com.garfiec.librechat.core.network.api.ChatApi
 import com.garfiec.librechat.core.network.sse.SseClient
-import io.ktor.client.HttpClient
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
@@ -18,7 +17,6 @@ import kotlinx.coroutines.flow.flow
 class ChatRepositoryImpl(
     private val chatApi: ChatApi,
     private val sseClient: SseClient,
-    private val sseHttpClient: HttpClient,
     private val connectivityObserver: ConnectivityObserver,
 ) : ChatRepository {
 
@@ -70,7 +68,7 @@ class ChatRepositoryImpl(
 
         // Phase 2: GET the SSE stream using the streamId
         val streamUrl = "api/agents/chat/stream/$streamId"
-        emitAll(sseClient.connect(sseHttpClient, streamUrl, connectivityFlow = connectivityObserver.isConnected))
+        emitAll(sseClient.connect(streamUrl, connectivityFlow = connectivityObserver.isConnected))
     }
 
     override suspend fun abortChat(streamId: String): Result<Unit> = safeApiCall {
@@ -83,6 +81,6 @@ class ChatRepositoryImpl(
 
     override fun resumeStream(conversationId: String): Flow<StreamEvent> = flow {
         val streamUrl = "api/agents/chat/stream/$conversationId"
-        emitAll(sseClient.connect(sseHttpClient, streamUrl, resume = true, connectivityFlow = connectivityObserver.isConnected))
+        emitAll(sseClient.connect(streamUrl, resume = true, connectivityFlow = connectivityObserver.isConnected))
     }
 }

@@ -18,11 +18,6 @@ enum KoinHelper {
         try! IosKoinAccessor.shared.getServerDataStore()
     }
 
-    /// The streaming-qualified HttpClient for SSE connections
-    static var streamingHttpClient: Ktor_client_coreHttpClient {
-        try! IosKoinAccessor.shared.getStreamingHttpClient()
-    }
-
     static var authRepository: any AuthRepository {
         try! IosKoinAccessor.shared.getAuthRepository()
     }

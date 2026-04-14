@@ -24,11 +24,11 @@ import com.garfiec.librechat.core.network.api.ShareApi
 import com.garfiec.librechat.core.network.api.SpeechApi
 import com.garfiec.librechat.core.network.api.TagsApi
 import com.garfiec.librechat.core.network.api.UserApi
-import com.garfiec.librechat.core.network.client.AuthInterceptorPlugin
 import com.garfiec.librechat.core.network.client.LibreChatHttpClient
 import com.garfiec.librechat.core.network.client.ServerUrlProvider
 import com.garfiec.librechat.core.network.client.TokenManager
 import com.garfiec.librechat.core.network.sse.SseClient
+import com.garfiec.librechat.core.network.sse.SseHttpTransport
 import com.garfiec.librechat.feature.agents.di.agentsModule
 import com.garfiec.librechat.feature.auth.di.authModule
 import com.garfiec.librechat.feature.chat.di.chatModule
@@ -41,7 +41,6 @@ import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.http.ContentType
-import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
 import io.ktor.http.takeFrom
 import io.ktor.serialization.kotlinx.json.json
@@ -82,32 +81,6 @@ val iosSharedModule = module {
             tokenManager = get(),
             serverUrlProvider = get(),
         )
-    }
-
-    // Streaming HttpClient (long-lived SSE connections)
-    single(KoinQualifiers.Streaming) {
-        val tokenManager = get<TokenManager>()
-        val serverUrlProvider = get<ServerUrlProvider>()
-        HttpClient(Darwin) {
-            install(AuthInterceptorPlugin) {
-                this.tokenManager = tokenManager
-            }
-            install(HttpTimeout) {
-                connectTimeoutMillis = 10_000
-                requestTimeoutMillis = Long.MAX_VALUE
-                socketTimeoutMillis = Long.MAX_VALUE
-            }
-            defaultRequest {
-                val baseUrl = serverUrlProvider.getBaseUrl()
-                if (baseUrl.isNotEmpty()) {
-                    url.takeFrom(baseUrl)
-                }
-                headers.append(
-                    HttpHeaders.UserAgent,
-                    LibreChatHttpClient.BROWSER_USER_AGENT,
-                )
-            }
-        }
     }
 
     // Refresh HttpClient (no auth interceptor, short timeout)
@@ -152,6 +125,7 @@ val iosSharedModule = module {
     singleOf(::McpApi)
     singleOf(::MemoriesApi)
     singleOf(::SpeechApi)
+    single { SseHttpTransport(get(), get()) }
     singleOf(::SseClient)
 
     // SDK facade
