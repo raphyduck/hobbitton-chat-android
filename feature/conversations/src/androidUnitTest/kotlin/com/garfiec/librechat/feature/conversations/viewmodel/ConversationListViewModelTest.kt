@@ -1,13 +1,13 @@
 package com.garfiec.librechat.feature.conversations.viewmodel
 
 import com.garfiec.librechat.core.common.result.Result
-import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.repository.ConversationRepository
 import com.garfiec.librechat.core.data.repository.SearchRepository
 import com.garfiec.librechat.core.data.repository.ShareRepository
 import com.garfiec.librechat.core.data.repository.TagRepository
 import com.garfiec.librechat.core.model.Conversation
 import com.garfiec.librechat.core.model.ConversationTag
+import com.garfiec.librechat.core.model.SAVED_TAG
 import com.garfiec.librechat.feature.conversations.export.ConversationExporter
 import com.garfiec.librechat.feature.conversations.export.ConversationImporter
 import com.google.common.truth.Truth.assertThat
@@ -17,7 +17,6 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -40,7 +39,6 @@ class ConversationListViewModelTest {
     private val shareRepository = mockk<ShareRepository>(relaxed = true)
     private val conversationExporter = mockk<ConversationExporter>(relaxed = true)
     private val conversationImporter = mockk<ConversationImporter>(relaxed = true)
-    private val settingsDataStore = mockk<SettingsDataStore>(relaxed = true)
 
     private lateinit var viewModel: ConversationListViewModel
 
@@ -61,6 +59,7 @@ class ConversationListViewModelTest {
         ConversationTag(tag = "work", count = 3),
         ConversationTag(tag = "personal", count = 2),
         ConversationTag(tag = "empty", count = 0),
+        ConversationTag(tag = SAVED_TAG, count = 5),
     )
 
     @Before
@@ -70,9 +69,10 @@ class ConversationListViewModelTest {
         every { conversationRepository.observeConversations(any()) } returns flowOf(
             Result.Success(testConversations),
         )
-        every { settingsDataStore.bookmarkedConversationIds } returns MutableStateFlow(emptySet())
         coEvery { conversationRepository.loadNextPage(any(), tags = any()) } returns Result.Success(null)
-        coEvery { tagRepository.getTags() } returns Result.Success(testTags)
+        coEvery { conversationRepository.syncFavoritesFromServer() } returns Result.Success(Unit)
+        every { tagRepository.observeTags() } returns flowOf(testTags)
+        coEvery { tagRepository.refreshTags() } returns Result.Success(Unit)
     }
 
     @After
@@ -87,7 +87,6 @@ class ConversationListViewModelTest {
         shareRepository = shareRepository,
         conversationExporter = conversationExporter,
         conversationImporter = conversationImporter,
-        settingsDataStore = settingsDataStore,
     )
 
     @Test
@@ -101,7 +100,7 @@ class ConversationListViewModelTest {
     }
 
     @Test
-    fun `initial state loads tags with non-zero counts`() = runTest {
+    fun `initial state loads tags with non-zero counts and excludes SAVED_TAG`() = runTest {
         viewModel = createViewModel()
         advanceUntilIdle()
 
@@ -433,16 +432,106 @@ class ConversationListViewModelTest {
     }
 
     @Test
-    fun `updateConversationTags reloads on success`() = runTest {
-        coEvery { tagRepository.updateConversationTags("convo-1", listOf("work")) } returns
+    fun `updateConversationTags persists new tag list when conversation was not favorited`() = runTest {
+        coEvery { tagRepository.setConversationTags("convo-1", listOf("work")) } returns
             Result.Success(Unit)
 
         viewModel = createViewModel()
         advanceUntilIdle()
 
-        viewModel.updateConversationTags("convo-1", listOf("work"))
+        val convo = Conversation(conversationId = "convo-1", tags = listOf("old"))
+        viewModel.updateConversationTags(convo, listOf("work"))
         advanceUntilIdle()
 
-        coVerify { tagRepository.updateConversationTags("convo-1", listOf("work")) }
+        coVerify { tagRepository.setConversationTags("convo-1", listOf("work")) }
+    }
+
+    @Test
+    fun `updateConversationTags preserves SAVED_TAG when conversation was favorited`() = runTest {
+        coEvery { tagRepository.setConversationTags(any(), any()) } returns Result.Success(Unit)
+
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        val convo = Conversation(conversationId = "convo-1", tags = listOf("work", SAVED_TAG))
+        // Picker submits the user-tag list WITHOUT SAVED_TAG (the screen strips it).
+        viewModel.updateConversationTags(convo, listOf("projects"))
+        advanceUntilIdle()
+
+        coVerify { tagRepository.setConversationTags("convo-1", listOf("projects", SAVED_TAG)) }
+    }
+
+    @Test
+    fun `updateConversationTags strips SAVED_TAG from picker submission when not favorited`() = runTest {
+        coEvery { tagRepository.setConversationTags(any(), any()) } returns Result.Success(Unit)
+
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        val convo = Conversation(conversationId = "convo-1", tags = listOf("work"))
+        // Defensive: if the picker ever submits SAVED_TAG on an unfavorited convo, drop it.
+        viewModel.updateConversationTags(convo, listOf("projects", SAVED_TAG))
+        advanceUntilIdle()
+
+        coVerify { tagRepository.setConversationTags("convo-1", listOf("projects")) }
+    }
+
+    @Test
+    fun `toggleFavorite on unfavorited convo delegates to repo`() = runTest {
+        coEvery {
+            tagRepository.toggleFavorite(any(), any())
+        } returns Result.Success(Unit)
+
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        val convo = Conversation(conversationId = "convo-1", tags = listOf("work"))
+        viewModel.toggleFavorite(convo)
+        advanceUntilIdle()
+
+        coVerify {
+            tagRepository.toggleFavorite(
+                conversationId = "convo-1",
+                currentTags = listOf("work"),
+            )
+        }
+    }
+
+    @Test
+    fun `toggleFavorite on favorited convo delegates to repo`() = runTest {
+        coEvery {
+            tagRepository.toggleFavorite(any(), any())
+        } returns Result.Success(Unit)
+
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        val convo = Conversation(
+            conversationId = "convo-1",
+            tags = listOf("work", SAVED_TAG),
+        )
+        viewModel.toggleFavorite(convo)
+        advanceUntilIdle()
+
+        coVerify {
+            tagRepository.toggleFavorite(
+                conversationId = "convo-1",
+                currentTags = listOf("work", SAVED_TAG),
+            )
+        }
+    }
+
+    @Test
+    fun `toggleFavorite with null conversationId is a no-op`() = runTest {
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        val convo = Conversation(conversationId = null, tags = listOf("work"))
+        viewModel.toggleFavorite(convo)
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) {
+            tagRepository.toggleFavorite(any(), any())
+        }
     }
 }

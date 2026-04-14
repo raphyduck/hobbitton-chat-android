@@ -30,10 +30,6 @@ class UserSerializationTest {
             role = "ADMIN",
             twoFactorEnabled = true,
             termsAccepted = true,
-            favorites = listOf(
-                UserFavorite(agentId = "agent-1", model = "gpt-4o", endpoint = "openAI"),
-                UserFavorite(model = "claude-3-opus"),
-            ),
             createdAt = "2026-01-01T00:00:00Z",
             updatedAt = "2026-03-28T12:00:00Z",
         )
@@ -55,9 +51,6 @@ class UserSerializationTest {
                 "role": "USER",
                 "twoFactorEnabled": false,
                 "termsAccepted": true,
-                "favorites": [
-                    {"agentId": "a1", "endpoint": "agents"}
-                ],
                 "extraField": "ignored"
             }
         """.trimIndent()
@@ -65,20 +58,6 @@ class UserSerializationTest {
         assertEquals("user-srv", decoded.id)
         assertEquals("mongo-srv", decoded.mongoId)
         assertEquals("Server User", decoded.name)
-        assertEquals(1, decoded.favorites.size)
-        assertEquals("a1", decoded.favorites[0].agentId)
-    }
-
-    @Test
-    fun userFavoriteRoundTrip() {
-        val original = UserFavorite(
-            agentId = "agent-x",
-            model = "gpt-4o-mini",
-            endpoint = "openAI",
-        )
-        val encoded = json.encodeToString(UserFavorite.serializer(), original)
-        val decoded = json.decodeFromString(UserFavorite.serializer(), encoded)
-        assertEquals(original, decoded)
     }
 
     @Test
@@ -89,6 +68,5 @@ class UserSerializationTest {
         assertEquals("USER", user.role)
         assertEquals(false, user.twoFactorEnabled)
         assertEquals(false, user.termsAccepted)
-        assertEquals(emptyList(), user.favorites)
     }
 }

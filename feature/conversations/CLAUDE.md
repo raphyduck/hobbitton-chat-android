@@ -22,7 +22,7 @@
 ## Tags
 - `TagFilterBar` displays `FilterChip` per tag (multi-select toggle)
 - `TagPicker` for assigning tags to a conversation
-- Tags fetched via `TagRepository.getTags()`, hidden if `count == 0`
+- Tags observed via `TagRepository.observeTags()` (Room-backed Flow); `SAVED_TAG` and `count == 0` tags are filtered out in the ViewModel
 - `toggleTag()` / `clearTagFilter()` reload conversations with new filter
 
 ## CRUD Actions (via `ConversationActions` component)

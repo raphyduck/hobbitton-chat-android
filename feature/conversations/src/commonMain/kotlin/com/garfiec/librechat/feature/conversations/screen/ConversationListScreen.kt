@@ -39,6 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.garfiec.librechat.core.model.Conversation
+import com.garfiec.librechat.core.model.SAVED_TAG
 import com.garfiec.librechat.core.ui.components.EmptyState
 import com.garfiec.librechat.core.ui.components.ErrorBanner
 import com.garfiec.librechat.core.ui.components.LoadingIndicator
@@ -326,12 +327,10 @@ fun ConversationListScreen(
         ConversationActions(
             conversation = selectedConversation!!,
             onDismiss = { selectedConversation = null },
-            isBookmarked = selectedConversation?.conversationId?.let {
-                viewModel.isBookmarked(it)
-            } ?: false,
+            isBookmarked = SAVED_TAG in (selectedConversation?.tags ?: emptyList()),
             onBookmarkToggle = {
-                selectedConversation?.conversationId?.let { id ->
-                    viewModel.toggleBookmark(id)
+                selectedConversation?.let { convo ->
+                    viewModel.toggleFavorite(convo)
                 }
                 selectedConversation = null
             },
@@ -383,10 +382,10 @@ fun ConversationListScreen(
     if (showTagPicker && tagPickerConversation != null) {
         TagPicker(
             availableTags = uiState.tags,
-            currentTags = tagPickerConversation?.tags ?: emptyList(),
+            currentTags = tagPickerConversation?.tags?.filterNot { it == SAVED_TAG } ?: emptyList(),
             onTagsChange = { newTags ->
-                tagPickerConversation?.conversationId?.let { id ->
-                    viewModel.updateConversationTags(id, newTags)
+                tagPickerConversation?.let { convo ->
+                    viewModel.updateConversationTags(convo, newTags)
                 }
             },
             onDismiss = {

@@ -42,7 +42,9 @@ class ConversationsApi constructor(
             parameter("cursor", cursor)
             parameter("limit", limit)
             parameter("isArchived", isArchived)
-            tags?.forEach { tag -> parameter("tags[]", tag) }
+            // Upstream's route handler reads req.query.tags directly, so we send
+            // repeated `tags=value` params rather than PHP-style `tags[]=value`.
+            tags?.forEach { tag -> parameter("tags", tag) }
             search?.let { parameter("search", it) }
             sortBy?.let { parameter("sortBy", it) }
             sortDirection?.let { parameter("sortDirection", it) }

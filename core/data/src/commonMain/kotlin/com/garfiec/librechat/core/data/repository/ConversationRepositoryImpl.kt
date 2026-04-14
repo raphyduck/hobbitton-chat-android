@@ -1,6 +1,5 @@
 package com.garfiec.librechat.core.data.repository
 
-import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.common.result.Result
 import com.garfiec.librechat.core.common.result.safeApiCall
 import com.garfiec.librechat.core.data.db.dao.ConversationDao
@@ -8,15 +7,21 @@ import com.garfiec.librechat.core.data.mapper.toEntity
 import com.garfiec.librechat.core.data.mapper.toModel
 import com.garfiec.librechat.core.data.mapper.toModels
 import com.garfiec.librechat.core.model.Conversation
+import com.garfiec.librechat.core.model.SAVED_TAG
 import com.garfiec.librechat.core.model.request.ForkConversationRequest
 import com.garfiec.librechat.core.network.api.ConversationsApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.serializer
 import kotlin.time.Clock
 
 class ConversationRepositoryImpl(
     private val conversationsApi: ConversationsApi,
     private val conversationDao: ConversationDao,
+    private val json: Json,
 ) : ConversationRepository {
 
     override fun observeConversations(isArchived: Boolean): Flow<Result<List<Conversation>>> {
@@ -44,19 +49,15 @@ class ConversationRepositoryImpl(
                 sortBy = sortBy,
                 sortDirection = sortDirection,
             )
-            // Cache conversations locally
-            val entities = response.conversations.map { it.toEntity() }
-            conversationDao.upsertAll(entities)
+            conversationDao.upsertPreservingTags(response.conversations.map { it.toEntity() })
             response.nextCursor
         }
     }
 
     override suspend fun getConversation(id: String): Result<Conversation> {
-        // Try local cache first
         val cached = conversationDao.getById(id)
         if (cached != null) return Result.Success(cached.toModel())
 
-        // Fetch from network
         return safeApiCall {
             val conversation = conversationsApi.getConversation(id)
             conversationDao.upsert(conversation.toEntity())
@@ -75,7 +76,6 @@ class ConversationRepositoryImpl(
     override suspend fun generateTitle(conversationId: String): Result<String> {
         return safeApiCall {
             val response = conversationsApi.generateTitle(conversationId)
-            // Update the local cache with the generated title
             conversationDao.updateTitle(conversationId, response.title, Clock.System.now().toEpochMilliseconds())
             response.title
         }
@@ -153,16 +153,59 @@ class ConversationRepositoryImpl(
     override suspend fun saveConversation(conversation: Conversation) {
         val id = conversation.conversationId ?: return
         if (id.isBlank()) return
-        conversationDao.upsert(conversation.toEntity())
+        conversationDao.upsertPreservingTags(conversation.toEntity())
     }
 
-    suspend fun refreshConversations() {
-        try {
-            val response = conversationsApi.getConversations()
-            val entities = response.conversations.map { it.toEntity() }
-            conversationDao.upsertAll(entities)
-        } catch (e: Exception) {
-            Logger.w(e) { "Failed to refresh conversations" }
+    override suspend fun updateConversationTagsLocal(id: String, tags: List<String>) {
+        conversationDao.updateTags(id, encodeTags(tags), Clock.System.now().toEpochMilliseconds())
+    }
+
+    // Reconciles SAVED_TAG attachment between the local Room cache and server by
+    // paginating `GET /api/convos?tags=Saved`. Needed because upstream's
+    // getConvosByCursor projection omits `tags`, so the main conversation list
+    // endpoint can't deliver cross-client favorite changes. Only the reserved
+    // SAVED_TAG is synced; other user-created tags aren't fetched here. Known
+    // gap: the stale-removal pass below only scans non-archived rows, so a
+    // conversation that was archived while favorited and later unfavorited
+    // elsewhere will keep its local SAVED_TAG until the user unarchives it.
+    override suspend fun syncFavoritesFromServer(): Result<Unit> = safeApiCall {
+        val serverFavoriteIds = mutableSetOf<String>()
+        var cursor: String? = null
+        do {
+            val response = conversationsApi.getConversations(
+                cursor = cursor,
+                tags = listOf(SAVED_TAG),
+            )
+            for (convo in response.conversations) {
+                val id = convo.conversationId ?: continue
+                serverFavoriteIds.add(id)
+                val existing = conversationDao.getById(id)
+                if (existing == null) {
+                    conversationDao.upsert(
+                        convo.toEntity().copy(tags = encodeTags(listOf(SAVED_TAG))),
+                    )
+                } else {
+                    val currentTags = existing.toModel().tags
+                    if (SAVED_TAG !in currentTags) {
+                        updateConversationTagsLocal(id, currentTags + SAVED_TAG)
+                    }
+                }
+            }
+            cursor = response.nextCursor
+        } while (cursor != null)
+
+        val localEntities = conversationDao.getAllConversations(isArchived = false).first()
+        for (entity in localEntities) {
+            val currentTags = entity.toModel().tags
+            if (SAVED_TAG in currentTags && entity.conversationId !in serverFavoriteIds) {
+                updateConversationTagsLocal(
+                    entity.conversationId,
+                    currentTags.filterNot { it == SAVED_TAG },
+                )
+            }
         }
     }
+
+    private fun encodeTags(tags: List<String>): String =
+        json.encodeToString(ListSerializer(serializer<String>()), tags)
 }
