@@ -10,7 +10,8 @@ import com.garfiec.librechat.core.network.sse.SseClient
  * Top-level entry point that iOS uses to interact with the KMP business logic.
  * Aggregates the key APIs needed for login + SSE streaming.
  *
- * SSE usage: call `sseClient.connect(streamingHttpClient, streamPath)` directly.
+ * SSE usage: call `sseClient.connect(streamPath)` directly — the transport it
+ * needs is injected into `SseClient` at construction time.
  * SKIE converts the returned `Flow<StreamEvent>` to `AsyncSequence` on iOS.
  */
 class LibreChatSDK(

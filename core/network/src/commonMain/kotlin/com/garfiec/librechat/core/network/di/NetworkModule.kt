@@ -109,7 +109,9 @@ val networkModule = module {
         }
     }
 
-    // SSE
+    // SSE — SseHttpTransport is provided by networkPlatformModule because its
+    // constructor signature differs between Android (takes the Ktor streaming
+    // HttpClient) and iOS (takes NWConnection dependencies in Phase 2).
     singleOf(::SseClient)
 
     // API services

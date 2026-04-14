@@ -57,6 +57,7 @@ Each module has its own `CLAUDE.md` with specific guidance.
 - `GET /api/config` drives feature availability — never hardcode
 - ua-parser-js middleware rejects non-browser User-Agents with 403 (workaround: Chrome UA string)
 - Refresh token sent via request body (not HTTP-only cookies)
+- iOS SSE streaming uses a custom `NWConnection`-based HTTP/1.1 transport (`core/network/src/iosMain/.../sse/SseHttpTransport.ios.kt`) to bypass NSURLSession's undocumented `text/*` content-type buffering. See `core/network/CLAUDE.md` SSE section for the two-layer buffering story.
 
 ## Upstream Sync
 
