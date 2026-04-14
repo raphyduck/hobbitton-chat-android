@@ -585,11 +585,7 @@ class SettingsViewModel(
     // ── Auth actions ───────────────────────────────────────────────
 
     fun logout() {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
-            authRepository.logout()
-            _uiState.update { it.copy(isLoading = false, isLoggedOut = true) }
-        }
+        _uiState.update { it.copy(isLoggedOut = true) }
     }
 
     fun deleteAccount(token: String? = null, backupCode: String? = null) {
@@ -597,7 +593,6 @@ class SettingsViewModel(
             _uiState.update { it.copy(isLoading = true) }
             when (val result = userRepository.deleteUser(token = token, backupCode = backupCode)) {
                 is Result.Success -> {
-                    authRepository.logout()
                     _uiState.update { it.copy(isLoading = false, isAccountDeleted = true, showDeleteAccountOtpDialog = false) }
                 }
                 is Result.Error -> {
