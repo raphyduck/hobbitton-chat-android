@@ -87,7 +87,8 @@ actual fun PdfPreview(
                 return@LaunchedEffect
             }
 
-            val pdfTempFile = File(context.cacheDir, "pdf_preview_${file.fileId}.pdf")
+            val pdfPreviewDir = File(context.cacheDir, "pdf_preview").apply { mkdirs() }
+            val pdfTempFile = File(pdfPreviewDir, "pdf_preview_${file.fileId}.pdf")
             pdfTempFile.writeBytes(bytes)
             tempFile = pdfTempFile
 

@@ -219,7 +219,8 @@ class SpeechSettingsDelegate(
             currentMediaPlayer = null
 
             // Write bytes to a temporary file
-            val tempFile = File.createTempFile("voice_test", ".mp3", context.cacheDir)
+            val voiceTestDir = File(context.cacheDir, "voice_test").apply { mkdirs() }
+            val tempFile = File.createTempFile("voice_test", ".mp3", voiceTestDir)
             tempFile.deleteOnExit()
             tempFile.writeBytes(audioBytes)
 

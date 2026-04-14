@@ -189,7 +189,8 @@ actual fun AudioContentPlayerFromBytes(
 ) {
     val context = LocalContext.current
     val tempFile = remember(audioBytes) {
-        File.createTempFile("audio_", ".mp3", context.cacheDir).apply {
+        val audioDir = File(context.cacheDir, "audio").apply { mkdirs() }
+        File.createTempFile("audio_", ".mp3", audioDir).apply {
             writeBytes(audioBytes)
         }
     }
