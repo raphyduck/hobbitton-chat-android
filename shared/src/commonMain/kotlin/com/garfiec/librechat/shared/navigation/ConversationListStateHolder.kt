@@ -8,6 +8,7 @@ import com.garfiec.librechat.core.data.repository.ConversationRepository
 import com.garfiec.librechat.core.model.Conversation
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -48,6 +49,8 @@ class ConversationListStateHolder(
 
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+
+    private var searchObserverJob: Job? = null
 
     init {
         observeConversations()
@@ -130,7 +133,8 @@ class ConversationListStateHolder(
 
     @OptIn(FlowPreview::class)
     private fun observeSearchQuery() {
-        scope.launch {
+        searchObserverJob?.cancel()
+        searchObserverJob = scope.launch {
             _searchQuery
                 .filter { it.isNotBlank() }
                 .debounce(SEARCH_DEBOUNCE_MS)
@@ -144,10 +148,17 @@ class ConversationListStateHolder(
     }
 
     fun reset() {
+        searchObserverJob?.cancel()
+        searchObserverJob = null
         _recentConversations.value = emptyList()
         _groupedConversations.value = emptyList()
         _activeConversationId.value = null
         _searchQuery.value = ""
+        nextCursor = null
+        _hasMore.value = true
+        _isLoadingMore.value = false
+        _isRefreshing.value = false
+        observeSearchQuery()
     }
 
     private fun groupConversationsByDate(
