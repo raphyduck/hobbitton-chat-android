@@ -23,7 +23,6 @@ import com.garfiec.librechat.feature.settings.util.PlatformCacheCleaner
 import com.garfiec.librechat.feature.settings.viewmodel.delegate.SpeechSettingsContract
 import com.garfiec.librechat.feature.settings.viewmodel.delegate.SpeechSettingsFactory
 import com.google.common.truth.Truth.assertThat
-import io.mockk.Ordering
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -158,23 +157,20 @@ class SettingsViewModelTest {
     }
 
     @Test
-    fun `logout calls authRepository and sets isLoggedOut`() = runTest {
-        coEvery { authRepository.logout() } returns Result.Success(Unit)
-
+    fun `logout sets isLoggedOut flag without calling authRepository`() = runTest {
         viewModel = createViewModel()
         advanceUntilIdle()
 
         viewModel.logout()
         advanceUntilIdle()
 
-        coVerify { authRepository.logout() }
+        coVerify(exactly = 0) { authRepository.logout() }
         assertThat(viewModel.uiState.value.isLoggedOut).isTrue()
     }
 
     @Test
-    fun `deleteAccount calls userRepository then authRepository`() = runTest {
+    fun `deleteAccount calls userRepository and sets isAccountDeleted without calling authRepository`() = runTest {
         coEvery { userRepository.deleteUser() } returns Result.Success(Unit)
-        coEvery { authRepository.logout() } returns Result.Success(Unit)
 
         viewModel = createViewModel()
         advanceUntilIdle()
@@ -182,10 +178,8 @@ class SettingsViewModelTest {
         viewModel.deleteAccount()
         advanceUntilIdle()
 
-        coVerify(ordering = Ordering.ORDERED) {
-            userRepository.deleteUser()
-            authRepository.logout()
-        }
+        coVerify { userRepository.deleteUser() }
+        coVerify(exactly = 0) { authRepository.logout() }
         assertThat(viewModel.uiState.value.isAccountDeleted).isTrue()
     }
 
