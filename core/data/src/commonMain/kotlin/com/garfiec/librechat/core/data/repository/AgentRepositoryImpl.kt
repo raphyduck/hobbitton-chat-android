@@ -18,11 +18,13 @@ import com.garfiec.librechat.core.model.request.ToolCallRequest
 import com.garfiec.librechat.core.model.request.UpdateAgentRequest
 import com.garfiec.librechat.core.network.api.AgentsApi
 import kotlinx.serialization.json.Json
+import kotlin.concurrent.Volatile
 
 class AgentRepositoryImpl(
     private val agentsApi: AgentsApi,
 ) : AgentRepository {
 
+    @Volatile
     private var cachedAgents: List<Agent>? = null
 
     // --- Agent CRUD ---

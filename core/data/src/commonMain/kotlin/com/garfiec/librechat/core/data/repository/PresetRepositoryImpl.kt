@@ -4,11 +4,13 @@ import com.garfiec.librechat.core.common.result.Result
 import com.garfiec.librechat.core.common.result.safeApiCall
 import com.garfiec.librechat.core.model.Preset
 import com.garfiec.librechat.core.network.api.PresetsApi
+import kotlin.concurrent.Volatile
 
 class PresetRepositoryImpl(
     private val presetsApi: PresetsApi,
 ) : PresetRepository {
 
+    @Volatile
     private var cachedPresets: List<Preset>? = null
 
     override suspend fun getAll(): Result<List<Preset>> {
