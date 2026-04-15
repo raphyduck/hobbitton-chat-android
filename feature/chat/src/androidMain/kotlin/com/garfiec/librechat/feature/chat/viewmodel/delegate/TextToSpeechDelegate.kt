@@ -116,7 +116,8 @@ class TextToSpeechDelegate(
             is Result.Success -> {
                 try {
                     val audioBytes = result.data
-                    val tempFile = File.createTempFile("tts_", ".mp3", appContext.cacheDir)
+                    val ttsDir = File(appContext.cacheDir, "tts").apply { mkdirs() }
+                    val tempFile = File.createTempFile("tts_", ".mp3", ttsDir)
                     tempFile.deleteOnExit()
                     tempFile.writeBytes(audioBytes)
 

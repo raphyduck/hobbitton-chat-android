@@ -31,7 +31,8 @@ class VoiceRecorder(private val context: Context) {
         if (isCurrentlyRecording) return
 
         val extension = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) "ogg" else "3gp"
-        outputFile = File(context.cacheDir, "voice_recording_${System.currentTimeMillis()}.$extension")
+        val voiceRecordingDir = File(context.cacheDir, "voice_recording").apply { mkdirs() }
+        outputFile = File(voiceRecordingDir, "voice_recording_${System.currentTimeMillis()}.$extension")
 
         try {
             val recorder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
