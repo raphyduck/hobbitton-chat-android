@@ -43,7 +43,7 @@ Maps web client component directories to mobile Compose feature modules.
 |------------|-------------------|
 | Recoil atoms (`store/`) | ViewModel state (StateFlow) |
 | React Query hooks (`hooks/`) | Repository + ViewModel |
-| React Context (`Providers/`) | Hilt DI + CompositionLocal |
+| React Context (`Providers/`) | Koin DI + CompositionLocal |
 | Radix UI components | Material 3 components |
 | Tailwind CSS | Material 3 theme + Modifier |
 | react-router-dom | Compose Navigation |
