@@ -56,7 +56,7 @@ turbine = "1.2.1"
 mockk = "1.14.9"
 truth = "1.4.4"
 espresso = "3.6.1"
-android-test-runner = "1.6.2"
+android-test-runner = "1.7.0"
 android-test-ext = "1.3.0"
 
 # Code Quality
