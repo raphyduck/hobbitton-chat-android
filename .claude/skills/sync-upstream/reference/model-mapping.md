@@ -63,3 +63,7 @@ Maps official TypeScript types from `packages/data-provider/src/` to Android Kot
 | `packages/data-provider/src/types/runs.ts` | Run/streaming types |
 | `packages/data-provider/src/schemas.ts` | Zod validation schemas |
 | `packages/data-provider/src/config.ts` | Config types and VERSION constant |
+| `packages/data-provider/src/api-endpoints.ts` | Canonical endpoint URL builders — check here first for renames/new routes |
+| `packages/data-provider/src/data-service.ts` | HTTP client functions — actual request shapes sent by the web client |
+| `packages/data-provider/src/parsers.ts` | Request/response parsers; hints at shape normalization |
+| `packages/data-provider/src/permissions.ts` | Permission schemas and role gating |

@@ -32,6 +32,7 @@ Maps official LibreChat API route files to their mobile `*Api.kt` counterparts.
 
 | Official Route | What It Does | Priority |
 |---------------|-------------|----------|
+| `routes/admin/auth.js` | Admin-only authentication routes | Low — admin feature, not exposed in mobile |
 | `routes/categories.js` | Agent categories | Low — categories embedded in agent responses |
 | `routes/endpoints.js` | List available endpoints | Medium — Mobile uses config response instead |
 | `routes/models.js` | List available models per endpoint | Medium — Mobile uses config response instead |
