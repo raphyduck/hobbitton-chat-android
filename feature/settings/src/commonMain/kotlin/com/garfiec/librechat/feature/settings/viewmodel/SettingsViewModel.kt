@@ -18,8 +18,10 @@ import com.garfiec.librechat.core.data.repository.ConversationRepository
 import com.garfiec.librechat.core.data.repository.KeyRepository
 import com.garfiec.librechat.core.data.repository.McpRepository
 import com.garfiec.librechat.core.data.repository.MemoryRepository
+import com.garfiec.librechat.core.data.repository.RoleRepository
 import com.garfiec.librechat.core.data.repository.ShareRepository
 import com.garfiec.librechat.core.data.repository.UserRepository
+import com.garfiec.librechat.core.data.util.PermissionGate
 import com.garfiec.librechat.core.model.Memory
 import com.garfiec.librechat.core.model.User
 import com.garfiec.librechat.core.model.mcp.McpApiKeyConfig
@@ -27,6 +29,9 @@ import com.garfiec.librechat.core.model.mcp.McpOAuthConfig
 import com.garfiec.librechat.core.model.mcp.McpServer
 import com.garfiec.librechat.core.model.mcp.McpServerStatus
 import com.garfiec.librechat.core.model.mcp.McpServerType
+import com.garfiec.librechat.core.model.permissions.Permission
+import com.garfiec.librechat.core.model.permissions.PermissionType
+import com.garfiec.librechat.core.model.permissions.hasAccessOrPermissive
 import com.garfiec.librechat.core.model.speech.TtsVoice
 import com.garfiec.librechat.feature.settings.model.SharedLinkDisplayData
 import com.garfiec.librechat.feature.settings.model.UserDisplayData
@@ -159,6 +164,14 @@ data class SettingsUiState(
     val showAvatars: Boolean = true,
     val showBubbles: Boolean = false,
     val latexRenderer: LatexRenderer = LatexRenderer.KATEX,
+    // Role-permission gates. `serverMemoriesEnabled` is the SERVER-level MEMORIES.USE
+    // gate and is orthogonal to [memoriesEnabled], which is the user's own opt-out
+    // stored on their profile (`user.personalization.memories`).
+    val mcpServersEnabled: Boolean = true,
+    val mcpServersCreateEnabled: Boolean = true,
+    val serverMemoriesEnabled: Boolean = true,
+    val remoteAgentsEnabled: Boolean = true,
+    val remoteAgentsCreateEnabled: Boolean = true,
 )
 
 private fun User.toDisplayData() = UserDisplayData(
@@ -194,6 +207,8 @@ class SettingsViewModel(
     private val balanceRepository: BalanceRepository,
     shareRepository: ShareRepository,
     keyRepository: KeyRepository,
+    private val roleRepository: RoleRepository,
+    private val permissionGate: PermissionGate,
 ) : ViewModel() {
 
     /** Raw state for everything not driven by DataStore flows. */
@@ -367,11 +382,48 @@ class SettingsViewModel(
 
     init {
         loadUser()
-        mcpDelegate.loadMcpServers()
-        memoryDelegate.loadMemories()
         speechDelegate.loadVoices()
         loadBalance()
         speechDelegate.loadDeviceVoices()
+        loadRoleGatedData()
+        observePermissionFlags()
+    }
+
+    /**
+     * Gated loads share a single 5-second role-await budget so offline/timeout launches
+     * don't serialize into N×5s. `role?.hasAccess(...) != false` preserves permissive
+     * default: null role → true, missing type/action → true.
+     */
+    private fun loadRoleGatedData() {
+        viewModelScope.launch {
+            val role = permissionGate.awaitRole()
+            if (role?.hasAccess(PermissionType.MCP_SERVERS, Permission.USE) != false) {
+                mcpDelegate.loadMcpServers()
+            }
+            if (role?.hasAccess(PermissionType.MEMORIES, Permission.USE) != false) {
+                memoryDelegate.loadMemories()
+            }
+        }
+    }
+
+    /**
+     * Continuous collector — the 5 role-driven flags on SettingsUiState stay in sync
+     * with the current role. Permissive while role is null.
+     */
+    private fun observePermissionFlags() {
+        viewModelScope.launch {
+            roleRepository.userPermissions.collect { role ->
+                _uiState.update {
+                    it.copy(
+                        mcpServersEnabled = role.hasAccessOrPermissive(PermissionType.MCP_SERVERS, Permission.USE),
+                        mcpServersCreateEnabled = role.hasAccessOrPermissive(PermissionType.MCP_SERVERS, Permission.CREATE),
+                        serverMemoriesEnabled = role.hasAccessOrPermissive(PermissionType.MEMORIES, Permission.USE),
+                        remoteAgentsEnabled = role.hasAccessOrPermissive(PermissionType.REMOTE_AGENTS, Permission.USE),
+                        remoteAgentsCreateEnabled = role.hasAccessOrPermissive(PermissionType.REMOTE_AGENTS, Permission.CREATE),
+                    )
+                }
+            }
+        }
     }
 
     // ── Account & user profile ─────────────────────────────────────

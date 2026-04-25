@@ -25,11 +25,15 @@ import com.garfiec.librechat.core.data.repository.MemoryRepository
 import com.garfiec.librechat.core.data.repository.MessageRepository
 import com.garfiec.librechat.core.data.repository.PresetRepository
 import com.garfiec.librechat.core.data.repository.PromptRepository
+import com.garfiec.librechat.core.data.repository.RoleRepository
 import com.garfiec.librechat.core.data.repository.SearchRepository
 import com.garfiec.librechat.core.data.repository.ShareRepository
 import com.garfiec.librechat.core.data.repository.SpeechRepository
 import com.garfiec.librechat.core.data.repository.TagRepository
 import com.garfiec.librechat.core.data.repository.UserRepository
+import com.garfiec.librechat.core.data.util.PermissionGate
+import com.garfiec.librechat.core.data.util.SessionTask
+import com.garfiec.librechat.core.data.util.SessionTaskRunner
 import com.garfiec.librechat.core.network.api.AgentsApi
 import com.garfiec.librechat.core.network.api.ApiKeysApi
 import com.garfiec.librechat.core.network.api.AuthApi
@@ -155,11 +159,15 @@ class KoinGraphVerificationTest {
             MessageRepository::class,
             PresetRepository::class,
             PromptRepository::class,
+            RoleRepository::class,
             SearchRepository::class,
             ShareRepository::class,
             SpeechRepository::class,
             TagRepository::class,
             UserRepository::class,
+            PermissionGate::class,
+            SessionTask::class,
+            SessionTaskRunner::class,
             // feature:auth platform provides
             OAuthLauncher::class,
             // feature:files platform provides

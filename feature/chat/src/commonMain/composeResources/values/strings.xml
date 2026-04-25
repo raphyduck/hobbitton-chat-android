@@ -327,4 +327,12 @@
 
     <!-- Slash command menu -->
     <string name="slash_command_title">/%1$s</string>
+
+    <!-- Send block reasons (shown in error snackbar when send can't proceed) -->
+    <string name="send_block_select_agent">Select an agent before sending your message.</string>
+    <string name="send_block_select_model">Select a model before sending your message.</string>
+    <string name="send_block_agents_unavailable">Agents aren\'t available on this server. Please pick a different model.</string>
+    <string name="send_block_agent_not_available">The selected agent isn\'t available on this server. Please pick a different agent.</string>
+    <string name="send_block_model_not_available">The selected model isn\'t available on this server. Please pick a different model.</string>
+    <string name="send_block_model_load_failed">Couldn\'t load the selected model yet. Please try again or pick a different model.</string>
 </resources>

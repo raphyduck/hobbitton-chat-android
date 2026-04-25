@@ -41,6 +41,7 @@ fun ConversationItem(
     onClick: () -> Unit,
     onActionsClick: () -> Unit,
     modifier: Modifier = Modifier,
+    bookmarksEnabled: Boolean = true,
 ) {
     val relativeTime = remember(data.updatedAt) {
         data.updatedAt?.toInstantOrNull()?.toRelativeTimeString() ?: ""
@@ -134,7 +135,7 @@ fun ConversationItem(
             }
         }
 
-        if (data.isBookmarked) {
+        if (bookmarksEnabled && data.isBookmarked) {
             Icon(
                 imageVector = Icons.Default.Bookmark,
                 contentDescription = stringResource(Res.string.cd_bookmarked),

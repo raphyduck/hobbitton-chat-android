@@ -37,6 +37,8 @@
     <string name="search_agents_hint">Search agents\u2026</string>
     <string name="no_agents_found">No agents found</string>
     <string name="no_agents_available">No agents available</string>
+    <string name="agents_not_available_title">Agents not available</string>
+    <string name="agents_not_available_description">Your server administrator has disabled agents for your account.</string>
     <string name="try_different_search">Try a different search term</string>
     <string name="check_back_later">Check back later for new agents</string>
     <string name="error_unknown">An unknown error occurred</string>

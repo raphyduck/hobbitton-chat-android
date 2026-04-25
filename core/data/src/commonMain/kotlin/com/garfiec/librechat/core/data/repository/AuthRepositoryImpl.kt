@@ -2,6 +2,7 @@ package com.garfiec.librechat.core.data.repository
 
 import com.garfiec.librechat.core.common.result.Result
 import com.garfiec.librechat.core.common.result.safeApiCall
+import com.garfiec.librechat.core.data.util.SessionTaskRunner
 import com.garfiec.librechat.core.model.LoginOutcome
 import com.garfiec.librechat.core.model.User
 import com.garfiec.librechat.core.model.response.TwoFactorSetupResponse
@@ -14,7 +15,17 @@ class AuthRepositoryImpl(
     private val userApi: UserApi,
     private val tokenManager: TokenManager,
     private val sessionCacheCleaner: SessionCacheCleaner,
+    private val sessionTaskRunner: SessionTaskRunner,
 ) : AuthRepository {
+
+    /**
+     * Fires session tasks when [this] represents an authenticated success. Callers pass
+     * [isAuthenticated] to discriminate: for OAuth/2FA any `Result.Success` is a real
+     * sign-in, but `login()`'s `LoginOutcome.TwoFactorRequired` is a pending state (user
+     * isn't authenticated yet) so tasks defer to `verifyTwoFactor()`.
+     */
+    private fun <T> Result<T>.fireSessionTasksIfLoggedIn(isAuthenticated: (T) -> Boolean = { true }): Result<T> =
+        also { if (it is Result.Success && isAuthenticated(it.data)) sessionTaskRunner.runAll() }
 
     override suspend fun login(email: String, password: String): Result<LoginOutcome> {
         return safeApiCall {
@@ -34,7 +45,7 @@ class AuthRepositoryImpl(
                         ?: throw IllegalStateException("Login succeeded but user was null in response"),
                 )
             }
-        }
+        }.fireSessionTasksIfLoggedIn { outcome -> outcome is LoginOutcome.Success }
     }
 
     override suspend fun loginWithOAuthToken(refreshToken: String): Result<User> {
@@ -50,7 +61,7 @@ class AuthRepositoryImpl(
             )
             // Fetch the user profile
             userApi.getUser()
-        }
+        }.fireSessionTasksIfLoggedIn()
     }
 
     override suspend fun verifyTwoFactor(tempToken: String, code: String): Result<User> {
@@ -61,7 +72,7 @@ class AuthRepositoryImpl(
                 refreshToken = result.refreshToken ?: "",
             )
             result.response.user ?: throw IllegalStateException("No user in 2FA response")
-        }
+        }.fireSessionTasksIfLoggedIn()
     }
 
     override suspend fun register(

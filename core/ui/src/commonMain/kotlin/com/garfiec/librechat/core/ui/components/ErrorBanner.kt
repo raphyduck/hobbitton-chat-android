@@ -26,6 +26,10 @@ fun ErrorBanner(
     message: String,
     modifier: Modifier = Modifier,
     onRetry: (() -> Unit)? = null,
+    onDismiss: (() -> Unit)? = null,
+    retryLabel: String = "Retry",
+    dismissLabel: String = "Dismiss",
+    errorContentDescription: String = "Error",
 ) {
     Card(
         modifier = modifier
@@ -42,7 +46,7 @@ fun ErrorBanner(
         ) {
             Icon(
                 imageVector = Icons.Default.Warning,
-                contentDescription = "Error",
+                contentDescription = errorContentDescription,
                 tint = MaterialTheme.colorScheme.error,
             )
             Spacer(modifier = Modifier.width(12.dp))
@@ -54,7 +58,12 @@ fun ErrorBanner(
             )
             if (onRetry != null) {
                 TextButton(onClick = onRetry) {
-                    Text("Retry")
+                    Text(retryLabel)
+                }
+            }
+            if (onDismiss != null) {
+                TextButton(onClick = onDismiss) {
+                    Text(dismissLabel)
                 }
             }
         }

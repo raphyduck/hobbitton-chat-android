@@ -155,8 +155,10 @@ fun PromptsLibraryScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
-            FloatingActionButton(onClick = { onNavigateToEditor(null) }) {
-                Icon(Icons.Default.Add, contentDescription = stringResource(Res.string.cd_create_prompt))
+            if (uiState.promptsCreateEnabled) {
+                FloatingActionButton(onClick = { onNavigateToEditor(null) }) {
+                    Icon(Icons.Default.Add, contentDescription = stringResource(Res.string.cd_create_prompt))
+                }
             }
         },
     ) { innerPadding ->
@@ -255,6 +257,7 @@ fun PromptsLibraryScreen(
                                 group = group,
                                 onClick = { viewModel.selectGroup(group.id) },
                                 onShare = { viewModel.showShareDialog(group.id) },
+                                showShareButton = uiState.promptsShareEnabled,
                             )
                         }
                     }
@@ -281,6 +284,7 @@ private fun PromptGroupItem(
     onClick: () -> Unit,
     onShare: () -> Unit,
     modifier: Modifier = Modifier,
+    showShareButton: Boolean = true,
 ) {
     Card(
         modifier = modifier
@@ -321,12 +325,14 @@ private fun PromptGroupItem(
                         )
                     }
                 }
-                IconButton(onClick = onShare) {
-                    Icon(
-                        imageVector = Icons.Default.Share,
-                        contentDescription = stringResource(Res.string.cd_share),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                if (showShareButton) {
+                    IconButton(onClick = onShare) {
+                        Icon(
+                            imageVector = Icons.Default.Share,
+                            contentDescription = stringResource(Res.string.cd_share),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
             val promptText = group.promptText

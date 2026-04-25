@@ -292,6 +292,7 @@ fun ConversationListScreen(
                                                 displayData.conversationId,
                                             )
                                         },
+                                        bookmarksEnabled = uiState.bookmarksEnabled,
                                     )
                                     HorizontalDivider(
                                         modifier = Modifier.padding(start = 52.dp),
@@ -328,6 +329,7 @@ fun ConversationListScreen(
             conversation = selectedConversation!!,
             onDismiss = { selectedConversation = null },
             isBookmarked = SAVED_TAG in (selectedConversation?.tags ?: emptyList()),
+            bookmarksEnabled = uiState.bookmarksEnabled,
             onBookmarkToggle = {
                 selectedConversation?.let { convo ->
                     viewModel.toggleFavorite(convo)

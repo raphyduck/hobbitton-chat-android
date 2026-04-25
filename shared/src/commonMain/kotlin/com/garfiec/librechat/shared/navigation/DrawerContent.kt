@@ -219,8 +219,9 @@ fun DrawerContent(
                 state = listState,
                 modifier = Modifier.fillMaxSize(),
             ) {
-                // Favorites section
-                if (uiState.favoriteConversations.isNotEmpty() && uiState.searchQuery.isEmpty()) {
+                // Favorites section — hidden entirely when BOOKMARKS.USE is denied so
+                // any locally-cached favorites from a prior permissive session don't leak.
+                if (uiState.bookmarksEnabled && uiState.favoriteConversations.isNotEmpty() && uiState.searchQuery.isEmpty()) {
                     item(key = "favorites_header") {
                         Row(
                             modifier = Modifier
@@ -258,6 +259,7 @@ fun DrawerContent(
                             data = data,
                             onClick = { onConversationClick(data.conversationId) },
                             onToggleFavorite = { onToggleFavorite(data) },
+                            showBookmarkToggle = uiState.bookmarksEnabled,
                         )
                     }
 
@@ -304,6 +306,7 @@ fun DrawerContent(
                             data = data,
                             onClick = { onConversationClick(data.conversationId) },
                             onToggleFavorite = { onToggleFavorite(data) },
+                            showBookmarkToggle = uiState.bookmarksEnabled,
                         )
                     }
                 }
@@ -332,11 +335,13 @@ fun DrawerContent(
             color = MaterialTheme.colorScheme.outlineVariant,
         )
 
-        DrawerFooterItem(
-            icon = Icons.Default.SmartToy,
-            label = stringResource(Res.string.agents),
-            onClick = onAgentsClick,
-        )
+        if (uiState.agentsEnabled) {
+            DrawerFooterItem(
+                icon = Icons.Default.SmartToy,
+                label = stringResource(Res.string.agents),
+                onClick = onAgentsClick,
+            )
+        }
         DrawerFooterItem(
             icon = Icons.Default.Folder,
             label = stringResource(Res.string.files),
@@ -358,6 +363,7 @@ private fun DrawerConversationItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     onToggleFavorite: () -> Unit = {},
+    showBookmarkToggle: Boolean = true,
 ) {
     val iconPainter = data.endpoint?.let { endpointIconPainter(it) }
 
@@ -455,23 +461,25 @@ private fun DrawerConversationItem(
             }
         }
 
-        Icon(
-            imageVector = if (data.isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
-            contentDescription = if (data.isFavorite) {
-                stringResource(Res.string.remove_bookmark)
-            } else {
-                stringResource(Res.string.bookmark)
-            },
-            modifier = Modifier
-                .size(32.dp)
-                .clickable(onClick = onToggleFavorite)
-                .padding(8.dp),
-            tint = if (data.isFavorite) {
-                MaterialTheme.colorScheme.primary
-            } else {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            },
-        )
+        if (showBookmarkToggle) {
+            Icon(
+                imageVector = if (data.isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
+                contentDescription = if (data.isFavorite) {
+                    stringResource(Res.string.remove_bookmark)
+                } else {
+                    stringResource(Res.string.bookmark)
+                },
+                modifier = Modifier
+                    .size(32.dp)
+                    .clickable(onClick = onToggleFavorite)
+                    .padding(8.dp),
+                tint = if (data.isFavorite) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+            )
+        }
     }
 }
 

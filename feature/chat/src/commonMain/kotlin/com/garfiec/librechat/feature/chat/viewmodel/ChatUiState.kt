@@ -19,6 +19,19 @@ import com.garfiec.librechat.feature.chat.util.MessageNode
 enum class ChatScreenState { LANDING, LOADING, ACTIVE }
 
 /**
+ * Reasons why a send attempt was blocked. Resolved to a user-facing string in the Compose
+ * layer via `stringResource`, so the ViewModel stays free of hard-coded English UI copy.
+ */
+sealed interface SendBlockReason {
+    data object SelectAgent : SendBlockReason
+    data object SelectModel : SendBlockReason
+    data object AgentsUnavailable : SendBlockReason
+    data object AgentNotAvailable : SendBlockReason
+    data object ModelNotAvailable : SendBlockReason
+    data object ModelLoadFailed : SendBlockReason
+}
+
+/**
  * Consolidated chat-related user preferences from [SettingsDataStore].
  * Exposed as a single [StateFlow] to reduce the number of individual subscriptions
  * in the UI layer.
@@ -82,6 +95,9 @@ data class ChatUiState(
     val agents: List<Agent> = emptyList(),
     val conversationId: String? = null,
     val error: String? = null,
+    /** Set when a send was blocked for a selection/readiness reason. Resolved to a
+     *  user-facing string in the Compose layer. Null means no send-block to show. */
+    val sendBlockReason: SendBlockReason? = null,
     val presets: List<PresetDisplayData> = emptyList(),
     val availablePrompts: List<PromptMentionDisplayData> = emptyList(),
     val editingMessageId: String? = null,
@@ -131,8 +147,25 @@ data class ChatUiState(
      *  The UI navigates to Chat(id) and then clears this via [ChatViewModel.onPendingNavigationHandled],
      *  which also resets this ViewModel to a clean landing state. */
     val pendingNavigationConversationId: String? = null,
+    /** Single source of truth for whether the model-selector sheet is open. Preflight
+     *  failures and readiness timeouts flip this to true so the user sees the sheet with
+     *  a send-block banner. Manual taps on the model chip also set it true via
+     *  [ChatViewModel.openModelSheet]. UI dismissal routes through [ChatViewModel.dismissModelSheet]. */
+    val showModelSheet: Boolean = false,
     // Model comparison state
     val comparisonState: ComparisonState = ComparisonState(),
+    // Role-permission gates — default permissive; narrowed once RoleRepository emits.
+    val promptsEnabled: Boolean = true,
+    val promptsCreateEnabled: Boolean = true,
+    val agentsEnabled: Boolean = true,
+    val agentsCreateEnabled: Boolean = true,
+    val mcpServersEnabled: Boolean = true,
+    val multiConvoEnabled: Boolean = true,
+    val temporaryChatEnabled: Boolean = true,
+    val webSearchEnabled: Boolean = true,
+    val runCodeEnabled: Boolean = true,
+    val fileSearchEnabled: Boolean = true,
+    val bookmarksEnabled: Boolean = true,
 ) {
     /**
      * Effective tool set that merges [enabledTools] with the web search state from
@@ -159,4 +192,22 @@ data class ChatUiState(
             // the actual capabilities list is authoritative.
             return agentsConfig?.capabilities?.contains(ToolConstants.EXECUTE_CODE) ?: true
         }
+
+    /**
+     * True when firing `chatRepository.startChat(...)` is unlikely to race against
+     * cold-start initialization.
+     *
+     * Conditions:
+     * - [availableModels] is non-empty (server's endpoint/model list has arrived).
+     * - The currently-selected endpoint isn't a known-denied one. Specifically: if
+     *   [selectedEndpoint] == "agents", [agentsEnabled] must be true.
+     *
+     * Not included: [selectedModel] != null. The agents endpoint auto-selects a
+     * default agent when none is set (see ModelSelectionDelegate.loadAgents) and
+     * the non-agents flows always set model+endpoint together, so a null here is
+     * orthogonal to the cold-start race we're guarding against.
+     */
+    val isSendReady: Boolean
+        get() = availableModels.isNotEmpty() &&
+            (selectedEndpoint != EndpointConstants.AGENTS || agentsEnabled)
 }

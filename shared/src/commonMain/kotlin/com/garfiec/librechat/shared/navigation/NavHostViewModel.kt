@@ -10,10 +10,15 @@ import com.garfiec.librechat.core.data.repository.AuthRepository
 import com.garfiec.librechat.core.data.repository.BannerRepository
 import com.garfiec.librechat.core.data.repository.ConfigRepository
 import com.garfiec.librechat.core.data.repository.ConversationRepository
+import com.garfiec.librechat.core.data.repository.RoleRepository
 import com.garfiec.librechat.core.data.repository.TagRepository
+import com.garfiec.librechat.core.data.util.SessionTaskRunner
 import com.garfiec.librechat.core.model.Banner
 import com.garfiec.librechat.core.model.Conversation
 import com.garfiec.librechat.core.model.SAVED_TAG
+import com.garfiec.librechat.core.model.permissions.Permission
+import com.garfiec.librechat.core.model.permissions.PermissionType
+import com.garfiec.librechat.core.model.permissions.hasAccessOrPermissive
 import com.garfiec.librechat.core.network.client.TokenManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -30,6 +35,8 @@ class NavHostViewModel(
     bannerRepository: BannerRepository,
     configRepository: ConfigRepository,
     private val conversationRepository: ConversationRepository,
+    private val roleRepository: RoleRepository,
+    private val sessionTaskRunner: SessionTaskRunner,
     private val tagRepository: TagRepository,
     private val tokenManager: TokenManager,
     private val settingsDataStore: SettingsDataStore,
@@ -78,6 +85,21 @@ class NavHostViewModel(
         _selectedSettingsCategory.value = category
     }
 
+    /**
+     * Role-permission flags for drawer UI. Permissive-default (`?: true`) until the
+     * role loads; once it does, denied permissions flip the flags off and the drawer
+     * re-composes to hide the corresponding surfaces.
+     */
+    private val drawerPermissionFlags: StateFlow<DrawerPermissionFlags> =
+        roleRepository.userPermissions
+            .map { role ->
+                DrawerPermissionFlags(
+                    agentsEnabled = role.hasAccessOrPermissive(PermissionType.AGENTS, Permission.USE),
+                    bookmarksEnabled = role.hasAccessOrPermissive(PermissionType.BOOKMARKS, Permission.USE),
+                )
+            }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, DrawerPermissionFlags())
+
     val drawerUiState: StateFlow<DrawerUiState> = combine(
         combine(
             conversationListStateHolder.groupedConversations,
@@ -94,7 +116,8 @@ class NavHostViewModel(
         ) { refreshing, loadingMore, hasMore ->
             Triple(refreshing, loadingMore, hasMore)
         },
-    ) { data, (refreshing, loadingMore, hasMore) ->
+        drawerPermissionFlags,
+    ) { data, (refreshing, loadingMore, hasMore), perms ->
         DrawerUiState(
             groupedConversations = data.grouped.map { (group, convos) ->
                 group to convos.map { it.toDrawerDisplayData(data.activeId) }
@@ -104,8 +127,15 @@ class NavHostViewModel(
             isRefreshing = refreshing,
             isLoadingMore = loadingMore,
             hasMore = hasMore,
+            agentsEnabled = perms.agentsEnabled,
+            bookmarksEnabled = perms.bookmarksEnabled,
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, DrawerUiState())
+
+    private data class DrawerPermissionFlags(
+        val agentsEnabled: Boolean = true,
+        val bookmarksEnabled: Boolean = true,
+    )
 
     init {
         viewModelScope.launch {
@@ -114,8 +144,10 @@ class NavHostViewModel(
                 _isLoggedIn.value = loggedIn
                 if (loggedIn) {
                     versionCheckStateHolder.checkBackendVersion()
-                    launch { tagRepository.refreshTags() }
-                    launch { conversationRepository.syncFavoritesFromServer() }
+                    // Session tasks for the cold-start case (role fetch, tag refresh,
+                    // favorites sync). Runs on the application scope so tasks outlive
+                    // this VM's scope. Fresh logins fire these from AuthRepositoryImpl.
+                    sessionTaskRunner.runAll()
                 }
             } catch (e: Exception) {
                 Logger.w(e) { "Failed to check auth state on init" }
@@ -131,10 +163,9 @@ class NavHostViewModel(
     fun onAuthComplete() {
         _isLoggedIn.value = true
         conversationListStateHolder.refreshConversations()
-        viewModelScope.launch {
-            launch { tagRepository.refreshTags() }
-            launch { conversationRepository.syncFavoritesFromServer() }
-        }
+        // Session tasks (role fetch, tag refresh, favorites sync) already fired from
+        // AuthRepositoryImpl on the preceding login/OAuth/2FA success, so we don't
+        // re-run them here — that was the source of the double-fetch on fresh login.
         bannerStateHolder.fetchBanners()
         versionCheckStateHolder.checkBackendVersion()
     }

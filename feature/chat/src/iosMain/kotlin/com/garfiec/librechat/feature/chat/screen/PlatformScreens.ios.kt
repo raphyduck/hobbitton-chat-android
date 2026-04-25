@@ -79,6 +79,7 @@ import com.garfiec.librechat.feature.chat.util.openPhotoPicker
 import com.garfiec.librechat.feature.chat.util.readClipboardImage
 import com.garfiec.librechat.feature.chat.viewmodel.ChatScreenState
 import com.garfiec.librechat.feature.chat.viewmodel.ChatViewModel
+import com.garfiec.librechat.feature.chat.viewmodel.asString
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -134,7 +135,6 @@ actual fun ChatScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     var showOptionsMenu by remember { mutableStateOf(false) }
-    var showModelSheet by remember { mutableStateOf(false) }
     var showPresetPicker by remember { mutableStateOf(false) }
     var showSavePresetDialog by remember { mutableStateOf(false) }
     var showRenameDialog by remember { mutableStateOf(false) }
@@ -157,6 +157,8 @@ actual fun ChatScreen(
         }
     }
 
+    val sendBlockMessage = uiState.sendBlockReason?.asString()
+
     Scaffold(
         modifier = modifier.imePadding(),
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -176,7 +178,7 @@ actual fun ChatScreen(
                             // Model selector only in active chat (not landing page)
                             ModelSelectorButton(
                                 modelName = displayModel,
-                                onClick = { showModelSheet = true },
+                                onClick = viewModel::openModelSheet,
                             )
                         }
                     },
@@ -191,8 +193,8 @@ actual fun ChatScreen(
                         }
                     },
                     actions = {
-                        // Temp chat toggle — only on landing page
-                        if (isLandingPage) {
+                        // Temp chat toggle — only on landing page, gated on TEMPORARY_CHAT.USE
+                        if (isLandingPage && uiState.temporaryChatEnabled) {
                             TempChatToggle(
                                 isTemporary = uiState.isTemporaryChat,
                                 onToggle = viewModel::toggleTemporaryChat,
@@ -245,8 +247,8 @@ actual fun ChatScreen(
                                         Icon(Icons.Outlined.SaveAs, contentDescription = null)
                                     },
                                 )
-                                // Prompts Library
-                                if (onNavigateToPromptsLibrary != null) {
+                                // Prompts Library — gated on PROMPTS.USE
+                                if (onNavigateToPromptsLibrary != null && uiState.promptsEnabled) {
                                     DropdownMenuItem(
                                         text = { Text(stringResource(Res.string.prompts_library)) },
                                         onClick = {
@@ -258,33 +260,35 @@ actual fun ChatScreen(
                                         },
                                     )
                                 }
-                                // Compare Models
-                                DropdownMenuItem(
-                                    text = {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Text(
-                                                text = stringResource(Res.string.compare_models),
-                                                modifier = Modifier.weight(1f),
-                                            )
-                                            if (uiState.comparisonState.isEnabled) {
-                                                Spacer(modifier = Modifier.width(8.dp))
-                                                Icon(
-                                                    imageVector = Icons.Filled.Check,
-                                                    contentDescription = stringResource(Res.string.cd_comparison_enabled),
-                                                    tint = MaterialTheme.colorScheme.primary,
-                                                    modifier = Modifier.size(18.dp),
+                                // Compare Models — gated on MULTI_CONVO.USE
+                                if (uiState.multiConvoEnabled) {
+                                    DropdownMenuItem(
+                                        text = {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Text(
+                                                    text = stringResource(Res.string.compare_models),
+                                                    modifier = Modifier.weight(1f),
                                                 )
+                                                if (uiState.comparisonState.isEnabled) {
+                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                    Icon(
+                                                        imageVector = Icons.Filled.Check,
+                                                        contentDescription = stringResource(Res.string.cd_comparison_enabled),
+                                                        tint = MaterialTheme.colorScheme.primary,
+                                                        modifier = Modifier.size(18.dp),
+                                                    )
+                                                }
                                             }
-                                        }
-                                    },
-                                    onClick = {
-                                        showOptionsMenu = false
-                                        viewModel.toggleComparison()
-                                    },
-                                    leadingIcon = {
-                                        Icon(Icons.Outlined.Compare, contentDescription = null)
-                                    },
-                                )
+                                        },
+                                        onClick = {
+                                            showOptionsMenu = false
+                                            viewModel.toggleComparison()
+                                        },
+                                        leadingIcon = {
+                                            Icon(Icons.Outlined.Compare, contentDescription = null)
+                                        },
+                                    )
+                                }
                                 // Conversation-specific actions
                                 if (uiState.conversationId != null) {
                                     HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
@@ -481,7 +485,7 @@ actual fun ChatScreen(
                 onStartRecording = viewModel::startRecording,
                 onStopRecording = viewModel::stopRecording,
                 onOpenModelParameters = viewModel::showModelParameters,
-                onOpenModelSelector = { showModelSheet = true },
+                onOpenModelSelector = viewModel::openModelSheet,
                 selectedModelDisplay = displayModel,
                 isCodeInterpreterAvailable = uiState.isCodeInterpreterAvailable,
                 attachedFiles = attachedFiles,
@@ -516,13 +520,17 @@ actual fun ChatScreen(
                         }
                     }
                 },
+                webSearchEnabled = uiState.webSearchEnabled,
+                runCodeEnabled = uiState.runCodeEnabled,
+                fileSearchEnabled = uiState.fileSearchEnabled,
+                mcpServersEnabled = uiState.mcpServersEnabled,
                 modifier = Modifier.align(Alignment.BottomCenter),
             )
         }
     }
 
     // Model selector bottom sheet
-    if (showModelSheet) {
+    if (uiState.showModelSheet) {
         ModelSelectorSheet(
             endpointConfigs = uiState.endpointConfigs,
             availableModels = uiState.availableModels,
@@ -531,10 +539,26 @@ actual fun ChatScreen(
             selectedModel = uiState.selectedModel,
             onModelSelect = { endpoint, model ->
                 viewModel.onModelSelected(endpoint, model)
-                showModelSheet = false
+                // Clear any pending scaffold-level snackbar for the same error so it
+                // doesn't flash behind the sheet's close animation. Harmless no-op when
+                // error is already null.
+                viewModel.dismissError()
+                viewModel.dismissSendBlockReason()
+                viewModel.dismissModelSheet()
             },
-            onDismiss = { showModelSheet = false },
+            onDismiss = {
+                viewModel.dismissError()
+                viewModel.dismissSendBlockReason()
+                viewModel.dismissModelSheet()
+            },
             serverUrl = uiState.serverUrl,
+            // Send-block reasons take precedence: when set, the sheet was auto-opened
+            // to help the user resolve the block, so surface that context inline.
+            errorMessage = sendBlockMessage ?: uiState.error,
+            onErrorDismiss = {
+                viewModel.dismissSendBlockReason()
+                viewModel.dismissError()
+            },
         )
     }
 

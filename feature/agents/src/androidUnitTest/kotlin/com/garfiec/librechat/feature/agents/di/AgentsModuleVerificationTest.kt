@@ -6,6 +6,8 @@ import com.garfiec.librechat.core.data.datastore.ServerDataStore
 import com.garfiec.librechat.core.data.repository.AgentRepository
 import com.garfiec.librechat.core.data.repository.ConfigRepository
 import com.garfiec.librechat.core.data.repository.McpRepository
+import com.garfiec.librechat.core.data.repository.RoleRepository
+import com.garfiec.librechat.core.data.util.PermissionGate
 import org.junit.Test
 import org.koin.test.verify.verify
 
@@ -19,6 +21,8 @@ class AgentsModuleVerificationTest {
                 AgentRepository::class,
                 ConfigRepository::class,
                 McpRepository::class,
+                RoleRepository::class,
+                PermissionGate::class,
                 ServerDataStore::class,
             ),
         )

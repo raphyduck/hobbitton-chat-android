@@ -6,7 +6,12 @@ import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.common.result.Result
 import com.garfiec.librechat.core.data.repository.PromptRepository
+import com.garfiec.librechat.core.data.repository.RoleRepository
+import com.garfiec.librechat.core.data.util.PermissionGate
 import com.garfiec.librechat.core.model.PromptGroup
+import com.garfiec.librechat.core.model.permissions.Permission
+import com.garfiec.librechat.core.model.permissions.PermissionType
+import com.garfiec.librechat.core.model.permissions.hasAccessOrPermissive
 import com.garfiec.librechat.core.model.request.AddPromptToGroupRequest
 import com.garfiec.librechat.core.model.request.CreatePromptData
 import com.garfiec.librechat.core.model.request.CreatePromptGroupData
@@ -42,10 +47,15 @@ data class PromptsUiState(
     val showVariableDialog: Boolean = false,
     val variablePromptTemplate: String = "",
     val variableNames: List<String> = emptyList(),
+    // Role-permission gates — default permissive.
+    val promptsCreateEnabled: Boolean = true,
+    val promptsShareEnabled: Boolean = true,
 )
 
 class PromptsViewModel(
     private val promptRepository: PromptRepository,
+    private val roleRepository: RoleRepository,
+    private val permissionGate: PermissionGate,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PromptsUiState())
@@ -55,7 +65,29 @@ class PromptsViewModel(
     private var rawGroups: List<PromptGroup> = emptyList()
 
     init {
-        loadGroups()
+        observePermissionFlags()
+        loadInitialGroups()
+    }
+
+    /** Continuous collector mirroring CREATE/SHARE sub-action flags into UiState. */
+    private fun observePermissionFlags() {
+        viewModelScope.launch {
+            roleRepository.userPermissions.collect { role ->
+                _uiState.value = _uiState.value.copy(
+                    promptsCreateEnabled = role.hasAccessOrPermissive(PermissionType.PROMPTS, Permission.CREATE),
+                    promptsShareEnabled = role.hasAccessOrPermissive(PermissionType.PROMPTS, Permission.SHARE),
+                )
+            }
+        }
+    }
+
+    /** Fetches the first page of prompt groups once the role confirms PROMPTS.USE. Permissive on timeout. */
+    private fun loadInitialGroups() {
+        viewModelScope.launch {
+            if (permissionGate.awaitRole()?.hasAccess(PermissionType.PROMPTS, Permission.USE) != false) {
+                loadGroups()
+            }
+        }
     }
 
     fun loadGroups() {
