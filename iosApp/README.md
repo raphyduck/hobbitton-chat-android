@@ -35,25 +35,51 @@ The `:shared` Gradle module exports `core:common`, `core:model`, `core:network`,
 
 ### Build and Run
 
+#### Simulator
+
 ```bash
-# Build the app (Xcode build phases handle the shared framework automatically)
+# 1. Build the shared KMP framework
+./gradlew :shared:linkDebugFrameworkIosSimulatorArm64
+
+# 2. Build the Xcode project
 xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp \
   -sdk iphonesimulator \
   -destination 'platform=iOS Simulator,name=iPhone 16' \
   -derivedDataPath iosApp/build build
 
-# Boot simulator, install, and launch
+# 3. Boot simulator, install, and launch
 xcrun simctl boot "iPhone 16"
 xcrun simctl install booted iosApp/build/Build/Products/Debug-iphonesimulator/iosApp.app
 xcrun simctl launch booted com.garfiec.librechat.ios
 ```
 
-> **Note:** The first build takes several minutes while the Kotlin/Native toolchain downloads.
-
-To rebuild only the shared KMP framework (e.g., after changing shared Kotlin code):
+#### Physical Device
 
 ```bash
-./gradlew :shared:linkDebugFrameworkIosSimulatorArm64
+# 1. Build the shared KMP framework for device
+./gradlew :shared:linkDebugFrameworkIosArm64
+```
+
+Then open the project in Xcode:
+
+```bash
+open iosApp/iosApp.xcodeproj
+```
+
+In Xcode:
+1. Select your iPhone from the device picker (top toolbar)
+2. Go to **Signing & Capabilities** → set your **Team** (required for device signing)
+3. Press **⌘R** to build and install
+
+> **Note:** The first build takes several minutes while the Kotlin/Native toolchain downloads. You need an Apple Developer account (free tier works) for device signing.
+
+### Known Xcode Behaviour
+
+**Red dot on `Shared.framework` in the navigator** — You may see a red indicator on `Shared.framework` in the Xcode file navigator (left sidebar). This is cosmetic and does not affect builds. It happens because the Xcode project file keeps a static reference path to the framework for display purposes, and that path may not exist if you haven't built that particular target yet. The linker always resolves the framework via `FRAMEWORK_SEARCH_PATHS`, which is set correctly per target — the red dot can be safely ignored. Building the Gradle framework for your active target clears it:
+
+```bash
+./gradlew :shared:linkDebugFrameworkIosSimulatorArm64  # clears it for simulator
+./gradlew :shared:linkDebugFrameworkIosArm64           # clears it for device
 ```
 
 ## Info.plist Permissions
