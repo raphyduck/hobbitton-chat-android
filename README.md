@@ -55,6 +55,30 @@ NON_BROWSER_VIOLATION_SCORE=0
 
 Without this setting, the server's violation system may accumulate ban points against the mobile client if the User-Agent check fails, eventually locking the account out.
 
+### Self-Signed Certificates (iOS)
+
+The iOS app can connect to a LibreChat server using a self-signed certificate, but iOS enforces strict requirements on all TLS certificates regardless of whether they are self-signed or CA-issued. The certificate must meet **all** of the following or iOS will reject the connection:
+
+| Requirement | Details |
+|---|---|
+| **Validity period** | ≤ 398 days (for certificates issued after September 1, 2020) |
+| **Subject Alternative Name** | DNS name must be present in the SAN extension — CommonName alone is not accepted |
+| **Key algorithm** | RSA ≥ 2048 bits |
+| **Signature algorithm** | SHA-256 or better (SHA-1 is not accepted) |
+| **Extended Key Usage** | Must include `id-kp-serverAuth` (TLS Web Server Authentication) |
+
+The 398-day validity limit is the most common cause of failures — a certificate that works in every browser but was generated with a multi-year validity will be rejected by iOS.
+
+**Setup steps:**
+
+1. Generate a compliant certificate signed by your own CA (tools like [`mkcert`](https://github.com/FiloSottile/mkcert) handle all requirements automatically)
+2. On your iPhone: **Settings → General → VPN & Device Management** — install your CA certificate
+3. Go to **Settings → General → About → Certificate Trust Settings** — enable full trust for your CA
+
+Once the CA is trusted on the device, you only need to re-install it if you create a new CA. The server certificate itself (which you replace when it expires) does not need to be installed separately.
+
+> **Android** has no equivalent restrictions — self-signed certificates with any validity period work as long as the CA is trusted on the device.
+
 ### Notes
 
 - **Registration** — The app respects your server's registration settings. If registration is disabled server-side, only the login form is shown.
@@ -88,16 +112,26 @@ For a release build:
 
 ### iOS
 
-Build and run on the iOS Simulator:
+**Simulator:**
 
 ```bash
+./gradlew :shared:linkDebugFrameworkIosSimulatorArm64
 xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp \
   -sdk iphonesimulator \
   -destination 'platform=iOS Simulator,name=iPhone 16' \
   -derivedDataPath iosApp/build build
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for full simulator install and launch commands.
+**Physical device:**
+
+```bash
+./gradlew :shared:linkDebugFrameworkIosArm64
+open iosApp/iosApp.xcodeproj
+```
+
+Then in Xcode: select your device, set your Team under Signing & Capabilities, and press ⌘R.
+
+See [iosApp/README.md](iosApp/README.md) for full build and launch instructions.
 
 ### Tech Stack
 

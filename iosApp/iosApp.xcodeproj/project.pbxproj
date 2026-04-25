@@ -43,7 +43,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# Aggregate and copy Compose Multiplatform resources into the app bundle.\n# Runs the Gradle aggregation task to ensure resources from all feature\n# modules are collected, then copies them into the .app bundle where\n# the Compose resource reader expects them at runtime.\n\nif [ \"$CONFIGURATION\" = \"Debug\" ]; then\n    ARCH_DIR=\"iosSimulatorArm64\"\n    GRADLE_TASK=\":shared:iosSimulatorArm64AggregateResources\"\nelse\n    ARCH_DIR=\"iosArm64\"\n    GRADLE_TASK=\":shared:iosArm64AggregateResources\"\nfi\n\nPROJECT_ROOT=\"$SRCROOT/..\"\nSRC=\"$PROJECT_ROOT/shared/build/kotlin-multiplatform-resources/aggregated-resources/$ARCH_DIR/composeResources\"\nDST=\"$BUILT_PRODUCTS_DIR/$PRODUCT_NAME.app/compose-resources/composeResources\"\n\n# Run Gradle aggregation to ensure resources are up to date\necho \"Running $GRADLE_TASK...\"\ncd \"$PROJECT_ROOT\" && ./gradlew \"$GRADLE_TASK\" 2>&1\nGRADLE_EXIT=$?\nif [ $GRADLE_EXIT -ne 0 ]; then\n    echo \"error: Gradle task $GRADLE_TASK failed with exit code $GRADLE_EXIT\"\n    exit $GRADLE_EXIT\nfi\n\n# Clean stale resources before copying fresh ones\nif [ -d \"$DST\" ]; then\n    rm -rf \"$DST\"\nfi\n\nif [ -d \"$SRC\" ]; then\n    mkdir -p \"$DST\"\n    cp -R \"$SRC/\" \"$DST/\"\n    echo \"Copied Compose resources from $SRC to $DST\"\nelse\n    echo \"error: Compose resources not found at $SRC after Gradle aggregation\"\n    exit 1\nfi\n";
+			shellScript = "# Aggregate and copy Compose Multiplatform resources into the app bundle.\n# Runs the Gradle aggregation task to ensure resources from all feature\n# modules are collected, then copies them into the .app bundle where\n# the Compose resource reader expects them at runtime.\n\nif [ \"$PLATFORM_NAME\" = \"iphonesimulator\" ]; then\n    ARCH_DIR=\"iosSimulatorArm64\"\n    GRADLE_TASK=\":shared:iosSimulatorArm64AggregateResources\"\nelif [ \"$PLATFORM_NAME\" = \"iphoneos\" ]; then\n    ARCH_DIR=\"iosArm64\"\n    GRADLE_TASK=\":shared:iosArm64AggregateResources\"\nelse\n    echo \"error: Unsupported PLATFORM_NAME: $PLATFORM_NAME\"\n    exit 1\nfi\n\nPROJECT_ROOT=\"$SRCROOT/..\"\nSRC=\"$PROJECT_ROOT/shared/build/kotlin-multiplatform-resources/aggregated-resources/$ARCH_DIR/composeResources\"\nDST=\"$BUILT_PRODUCTS_DIR/$PRODUCT_NAME.app/compose-resources/composeResources\"\n\n# Run Gradle aggregation to ensure resources are up to date\necho \"Running $GRADLE_TASK...\"\ncd \"$PROJECT_ROOT\" && ./gradlew \"$GRADLE_TASK\" 2>&1\nGRADLE_EXIT=$?\nif [ $GRADLE_EXIT -ne 0 ]; then\n    echo \"error: Gradle task $GRADLE_TASK failed with exit code $GRADLE_EXIT\"\n    exit $GRADLE_EXIT\nfi\n\n# Clean stale resources before copying fresh ones\nif [ -d \"$DST\" ]; then\n    rm -rf \"$DST\"\nfi\n\nif [ -d \"$SRC\" ]; then\n    mkdir -p \"$DST\"\n    cp -R \"$SRC/\" \"$DST/\"\n    echo \"Copied Compose resources from $SRC to $DST\"\nelse\n    echo \"error: Compose resources not found at $SRC after Gradle aggregation\"\n    exit 1\nfi\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -237,13 +237,21 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "-";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
+				);
+				"FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]" = (
+					"$(inherited)",
 					"$(PROJECT_DIR)/../shared/build/bin/iosSimulatorArm64/debugFramework",
+				);
+				"FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*]" = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/../shared/build/bin/iosArm64/debugFramework",
 				);
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = iosApp/Info.plist;
@@ -268,11 +276,19 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "-";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+				);
+				"FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]" = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/../shared/build/bin/iosSimulatorArm64/releaseFramework",
+				);
+				"FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*]" = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/../shared/build/bin/iosArm64/releaseFramework",
 				);

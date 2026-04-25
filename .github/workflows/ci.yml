@@ -173,8 +173,11 @@ jobs:
           key: ${{ runner.os }}-konan-${{ hashFiles('gradle/libs.versions.toml') }}
           restore-keys: ${{ runner.os }}-konan-
 
-      - name: Build shared KMP framework
+      - name: Build shared KMP framework (simulator)
         run: ./gradlew :shared:linkDebugFrameworkIosSimulatorArm64
+
+      - name: Build shared KMP framework (device)
+        run: ./gradlew :shared:linkDebugFrameworkIosArm64
 
       - name: Build iOS app
         run: |
