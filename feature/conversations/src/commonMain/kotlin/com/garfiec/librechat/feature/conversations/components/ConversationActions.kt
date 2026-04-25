@@ -57,6 +57,7 @@ fun ConversationActions(
     onBookmarkToggle: () -> Unit = {},
     isBookmarked: Boolean = false,
     showShareAction: Boolean = false,
+    bookmarksEnabled: Boolean = true,
 ) {
     var showRenameDialog by remember { mutableStateOf(false) }
     var showDeleteConfirmation by remember { mutableStateOf(false) }
@@ -88,15 +89,17 @@ fun ConversationActions(
                 },
             )
 
-            ActionRow(
-                icon = if (isBookmarked) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
-                label = if (isBookmarked) stringResource(Res.string.remove_bookmark) else stringResource(Res.string.bookmark),
-                iconTint = if (isBookmarked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                onClick = {
-                    onDismiss()
-                    onBookmarkToggle()
-                },
-            )
+            if (bookmarksEnabled) {
+                ActionRow(
+                    icon = if (isBookmarked) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+                    label = if (isBookmarked) stringResource(Res.string.remove_bookmark) else stringResource(Res.string.bookmark),
+                    iconTint = if (isBookmarked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                    onClick = {
+                        onDismiss()
+                        onBookmarkToggle()
+                    },
+                )
+            }
 
             ActionRow(
                 icon = Icons.Default.BookmarkBorder,

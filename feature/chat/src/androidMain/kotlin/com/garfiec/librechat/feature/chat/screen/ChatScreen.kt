@@ -95,6 +95,7 @@ import com.garfiec.librechat.feature.chat.resources.Res
 import com.garfiec.librechat.feature.chat.util.MessageNode
 import com.garfiec.librechat.feature.chat.viewmodel.ChatScreenState
 import com.garfiec.librechat.feature.chat.viewmodel.ChatViewModel
+import com.garfiec.librechat.feature.chat.viewmodel.asString
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
@@ -136,7 +137,6 @@ actual fun ChatScreen(
     val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     var showPresetPicker by remember { mutableStateOf(false) }
     var showSavePresetDialog by remember { mutableStateOf(false) }
-    var showModelSheet by remember { mutableStateOf(false) }
     var showSecondaryModelSheet by remember { mutableStateOf(false) }
     var activeComparisonTab by remember { mutableStateOf(0) }
 
@@ -259,6 +259,8 @@ actual fun ChatScreen(
         }
     }
 
+    val sendBlockMessage = uiState.sendBlockReason?.asString()
+
     // Stream resume on foreground
     LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) { viewModel.onPause() }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.onResume() }
@@ -320,9 +322,11 @@ actual fun ChatScreen(
                     onOpenDrawer = onOpenDrawer,
                     onOpenSearch = viewModel::openSearch,
                     onOpenPromptsLibrary = onNavigateToPromptsLibrary,
+                    promptsEnabled = uiState.promptsEnabled,
+                    multiConvoEnabled = uiState.multiConvoEnabled,
                     isTemporaryChat = uiState.isTemporaryChat,
                     onToggleTemporaryChat = viewModel::toggleTemporaryChat,
-                    showTempChatToggle = uiState.conversationId == null,
+                    showTempChatToggle = uiState.conversationId == null && uiState.temporaryChatEnabled,
                     isComparisonEnabled = uiState.comparisonState.isEnabled,
                     onToggleComparison = viewModel::toggleComparison,
                     conversationId = uiState.conversationId,
@@ -521,7 +525,7 @@ actual fun ChatScreen(
                                     primaryModelSelector = {
                                         ModelSelectorButton(
                                             modelName = displayModel,
-                                            onClick = { showModelSheet = true },
+                                            onClick = viewModel::openModelSheet,
                                         )
                                     },
                                     secondaryModelSelector = {
@@ -644,7 +648,7 @@ actual fun ChatScreen(
                     if (uiState.comparisonState.isEnabled && activeComparisonTab == 1) {
                         showSecondaryModelSheet = true
                     } else {
-                        showModelSheet = true
+                        viewModel.openModelSheet()
                     }
                 },
                 selectedModelDisplay = if (uiState.comparisonState.isEnabled && activeComparisonTab == 1) {
@@ -655,6 +659,10 @@ actual fun ChatScreen(
                     displayModel
                 },
                 isCodeInterpreterAvailable = uiState.isCodeInterpreterAvailable,
+                webSearchEnabled = uiState.webSearchEnabled,
+                runCodeEnabled = uiState.runCodeEnabled,
+                fileSearchEnabled = uiState.fileSearchEnabled,
+                mcpServersEnabled = uiState.mcpServersEnabled,
                 modifier = Modifier.align(Alignment.BottomCenter),
             )
         }
@@ -728,7 +736,7 @@ actual fun ChatScreen(
         )
     }
 
-    if (showModelSheet) {
+    if (uiState.showModelSheet) {
         ModelSelectorSheet(
             endpointConfigs = uiState.endpointConfigs,
             availableModels = uiState.availableModels,
@@ -737,10 +745,26 @@ actual fun ChatScreen(
             selectedModel = uiState.selectedModel,
             onModelSelect = { endpoint, model ->
                 viewModel.onModelSelected(endpoint, model)
-                showModelSheet = false
+                // Clear any pending scaffold-level snackbar for the same error so it
+                // doesn't flash behind the sheet's close animation. Harmless no-op when
+                // error is already null.
+                viewModel.dismissError()
+                viewModel.dismissSendBlockReason()
+                viewModel.dismissModelSheet()
             },
-            onDismiss = { showModelSheet = false },
+            onDismiss = {
+                viewModel.dismissError()
+                viewModel.dismissSendBlockReason()
+                viewModel.dismissModelSheet()
+            },
             serverUrl = uiState.serverUrl,
+            // Send-block reasons take precedence: when set, the sheet was auto-opened
+            // to help the user resolve the block, so surface that context inline.
+            errorMessage = sendBlockMessage ?: uiState.error,
+            onErrorDismiss = {
+                viewModel.dismissSendBlockReason()
+                viewModel.dismissError()
+            },
         )
     }
 
@@ -771,6 +795,8 @@ private fun ChatTopBar(
     modifier: Modifier = Modifier,
     onOpenSearch: () -> Unit = {},
     onOpenPromptsLibrary: (() -> Unit)? = null,
+    promptsEnabled: Boolean = true,
+    multiConvoEnabled: Boolean = true,
     isTemporaryChat: Boolean = false,
     onToggleTemporaryChat: () -> Unit = {},
     showTempChatToggle: Boolean = false,
@@ -870,7 +896,7 @@ private fun ChatTopBar(
                         Icon(Icons.Outlined.SaveAs, contentDescription = null)
                     },
                 )
-                if (onOpenPromptsLibrary != null) {
+                if (onOpenPromptsLibrary != null && promptsEnabled) {
                     DropdownMenuItem(
                         text = { Text(stringResource(Res.string.prompts_library)) },
                         onClick = {
@@ -882,32 +908,34 @@ private fun ChatTopBar(
                         },
                     )
                 }
-                DropdownMenuItem(
-                    text = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = stringResource(Res.string.compare_models),
-                                modifier = Modifier.weight(1f),
-                            )
-                            if (isComparisonEnabled) {
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Icon(
-                                    imageVector = Icons.Filled.Check,
-                                    contentDescription = stringResource(Res.string.cd_comparison_enabled),
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(18.dp),
+                if (multiConvoEnabled) {
+                    DropdownMenuItem(
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = stringResource(Res.string.compare_models),
+                                    modifier = Modifier.weight(1f),
                                 )
+                                if (isComparisonEnabled) {
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Icon(
+                                        imageVector = Icons.Filled.Check,
+                                        contentDescription = stringResource(Res.string.cd_comparison_enabled),
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(18.dp),
+                                    )
+                                }
                             }
-                        }
-                    },
-                    onClick = {
-                        showOverflowMenu = false
-                        onToggleComparison()
-                    },
-                    leadingIcon = {
-                        Icon(Icons.Outlined.Compare, contentDescription = null)
-                    },
-                )
+                        },
+                        onClick = {
+                            showOverflowMenu = false
+                            onToggleComparison()
+                        },
+                        leadingIcon = {
+                            Icon(Icons.Outlined.Compare, contentDescription = null)
+                        },
+                    )
+                }
                 if (conversationId != null) {
                     HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                     Text(

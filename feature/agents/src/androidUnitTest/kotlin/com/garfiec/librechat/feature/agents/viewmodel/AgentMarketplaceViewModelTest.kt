@@ -3,6 +3,8 @@ package com.garfiec.librechat.feature.agents.viewmodel
 import com.garfiec.librechat.core.common.result.Result
 import com.garfiec.librechat.core.data.datastore.ServerDataStore
 import com.garfiec.librechat.core.data.repository.AgentRepository
+import com.garfiec.librechat.core.data.repository.RoleRepository
+import com.garfiec.librechat.core.data.util.PermissionGate
 import com.garfiec.librechat.core.model.Agent
 import com.garfiec.librechat.core.model.AgentCategory
 import com.garfiec.librechat.core.model.PaginatedAgents
@@ -13,6 +15,7 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -29,6 +32,8 @@ class AgentMarketplaceViewModelTest {
 
     private val agentRepository = mockk<AgentRepository>(relaxed = true)
     private val serverDataStore = mockk<ServerDataStore>(relaxed = true)
+    private val roleRepository = mockk<RoleRepository>(relaxed = true)
+    private val permissionGate = mockk<PermissionGate>(relaxed = true)
 
     private lateinit var viewModel: AgentMarketplaceViewModel
 
@@ -47,6 +52,12 @@ class AgentMarketplaceViewModelTest {
     @Before
     fun setup() {
         Dispatchers.setMain(testDispatcher)
+        // Permissive-by-null StateFlow for role repository so the collector leaves
+        // flags at their default `true`. awaitRole() returns null (no timeout needed
+        // in tests — the suspend returns null immediately), so the gated loadAgents()
+        // path fires via `?: != false` permissive.
+        every { roleRepository.userPermissions } returns MutableStateFlow(null)
+        coEvery { permissionGate.awaitRole() } returns null
         every { serverDataStore.getBaseUrl() } returns "https://chat.example.com"
         coEvery {
             agentRepository.getAgentsPaginated(
@@ -67,6 +78,8 @@ class AgentMarketplaceViewModelTest {
     private fun createViewModel() = AgentMarketplaceViewModel(
         agentRepository = agentRepository,
         serverDataStore = serverDataStore,
+        roleRepository = roleRepository,
+        permissionGate = permissionGate,
     )
 
     @Test

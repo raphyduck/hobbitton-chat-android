@@ -1,0 +1,16 @@
+package com.garfiec.librechat.core.model.permissions
+
+enum class PermissionType(val serverKey: String) {
+    PROMPTS("PROMPTS"),
+    AGENTS("AGENTS"),
+    MEMORIES("MEMORIES"),
+    MCP_SERVERS("MCP_SERVERS"),
+    BOOKMARKS("BOOKMARKS"),
+    WEB_SEARCH("WEB_SEARCH"),
+    RUN_CODE("RUN_CODE"),
+    FILE_SEARCH("FILE_SEARCH"),
+    TEMPORARY_CHAT("TEMPORARY_CHAT"),
+    MULTI_CONVO("MULTI_CONVO"),
+    MARKETPLACE("MARKETPLACE"),
+    REMOTE_AGENTS("REMOTE_AGENTS"),
+}

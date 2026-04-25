@@ -60,6 +60,10 @@ fun IosChatInput(
     onAttachFiles: () -> Unit = {},
     onTakePhoto: () -> Unit = {},
     onPickPhotos: () -> Unit = {},
+    webSearchEnabled: Boolean = true,
+    runCodeEnabled: Boolean = true,
+    fileSearchEnabled: Boolean = true,
+    mcpServersEnabled: Boolean = true,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     var showToolsSheet by remember { mutableStateOf(false) }
@@ -208,6 +212,10 @@ fun IosChatInput(
             selectedModelDisplay = selectedModelDisplay,
             onDismiss = { showToolsSheet = false },
             isCodeInterpreterAvailable = isCodeInterpreterAvailable,
+            webSearchEnabled = webSearchEnabled,
+            runCodeEnabled = runCodeEnabled,
+            fileSearchEnabled = fileSearchEnabled,
+            mcpServersEnabled = mcpServersEnabled,
         )
     }
 }

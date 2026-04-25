@@ -13,9 +13,11 @@ import com.garfiec.librechat.core.data.repository.KeyRepository
 import com.garfiec.librechat.core.data.repository.McpRepository
 import com.garfiec.librechat.core.data.repository.MemoryRepository
 import com.garfiec.librechat.core.data.repository.PresetRepository
+import com.garfiec.librechat.core.data.repository.RoleRepository
 import com.garfiec.librechat.core.data.repository.ShareRepository
 import com.garfiec.librechat.core.data.repository.SpeechRepository
 import com.garfiec.librechat.core.data.repository.UserRepository
+import com.garfiec.librechat.core.data.util.PermissionGate
 import com.garfiec.librechat.feature.settings.util.ContentReader
 import com.garfiec.librechat.feature.settings.util.PlatformCacheCleaner
 import com.garfiec.librechat.feature.settings.viewmodel.delegate.SpeechSettingsFactory
@@ -34,6 +36,8 @@ class SettingsModuleVerificationTest {
                 ConversationRepository::class,
                 McpRepository::class,
                 MemoryRepository::class,
+                RoleRepository::class,
+                PermissionGate::class,
                 SpeechRepository::class,
                 BalanceRepository::class,
                 ShareRepository::class,

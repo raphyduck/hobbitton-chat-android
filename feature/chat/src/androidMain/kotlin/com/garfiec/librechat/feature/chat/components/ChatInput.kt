@@ -85,6 +85,10 @@ fun ChatInput(
     onOpenModelSelector: () -> Unit = {},
     selectedModelDisplay: String? = null,
     isCodeInterpreterAvailable: Boolean = true,
+    webSearchEnabled: Boolean = true,
+    runCodeEnabled: Boolean = true,
+    fileSearchEnabled: Boolean = true,
+    mcpServersEnabled: Boolean = true,
 ) {
     val cdOpenToolsMenu = stringResource(Res.string.cd_open_tools_menu)
     val cdPasteImage = stringResource(Res.string.cd_paste_image)
@@ -396,6 +400,10 @@ fun ChatInput(
             selectedModelDisplay = selectedModelDisplay,
             onDismiss = { showToolsSheet = false },
             isCodeInterpreterAvailable = isCodeInterpreterAvailable,
+            webSearchEnabled = webSearchEnabled,
+            runCodeEnabled = runCodeEnabled,
+            fileSearchEnabled = fileSearchEnabled,
+            mcpServersEnabled = mcpServersEnabled,
         )
     }
 }

@@ -14,9 +14,11 @@ import com.garfiec.librechat.core.data.repository.ConversationRepository
 import com.garfiec.librechat.core.data.repository.KeyRepository
 import com.garfiec.librechat.core.data.repository.McpRepository
 import com.garfiec.librechat.core.data.repository.MemoryRepository
+import com.garfiec.librechat.core.data.repository.RoleRepository
 import com.garfiec.librechat.core.data.repository.ShareRepository
 import com.garfiec.librechat.core.data.repository.SpeechRepository
 import com.garfiec.librechat.core.data.repository.UserRepository
+import com.garfiec.librechat.core.data.util.PermissionGate
 import com.garfiec.librechat.core.model.User
 import com.garfiec.librechat.feature.settings.util.ContentReader
 import com.garfiec.librechat.feature.settings.util.PlatformCacheCleaner
@@ -59,6 +61,8 @@ class SettingsViewModelTest {
     private val balanceRepository = mockk<BalanceRepository>(relaxed = true)
     private val shareRepository = mockk<ShareRepository>(relaxed = true)
     private val keyRepository = mockk<KeyRepository>(relaxed = true)
+    private val roleRepository = mockk<RoleRepository>(relaxed = true)
+    private val permissionGate = mockk<PermissionGate>(relaxed = true)
 
     private val testUser = User(
         email = "test@example.com",
@@ -107,6 +111,11 @@ class SettingsViewModelTest {
         coEvery { memoryRepository.getMemories() } returns Result.Success(emptyList())
         coEvery { speechRepository.getVoices() } returns Result.Success(emptyList())
         coEvery { balanceRepository.getBalance() } returns Result.Error(message = "Not available")
+
+        // Permissive-null defaults so existing tests continue to exercise the
+        // same load paths via the `?: != false` idiom.
+        every { roleRepository.userPermissions } returns MutableStateFlow(null)
+        coEvery { permissionGate.awaitRole() } returns null
     }
 
     @After
@@ -129,6 +138,8 @@ class SettingsViewModelTest {
         balanceRepository = balanceRepository,
         shareRepository = shareRepository,
         keyRepository = keyRepository,
+        roleRepository = roleRepository,
+        permissionGate = permissionGate,
     )
 
     @Test

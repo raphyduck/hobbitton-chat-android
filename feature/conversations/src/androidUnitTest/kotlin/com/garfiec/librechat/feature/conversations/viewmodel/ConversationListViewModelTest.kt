@@ -2,6 +2,7 @@ package com.garfiec.librechat.feature.conversations.viewmodel
 
 import com.garfiec.librechat.core.common.result.Result
 import com.garfiec.librechat.core.data.repository.ConversationRepository
+import com.garfiec.librechat.core.data.repository.RoleRepository
 import com.garfiec.librechat.core.data.repository.SearchRepository
 import com.garfiec.librechat.core.data.repository.ShareRepository
 import com.garfiec.librechat.core.data.repository.TagRepository
@@ -17,6 +18,7 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -39,6 +41,7 @@ class ConversationListViewModelTest {
     private val shareRepository = mockk<ShareRepository>(relaxed = true)
     private val conversationExporter = mockk<ConversationExporter>(relaxed = true)
     private val conversationImporter = mockk<ConversationImporter>(relaxed = true)
+    private val roleRepository = mockk<RoleRepository>(relaxed = true)
 
     private lateinit var viewModel: ConversationListViewModel
 
@@ -73,6 +76,7 @@ class ConversationListViewModelTest {
         coEvery { conversationRepository.syncFavoritesFromServer() } returns Result.Success(Unit)
         every { tagRepository.observeTags() } returns flowOf(testTags)
         coEvery { tagRepository.refreshTags() } returns Result.Success(Unit)
+        every { roleRepository.userPermissions } returns MutableStateFlow(null)
     }
 
     @After
@@ -87,6 +91,7 @@ class ConversationListViewModelTest {
         shareRepository = shareRepository,
         conversationExporter = conversationExporter,
         conversationImporter = conversationImporter,
+        roleRepository = roleRepository,
     )
 
     @Test

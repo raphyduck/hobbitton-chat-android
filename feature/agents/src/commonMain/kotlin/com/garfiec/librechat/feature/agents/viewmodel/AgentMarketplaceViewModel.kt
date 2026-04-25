@@ -6,7 +6,12 @@ import androidx.lifecycle.viewModelScope
 import com.garfiec.librechat.core.common.result.Result
 import com.garfiec.librechat.core.data.datastore.ServerDataStore
 import com.garfiec.librechat.core.data.repository.AgentRepository
+import com.garfiec.librechat.core.data.repository.RoleRepository
+import com.garfiec.librechat.core.data.util.PermissionGate
 import com.garfiec.librechat.core.model.Agent
+import com.garfiec.librechat.core.model.permissions.Permission
+import com.garfiec.librechat.core.model.permissions.PermissionType
+import com.garfiec.librechat.core.model.permissions.hasAccessOrPermissive
 import com.garfiec.librechat.feature.agents.AgentCardDisplayData
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -28,11 +33,17 @@ data class AgentMarketplaceUiState(
     val categories: List<String> = emptyList(),
     val hasMore: Boolean = true,
     val currentPage: Int = 1,
+    // Role-permission gates — default permissive.
+    val agentsEnabled: Boolean = true,
+    val agentsCreateEnabled: Boolean = true,
+    val marketplaceEnabled: Boolean = true,
 )
 
 class AgentMarketplaceViewModel(
     private val agentRepository: AgentRepository,
     private val serverDataStore: ServerDataStore,
+    private val roleRepository: RoleRepository,
+    private val permissionGate: PermissionGate,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AgentMarketplaceUiState())
@@ -64,8 +75,32 @@ class AgentMarketplaceViewModel(
     }
 
     init {
-        loadAgents()
+        // Categories endpoint is ungated server-side — load unconditionally.
         loadCategories()
+        observePermissionFlags()
+        loadInitialAgents()
+    }
+
+    /** Continuous collector mirroring the current role into UiState permission flags. */
+    private fun observePermissionFlags() {
+        viewModelScope.launch {
+            roleRepository.userPermissions.collect { role ->
+                _uiState.value = _uiState.value.copy(
+                    agentsEnabled = role.hasAccessOrPermissive(PermissionType.AGENTS, Permission.USE),
+                    agentsCreateEnabled = role.hasAccessOrPermissive(PermissionType.AGENTS, Permission.CREATE),
+                    marketplaceEnabled = role.hasAccessOrPermissive(PermissionType.MARKETPLACE, Permission.USE),
+                )
+            }
+        }
+    }
+
+    /** Fetches the first page of agents once the role confirms AGENTS.USE. Permissive on timeout. */
+    private fun loadInitialAgents() {
+        viewModelScope.launch {
+            if (permissionGate.awaitRole()?.hasAccess(PermissionType.AGENTS, Permission.USE) != false) {
+                loadAgents()
+            }
+        }
     }
 
     fun loadAgents() {

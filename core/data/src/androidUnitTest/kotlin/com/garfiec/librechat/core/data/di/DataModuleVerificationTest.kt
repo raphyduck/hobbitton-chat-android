@@ -20,6 +20,7 @@ import com.garfiec.librechat.core.network.api.MemoriesApi
 import com.garfiec.librechat.core.network.api.MessagesApi
 import com.garfiec.librechat.core.network.api.PresetsApi
 import com.garfiec.librechat.core.network.api.PromptsApi
+import com.garfiec.librechat.core.network.api.RolesApi
 import com.garfiec.librechat.core.network.api.SearchApi
 import com.garfiec.librechat.core.network.api.ShareApi
 import com.garfiec.librechat.core.network.api.SpeechApi
@@ -28,6 +29,7 @@ import com.garfiec.librechat.core.network.api.UserApi
 import com.garfiec.librechat.core.network.sse.SseClient
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.serialization.json.Json
 import org.junit.Test
 import org.koin.test.verify.verify
@@ -43,6 +45,7 @@ class DataModuleVerificationTest {
                 HttpClient::class,
                 Json::class,
                 CoroutineDispatcher::class,
+                CoroutineScope::class,
                 ConnectivityObserver::class,
                 SseClient::class,
                 AuthApi::class,
@@ -55,6 +58,7 @@ class DataModuleVerificationTest {
                 AgentsApi::class,
                 PresetsApi::class,
                 PromptsApi::class,
+                RolesApi::class,
                 TagsApi::class,
                 ShareApi::class,
                 ConfigApi::class,

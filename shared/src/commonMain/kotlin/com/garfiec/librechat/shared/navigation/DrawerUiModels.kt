@@ -30,4 +30,7 @@ data class DrawerUiState(
     val isRefreshing: Boolean = false,
     val isLoadingMore: Boolean = false,
     val hasMore: Boolean = true,
+    // Role-permission gates — default permissive.
+    val agentsEnabled: Boolean = true,
+    val bookmarksEnabled: Boolean = true,
 )

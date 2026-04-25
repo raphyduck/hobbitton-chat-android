@@ -44,6 +44,8 @@ internal fun McpSettingsSection(
     modifier: Modifier = Modifier,
     reinitializingServers: Set<String> = emptySet(),
     error: String? = null,
+    mcpServersEnabled: Boolean = true,
+    mcpServersCreateEnabled: Boolean = true,
 ) {
     Column(modifier = modifier) {
         Column(
@@ -52,7 +54,13 @@ internal fun McpSettingsSection(
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            if (error != null) {
+            if (!mcpServersEnabled) {
+                Text(
+                    text = stringResource(Res.string.mcp_not_available),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else if (error != null) {
                 Text(
                     text = stringResource(Res.string.mcp_not_available),
                     style = MaterialTheme.typography.bodyMedium,
@@ -77,11 +85,14 @@ internal fun McpSettingsSection(
                 }
             }
 
-            if (error == null) {
+            if (mcpServersEnabled && error == null) {
                 Spacer(modifier = Modifier.height(4.dp))
             }
 
-            if (error == null) {
+            // "+ Add MCP Server" stays behind both gates:
+            // USE must be allowed (otherwise the whole section is degraded) and
+            // CREATE must be allowed (separate sub-action).
+            if (mcpServersEnabled && error == null && mcpServersCreateEnabled) {
                 OutlinedButton(
                     onClick = onAddServer,
                     modifier = Modifier.fillMaxWidth(),

@@ -75,6 +75,10 @@ fun ChatToolsBottomSheet(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     isCodeInterpreterAvailable: Boolean = true,
+    webSearchEnabled: Boolean = true,
+    runCodeEnabled: Boolean = true,
+    fileSearchEnabled: Boolean = true,
+    mcpServersEnabled: Boolean = true,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showMcpServers by remember { mutableStateOf(false) }
@@ -204,15 +208,17 @@ fun ChatToolsBottomSheet(
             Spacer(modifier = Modifier.height(8.dp))
 
             // Tool toggle items
-            ToolToggleRow(
-                icon = Icons.Default.Search,
-                title = stringResource(Res.string.tool_web_search),
-                subtitle = stringResource(Res.string.tool_web_search_desc),
-                isEnabled = ToolConstants.WEB_SEARCH in enabledTools,
-                onToggle = { onToggleTool(ToolConstants.WEB_SEARCH) },
-            )
+            if (webSearchEnabled) {
+                ToolToggleRow(
+                    icon = Icons.Default.Search,
+                    title = stringResource(Res.string.tool_web_search),
+                    subtitle = stringResource(Res.string.tool_web_search_desc),
+                    isEnabled = ToolConstants.WEB_SEARCH in enabledTools,
+                    onToggle = { onToggleTool(ToolConstants.WEB_SEARCH) },
+                )
+            }
 
-            if (isCodeInterpreterAvailable) {
+            if (isCodeInterpreterAvailable && runCodeEnabled) {
                 ToolToggleRow(
                     icon = Icons.Default.Code,
                     title = stringResource(Res.string.tool_code),
@@ -222,16 +228,18 @@ fun ChatToolsBottomSheet(
                 )
             }
 
-            ToolToggleRow(
-                icon = Icons.Default.FindInPage,
-                title = stringResource(Res.string.tool_file_search),
-                subtitle = stringResource(Res.string.tool_file_search_desc),
-                isEnabled = ToolConstants.FILE_SEARCH in enabledTools,
-                onToggle = { onToggleTool(ToolConstants.FILE_SEARCH) },
-            )
+            if (fileSearchEnabled) {
+                ToolToggleRow(
+                    icon = Icons.Default.FindInPage,
+                    title = stringResource(Res.string.tool_file_search),
+                    subtitle = stringResource(Res.string.tool_file_search_desc),
+                    isEnabled = ToolConstants.FILE_SEARCH in enabledTools,
+                    onToggle = { onToggleTool(ToolConstants.FILE_SEARCH) },
+                )
+            }
 
-            // MCP section
-            if (mcpServers.isNotEmpty()) {
+            // MCP section — hidden entirely when role denies MCP_SERVERS.USE.
+            if (mcpServersEnabled && mcpServers.isNotEmpty()) {
                 val anyMcpSelected = selectedMcpServerNames.isNotEmpty()
                 Row(
                     modifier = Modifier

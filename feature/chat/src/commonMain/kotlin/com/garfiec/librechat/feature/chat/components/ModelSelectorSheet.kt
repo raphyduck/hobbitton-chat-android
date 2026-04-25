@@ -48,6 +48,7 @@ import coil3.compose.AsyncImage
 import com.garfiec.librechat.core.common.EndpointConstants
 import com.garfiec.librechat.core.model.Agent
 import com.garfiec.librechat.core.model.EndpointConfig
+import com.garfiec.librechat.core.ui.components.ErrorBanner
 import com.garfiec.librechat.core.ui.components.endpointIconPainter
 import com.garfiec.librechat.core.ui.components.isMonochromeEndpointIcon
 import com.garfiec.librechat.feature.chat.resources.*
@@ -96,6 +97,8 @@ fun ModelSelectorSheet(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     serverUrl: String = "",
+    errorMessage: String? = null,
+    onErrorDismiss: () -> Unit = {},
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
     var searchQuery by remember { mutableStateOf("") }
@@ -144,20 +147,28 @@ fun ModelSelectorSheet(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 16.dp)
                 .padding(bottom = 32.dp),
         ) {
+            // Banner applies its own 16dp inset, so it sits outside the Column's
+            // horizontal padding to line up with the other elements.
+            if (errorMessage != null) {
+                ErrorBanner(message = errorMessage, onDismiss = onErrorDismiss)
+            }
             Text(
                 text = stringResource(Res.string.select_a_model),
                 style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(bottom = 16.dp),
+                modifier = Modifier
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 16.dp),
             )
 
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
                 placeholder = { Text("Search models...") },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
                 singleLine = true,
                 trailingIcon = {
                     if (searchQuery.isNotEmpty()) {
@@ -173,7 +184,11 @@ fun ModelSelectorSheet(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            LazyColumn(modifier = Modifier.weight(1f)) {
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 16.dp),
+            ) {
                 // "My Agents" group (shown first, like the web frontend)
                 if (filteredAgents.isNotEmpty()) {
                     val agentsExpanded = expandedGroups[EndpointConstants.AGENTS] != false

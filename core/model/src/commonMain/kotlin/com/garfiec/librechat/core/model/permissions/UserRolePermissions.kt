@@ -1,0 +1,38 @@
+package com.garfiec.librechat.core.model.permissions
+
+import kotlinx.serialization.Serializable
+
+@Serializable
+data class UserRolePermissions(
+    val name: String,
+    val description: String? = null,
+    val permissions: Map<String, Map<String, Boolean>> = emptyMap(),
+) {
+    /**
+     * Returns true if the permission is explicitly granted OR unknown.
+     *
+     * Permissive-default is intentional for forward compatibility: if a future server
+     * adds a new PermissionType the client doesn't know about, or omits a field on an
+     * older build, the client optimistically shows the UI. The server's middleware still
+     * enforces via 403 — the client gate is for UX (hiding dead-end buttons), not security.
+     *
+     * This diverges from the PWA's `useHasAccess` (which returns false on unknown). The
+     * rationale is mobile-specific: mobile apps are long-lived, so an old-client-on-new-server
+     * scenario is more likely than on web. Permissive default avoids breaking existing users
+     * when the server adds new permission types between releases.
+     */
+    fun hasAccess(type: PermissionType, permission: Permission): Boolean {
+        val perms = permissions[type.serverKey] ?: return true
+        val value = perms[permission.serverKey] ?: return true
+        return value
+    }
+}
+
+/**
+ * Permissive-default variant of [UserRolePermissions.hasAccess] that treats a null role
+ * (still loading, fetch failed, timed out) as permissive. Replaces the `role?.hasAccess(...) ?: true`
+ * idiom so the permissive contract lives in one place instead of being open-coded at every
+ * role-flag mapping site across the VMs.
+ */
+fun UserRolePermissions?.hasAccessOrPermissive(type: PermissionType, permission: Permission): Boolean =
+    this?.hasAccess(type, permission) ?: true

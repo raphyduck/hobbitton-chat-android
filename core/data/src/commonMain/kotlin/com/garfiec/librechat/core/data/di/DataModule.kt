@@ -2,6 +2,7 @@ package com.garfiec.librechat.core.data.di
 
 import com.garfiec.librechat.core.common.di.KoinQualifiers
 import com.garfiec.librechat.core.data.datastore.ConfigCacheDataStore
+import com.garfiec.librechat.core.data.datastore.RoleCacheDataStore
 import com.garfiec.librechat.core.data.datastore.ServerDataStore
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.datastore.ThemeDataStore
@@ -38,6 +39,8 @@ import com.garfiec.librechat.core.data.repository.PresetRepository
 import com.garfiec.librechat.core.data.repository.PresetRepositoryImpl
 import com.garfiec.librechat.core.data.repository.PromptRepository
 import com.garfiec.librechat.core.data.repository.PromptRepositoryImpl
+import com.garfiec.librechat.core.data.repository.RoleRepository
+import com.garfiec.librechat.core.data.repository.RoleRepositoryImpl
 import com.garfiec.librechat.core.data.repository.SearchRepository
 import com.garfiec.librechat.core.data.repository.SearchRepositoryImpl
 import com.garfiec.librechat.core.data.repository.ShareRepository
@@ -48,7 +51,14 @@ import com.garfiec.librechat.core.data.repository.TagRepository
 import com.garfiec.librechat.core.data.repository.TagRepositoryImpl
 import com.garfiec.librechat.core.data.repository.UserRepository
 import com.garfiec.librechat.core.data.repository.UserRepositoryImpl
+import com.garfiec.librechat.core.data.util.PermissionGate
+import com.garfiec.librechat.core.data.util.RefreshTagsSessionTask
+import com.garfiec.librechat.core.data.util.RoleFetchSessionTask
+import com.garfiec.librechat.core.data.util.SessionTask
+import com.garfiec.librechat.core.data.util.SessionTaskRunner
+import com.garfiec.librechat.core.data.util.SyncFavoritesSessionTask
 import com.garfiec.librechat.core.network.client.ServerUrlProvider
+import kotlinx.coroutines.CoroutineScope
 import org.koin.core.module.Module
 import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.bind
@@ -81,6 +91,7 @@ val dataModule = module {
     } bind ServerUrlProvider::class
     singleOf(::ThemeDataStore)
     singleOf(::ConfigCacheDataStore)
+    singleOf(::RoleCacheDataStore)
     singleOf(::SettingsDataStore)
 
     // --- Repositories (special wiring) ---
@@ -91,6 +102,33 @@ val dataModule = module {
             userApi = get(),
             tokenManager = get(),
             sessionCacheCleaner = get(),
+            sessionTaskRunner = get(),
+        )
+    }
+
+    single<RoleRepository> {
+        RoleRepositoryImpl(
+            rolesApi = get(),
+            userRepository = get(),
+            cacheDataStore = get(),
+            applicationScope = get<CoroutineScope>(KoinQualifiers.ApplicationScope),
+        )
+    }
+
+    singleOf(::PermissionGate)
+
+    // --- Session tasks ---
+    // Work that runs whenever the app transitions into an authenticated session.
+    // Fires from two places only: AuthRepositoryImpl's login/OAuth/2FA success paths
+    // and NavHostViewModel.init when a session is restored at cold-start.
+    // Add new tasks here.
+    singleOf(::RoleFetchSessionTask) bind SessionTask::class
+    singleOf(::RefreshTagsSessionTask) bind SessionTask::class
+    singleOf(::SyncFavoritesSessionTask) bind SessionTask::class
+    single {
+        SessionTaskRunner(
+            tasks = getAll<SessionTask>(),
+            applicationScope = get<CoroutineScope>(KoinQualifiers.ApplicationScope),
         )
     }
 

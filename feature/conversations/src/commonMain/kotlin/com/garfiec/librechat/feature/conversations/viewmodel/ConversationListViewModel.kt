@@ -8,12 +8,16 @@ import com.garfiec.librechat.core.common.extensions.toInstantOrNull
 import com.garfiec.librechat.core.common.extensions.toRelativeDateGroup
 import com.garfiec.librechat.core.common.result.Result
 import com.garfiec.librechat.core.data.repository.ConversationRepository
+import com.garfiec.librechat.core.data.repository.RoleRepository
 import com.garfiec.librechat.core.data.repository.SearchRepository
 import com.garfiec.librechat.core.data.repository.ShareRepository
 import com.garfiec.librechat.core.data.repository.TagRepository
 import com.garfiec.librechat.core.model.Conversation
 import com.garfiec.librechat.core.model.ConversationTag
 import com.garfiec.librechat.core.model.SAVED_TAG
+import com.garfiec.librechat.core.model.permissions.Permission
+import com.garfiec.librechat.core.model.permissions.PermissionType
+import com.garfiec.librechat.core.model.permissions.hasAccessOrPermissive
 import com.garfiec.librechat.feature.conversations.components.ConversationDisplayData
 import com.garfiec.librechat.feature.conversations.components.toDisplayData
 import com.garfiec.librechat.feature.conversations.export.ConversationExporter
@@ -43,6 +47,8 @@ data class ConversationListUiState(
     val selectedTags: Set<String> = emptySet(),
     val searchQuery: String = "",
     val isSearching: Boolean = false,
+    // Role-permission gate — default permissive until role loads.
+    val bookmarksEnabled: Boolean = true,
 )
 
 sealed interface ConversationListEvent {
@@ -60,6 +66,7 @@ class ConversationListViewModel(
     private val shareRepository: ShareRepository,
     private val conversationExporter: ConversationExporter,
     private val conversationImporter: ConversationImporter,
+    private val roleRepository: RoleRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ConversationListUiState())
@@ -76,6 +83,20 @@ class ConversationListViewModel(
         loadConversations()
         observeConversations()
         observeTags()
+        observePermissions()
+    }
+
+    private fun observePermissions() {
+        viewModelScope.launch {
+            roleRepository.userPermissions.collect { role ->
+                _uiState.value = _uiState.value.copy(
+                    bookmarksEnabled = role.hasAccessOrPermissive(
+                        PermissionType.BOOKMARKS,
+                        Permission.USE,
+                    ),
+                )
+            }
+        }
     }
 
     private fun observeConversations() {

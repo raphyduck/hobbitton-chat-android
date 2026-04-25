@@ -8,8 +8,11 @@ import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.repository.AgentRepository
 import com.garfiec.librechat.core.data.repository.ConfigRepository
 import com.garfiec.librechat.core.data.repository.McpRepository
+import com.garfiec.librechat.core.data.util.PermissionGate
 import com.garfiec.librechat.core.model.EModelEndpoint
 import com.garfiec.librechat.core.model.mcp.McpServer
+import com.garfiec.librechat.core.model.permissions.Permission
+import com.garfiec.librechat.core.model.permissions.PermissionType
 import com.garfiec.librechat.core.model.request.AddedConversation
 import com.garfiec.librechat.core.ui.components.ModelParameters
 import com.garfiec.librechat.feature.chat.model.McpServerDisplayData
@@ -24,6 +27,7 @@ class ModelSelectionDelegate(
     private val agentRepository: AgentRepository,
     private val mcpRepository: McpRepository,
     private val settingsDataStore: SettingsDataStore,
+    private val permissionGate: PermissionGate,
 ) {
 
     // --- Model Comparison ---
@@ -250,6 +254,12 @@ class ModelSelectionDelegate(
 
     fun loadAgents() {
         stateHandle.scope.launch {
+            // Skip the fetch entirely when the role denies AGENTS.USE; otherwise
+            // the server would return 403 and we'd have to decide whether it's a
+            // genuine 403 (rate limit, tenancy) vs. permission denial.
+            if (permissionGate.awaitRole()?.hasAccess(PermissionType.AGENTS, Permission.USE) == false) {
+                return@launch
+            }
             when (val result = agentRepository.getAgents()) {
                 is Result.Success -> {
                     stateHandle.update { copy(agents = result.data) }

@@ -97,13 +97,15 @@ fun AgentMarketplaceScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = onCreateAgent,
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = stringResource(Res.string.cd_create_agent),
-                )
+            if (uiState.agentsEnabled && uiState.agentsCreateEnabled) {
+                FloatingActionButton(
+                    onClick = onCreateAgent,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = stringResource(Res.string.cd_create_agent),
+                    )
+                }
             }
         },
     ) { innerPadding ->
@@ -114,6 +116,17 @@ fun AgentMarketplaceScreen(
                 .fillMaxSize()
                 .padding(innerPadding),
         ) {
+            if (!uiState.agentsEnabled) {
+                // Role denies AGENTS.USE — render degraded empty state. Hide search,
+                // category chips, grid, and FAB. Matches the Settings MCP "not available"
+                // pattern for consistency across gated surfaces.
+                EmptyState(
+                    title = stringResource(Res.string.agents_not_available_title),
+                    description = stringResource(Res.string.agents_not_available_description),
+                    icon = Icons.Default.SmartToy,
+                )
+                return@PullToRefreshBox
+            }
             Column(modifier = Modifier.fillMaxSize()) {
                 // Search bar
                 OutlinedTextField(

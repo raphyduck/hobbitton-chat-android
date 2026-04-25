@@ -20,13 +20,18 @@ import com.garfiec.librechat.core.data.repository.McpRepository
 import com.garfiec.librechat.core.data.repository.MessageRepository
 import com.garfiec.librechat.core.data.repository.PresetRepository
 import com.garfiec.librechat.core.data.repository.PromptRepository
+import com.garfiec.librechat.core.data.repository.RoleRepository
 import com.garfiec.librechat.core.data.repository.ShareRepository
 import com.garfiec.librechat.core.data.repository.UserRepository
+import com.garfiec.librechat.core.data.util.PermissionGate
 import com.garfiec.librechat.core.model.Attachment
 import com.garfiec.librechat.core.model.EModelEndpoint
 import com.garfiec.librechat.core.model.Message
 import com.garfiec.librechat.core.model.Preset
 import com.garfiec.librechat.core.model.StreamEvent
+import com.garfiec.librechat.core.model.permissions.Permission
+import com.garfiec.librechat.core.model.permissions.PermissionType
+import com.garfiec.librechat.core.model.permissions.hasAccessOrPermissive
 import com.garfiec.librechat.core.model.request.EphemeralAgent
 import com.garfiec.librechat.core.ui.components.ModelParameters
 import com.garfiec.librechat.feature.chat.components.AttachedFile
@@ -48,16 +53,19 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.time.Clock
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
+@Suppress("TooManyFunctions")
 class ChatViewModel(
     initialConversationId: String? = null,
     private val agentRepository: AgentRepository,
@@ -71,6 +79,8 @@ class ChatViewModel(
     shareRepository: ShareRepository,
     mcpRepository: McpRepository,
     private val userRepository: UserRepository,
+    private val roleRepository: RoleRepository,
+    private val permissionGate: PermissionGate,
     private val connectivityObserver: ConnectivityObserver,
     serverDataStore: ServerDataStore,
     private val settingsDataStore: SettingsDataStore,
@@ -93,7 +103,7 @@ class ChatViewModel(
         ConversationActionsDelegate(stateHandle, conversationRepository, shareRepository)
     private val presetPromptDelegate = PresetPromptDelegate(stateHandle, presetRepository, promptRepository)
     private val modelDelegate =
-        ModelSelectionDelegate(stateHandle, configRepository, agentRepository, mcpRepository, settingsDataStore)
+        ModelSelectionDelegate(stateHandle, configRepository, agentRepository, mcpRepository, settingsDataStore, permissionGate)
 
     // --- Delegate-owned flows exposed to the UI ---
     val attachedFiles: StateFlow<List<AttachedFile>> get() = fileDelegate.attachedFiles
@@ -153,6 +163,11 @@ class ChatViewModel(
     companion object {
         /** Minimum interval between streaming UI state updates to avoid recomposition spam. */
         private const val STREAMING_UI_UPDATE_INTERVAL_MS = 50L
+
+        /** Timeout for the pre-send "is the endpoint/config ready" await. Snappier than the
+         *  5 s role-load timeout because this only needs one of role OR availableModels to
+         *  satisfy the check. */
+        private const val SEND_READY_TIMEOUT_MS = 3_000L
     }
 
     /** True when the current stream is from an edit, regenerate, or continue operation. */
@@ -272,12 +287,26 @@ class ChatViewModel(
         }
 
         presetPromptDelegate.loadPresets()
-        presetPromptDelegate.loadAvailablePrompts()
-        modelDelegate.loadMcpServers()
         loadUserProfile()
-        modelDelegate.loadAgents()
-        loadSharedLinksEnabled()
+        loadFlags()
         voiceDelegate.loadSpeechConfig()
+
+        // Gated loads share a single 5-second role-await budget so offline/timeout
+        // launches don't serialize into N×5s. `role?.hasAccess(...) != false`
+        // preserves permissive default: null role (timeout/never-loaded) → true,
+        // missing type/action → true, explicit false → false.
+        viewModelScope.launch {
+            val role = permissionGate.awaitRole()
+            if (role?.hasAccess(PermissionType.PROMPTS, Permission.USE) != false) {
+                presetPromptDelegate.loadAvailablePrompts()
+            }
+            if (role?.hasAccess(PermissionType.MCP_SERVERS, Permission.USE) != false) {
+                modelDelegate.loadMcpServers()
+            }
+            if (role?.hasAccess(PermissionType.AGENTS, Permission.USE) != false) {
+                modelDelegate.loadAgents()
+            }
+        }
     }
 
     // ── Core chat flow ──────────────────────────────────────────────
@@ -426,12 +455,12 @@ class ChatViewModel(
         if (fileDelegate.hasPendingUploads()) {
             Logger.d { "sendMessage: waiting for pending upload(s) to complete" }
             fileDelegate.pendingUploadSendJob = viewModelScope.launch {
-                fileDelegate.waitForUploadsAndSend(text) { doSendMessage(it) }
+                fileDelegate.waitForUploadsAndSend(text) { runWhenSendReady { doSendMessage(it) } }
             }
             return
         }
 
-        doSendMessage(text)
+        runWhenSendReady { doSendMessage(text) }
     }
 
     /**
@@ -637,10 +666,12 @@ class ChatViewModel(
 
         val originalMessage = _uiState.value.messages.find { it.messageId == messageId } ?: return
 
-        if (originalMessage.isCreatedByUser) {
-            editUserMessage(originalMessage, newText)
-        } else {
-            editAiMessage(originalMessage, newText)
+        runWhenSendReady {
+            if (originalMessage.isCreatedByUser) {
+                editUserMessage(originalMessage, newText)
+            } else {
+                editAiMessage(originalMessage, newText)
+            }
         }
     }
 
@@ -717,6 +748,10 @@ class ChatViewModel(
             it.messageId == aiMessage.parentMessageId
         } ?: return
 
+        runWhenSendReady { regenerateMessageNow(parentUserMessage) }
+    }
+
+    private fun regenerateMessageNow(parentUserMessage: Message) {
         isEditOrRegenerate = true
         prepareForStreaming()
 
@@ -1114,6 +1149,10 @@ class ChatViewModel(
             it.messageId == lastAiMessage.message.parentMessageId
         } ?: return
 
+        runWhenSendReady { continueGenerationNow(lastAiMessage.message, parentUserMessage) }
+    }
+
+    private fun continueGenerationNow(lastAiMessage: Message, parentUserMessage: Message) {
         isEditOrRegenerate = true
         prepareForStreaming()
 
@@ -1132,7 +1171,7 @@ class ChatViewModel(
                     parentMessageId = parentUserMessage.parentMessageId,
                     agentId = if (isAgentContinue) _uiState.value.selectedModel else null,
                     overrideParentMessageId = parentUserMessage.messageId,
-                    responseMessageId = lastAiMessage.message.messageId,
+                    responseMessageId = lastAiMessage.messageId,
                     isEdited = true,
                     isRegenerate = true,
                     isContinued = true,
@@ -1363,14 +1402,133 @@ class ChatViewModel(
         }
     }
 
-    private fun loadSharedLinksEnabled() {
+    private fun loadFlags() {
+        // startupConfig-driven flags (UI-only toggles, not permission gates).
         viewModelScope.launch {
             configRepository.startupConfig.collect { config ->
-                _uiState.value = _uiState.value.copy(
-                    sharedLinksEnabled = config?.sharedLinksEnabled ?: false,
-                )
+                _uiState.update {
+                    it.copy(sharedLinksEnabled = config?.sharedLinksEnabled ?: false)
+                }
             }
         }
+        // Role-permission-driven flags. Permissive default: null role (not loaded) → true;
+        // missing type/action in the map → true (see UserRolePermissions.hasAccess).
+        viewModelScope.launch {
+            roleRepository.userPermissions.collect { role ->
+                _uiState.update {
+                    it.copy(
+                        promptsEnabled = role.hasAccessOrPermissive(PermissionType.PROMPTS, Permission.USE),
+                        promptsCreateEnabled = role.hasAccessOrPermissive(PermissionType.PROMPTS, Permission.CREATE),
+                        agentsEnabled = role.hasAccessOrPermissive(PermissionType.AGENTS, Permission.USE),
+                        agentsCreateEnabled = role.hasAccessOrPermissive(PermissionType.AGENTS, Permission.CREATE),
+                        mcpServersEnabled = role.hasAccessOrPermissive(PermissionType.MCP_SERVERS, Permission.USE),
+                        multiConvoEnabled = role.hasAccessOrPermissive(PermissionType.MULTI_CONVO, Permission.USE),
+                        temporaryChatEnabled = role.hasAccessOrPermissive(PermissionType.TEMPORARY_CHAT, Permission.USE),
+                        webSearchEnabled = role.hasAccessOrPermissive(PermissionType.WEB_SEARCH, Permission.USE),
+                        runCodeEnabled = role.hasAccessOrPermissive(PermissionType.RUN_CODE, Permission.USE),
+                        fileSearchEnabled = role.hasAccessOrPermissive(PermissionType.FILE_SEARCH, Permission.USE),
+                        bookmarksEnabled = role.hasAccessOrPermissive(PermissionType.BOOKMARKS, Permission.USE),
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Suspends until [ChatUiState.isSendReady] becomes true, up to [timeoutMs]. Returns
+     * true if the state became ready; false on timeout. Used as a pre-flight guard on all
+     * send variants to avoid the cold-start race where endpoint/config hasn't arrived yet
+     * and firing `chatRepository.startChat(...)` would produce a mislabeled 403.
+     *
+     * 3 s chosen to be snappier than the role-load timeout (5 s) since this only needs
+     * one of the async inits (role OR availableModels) to complete enough to satisfy
+     * `isSendReady` — usually both have landed by the time a human can tap send.
+     */
+    private suspend fun awaitSendReady(timeoutMs: Long = SEND_READY_TIMEOUT_MS): Boolean {
+        if (_uiState.value.isSendReady) return true
+        return withTimeoutOrNull(timeoutMs) {
+            _uiState.map { it.isSendReady }.distinctUntilChanged().first { it }
+        } != null
+    }
+
+    /**
+     * Guard for each of the four send variants (send / edit / regenerate / continue).
+     * Runs a synchronous pre-flight that fails fast on user-input errors (e.g., no model
+     * selected, agents denied with role already loaded) so the user isn't made to wait
+     * for the readiness timeout just to be told something they could have acted on
+     * immediately. Otherwise, awaits readiness up to 3 s and falls back to a
+     * selection-aware availability message if the wait times out.
+     */
+    private fun runWhenSendReady(action: () -> Unit) {
+        val current = _uiState.value
+        preflightSendBlockReason(current)?.let { reason ->
+            _uiState.update { it.copy(sendBlockReason = reason, showModelSheet = true) }
+            return
+        }
+        if (current.isSendReady) {
+            action()
+            return
+        }
+        viewModelScope.launch {
+            if (awaitSendReady()) {
+                action()
+            } else {
+                _uiState.update {
+                    it.copy(
+                        sendBlockReason = sendReadinessTimeoutReason(it),
+                        showModelSheet = true,
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Synchronous pre-flight. Returns a typed reason when sending is guaranteed
+     * to fail regardless of outstanding async inits; null when we still need to wait
+     * for the readiness signal. This keeps "no model selected" and "agents denied"
+     * instantaneous instead of waiting out the readiness timeout.
+     */
+    private fun preflightSendBlockReason(state: ChatUiState): SendBlockReason? {
+        if (state.selectedModel == null) {
+            return if (state.selectedEndpoint == EndpointConstants.AGENTS) {
+                SendBlockReason.SelectAgent
+            } else {
+                SendBlockReason.SelectModel
+            }
+        }
+        if (state.selectedEndpoint == EndpointConstants.AGENTS && !state.agentsEnabled) {
+            return SendBlockReason.AgentsUnavailable
+        }
+        return null
+    }
+
+    /**
+     * Fallback for when readiness didn't resolve within the timeout. At this point the
+     * async model list is most likely in its final shape, so we can confidently flag
+     * stale selections that aren't in the available models.
+     */
+    private fun sendReadinessTimeoutReason(state: ChatUiState): SendBlockReason {
+        if (state.selectedEndpoint == EndpointConstants.AGENTS) {
+            return SendBlockReason.AgentNotAvailable
+        }
+        val modelsForEndpoint = state.availableModels[state.selectedEndpoint].orEmpty()
+        val selectedModel = state.selectedModel
+        return if (selectedModel != null && selectedModel !in modelsForEndpoint) {
+            SendBlockReason.ModelNotAvailable
+        } else {
+            SendBlockReason.ModelLoadFailed
+        }
+    }
+
+    /** Opens the model-selector sheet. Called when the user taps the model chip. */
+    fun openModelSheet() {
+        _uiState.update { it.copy(showModelSheet = true) }
+    }
+
+    /** Dismisses the model-selector sheet. Called on sheet dismiss and model selection. */
+    fun dismissModelSheet() {
+        _uiState.update { it.copy(showModelSheet = false) }
     }
 
     private fun loadUserProfile() {
@@ -1393,6 +1551,10 @@ class ChatViewModel(
 
     fun dismissError() {
         _uiState.value = _uiState.value.copy(error = null)
+    }
+
+    fun dismissSendBlockReason() {
+        _uiState.value = _uiState.value.copy(sendBlockReason = null)
     }
 
     override fun onCleared() {

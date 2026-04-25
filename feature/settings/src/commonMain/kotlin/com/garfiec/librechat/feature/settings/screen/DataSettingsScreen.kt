@@ -146,26 +146,31 @@ fun DataSettingsContent(
                 )
             }
 
-            // Memories section
-            item(key = "memories_header") {
-                SectionHeader(stringResource(Res.string.section_memories))
-            }
-            item(key = "memories_settings") {
-                MemoriesSettingsSection(
-                    memories = uiState.memories,
-                    memoriesEnabled = uiState.memoriesEnabled,
-                    showMemoryDialog = uiState.showMemoryDialog,
-                    editingMemory = uiState.editingMemory,
-                    onToggleEnable = viewModel::toggleMemoriesEnabled,
-                    onAddMemory = viewModel::showAddMemoryDialog,
-                    onEditMemory = viewModel::showEditMemoryDialog,
-                    onDeleteMemory = viewModel::deleteMemory,
-                    onDismissDialog = viewModel::dismissMemoryDialog,
-                    onSaveMemory = viewModel::saveMemory,
-                )
+            // Memories section — hidden entirely when the server's MEMORIES.USE role
+            // permission is denied. The user-level opt-out (`memoriesEnabled`) stays
+            // independent and only hides the list inside this section.
+            if (uiState.serverMemoriesEnabled) {
+                item(key = "memories_header") {
+                    SectionHeader(stringResource(Res.string.section_memories))
+                }
+                item(key = "memories_settings") {
+                    MemoriesSettingsSection(
+                        memories = uiState.memories,
+                        memoriesEnabled = uiState.memoriesEnabled,
+                        showMemoryDialog = uiState.showMemoryDialog,
+                        editingMemory = uiState.editingMemory,
+                        onToggleEnable = viewModel::toggleMemoriesEnabled,
+                        onAddMemory = viewModel::showAddMemoryDialog,
+                        onEditMemory = viewModel::showEditMemoryDialog,
+                        onDeleteMemory = viewModel::deleteMemory,
+                        onDismissDialog = viewModel::dismissMemoryDialog,
+                        onSaveMemory = viewModel::saveMemory,
+                    )
+                }
             }
 
-            // MCP section
+            // MCP section — always shown, but the section body degrades to
+            // "not available" and the "+ Add" button disappears when role denies.
             item(key = "mcp_header") {
                 SectionHeader(stringResource(Res.string.section_mcp_servers))
             }
@@ -175,6 +180,8 @@ fun DataSettingsContent(
                     connectionStatus = uiState.mcpConnectionStatus,
                     reinitializingServers = uiState.mcpReinitializingServers,
                     error = uiState.mcpError,
+                    mcpServersEnabled = uiState.mcpServersEnabled,
+                    mcpServersCreateEnabled = uiState.mcpServersCreateEnabled,
                     onAddServer = viewModel::showAddMcpServerDialog,
                     onEditServer = viewModel::showEditMcpServerDialog,
                     onDeleteServer = viewModel::deleteMcpServer,

@@ -15,9 +15,11 @@ import com.garfiec.librechat.core.data.repository.McpRepository
 import com.garfiec.librechat.core.data.repository.MessageRepository
 import com.garfiec.librechat.core.data.repository.PresetRepository
 import com.garfiec.librechat.core.data.repository.PromptRepository
+import com.garfiec.librechat.core.data.repository.RoleRepository
 import com.garfiec.librechat.core.data.repository.ShareRepository
 import com.garfiec.librechat.core.data.repository.SpeechRepository
 import com.garfiec.librechat.core.data.repository.UserRepository
+import com.garfiec.librechat.core.data.util.PermissionGate
 import org.junit.Test
 import org.koin.test.verify.verify
 
@@ -37,6 +39,8 @@ class ChatModuleVerificationTest {
                 FileRepository::class,
                 PresetRepository::class,
                 PromptRepository::class,
+                RoleRepository::class,
+                PermissionGate::class,
                 ShareRepository::class,
                 SpeechRepository::class,
                 McpRepository::class,

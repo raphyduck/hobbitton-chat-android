@@ -9,10 +9,12 @@ import com.garfiec.librechat.core.common.di.KoinQualifiers
 import com.garfiec.librechat.core.data.datastore.TokenDataStore
 import com.garfiec.librechat.core.data.db.LibreChatDatabase
 import com.garfiec.librechat.core.data.repository.CommonSessionCacheCleaner
+import com.garfiec.librechat.core.data.repository.RoleRepository
 import com.garfiec.librechat.core.data.repository.SessionCacheCleaner
 import com.garfiec.librechat.core.network.client.SecureTokenStorage
 import com.garfiec.librechat.core.network.client.TokenManager
 import io.ktor.client.HttpClient
+import kotlinx.coroutines.CoroutineScope
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.Module
 import org.koin.dsl.binds
@@ -41,5 +43,11 @@ actual val dataPlatformModule: Module = module {
     } binds arrayOf(TokenManager::class, SecureTokenStorage::class)
 
     // --- Session Cache Cleaner ---
-    single<SessionCacheCleaner> { CommonSessionCacheCleaner(androidContext().cacheDir.absolutePath) }
+    single<SessionCacheCleaner> {
+        CommonSessionCacheCleaner(
+            cacheRoot = androidContext().cacheDir.absolutePath,
+            roleRepository = get<RoleRepository>(),
+            applicationScope = get<CoroutineScope>(KoinQualifiers.ApplicationScope),
+        )
+    }
 }

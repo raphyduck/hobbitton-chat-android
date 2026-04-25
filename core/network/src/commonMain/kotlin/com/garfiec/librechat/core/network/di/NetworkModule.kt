@@ -17,6 +17,7 @@ import com.garfiec.librechat.core.network.api.MemoriesApi
 import com.garfiec.librechat.core.network.api.MessagesApi
 import com.garfiec.librechat.core.network.api.PresetsApi
 import com.garfiec.librechat.core.network.api.PromptsApi
+import com.garfiec.librechat.core.network.api.RolesApi
 import com.garfiec.librechat.core.network.api.SearchApi
 import com.garfiec.librechat.core.network.api.ShareApi
 import com.garfiec.librechat.core.network.api.SpeechApi
@@ -131,6 +132,7 @@ val networkModule = module {
     singleOf(::MessagesApi)
     singleOf(::PresetsApi)
     singleOf(::PromptsApi)
+    singleOf(::RolesApi)
     singleOf(::SearchApi)
     singleOf(::ShareApi)
     singleOf(::SpeechApi)
