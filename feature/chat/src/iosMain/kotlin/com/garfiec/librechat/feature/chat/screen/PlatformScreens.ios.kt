@@ -559,6 +559,10 @@ actual fun ChatScreen(
                 viewModel.dismissSendBlockReason()
                 viewModel.dismissError()
             },
+            favoriteAgentIds = uiState.favoriteAgentIds,
+            favoriteModelKeys = uiState.favoriteModelKeys,
+            onToggleAgentFavorite = viewModel::toggleAgentFavorite,
+            onToggleModelFavorite = viewModel::toggleModelFavorite,
         )
     }
 

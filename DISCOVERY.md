@@ -134,8 +134,38 @@ POST /api/auth/2fa/verify-temp → { token, user }
 ### Configuration
 ```
 GET /api/config             → startup config (models, features, auth methods, interface config)
-GET /api/endpoints          → available AI providers and models
+GET /api/endpoints          → available AI providers and models  (JWT required as of v0.8.5)
+POST /api/user/settings/favorites → update user favorites (agent/model pins, v0.8.5+)
+GET  /api/user/settings/favorites → list user favorites (v0.8.5+)
+POST /api/prompts/groups/:id/use  → record prompt-group usage for analytics (v0.8.5+)
 ```
+
+**v0.8.5 notes**
+- `GET /api/config` response payload is now split into a pre-auth and post-auth variant.
+  Pre-auth fields (what `validateServerUrl` / `fetchStartupConfig` rely on) are unchanged
+  from v0.8.4; post-auth adds fields driven by the logged-in user (not consumed by mobile).
+- `GET /api/config` removed `instanceProjectId`. Mobile previously used it as an OR fallback
+  in `ConfigRepositoryImpl.isValidLibreChatConfig`; cleanup landed in v0.8.5 sync.
+- `GET /api/config` added `allowAccountDeletion: Boolean`. Mobile honors this and hides
+  the Delete Account button when `false`. Defaults to `true` for older servers that omit the field.
+- `GET /api/endpoints` now requires JWT (was public in v0.8.4). Mobile already called it
+  post-auth, so this is non-breaking.
+- Favorites schema: each entry has exactly one of `{ agentId }`, `{ model, endpoint }`,
+  or `{ spec }` — three mutually exclusive variants enforced by the server
+  (`FavoritesController.js`: "Each favorite must have either agentId, model+endpoint, or spec";
+  `model` and `endpoint` must be supplied together; combining `spec` with any of
+  `agentId`/`model`/`endpoint` is rejected). Server also enforces 50 entries max /
+  256-character max per string; mobile short-circuits oversize writes. The `spec`
+  variant is round-tripped unchanged (mobile does not yet render a spec picker).
+  `POST` replaces the entire list (upsert-by-overwrite), and the response echoes the stored list.
+
+### Out of scope (admin panel)
+```
+/api/admin/auth/**   → admin-only SAML + Social OAuth callbacks (v0.8.5, web-only)
+/api/admin/config/** → admin YAML config endpoints
+/api/admin/grants/**, /api/admin/groups/**, /api/admin/roles/**, /api/admin/users/**
+```
+Admin panel is a web-only surface in upstream; mobile intentionally does not implement it.
 
 ### Conversations
 ```
@@ -212,6 +242,34 @@ GET /api/banner
 - files, attachments, feedback
 - error, unfinished, finish_reason, tokenCount
 
+### MessageContentPart
+Discriminated by `type`: `text`, `think`, `text_delta`, `tool_call`, `image_file`,
+`image_url`, `video_url`, `input_audio`, `agent_update`, `summary`, `error`.
+
+**SUMMARY part wire shape (v0.8.5+)** — context-compaction emits a content part with
+fields at the top level (not nested under a `summary` key):
+```
+{
+  "type": "summary",
+  "content": [{"type":"text","text":"..."}],  // array OR string (two variants)
+  "tokenCount": 42,
+  "summarizing": false,
+  "summaryVersion": 1,
+  "model": "gpt-4o",
+  "provider": "openai",
+  "createdAt": "2026-04-22T...",
+  "boundary": {"messageId": "...", "contentIndex": 0}
+}
+```
+Variants for the body text (mirrors upstream `BaseClient.getSummaryText`, last-wins):
+1. `content: Array<{type:"text", text}>` — new default since v0.8.5.
+2. `content: string` — intermediate variant; rare but emitted by some code paths.
+3. No `content`; `text: "..."` at the top level — legacy fallback from pre-v0.8.5
+   summarization or test fixtures.
+
+Mobile's `MessageContentPart.content` is typed `JsonElement?` to absorb variants 1/2,
+and falls back to the existing `text: String?` field for variant 3.
+
 ### File
 - file_id, filename, filepath, type, bytes, source
 - user, conversationId, messageId
@@ -225,6 +283,20 @@ GET /api/banner
 2. Connect SSE to `GET /api/agents/chat/stream/:streamId`
 3. Receive events: message, step, created, attachment, final, sync, error
 4. On disconnect: reconnect with `?resume=true` for sync event
+
+### Agent-library event names (v0.8.5)
+`on_message_delta`, `on_reasoning_delta`, `on_run_step`, `on_run_step_delta`,
+`on_run_step_completed`, `on_chat_model_end`, `on_agent_update`, `attachment`, and —
+added in v0.8.5 — `on_summarize_start`, `on_summarize_delta`, `on_summarize_complete`.
+
+`on_summarize_complete` payload nests the finished summary block under a `summary` key
+(distinct from the message-persistence SUMMARY content part described in
+`MessageContentPart`):
+```
+{"id":"...","agentId":"...","summary":{"type":"summary","content":[{"type":"text","text":"..."}],...}}
+```
+Mobile only renders the compacted summary once it is persisted to the final message as
+a SUMMARY content part; the delta/lifecycle events are surfaced as status only.
 
 ### SSE Event Format
 ```

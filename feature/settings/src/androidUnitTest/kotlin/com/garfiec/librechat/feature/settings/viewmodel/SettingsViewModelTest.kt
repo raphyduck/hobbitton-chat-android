@@ -10,6 +10,7 @@ import com.garfiec.librechat.core.data.datastore.ThemeDataStore
 import com.garfiec.librechat.core.data.datastore.ThemeMode
 import com.garfiec.librechat.core.data.repository.AuthRepository
 import com.garfiec.librechat.core.data.repository.BalanceRepository
+import com.garfiec.librechat.core.data.repository.ConfigRepository
 import com.garfiec.librechat.core.data.repository.ConversationRepository
 import com.garfiec.librechat.core.data.repository.KeyRepository
 import com.garfiec.librechat.core.data.repository.McpRepository
@@ -63,6 +64,7 @@ class SettingsViewModelTest {
     private val keyRepository = mockk<KeyRepository>(relaxed = true)
     private val roleRepository = mockk<RoleRepository>(relaxed = true)
     private val permissionGate = mockk<PermissionGate>(relaxed = true)
+    private val configRepository = mockk<ConfigRepository>(relaxed = true)
 
     private val testUser = User(
         email = "test@example.com",
@@ -116,6 +118,7 @@ class SettingsViewModelTest {
         // same load paths via the `?: != false` idiom.
         every { roleRepository.userPermissions } returns MutableStateFlow(null)
         coEvery { permissionGate.awaitRole() } returns null
+        every { configRepository.startupConfig } returns MutableStateFlow(null)
     }
 
     @After
@@ -140,6 +143,7 @@ class SettingsViewModelTest {
         keyRepository = keyRepository,
         roleRepository = roleRepository,
         permissionGate = permissionGate,
+        configRepository = configRepository,
     )
 
     @Test

@@ -19,6 +19,8 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Create
 import androidx.compose.material.icons.outlined.Public
@@ -99,6 +101,10 @@ fun ModelSelectorSheet(
     serverUrl: String = "",
     errorMessage: String? = null,
     onErrorDismiss: () -> Unit = {},
+    favoriteAgentIds: Set<String> = emptySet(),
+    favoriteModelKeys: Set<String> = emptySet(),
+    onToggleAgentFavorite: ((agentId: String) -> Unit)? = null,
+    onToggleModelFavorite: ((endpoint: String, model: String) -> Unit)? = null,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
     var searchQuery by remember { mutableStateOf("") }
@@ -119,9 +125,10 @@ fun ModelSelectorSheet(
         }
     }
 
-    // Filter agents by search query (fuzzy matching), sorted by score when searching
-    val filteredAgents = remember(agents, searchQuery) {
-        if (!isSearching) {
+    // Filter agents by search query (fuzzy matching), sorted by score when searching.
+    // When not searching, pinned agents (v0.8.5+) sort to the top of the list.
+    val filteredAgents = remember(agents, searchQuery, favoriteAgentIds) {
+        val base = if (!isSearching) {
             agents
         } else if (searchQuery.length <= 2) {
             agents.filter { agent ->
@@ -136,6 +143,11 @@ fun ModelSelectorSheet(
                 .filter { (_, score) -> score >= FUZZY_MATCH_THRESHOLD }
                 .sortedByDescending { (_, score) -> score }
                 .map { (agent, _) -> agent }
+        }
+        if (isSearching) {
+            base
+        } else {
+            base.sortedByDescending { it.id in favoriteAgentIds }
         }
     }
 
@@ -209,6 +221,8 @@ fun ModelSelectorSheet(
                                 isSelected = selectedEndpoint == EndpointConstants.AGENTS && agent.id == selectedModel,
                                 serverUrl = serverUrl,
                                 onClick = { onModelSelect(EndpointConstants.AGENTS, agent.id) },
+                                isFavorite = agent.id in favoriteAgentIds,
+                                onToggleFavorite = onToggleAgentFavorite?.let { toggle -> { toggle(agent.id) } },
                             )
                         }
                     }
@@ -216,7 +230,7 @@ fun ModelSelectorSheet(
 
                 // Endpoint model groups
                 filteredByEndpoint.forEach { (endpointName, models) ->
-                    val filteredModels = if (!isSearching) {
+                    val baseFiltered = if (!isSearching) {
                         models
                     } else if (searchQuery.length <= 2) {
                         models.filter { fuzzyMatches(it, searchQuery) }
@@ -225,6 +239,12 @@ fun ModelSelectorSheet(
                             .filter { (_, score) -> score >= FUZZY_MATCH_THRESHOLD }
                             .sortedByDescending { (_, score) -> score }
                             .map { (model, _) -> model }
+                    }
+                    // Pinned models (v0.8.5+) sort to the top when not searching.
+                    val filteredModels = if (isSearching) {
+                        baseFiltered
+                    } else {
+                        baseFiltered.sortedByDescending { "$endpointName::$it" in favoriteModelKeys }
                     }
                     if (filteredModels.isNotEmpty()) {
                         val config = endpointConfigs[endpointName]
@@ -244,6 +264,7 @@ fun ModelSelectorSheet(
                         if (isExpanded) {
                             items(filteredModels, key = { "${endpointName}_$it" }, contentType = { "model" }) { model ->
                                 val isSelected = endpointName == selectedEndpoint && model == selectedModel
+                                val isFavorite = "$endpointName::$model" in favoriteModelKeys
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -263,6 +284,13 @@ fun ModelSelectorSheet(
                                             Icons.Default.Check,
                                             contentDescription = stringResource(Res.string.cd_selected),
                                             tint = MaterialTheme.colorScheme.primary,
+                                        )
+                                    }
+                                    if (onToggleModelFavorite != null) {
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        FavoriteStarButton(
+                                            isFavorite = isFavorite,
+                                            onToggle = { onToggleModelFavorite(endpointName, model) },
                                         )
                                     }
                                 }
@@ -360,6 +388,8 @@ private fun LazyItemScope.AgentListItem(
     isSelected: Boolean,
     serverUrl: String,
     onClick: () -> Unit,
+    isFavorite: Boolean = false,
+    onToggleFavorite: (() -> Unit)? = null,
 ) {
     val agentName = agent.name ?: agent.id
     val resolvedAvatarUrl = agent.avatarUrl?.let { url ->
@@ -415,5 +445,30 @@ private fun LazyItemScope.AgentListItem(
                 tint = MaterialTheme.colorScheme.primary,
             )
         }
+        if (onToggleFavorite != null) {
+            Spacer(modifier = Modifier.width(4.dp))
+            FavoriteStarButton(isFavorite = isFavorite, onToggle = onToggleFavorite)
+        }
+    }
+}
+
+@Composable
+private fun FavoriteStarButton(
+    isFavorite: Boolean,
+    onToggle: () -> Unit,
+) {
+    IconButton(onClick = onToggle, modifier = Modifier.size(32.dp)) {
+        Icon(
+            imageVector = if (isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
+            contentDescription = stringResource(
+                if (isFavorite) Res.string.cd_unpin_favorite else Res.string.cd_pin_favorite,
+            ),
+            tint = if (isFavorite) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
+            modifier = Modifier.size(18.dp),
+        )
     }
 }
