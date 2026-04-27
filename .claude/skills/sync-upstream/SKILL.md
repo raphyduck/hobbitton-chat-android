@@ -315,6 +315,21 @@ If the user requests changes, update the proposal file AND re-present.
 
 **Delegate to: implementer, then verifier**
 
+> **HARD RULE — Phase D ends at local commits. DO NOT push. DO NOT open a PR.**
+>
+> The verifier's gates (build + detekt + tests) confirm scaffolding correctness,
+> not feature correctness. A sync touches dozens of files across endpoints, SSE
+> shapes, UI wires, and backward-compat gates — it must be device-tested against
+> a real backend on BOTH Android and iOS (including older-server compat cases)
+> before a PR is offered for review.
+>
+> The implementer works on a feature branch named `chore/sync-upstream-{target_tag}`
+> and commits per P/D group. After the verifier greenlights, the team-lead
+> presents the test plan to the user. The user drives device testing, asks for
+> follow-up fixes as more commits on the same local branch, and decides when
+> (if ever) to open the PR. The team does NOT run `git push`, `git push -u`,
+> or `gh pr create` at any point during `/sync-upstream`.
+
 ### D1. Assign implementation task
 
 Create a task for the implementer with the approved change list:
@@ -343,6 +358,11 @@ Create a task for the implementer with the approved change list:
 > **Approved changes:**
 > {paste the approved change list here}
 >
+> **Branching:** Create a feature branch `chore/sync-upstream-{target_tag}` at the
+> start. Commit per P/D group (one commit per must-ship item, one per deferred
+> item). Use conventional-commit subjects (e.g. `feat(chat): render SUMMARY
+> content blocks (D2)`).
+>
 > **After all code changes:**
 > 1. Update `SUPPORTED_BACKEND_VERSION` in `core/common/src/commonMain/kotlin/com/garfiec/librechat/core/common/BackendVersion.kt` to "{new_version}" (without `v` prefix)
 > 2. Advance submodule: `cd upstream && git checkout {target_tag}`
@@ -354,7 +374,14 @@ Create a task for the implementer with the approved change list:
 >    ```
 > 4. Update `DISCOVERY.md` at the repo root: append newly-discovered endpoints, removed
 >    endpoints, and revised response shapes. Keep it accurate — future syncs depend on it.
-> 5. Report back the full list of files created or modified, grouped by module.
+> 5. Create/update `VERSION_GATES.md` at repo root: add a row for any code path
+>    that branches on `BackendVersion.isCompatible()` / `isCompatibleOrNewer()`.
+>    Keep backward-compat gates auditable so future floor-raises are mechanical.
+> 6. Report back the full list of files created or modified, grouped by module.
+>
+> **DO NOT** run `git push`, `git push -u origin ...`, or `gh pr create`.
+> The branch stays local-only until the user device-tests and explicitly
+> authorizes the push.
 
 ### D2. Assign verification task
 
@@ -395,34 +422,79 @@ After implementer reports done, create a task for the verifier:
 > - Issues found (if any) and who fixed them
 > - List of user-testable behaviors to verify on device — separate lists for Android and iOS where applicable
 
-### D3. Present results to user
+### D3. Independent reviewer pass
+
+After the verifier signs off, spawn a fresh `reviewer` teammate (independence is
+the point — do not reuse the verifier):
+
+> Review `chore/sync-upstream-{target_tag}` against the approved proposal at
+> `.claude/sync-upstream/artifacts/proposal-{target_tag}.md`. You have not seen
+> the verifier's report; that is intentional.
+>
+> Look for:
+> - Scope creep beyond approved items
+> - Backward-compat regressions on older-server paths
+> - iOS-vs-Android SSE shape divergence
+> - Missing version gates around new endpoints
+> - Koin DI wiring gaps
+>
+> Report clean or a numbered issue list. Do NOT fix — the implementer fixes.
+
+Once the reviewer's pass is clean, spawn a second independent `auditor` for a
+final pass. Two independent passes are mandatory — thoroughness is imperative.
+Iterate (auditor → implementer fix → re-audit) until clean.
+
+### D4. Present results to user
 
 Once verifier confirms everything passes:
 
 ```
-## Sync Complete: {current_tag} → {target_tag}
+## Sync Ready for Device Testing: {current_tag} → {target_tag}
+
+**Branch `chore/sync-upstream-{target_tag}` is local-only. Not pushed. No PR opened.**
+This is a first pass. Device testing comes next.
 
 ### Files Changed
 {grouped by module}
 
-### What to Test
-{Android behaviors}
-{iOS behaviors}
+### Test plan (run on device — Android and iOS)
+{verifier's user-testable behaviors list, split Android / iOS / v0.8.x-compat}
 
-### How to Test
-1. Build: `./gradlew assembleDebug` (Android), `./gradlew :shared:linkDebugFrameworkIosSimulatorArm64` (iOS)
-2. Install on device/emulator (both platforms where relevant)
-3. Test each behavior listed above
+### How to build and run
+1. Android: `./gradlew assembleDebug`, install to device/emulator.
+2. iOS: `./gradlew :shared:linkDebugFrameworkIosSimulatorArm64`, open the Xcode project, run.
+3. Connect to a v{target_tag} server + at least one older supported server and walk the test plan.
 
-### Version Updates
+### Version Updates (on this branch, not yet shipped)
 - SUPPORTED_BACKEND_VERSION: {old} → {new}
 - UPSTREAM_VERSION tag: {old_tag} → {new_tag}
 - Submodule: pinned to {target_tag}
 - DISCOVERY.md: {brief summary of what was appended}
+- VERSION_GATES.md: {new gate rows added, if any}
 
 ### Artifacts
 Proposal and phase reports saved under `.claude/sync-upstream/artifacts/`.
+
+### When ready, the user will:
+- Report bugs → team lead dispatches follow-up fixes as additional commits on the same local branch.
+- Explicitly authorize pushing the branch and opening a PR. Until then, the team does not push.
 ```
+
+**Do NOT push or open a PR in this phase.** Even if the user says "looks good" in chat, wait for explicit "push it" / "open the PR" before running `git push` or `gh pr create`. Sync PRs are offered to reviewers only after the user has walked the full test plan on real devices.
+
+### D5. Dispatch test runners
+
+After presenting the report, split the Test plan and dispatch one teammate
+per section. Each walks the user through their section, captures blockers,
+and reports back to team-lead for triage and routing to the implementer.
+
+Section split scales with sync size:
+- Small sync (no new feature areas, <10 files): one teammate per platform
+  (Android, iOS).
+- Medium / large: split by feature area as well (e.g. Auth / Chat / Files /
+  Conversations × Android+iOS).
+
+Spawn teammates in parallel (single message, multiple Agent calls).
 
 ---
 
