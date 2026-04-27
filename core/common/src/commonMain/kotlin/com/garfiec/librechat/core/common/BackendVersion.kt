@@ -47,26 +47,31 @@ object BackendVersion {
 
     /**
      * Checks whether two versions are compatible.
-     * A mismatch in major or minor version is considered incompatible.
-     * Patch differences are ignored (considered compatible).
+     * Any mismatch in major, minor, or patch is considered incompatible.
      *
-     * @return true if the versions are compatible (same major and minor), false otherwise.
+     * Patch is included because upstream LibreChat has shipped breaking API
+     * changes within the same minor version (e.g. SSE payload shape changes
+     * between 0.8.4 and 0.8.5). Treating patch differences as compatible would
+     * silently mask those.
+     *
+     * @return true if the versions match exactly (major, minor, patch), false otherwise.
      *         Returns true if either version cannot be parsed (fail-open).
      */
     fun isCompatible(supported: String, actual: String): Boolean {
         val supportedVersion = parse(supported) ?: return true
         val actualVersion = parse(actual) ?: return true
-        return supportedVersion.major == actualVersion.major &&
-            supportedVersion.minor == actualVersion.minor
+        return supportedVersion == actualVersion
     }
 
     /**
      * Checks whether [actual] is greater than or equal to [minimum] (feature-gate check).
      *
      * Use this when branching on whether a backend feature was introduced in a
-     * specific version. Patch differences are ignored. Returns true when [actual]
-     * cannot be parsed (fail-open: assume feature is present). Returns false when
-     * [minimum] cannot be parsed (degenerate threshold).
+     * specific version. Comparison is lexicographic over (major, minor, patch) —
+     * patch is included because upstream sometimes ships features and breaking
+     * changes within a patch release. Returns true when [actual] cannot be parsed
+     * (fail-open: assume feature is present). Returns false when [minimum] cannot
+     * be parsed (degenerate threshold).
      *
      * **Contract for callers:** null-check or explicitly handle the unknown-version
      * case before invoking. The fail-open default here is intentional because in
@@ -80,7 +85,7 @@ object BackendVersion {
      *
      * @param actual The version detected from the server (e.g., "0.8.5").
      * @param minimum The minimum version at which the gated feature appears (e.g., "0.8.5").
-     * @return true if [actual] ≥ [minimum] by (major, minor), false otherwise.
+     * @return true if [actual] ≥ [minimum] by (major, minor, patch), false otherwise.
      */
     fun isCompatibleOrNewer(actual: String, minimum: String): Boolean {
         val actualVersion = parse(actual) ?: return true
@@ -88,7 +93,10 @@ object BackendVersion {
         if (actualVersion.major != minimumVersion.major) {
             return actualVersion.major > minimumVersion.major
         }
-        return actualVersion.minor >= minimumVersion.minor
+        if (actualVersion.minor != minimumVersion.minor) {
+            return actualVersion.minor > minimumVersion.minor
+        }
+        return actualVersion.patch >= minimumVersion.patch
     }
 
     /**
