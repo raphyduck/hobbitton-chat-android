@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.BrokenImage
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Notes
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.Card
@@ -57,6 +58,11 @@ import com.garfiec.librechat.feature.chat.components.artifact.detectArtifacts
 import com.garfiec.librechat.feature.chat.components.artifact.groupArtifactVersions
 import com.garfiec.librechat.feature.chat.resources.*
 import com.garfiec.librechat.feature.chat.resources.Res
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonPrimitive
 import org.jetbrains.compose.resources.stringResource
 
 // ─── ContentPartDispatcher ──────────────────────────────────────────
@@ -166,12 +172,44 @@ internal fun ContentPartDispatcher(
                 modifier = mod,
             )
         }
+        ContentType.SUMMARY -> {
+            SummaryContentPart(
+                summaryText = extractSummaryText(part),
+                modifier = mod,
+                fontSizeMultiplier = fontSizeMultiplier,
+                useKatex = useKatex,
+            )
+        }
         else -> {
             if (!part.text.isNullOrEmpty()) {
                 MarkdownContent(part.text.orEmpty(), mod, fontSizeMultiplier, useKatex)
             }
         }
     }
+}
+
+/**
+ * Extracts text from a SUMMARY content part. Mirrors upstream's `getSummaryText`:
+ * `content` may be an array of {type:"text", text} blocks, a raw string, or absent —
+ * in which case the legacy top-level `text` field is the fallback.
+ */
+private fun extractSummaryText(part: MessageContentPart): String {
+    val content = part.content
+    if (content is JsonArray) {
+        val builder = StringBuilder()
+        for (element in content) {
+            val item = element as? JsonObject ?: continue
+            val type = item["type"]?.jsonPrimitive?.contentOrNull
+            if (type == "text") {
+                item["text"]?.jsonPrimitive?.contentOrNull?.let { builder.append(it) }
+            }
+        }
+        return builder.toString()
+    }
+    if (content is JsonPrimitive && content.isString) {
+        return content.content
+    }
+    return part.text.orEmpty()
 }
 
 // ─── ToolCallDispatcher ─────────────────────────────────────────────
@@ -364,6 +402,78 @@ private fun ThinkingContentPart(
                     searchQuery = searchQuery,
                     searchFocusedOccurrence = searchFocusedOccurrence,
                     onFocusedOccurrencePosition = onFocusedOccurrencePosition,
+                )
+            }
+        }
+    }
+}
+
+// ─── SummaryContentPart ─────────────────────────────────────────────
+
+/**
+ * Collapsed "Summarized earlier messages" card rendered when the server
+ * emits a SUMMARY content part. Content-compaction is triggered by long
+ * agent chats (v0.8.5+); tap to expand and read the summary text.
+ */
+@Composable
+private fun SummaryContentPart(
+    summaryText: String,
+    modifier: Modifier = Modifier,
+    fontSizeMultiplier: Float = 1.0f,
+    useKatex: Boolean = false,
+) {
+    if (summaryText.isBlank()) return
+
+    var isExpanded by remember { mutableStateOf(false) }
+    val summaryToggleCd =
+        stringResource(if (isExpanded) Res.string.cd_collapse_summary else Res.string.cd_expand_summary)
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerLow),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 48.dp)
+                .clickable { isExpanded = !isExpanded }
+                .padding(12.dp)
+                .semantics {
+                    role = Role.Button
+                    contentDescription = summaryToggleCd
+                },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                Icons.Default.Notes,
+                stringResource(Res.string.cd_summary_indicator),
+                Modifier.size(18.dp),
+                tint = MaterialTheme.colorScheme.primary,
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                stringResource(Res.string.label_summary),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.weight(1f),
+            )
+            Icon(
+                if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                stringResource(if (isExpanded) Res.string.cd_collapse else Res.string.cd_expand),
+                Modifier.size(18.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        AnimatedVisibility(visible = isExpanded, enter = expandVertically(), exit = shrinkVertically()) {
+            Column(modifier = Modifier.padding(start = 12.dp, end = 12.dp, bottom = 12.dp)) {
+                Spacer(modifier = Modifier.height(8.dp))
+                MarkdownContent(
+                    summaryText,
+                    fontSizeMultiplier = fontSizeMultiplier,
+                    useKatex = useKatex,
                 )
             }
         }

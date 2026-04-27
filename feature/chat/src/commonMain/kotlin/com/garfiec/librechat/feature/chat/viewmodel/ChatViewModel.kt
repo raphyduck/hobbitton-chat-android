@@ -3,6 +3,7 @@ package com.garfiec.librechat.feature.chat.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
+import com.garfiec.librechat.core.common.BackendVersion
 import com.garfiec.librechat.core.common.EndpointConstants
 import com.garfiec.librechat.core.common.ToolConstants
 import com.garfiec.librechat.core.common.network.ConnectivityObserver
@@ -16,6 +17,7 @@ import com.garfiec.librechat.core.data.repository.ChatRepository
 import com.garfiec.librechat.core.data.repository.ConfigRepository
 import com.garfiec.librechat.core.data.repository.ConversationRepository
 import com.garfiec.librechat.core.data.repository.DraftRepository
+import com.garfiec.librechat.core.data.repository.FavoritesRepository
 import com.garfiec.librechat.core.data.repository.McpRepository
 import com.garfiec.librechat.core.data.repository.MessageRepository
 import com.garfiec.librechat.core.data.repository.PresetRepository
@@ -40,6 +42,7 @@ import com.garfiec.librechat.feature.chat.model.PromptMentionDisplayData
 import com.garfiec.librechat.feature.chat.util.NEW_CHAT_DRAFT_KEY
 import com.garfiec.librechat.feature.chat.util.buildActiveMessagePath
 import com.garfiec.librechat.feature.chat.viewmodel.delegate.ConversationActionsDelegate
+import com.garfiec.librechat.feature.chat.viewmodel.delegate.FavoritesDelegate
 import com.garfiec.librechat.feature.chat.viewmodel.delegate.InConversationSearchDelegate
 import com.garfiec.librechat.feature.chat.viewmodel.delegate.ModelSelectionDelegate
 import com.garfiec.librechat.feature.chat.viewmodel.delegate.PlatformDelegateFactory
@@ -74,6 +77,7 @@ class ChatViewModel(
     private val configRepository: ConfigRepository,
     private val conversationRepository: ConversationRepository,
     private val draftRepository: DraftRepository,
+    favoritesRepository: FavoritesRepository,
     presetRepository: PresetRepository,
     promptRepository: PromptRepository,
     shareRepository: ShareRepository,
@@ -102,6 +106,7 @@ class ChatViewModel(
     private val conversationActionsDelegate =
         ConversationActionsDelegate(stateHandle, conversationRepository, shareRepository)
     private val presetPromptDelegate = PresetPromptDelegate(stateHandle, presetRepository, promptRepository)
+    private val favoritesDelegate = FavoritesDelegate(stateHandle, favoritesRepository)
     private val modelDelegate =
         ModelSelectionDelegate(stateHandle, configRepository, agentRepository, mcpRepository, settingsDataStore, permissionGate)
 
@@ -255,6 +260,16 @@ class ChatViewModel(
             }
         }
 
+        // Gate the `xhigh` reasoning-effort dropdown value to v0.8.5+ servers.
+        // Older servers reject the unknown enum at request time. See VERSION_GATES.md.
+        viewModelScope.launch {
+            configRepository.detectedBackendVersion.collect { version ->
+                val supported = version != null &&
+                    BackendVersion.isCompatibleOrNewer(version, "0.8.5")
+                _uiState.update { it.copy(xhighEffortSupported = supported) }
+            }
+        }
+
         viewModelScope.launch {
             val endpointsResult = configRepository.fetchEndpoints()
             if (endpointsResult is Result.Error) {
@@ -287,6 +302,9 @@ class ChatViewModel(
         }
 
         presetPromptDelegate.loadPresets()
+        // Favorites is user-personal (not server-permission-gated upstream); load eagerly
+        // so the chat-side pin stars and Settings → Favorites stay in sync from cold start.
+        favoritesDelegate.load()
         loadUserProfile()
         loadFlags()
         voiceDelegate.loadSpeechConfig()
@@ -822,42 +840,7 @@ class ChatViewModel(
 
     private fun handleStreamEvent(event: StreamEvent) {
         when (event) {
-            is StreamEvent.Created -> {
-                if (isNewConversation && event.conversationId != null) {
-                    viewModelScope.launch {
-                        val existingDraft = draftRepository.getDraft(NEW_CHAT_DRAFT_KEY)
-                        if (existingDraft != null) {
-                            draftRepository.saveDraft(event.conversationId, existingDraft)
-                            draftRepository.deleteDraft(NEW_CHAT_DRAFT_KEY)
-                        }
-                    }
-                }
-                if (lastErrorWasNetwork) {
-                    lastErrorWasNetwork = false
-                    cancelConnectivityObserver()
-                }
-                val createdCopy = if (_uiState.value.retryInfo != null) {
-                    _uiState.value.copy(conversationId = event.conversationId, retryInfo = null)
-                } else {
-                    _uiState.value.copy(conversationId = event.conversationId)
-                }
-                _uiState.value = createdCopy
-                if (isNewConversation && event.conversationId != null &&
-                    _uiState.value.pendingNavigationConversationId == null &&
-                    !_uiState.value.comparisonState.isEnabled
-                ) {
-                    _uiState.value = _uiState.value.copy(
-                        pendingNavigationConversationId = event.conversationId,
-                    )
-                }
-                // Eagerly fetch and cache the conversation the server just created,
-                // so it appears in the conversation list even if the stream fails later
-                if (event.conversationId != null) {
-                    viewModelScope.launch {
-                        conversationRepository.getConversation(event.conversationId)
-                    }
-                }
-            }
+            is StreamEvent.Created -> handleCreated(event)
             is StreamEvent.ContentDelta -> {
                 val isComparison = _uiState.value.comparisonState.isEnabled
                 if (isComparison && modelDelegate.isSecondaryEvent(event.agentId)) {
@@ -914,71 +897,7 @@ class ChatViewModel(
                     streamingBufferDirty = true
                 }
             }
-            is StreamEvent.Final -> {
-                stopStreamingUpdater()
-                val isComparison = _uiState.value.comparisonState.isEnabled
-                val conversationId = _uiState.value.conversationId
-                    ?: event.conversation?.conversationId
-                val completedResponseText = if (isComparison) {
-                    modelDelegate.primaryComparisonBuffer.toString()
-                } else {
-                    streamingBuffer.toString()
-                }
-                val shouldAutoRead = !isEditOrRegenerate
-                if (isComparison) {
-                    val responseMessage = event.responseMessage ?: event.message
-                    val primaryContent = modelDelegate.primaryComparisonBuffer.toString()
-                    val secondaryContent = modelDelegate.secondaryComparisonBuffer.toString()
-                    _uiState.update {
-                        it.copy(
-                            isStreaming = false,
-                            streamingContent = "",
-                            activeToolCalls = emptyList(),
-                            streamingAttachments = emptyList(),
-                            conversationId = conversationId ?: it.conversationId,
-                            comparisonState = it.comparisonState.copy(
-                                primaryIsStreaming = false,
-                                secondaryIsStreaming = false,
-                                primaryStreamingContent = "",
-                                secondaryStreamingContent = "",
-                                primaryActiveToolCalls = emptyList(),
-                                secondaryActiveToolCalls = emptyList(),
-                                parallelMessageId = responseMessage?.messageId,
-                                primaryFinalContent = primaryContent,
-                                secondaryFinalContent = secondaryContent,
-                            ),
-                        )
-                    }
-                } else {
-                    _uiState.value = _uiState.value.copy(
-                        isStreaming = false,
-                        streamingContent = "",
-                        activeToolCalls = emptyList(),
-                        streamingAttachments = emptyList(),
-                        conversationId = conversationId ?: _uiState.value.conversationId,
-                    )
-                }
-                val finalConversation = event.conversation
-                if (finalConversation?.conversationId != null) {
-                    viewModelScope.launch {
-                        conversationRepository.saveConversation(finalConversation)
-                    }
-                }
-                if (conversationId != null) {
-                    loadConversation(conversationId)
-                    val currentTitle = _uiState.value.conversationTitle
-                    val needsTitle = currentTitle.isNullOrBlank() || currentTitle == "New Chat"
-                    if (isNewConversation && needsTitle && !titleGenerationRequested) {
-                        titleGenerationRequested = true
-                        generateAndSetTitle(conversationId)
-                    } else {
-                        refreshConversationTitle(conversationId)
-                    }
-                }
-                if (shouldAutoRead && completedResponseText.isNotBlank()) {
-                    ttsDelegate.maybeAutoReadResponse(completedResponseText)
-                }
-            }
+            is StreamEvent.Final -> handleFinal(event)
             is StreamEvent.Error -> {
                 stopStreamingUpdater()
                 // Track network errors so auto-reconnect can kick in when connectivity returns
@@ -1099,6 +1018,114 @@ class ChatViewModel(
                 flushStreamingBuffer()
             }
             is StreamEvent.Step -> { /* no-op */ }
+            is StreamEvent.ContextSummary -> {
+                // Server compacted earlier turns into a summary. The compacted text is
+                // persisted to the final message as a SUMMARY content part and rendered
+                // there; nothing extra to do during streaming.
+            }
+        }
+    }
+
+    private fun handleCreated(event: StreamEvent.Created) {
+        if (isNewConversation && event.conversationId != null) {
+            viewModelScope.launch {
+                val existingDraft = draftRepository.getDraft(NEW_CHAT_DRAFT_KEY)
+                if (existingDraft != null) {
+                    draftRepository.saveDraft(event.conversationId, existingDraft)
+                    draftRepository.deleteDraft(NEW_CHAT_DRAFT_KEY)
+                }
+            }
+        }
+        if (lastErrorWasNetwork) {
+            lastErrorWasNetwork = false
+            cancelConnectivityObserver()
+        }
+        val createdCopy = if (_uiState.value.retryInfo != null) {
+            _uiState.value.copy(conversationId = event.conversationId, retryInfo = null)
+        } else {
+            _uiState.value.copy(conversationId = event.conversationId)
+        }
+        _uiState.value = createdCopy
+        if (isNewConversation && event.conversationId != null &&
+            _uiState.value.pendingNavigationConversationId == null &&
+            !_uiState.value.comparisonState.isEnabled
+        ) {
+            _uiState.value = _uiState.value.copy(
+                pendingNavigationConversationId = event.conversationId,
+            )
+        }
+        // Eagerly fetch and cache the conversation the server just created,
+        // so it appears in the conversation list even if the stream fails later
+        if (event.conversationId != null) {
+            viewModelScope.launch {
+                conversationRepository.getConversation(event.conversationId)
+            }
+        }
+    }
+
+    private fun handleFinal(event: StreamEvent.Final) {
+        stopStreamingUpdater()
+        val isComparison = _uiState.value.comparisonState.isEnabled
+        val conversationId = _uiState.value.conversationId
+            ?: event.conversation?.conversationId
+        val completedResponseText = if (isComparison) {
+            modelDelegate.primaryComparisonBuffer.toString()
+        } else {
+            streamingBuffer.toString()
+        }
+        val shouldAutoRead = !isEditOrRegenerate
+        if (isComparison) {
+            val responseMessage = event.responseMessage ?: event.message
+            val primaryContent = modelDelegate.primaryComparisonBuffer.toString()
+            val secondaryContent = modelDelegate.secondaryComparisonBuffer.toString()
+            _uiState.update {
+                it.copy(
+                    isStreaming = false,
+                    streamingContent = "",
+                    activeToolCalls = emptyList(),
+                    streamingAttachments = emptyList(),
+                    conversationId = conversationId ?: it.conversationId,
+                    comparisonState = it.comparisonState.copy(
+                        primaryIsStreaming = false,
+                        secondaryIsStreaming = false,
+                        primaryStreamingContent = "",
+                        secondaryStreamingContent = "",
+                        primaryActiveToolCalls = emptyList(),
+                        secondaryActiveToolCalls = emptyList(),
+                        parallelMessageId = responseMessage?.messageId,
+                        primaryFinalContent = primaryContent,
+                        secondaryFinalContent = secondaryContent,
+                    ),
+                )
+            }
+        } else {
+            _uiState.value = _uiState.value.copy(
+                isStreaming = false,
+                streamingContent = "",
+                activeToolCalls = emptyList(),
+                streamingAttachments = emptyList(),
+                conversationId = conversationId ?: _uiState.value.conversationId,
+            )
+        }
+        val finalConversation = event.conversation
+        if (finalConversation?.conversationId != null) {
+            viewModelScope.launch {
+                conversationRepository.saveConversation(finalConversation)
+            }
+        }
+        if (conversationId != null) {
+            loadConversation(conversationId)
+            val currentTitle = _uiState.value.conversationTitle
+            val needsTitle = currentTitle.isNullOrBlank() || currentTitle == "New Chat"
+            if (isNewConversation && needsTitle && !titleGenerationRequested) {
+                titleGenerationRequested = true
+                generateAndSetTitle(conversationId)
+            } else {
+                refreshConversationTitle(conversationId)
+            }
+        }
+        if (shouldAutoRead && completedResponseText.isNotBlank()) {
+            ttsDelegate.maybeAutoReadResponse(completedResponseText)
         }
     }
 
@@ -1613,6 +1640,10 @@ class ChatViewModel(
     fun editPreset(preset: Preset) = presetPromptDelegate.editPreset(preset)
     fun handlePromptMention(displayData: PromptMentionDisplayData) = presetPromptDelegate.handlePromptMention(displayData)
     fun handleSlashCommand(displayData: PromptMentionDisplayData) = presetPromptDelegate.handleSlashCommand(displayData)
+
+    // Favorites (v0.8.5)
+    fun toggleAgentFavorite(agentId: String) = favoritesDelegate.toggleAgent(agentId)
+    fun toggleModelFavorite(endpoint: String, model: String) = favoritesDelegate.toggleModel(endpoint, model)
 
     // Model selection and comparison
     fun onModelSelected(endpoint: String, model: String) = modelDelegate.onModelSelected(endpoint, model)

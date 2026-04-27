@@ -36,6 +36,7 @@ func verifySharedFrameworkImport() {
         feedback: nil,
         threadId: nil,
         metadata: nil,
+        contextMeta: nil,
         createdAt: nil,
         updatedAt: nil,
         title: nil
@@ -67,7 +68,7 @@ func verifySharedFrameworkImport() {
         assert(d.chunk == "Hello")
     case .error, .final, .toolCallStart, .toolCallComplete,
          .thinkingDelta, .attachmentCreated, .retrying, .sync,
-         .step, .created:
+         .step, .created, .contextSummary:
         assertionFailure("Wrong case")
     }
 

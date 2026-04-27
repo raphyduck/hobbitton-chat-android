@@ -29,6 +29,9 @@ class ConfigRepositoryImpl(
     private val _availableModels = MutableStateFlow<Map<String, List<String>>>(emptyMap())
     override val availableModels: StateFlow<Map<String, List<String>>> = _availableModels.asStateFlow()
 
+    private val _detectedBackendVersion = MutableStateFlow<String?>(null)
+    override val detectedBackendVersion: StateFlow<String?> = _detectedBackendVersion.asStateFlow()
+
     override suspend fun validateServerUrl(url: String): Result<StartupConfig> {
         return try {
             val config = configApi.getStartupConfig()
@@ -57,11 +60,12 @@ class ConfigRepositoryImpl(
 
     /**
      * Validates that the config response contains fields specific to LibreChat.
-     * The `serverDomain` and `instanceProjectId` fields are distinctive to LibreChat's
-     * /api/config endpoint and unlikely to appear in arbitrary JSON APIs.
+     * `serverDomain` is a required field on LibreChat's /api/config and has
+     * defaulted to a non-blank value since v0.7; arbitrary JSON APIs will not
+     * populate it.
      */
     private fun isValidLibreChatConfig(config: StartupConfig): Boolean {
-        return config.serverDomain.isNotBlank() || config.instanceProjectId != null
+        return config.serverDomain.isNotBlank()
     }
 
     override suspend fun fetchStartupConfig(): Result<StartupConfig> {
@@ -162,6 +166,8 @@ class ConfigRepositoryImpl(
             val detectedVersion = config?.version?.trimStart('v', 'V')
                 // Strategy 2: Parse customFooter for version pattern
                 ?: BackendVersion.extractVersionFromFooter(config?.customFooter)
+
+            _detectedBackendVersion.value = detectedVersion
 
             if (detectedVersion != null) {
                 Logger.d { "Backend version detected: $detectedVersion (supported: $supported)" }

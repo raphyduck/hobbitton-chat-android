@@ -8,4 +8,5 @@ class ApiException(
     val statusCode: Int,
     override val message: String,
     val isBanned: Boolean = false,
-) : Exception(message)
+    cause: Throwable? = null,
+) : Exception(message, cause)

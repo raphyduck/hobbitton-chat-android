@@ -109,6 +109,7 @@ fun ModelParameterSheet(
     modifier: Modifier = Modifier,
     selectedEndpoint: String = "",
     dynamicParameterDefinitions: List<ParameterDefinition>? = null,
+    xhighEffortSupported: Boolean = false,
     onSaveAsPreset: () -> Unit = {},
     sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
 ) {
@@ -122,6 +123,7 @@ fun ModelParameterSheet(
             onParametersChange = onParametersChange,
             selectedEndpoint = selectedEndpoint,
             dynamicParameterDefinitions = dynamicParameterDefinitions,
+            xhighEffortSupported = xhighEffortSupported,
             onSaveAsPreset = onSaveAsPreset,
             modifier = Modifier
                 .padding(horizontal = 24.dp)
@@ -137,13 +139,14 @@ fun ModelParameterContent(
     modifier: Modifier = Modifier,
     selectedEndpoint: String = "",
     dynamicParameterDefinitions: List<ParameterDefinition>? = null,
+    xhighEffortSupported: Boolean = false,
     onSaveAsPreset: () -> Unit = {},
 ) {
-    val definitions = remember(selectedEndpoint, dynamicParameterDefinitions) {
+    val definitions = remember(selectedEndpoint, dynamicParameterDefinitions, xhighEffortSupported) {
         if (!dynamicParameterDefinitions.isNullOrEmpty()) {
             dynamicParameterDefinitions
         } else {
-            EndpointParameterRegistry.getDefinitions(selectedEndpoint)
+            EndpointParameterRegistry.getDefinitions(selectedEndpoint, xhighEffortSupported)
         }
     }
 

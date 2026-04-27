@@ -18,7 +18,7 @@ object BackendVersion {
      * Matches the VERSION constant from the official LibreChat repo's
      * `packages/data-provider/src/config.ts` and `package.json`.
      */
-    const val SUPPORTED_BACKEND_VERSION = "0.8.4"
+    const val SUPPORTED_BACKEND_VERSION = "0.8.5"
 
     /**
      * Represents a parsed semantic version (major.minor.patch).
@@ -58,6 +58,37 @@ object BackendVersion {
         val actualVersion = parse(actual) ?: return true
         return supportedVersion.major == actualVersion.major &&
             supportedVersion.minor == actualVersion.minor
+    }
+
+    /**
+     * Checks whether [actual] is greater than or equal to [minimum] (feature-gate check).
+     *
+     * Use this when branching on whether a backend feature was introduced in a
+     * specific version. Patch differences are ignored. Returns true when [actual]
+     * cannot be parsed (fail-open: assume feature is present). Returns false when
+     * [minimum] cannot be parsed (degenerate threshold).
+     *
+     * **Contract for callers:** null-check or explicitly handle the unknown-version
+     * case before invoking. The fail-open default here is intentional because in
+     * practice this helper is called only after `ConfigRepositoryImpl.checkBackendVersion()`
+     * has persisted either a parsed-valid version string or an explicit `null` to
+     * `ConfigRepository.detectedBackendVersion` — garbage never reaches this helper.
+     * This is a deliberate divergence from the "default to older-server behavior on
+     * unknown version" guideline in `VERSION_GATES.md` §Guidelines #2: that guideline
+     * is the callsite rule, and this helper only runs once the callsite has resolved
+     * the unknown-version case upstream.
+     *
+     * @param actual The version detected from the server (e.g., "0.8.5").
+     * @param minimum The minimum version at which the gated feature appears (e.g., "0.8.5").
+     * @return true if [actual] ≥ [minimum] by (major, minor), false otherwise.
+     */
+    fun isCompatibleOrNewer(actual: String, minimum: String): Boolean {
+        val actualVersion = parse(actual) ?: return true
+        val minimumVersion = parse(minimum) ?: return false
+        if (actualVersion.major != minimumVersion.major) {
+            return actualVersion.major > minimumVersion.major
+        }
+        return actualVersion.minor >= minimumVersion.minor
     }
 
     /**

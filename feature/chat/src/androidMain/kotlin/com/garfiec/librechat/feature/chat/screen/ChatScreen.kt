@@ -717,6 +717,7 @@ actual fun ChatScreen(
             onParametersChange = viewModel::updateModelParameters,
             onDismiss = viewModel::hideModelParameters,
             selectedEndpoint = uiState.selectedEndpoint,
+            xhighEffortSupported = uiState.xhighEffortSupported,
         )
     }
 
@@ -765,6 +766,10 @@ actual fun ChatScreen(
                 viewModel.dismissSendBlockReason()
                 viewModel.dismissError()
             },
+            favoriteAgentIds = uiState.favoriteAgentIds,
+            favoriteModelKeys = uiState.favoriteModelKeys,
+            onToggleAgentFavorite = viewModel::toggleAgentFavorite,
+            onToggleModelFavorite = viewModel::toggleModelFavorite,
         )
     }
 
@@ -782,6 +787,10 @@ actual fun ChatScreen(
             },
             onDismiss = { showSecondaryModelSheet = false },
             serverUrl = uiState.serverUrl,
+            favoriteAgentIds = uiState.favoriteAgentIds,
+            favoriteModelKeys = uiState.favoriteModelKeys,
+            onToggleAgentFavorite = viewModel::toggleAgentFavorite,
+            onToggleModelFavorite = viewModel::toggleModelFavorite,
         )
     }
 }

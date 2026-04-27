@@ -10,10 +10,30 @@ import com.garfiec.librechat.core.model.ParameterType
  */
 object EndpointParameterRegistry {
 
-    fun getDefinitions(endpoint: String): List<ParameterDefinition> {
+    /**
+     * @param xhighEffortSupported when false, the `xhigh` value is filtered out of the
+     *   reasoning-effort and effort dropdowns. `xhigh` was added in upstream v0.8.5;
+     *   on older servers it is rejected at request time. Per `VERSION_GATES.md`,
+     *   default to the older-server behavior when the server version is unknown.
+     */
+    fun getDefinitions(
+        endpoint: String,
+        xhighEffortSupported: Boolean = false,
+    ): List<ParameterDefinition> {
         val key = endpoint.lowercase()
-        return ENDPOINT_PARAMS[key] ?: ENDPOINT_PARAMS["default"]!!
+        val base = ENDPOINT_PARAMS[key] ?: ENDPOINT_PARAMS["default"]!!
+        if (xhighEffortSupported) return base
+        return base.map { def ->
+            val options = def.options
+            if (def.key in EFFORT_KEYS && options != null && "xhigh" in options) {
+                def.copy(options = options.filterNot { it == "xhigh" })
+            } else {
+                def
+            }
+        }
     }
+
+    private val EFFORT_KEYS = setOf("reasoning_effort", "effort")
 
     private val ENDPOINT_PARAMS: Map<String, List<ParameterDefinition>> = mapOf(
         "openai" to openAiParams(),
@@ -228,9 +248,17 @@ object EndpointParameterRegistry {
             key = "effort",
             label = "Effort",
             type = ParameterType.DROPDOWN,
-            options = listOf("", "low", "medium", "high", "max"),
+            options = listOf("", "low", "medium", "high", "xhigh", "max"),
             default = "",
             description = "Controls the overall effort level of the response.",
+        ),
+        ParameterDefinition(
+            key = "thinkingDisplay",
+            label = "Reasoning Visibility",
+            type = ParameterType.DROPDOWN,
+            options = listOf("", "auto", "summarized", "omitted"),
+            default = "",
+            description = "Controls whether reasoning tokens are streamed to the client (Claude Opus 4.7+).",
         ),
         ParameterDefinition(
             key = "web_search",
@@ -449,7 +477,7 @@ object EndpointParameterRegistry {
             key = "effort",
             label = "Effort",
             type = ParameterType.DROPDOWN,
-            options = listOf("", "low", "medium", "high", "max"),
+            options = listOf("", "low", "medium", "high", "xhigh", "max"),
             default = "",
             description = "Controls the overall effort level of the response.",
         ),
