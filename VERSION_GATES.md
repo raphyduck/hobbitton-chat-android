@@ -9,8 +9,8 @@ The canonical API for version comparisons lives in
 `core/common/src/commonMain/kotlin/com/garfiec/librechat/core/common/BackendVersion.kt`:
 
 - `BackendVersion.parse(version)` — parse a loose semver string (`"v0.8.5"`, `"0.8"`, …).
-- `BackendVersion.isCompatible(supported, actual)` — same-`major.minor` check (patch ignored).
-- `BackendVersion.isCompatibleOrNewer(actual, minimum)` — `actual ≥ minimum` by `(major, minor)`.
+- `BackendVersion.isCompatible(supported, actual)` — exact `major.minor.patch` match.
+- `BackendVersion.isCompatibleOrNewer(actual, minimum)` — `actual ≥ minimum` by `(major, minor, patch)`.
 - `BackendVersion.extractVersionFromFooter(footer)` — fallback parse from `customFooter`.
 
 The detected server version is exposed via `ConfigRepository.detectedBackendVersion`
@@ -29,4 +29,4 @@ The detected server version is exposed via `ConfigRepository.detectedBackendVers
 2. Default to **older-server behavior** when the version is unknown (`detectedBackendVersion == null`). The server may not advertise its version; failing open avoids hiding features from self-hosted installs with stripped customFooters.
 3. Add a row to the table above. Include file + line anchors and the concrete minimum version at which the gate becomes dead code.
 4. If the gated field is a request DTO field, omit it (send `null`) rather than sending a value the server will silently drop — unless you can verify round-trip parity. Silent drops lead to UI state that disagrees with server state.
-5. Never gate on patch versions; the version detection is best-effort and the compat check is minor-version-only.
+5. Patch-version gates are supported. Upstream LibreChat regularly ships breaking API and SSE-shape changes inside a patch bump (the same-minor assumption broke us moving 0.8.4 → 0.8.5), so use the exact patch the feature shipped in.
