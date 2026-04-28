@@ -93,13 +93,13 @@ abstract class CommonTokenDataStore(
             true
         } catch (e: ClientRequestException) {
             Logger.w(e) { "Auth error during token refresh (status=${e.response.status})" }
-            clearTokens()
+            clearTokensLocked()
             false
         } catch (e: Exception) {
             if (isKeystoreException(e)) {
                 Logger.e(e) { "Keystore corruption—clearing tokens" }
                 onKeystoreCorruption()
-                clearTokens()
+                clearTokensLocked()
             } else {
                 Logger.w(e) { "Error during token refresh" }
             }
@@ -108,6 +108,12 @@ abstract class CommonTokenDataStore(
     }
 
     override suspend fun clearTokens() {
+        refreshMutex.withLock {
+            clearTokensLocked()
+        }
+    }
+
+    private fun clearTokensLocked() {
         cachedAccessToken = null
         removeTokens()
     }

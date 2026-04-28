@@ -30,6 +30,7 @@ kotlin {
         }
         named("androidUnitTest").dependencies {
             implementation(libs.koin.test)
+            implementation(libs.ktor.client.mock)
         }
         named("androidInstrumentedTest").dependencies {
             implementation(libs.room.testing)
