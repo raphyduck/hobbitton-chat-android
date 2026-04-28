@@ -17,28 +17,30 @@ import com.garfiec.librechat.core.model.request.RevertAgentRequest
 import com.garfiec.librechat.core.model.request.ToolCallRequest
 import com.garfiec.librechat.core.model.request.UpdateAgentRequest
 import com.garfiec.librechat.core.network.api.AgentsApi
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
-import kotlin.concurrent.Volatile
 
 class AgentRepositoryImpl(
     private val agentsApi: AgentsApi,
 ) : AgentRepository {
 
-    @Volatile
+    private val cacheMutex = Mutex()
     private var cachedAgents: List<Agent>? = null
 
     // --- Agent CRUD ---
 
     override suspend fun getAgents(category: String?): Result<List<Agent>> {
         return safeApiCall {
-            if (category == null && cachedAgents != null) {
-                return@safeApiCall cachedAgents!!
+            if (category != null) {
+                return@safeApiCall agentsApi.getAgents(category).data
             }
-            val agents = agentsApi.getAgents(category).data
-            if (category == null) {
+            cacheMutex.withLock {
+                cachedAgents?.let { return@withLock it }
+                val agents = agentsApi.getAgents(null).data
                 cachedAgents = agents
+                agents
             }
-            agents
         }
     }
 
@@ -65,7 +67,8 @@ class AgentRepositoryImpl(
 
     override suspend fun getAgent(id: String): Result<Agent> {
         return safeApiCall {
-            cachedAgents?.find { it.id == id }?.let { return@safeApiCall it }
+            cacheMutex.withLock { cachedAgents?.find { it.id == id } }
+                ?.let { return@safeApiCall it }
             agentsApi.getAgent(id)
         }
     }
@@ -201,7 +204,7 @@ class AgentRepositoryImpl(
         }
     }
 
-    private fun invalidateCache() {
-        cachedAgents = null
+    private suspend fun invalidateCache() {
+        cacheMutex.withLock { cachedAgents = null }
     }
 }
