@@ -12,6 +12,8 @@ import com.garfiec.librechat.core.common.result.getOrNull
 import com.garfiec.librechat.core.data.datastore.LatexRenderer
 import com.garfiec.librechat.core.data.datastore.ServerDataStore
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
+import com.garfiec.librechat.core.data.endpoint.EndpointClassifier
+import com.garfiec.librechat.core.data.endpoint.EndpointDispatch
 import com.garfiec.librechat.core.data.repository.AgentRepository
 import com.garfiec.librechat.core.data.repository.ChatRepository
 import com.garfiec.librechat.core.data.repository.ConfigRepository
@@ -27,7 +29,6 @@ import com.garfiec.librechat.core.data.repository.ShareRepository
 import com.garfiec.librechat.core.data.repository.UserRepository
 import com.garfiec.librechat.core.data.util.PermissionGate
 import com.garfiec.librechat.core.model.Attachment
-import com.garfiec.librechat.core.model.EModelEndpoint
 import com.garfiec.librechat.core.model.Message
 import com.garfiec.librechat.core.model.Preset
 import com.garfiec.librechat.core.model.StreamEvent
@@ -47,7 +48,6 @@ import com.garfiec.librechat.feature.chat.viewmodel.delegate.InConversationSearc
 import com.garfiec.librechat.feature.chat.viewmodel.delegate.ModelSelectionDelegate
 import com.garfiec.librechat.feature.chat.viewmodel.delegate.PlatformDelegateFactory
 import com.garfiec.librechat.feature.chat.viewmodel.delegate.PresetPromptDelegate
-import com.garfiec.librechat.feature.chat.viewmodel.delegate.toSerialName
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -371,9 +371,9 @@ class ChatViewModel(
             val result = conversationRepository.getConversation(conversationId)
             val conversation = result.getOrNull()
             if (conversation != null) {
-                val endpoint = conversation.endpoint?.toSerialName()
+                val endpoint = conversation.endpoint
                 val model = conversation.model
-                val isAgentConversation = endpoint == EModelEndpoint.AGENTS.toSerialName()
+                val isAgentConversation = endpoint == EndpointConstants.AGENTS
                 val resolvedModel = if (isAgentConversation) {
                     conversation.agentId ?: model
                 } else {
@@ -480,6 +480,9 @@ class ChatViewModel(
 
         runWhenSendReady { doSendMessage(text) }
     }
+
+    private fun classifyCurrentEndpoint(name: String): EndpointDispatch =
+        EndpointClassifier.classify(name, _uiState.value.endpointConfigs)
 
     /**
      * Builds an [EphemeralAgent] from the current UI state (selected MCP servers
@@ -597,6 +600,7 @@ class ChatViewModel(
             }
         }
 
+        val dispatch = classifyCurrentEndpoint(effectiveEndpoint)
         streamJob?.cancel()
         streamJob = viewModelScope.launch {
             collectStreamSafely(
@@ -604,6 +608,9 @@ class ChatViewModel(
                     text = messageText,
                     conversationId = conversationId,
                     endpoint = effectiveEndpoint,
+                    endpointType = dispatch.endpointType,
+                    key = dispatch.key,
+                    modelDisplayLabel = dispatch.modelDisplayLabel,
                     model = _uiState.value.selectedModel,
                     parentMessageId = lastMessageId,
                     agentId = effectiveAgentId,
@@ -703,6 +710,7 @@ class ChatViewModel(
         val webSearchEnabled = _uiState.value.modelParameters.webSearch
         val ephemeralAgent = buildEphemeralAgent()
         Logger.d { "editUserMessage: webSearch=$webSearchEnabled, ephemeralAgent=$ephemeralAgent" }
+        val dispatch = classifyCurrentEndpoint(_uiState.value.selectedEndpoint)
         streamJob?.cancel()
         streamJob = viewModelScope.launch {
             collectStreamSafely(
@@ -710,6 +718,9 @@ class ChatViewModel(
                     text = newText,
                     conversationId = _uiState.value.conversationId,
                     endpoint = _uiState.value.selectedEndpoint,
+                    endpointType = dispatch.endpointType,
+                    key = dispatch.key,
+                    modelDisplayLabel = dispatch.modelDisplayLabel,
                     model = _uiState.value.selectedModel,
                     parentMessageId = parentMessageId,
                     agentId = if (isAgent) _uiState.value.selectedModel else null,
@@ -735,6 +746,7 @@ class ChatViewModel(
         val webSearchEnabled = _uiState.value.modelParameters.webSearch
         val ephemeralAgent = buildEphemeralAgent()
         Logger.d { "editAiMessage: webSearch=$webSearchEnabled, ephemeralAgent=$ephemeralAgent" }
+        val dispatch = classifyCurrentEndpoint(_uiState.value.selectedEndpoint)
         streamJob?.cancel()
         streamJob = viewModelScope.launch {
             messageRepository.updateMessageText(conversationId, aiMessage.messageId, newText)
@@ -743,6 +755,9 @@ class ChatViewModel(
                     text = parentUserMessage.text,
                     conversationId = conversationId,
                     endpoint = _uiState.value.selectedEndpoint,
+                    endpointType = dispatch.endpointType,
+                    key = dispatch.key,
+                    modelDisplayLabel = dispatch.modelDisplayLabel,
                     model = _uiState.value.selectedModel,
                     parentMessageId = parentUserMessage.parentMessageId,
                     agentId = if (isAgent) _uiState.value.selectedModel else null,
@@ -777,6 +792,7 @@ class ChatViewModel(
         val webSearchEnabled = _uiState.value.modelParameters.webSearch
         val ephemeralAgent = buildEphemeralAgent()
         Logger.d { "regenerateMessage: webSearch=$webSearchEnabled, ephemeralAgent=$ephemeralAgent" }
+        val dispatch = classifyCurrentEndpoint(_uiState.value.selectedEndpoint)
         streamJob?.cancel()
         streamJob = viewModelScope.launch {
             collectStreamSafely(
@@ -784,6 +800,9 @@ class ChatViewModel(
                     text = parentUserMessage.text,
                     conversationId = _uiState.value.conversationId,
                     endpoint = _uiState.value.selectedEndpoint,
+                    endpointType = dispatch.endpointType,
+                    key = dispatch.key,
+                    modelDisplayLabel = dispatch.modelDisplayLabel,
                     model = _uiState.value.selectedModel,
                     parentMessageId = parentUserMessage.parentMessageId,
                     agentId = if (isAgentRegen) _uiState.value.selectedModel else null,
@@ -1187,6 +1206,7 @@ class ChatViewModel(
         val webSearchEnabled = _uiState.value.modelParameters.webSearch
         val ephemeralAgent = buildEphemeralAgent()
         Logger.d { "continueGeneration: webSearch=$webSearchEnabled, ephemeralAgent=$ephemeralAgent" }
+        val dispatch = classifyCurrentEndpoint(_uiState.value.selectedEndpoint)
         streamJob?.cancel()
         streamJob = viewModelScope.launch {
             collectStreamSafely(
@@ -1194,6 +1214,9 @@ class ChatViewModel(
                     text = parentUserMessage.text,
                     conversationId = _uiState.value.conversationId,
                     endpoint = _uiState.value.selectedEndpoint,
+                    endpointType = dispatch.endpointType,
+                    key = dispatch.key,
+                    modelDisplayLabel = dispatch.modelDisplayLabel,
                     model = _uiState.value.selectedModel,
                     parentMessageId = parentUserMessage.parentMessageId,
                     agentId = if (isAgentContinue) _uiState.value.selectedModel else null,

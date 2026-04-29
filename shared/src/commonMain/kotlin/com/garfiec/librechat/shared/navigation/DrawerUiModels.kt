@@ -1,7 +1,6 @@
 package com.garfiec.librechat.shared.navigation
 
 import androidx.compose.runtime.Immutable
-import com.garfiec.librechat.core.model.EModelEndpoint
 
 /**
  * Lightweight snapshot of fields DrawerConversationItem actually renders.
@@ -12,7 +11,7 @@ data class DrawerConversationDisplayData(
     val conversationId: String,
     val title: String,
     val model: String?,
-    val endpoint: EModelEndpoint?,
+    val endpoint: String?,
     val relativeTime: String,
     val isActive: Boolean,
     val isFavorite: Boolean,

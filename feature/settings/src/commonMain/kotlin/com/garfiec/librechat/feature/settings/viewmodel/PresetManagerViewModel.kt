@@ -99,6 +99,6 @@ class PresetManagerViewModel(
 private fun Preset.toDisplayData() = PresetManagerDisplayData(
     presetId = presetId,
     title = title ?: "Untitled Preset",
-    endpoint = endpoint?.name?.lowercase(),
+    endpoint = endpoint,
     model = model,
 )

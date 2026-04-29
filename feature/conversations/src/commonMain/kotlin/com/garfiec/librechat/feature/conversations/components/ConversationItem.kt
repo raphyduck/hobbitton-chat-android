@@ -26,7 +26,7 @@ import androidx.compose.ui.unit.dp
 import com.garfiec.librechat.core.common.extensions.toInstantOrNull
 import com.garfiec.librechat.core.model.EModelEndpoint
 import com.garfiec.librechat.core.ui.components.endpointIconPainter
-import com.garfiec.librechat.core.ui.components.isMonochromeIcon
+import com.garfiec.librechat.core.ui.components.isMonochromeEndpointIcon
 import com.garfiec.librechat.feature.conversations.resources.*
 import com.garfiec.librechat.feature.conversations.resources.Res
 import kotlinx.datetime.TimeZone
@@ -61,7 +61,7 @@ fun ConversationItem(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (iconPainter != null) {
-            val isMonochrome = data.endpoint?.isMonochromeIcon() == true
+            val isMonochrome = isMonochromeEndpointIcon(data.endpoint)
             Icon(
                 painter = iconPainter,
                 contentDescription = endpointLabel,
@@ -179,7 +179,7 @@ private fun Instant.toRelativeTimeString(): String {
     }
 }
 
-private fun EModelEndpoint.toDisplayLabel(): String = when (this) {
+private fun String.toDisplayLabel(): String = when (EModelEndpoint.fromName(this)) {
     EModelEndpoint.OPENAI -> "OpenAI"
     EModelEndpoint.AZURE_OPENAI -> "Azure"
     EModelEndpoint.GOOGLE -> "Google"
@@ -189,4 +189,5 @@ private fun EModelEndpoint.toDisplayLabel(): String = when (this) {
     EModelEndpoint.AGENTS -> "Agents"
     EModelEndpoint.CUSTOM -> "Custom"
     EModelEndpoint.BEDROCK -> "Bedrock"
+    null -> this
 }

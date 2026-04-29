@@ -49,17 +49,6 @@ fun endpointIconPainter(endpoint: String?): Painter? = when (endpoint) {
  * the theme's onSurfaceVariant color. Brand-colored icons (Anthropic, Google,
  * Azure, Bedrock) should be rendered with [Color.Unspecified] to preserve their colors.
  */
-fun EModelEndpoint.isMonochromeIcon(): Boolean = when (this) {
-    EModelEndpoint.OPENAI,
-    EModelEndpoint.ASSISTANTS,
-    EModelEndpoint.AGENTS,
-    -> true
-    else -> false
-}
-
-/**
- * String-based variant of [isMonochromeIcon].
- */
 fun isMonochromeEndpointIcon(endpoint: String?): Boolean = when (endpoint) {
     "openAI", "assistants", "agents" -> true
     else -> false

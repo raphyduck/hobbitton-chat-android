@@ -25,8 +25,8 @@ class ConversationSerializationTest {
             conversationId = "conv-002",
             title = "Full Chat",
             user = "user-123",
-            endpoint = EModelEndpoint.OPENAI,
-            endpointType = EModelEndpoint.AGENTS,
+            endpoint = "openAI",
+            endpointType = "agents",
             model = "gpt-4o",
             agentId = "agent-abc",
             assistantId = "asst-def",
@@ -94,10 +94,26 @@ class ConversationSerializationTest {
 
     @Test
     fun endpointEnumSerializesToJsonString() {
-        val original = Conversation(endpoint = EModelEndpoint.ANTHROPIC)
+        val original = Conversation(endpoint = "anthropic")
         val encoded = json.encodeToString(Conversation.serializer(), original)
         assertEquals(true, encoded.contains("\"anthropic\""), "Expected serialized name 'anthropic' in $encoded")
         val decoded = json.decodeFromString(Conversation.serializer(), encoded)
-        assertEquals(EModelEndpoint.ANTHROPIC, decoded.endpoint)
+        assertEquals("anthropic", decoded.endpoint)
+    }
+
+    @Test
+    fun conversationWithCustomEndpointRoundTrip() {
+        val original = Conversation(
+            conversationId = "conv-custom",
+            endpoint = "OpenRouter",
+            endpointType = "custom",
+            model = "meta-llama/llama-3.3-70b-instruct:free",
+        )
+        val encoded = json.encodeToString(Conversation.serializer(), original)
+        assertEquals(true, encoded.contains("\"OpenRouter\""), "Expected literal 'OpenRouter' in $encoded")
+        assertEquals(true, encoded.contains("\"custom\""), "Expected 'custom' endpointType in $encoded")
+        val decoded = json.decodeFromString(Conversation.serializer(), encoded)
+        assertEquals("OpenRouter", decoded.endpoint)
+        assertEquals("custom", decoded.endpointType)
     }
 }

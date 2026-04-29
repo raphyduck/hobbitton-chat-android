@@ -32,7 +32,7 @@ import com.garfiec.librechat.core.data.db.entity.PresetEntity
         ConversationTagEntity::class,
         DraftEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),

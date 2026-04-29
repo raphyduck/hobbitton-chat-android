@@ -4,8 +4,10 @@ import android.content.ContentValues
 import android.database.sqlite.SQLiteDatabase
 import androidx.room.Room
 import androidx.room.testing.MigrationTestHelper
+import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.garfiec.librechat.core.data.db.migration.MIGRATION_3_4
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.runBlocking
 import org.junit.Rule
@@ -13,12 +15,9 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * Validates Room auto-migrations (v1→v2→v3) preserve all entity data
- * including complex JSON-serialized fields.
- *
- * Strategy: Create a v1 database, populate all 6 v1 entity types with
- * realistic data (including JSON columns), run migrations to v3,
- * verify every row and field survived intact.
+ * Validates Room migrations preserve entity data (auto v1→v2→v3) and that
+ * the manual v3→v4 normalization rewrites legacy enum-name endpoint values
+ * to their wire-format counterparts.
  */
 @RunWith(AndroidJUnit4::class)
 class RoomMigrationTest {
@@ -223,7 +222,7 @@ class RoomMigrationTest {
     }
 
     @Test
-    fun migrateV1ToV3_viaRoomApi_entitiesReadable() {
+    fun migrateV1ToV4_viaRoomApi_entitiesReadable() {
         // Create and populate a v1 database
         val db = helper.createDatabase(testDbName, 1)
         db.insert(
@@ -242,13 +241,15 @@ class RoomMigrationTest {
         )
         db.close()
 
-        // Open with Room (auto-runs migrations)
+        // Open with Room (auto-runs auto-migrations 1→2→3 and the manual 3→4)
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val roomDb = Room.databaseBuilder(
             context,
             LibreChatDatabase::class.java,
             testDbName,
-        ).build()
+        )
+            .addMigrations(MIGRATION_3_4)
+            .build()
 
         // Verify we can read the migrated data via DAO
         val conversation = runBlocking {
@@ -258,5 +259,147 @@ class RoomMigrationTest {
         assertThat(conversation!!.title).isEqualTo("Room API Test")
 
         roomDb.close()
+    }
+
+    /**
+     * Pre-#67 builds wrote Conversation.endpoint and endpointType as the
+     * Kotlin enum `.name`. The v3→v4 migration rewrites those rows to the
+     * wire-format SerialName so ConversationMapper can drop its read-side shim.
+     */
+    @Test
+    fun migrateV3ToV4_normalizesLegacyEndpointEnumNames() {
+        val db = helper.createDatabase(testDbName, 3)
+
+        insertLegacyConversation(db, id = "legacy-openai", endpoint = "OPENAI", endpointType = "OPENAI")
+        insertLegacyConversation(db, id = "legacy-azure", endpoint = "AZURE_OPENAI", endpointType = "AZURE_OPENAI")
+        insertLegacyConversation(db, id = "legacy-anthro", endpoint = "ANTHROPIC", endpointType = null)
+        insertLegacyConversation(db, id = "legacy-google", endpoint = "GOOGLE", endpointType = "GOOGLE")
+        insertLegacyConversation(db, id = "legacy-bedrock", endpoint = "BEDROCK", endpointType = "BEDROCK")
+        insertLegacyConversation(db, id = "legacy-assist", endpoint = "ASSISTANTS", endpointType = "ASSISTANTS")
+        insertLegacyConversation(db, id = "legacy-azassist", endpoint = "AZURE_ASSISTANTS", endpointType = "AZURE_ASSISTANTS")
+        insertLegacyConversation(db, id = "legacy-custom", endpoint = "CUSTOM", endpointType = "CUSTOM")
+
+        // Idempotency: already-wire-format rows are untouched
+        insertLegacyConversation(db, id = "post-fix", endpoint = "openAI", endpointType = "openAI")
+
+        // Custom endpoint name passes through (the issue #60 case)
+        insertLegacyConversation(db, id = "custom-name", endpoint = "OpenRouter", endpointType = "custom")
+
+        // Null endpoints unaffected
+        insertLegacyConversation(db, id = "null-ep", endpoint = null, endpointType = null)
+
+        db.close()
+
+        val migrated = helper.runMigrationsAndValidate(testDbName, 4, true, MIGRATION_3_4)
+
+        assertEndpointPair(migrated, "legacy-openai", endpoint = "openAI", endpointType = "openAI")
+        assertEndpointPair(migrated, "legacy-azure", endpoint = "azureOpenAI", endpointType = "azureOpenAI")
+        assertEndpointPair(migrated, "legacy-anthro", endpoint = "anthropic", endpointType = null)
+        assertEndpointPair(migrated, "legacy-google", endpoint = "google", endpointType = "google")
+        assertEndpointPair(migrated, "legacy-bedrock", endpoint = "bedrock", endpointType = "bedrock")
+        assertEndpointPair(migrated, "legacy-assist", endpoint = "assistants", endpointType = "assistants")
+        assertEndpointPair(migrated, "legacy-azassist", endpoint = "azureAssistants", endpointType = "azureAssistants")
+        assertEndpointPair(migrated, "legacy-custom", endpoint = "custom", endpointType = "custom")
+        assertEndpointPair(migrated, "post-fix", endpoint = "openAI", endpointType = "openAI")
+        assertEndpointPair(migrated, "custom-name", endpoint = "OpenRouter", endpointType = "custom")
+        assertEndpointPair(migrated, "null-ep", endpoint = null, endpointType = null)
+
+        migrated.close()
+    }
+
+    /**
+     * Pre-#67 ChatPayloadBuilder silently coerced any unknown endpoint name
+     * (OpenRouter, Deepseek, xAI, …) to EModelEndpoint.AGENTS, so a legacy
+     * row with `endpoint = "AGENTS"` may have originated from any custom
+     * endpoint and the original name is unrecoverable.
+     *
+     * The v3→v4 migration rewrites "AGENTS" → "agents" — same lossy outcome
+     * the read-side shim already produced. This test pins that contract so a
+     * future "smart" migration can't silently change the cached/fresh mismatch
+     * behavior without an explicit decision.
+     */
+    @Test
+    fun migrateV3ToV4_legacyAgentsRowMapsToLowercaseAgents_lossyByDesign() {
+        val db = helper.createDatabase(testDbName, 3)
+        insertLegacyConversation(db, id = "lossy-agents", endpoint = "AGENTS", endpointType = "AGENTS")
+        db.close()
+
+        val migrated = helper.runMigrationsAndValidate(testDbName, 4, true, MIGRATION_3_4)
+
+        assertEndpointPair(migrated, "lossy-agents", endpoint = "agents", endpointType = "agents")
+
+        migrated.close()
+    }
+
+    /**
+     * `presets` table is migrated defensively. PresetDao currently has no
+     * production callers (PresetRepositoryImpl is API-only), so the table is
+     * empty in the field. Test exists so the symmetry is enforced if a future
+     * change starts persisting presets.
+     */
+    @Test
+    fun migrateV3ToV4_normalizesLegacyPresetEndpoint() {
+        val db = helper.createDatabase(testDbName, 3)
+        db.execSQL(
+            "INSERT INTO presets (presetId, title, endpoint, model, isDefault, `order`, params, createdAt, updatedAt) " +
+                "VALUES ('preset-legacy', 'Legacy', 'OPENAI', 'gpt-4o', 0, 0, '{}', 1700000000000, 1700000000000)",
+        )
+        db.execSQL(
+            "INSERT INTO presets (presetId, title, endpoint, model, isDefault, `order`, params, createdAt, updatedAt) " +
+                "VALUES ('preset-custom', 'Custom', 'OpenRouter', 'llama', 0, 1, '{}', 1700000000000, 1700000000000)",
+        )
+        db.close()
+
+        val migrated = helper.runMigrationsAndValidate(testDbName, 4, true, MIGRATION_3_4)
+
+        migrated.query("SELECT endpoint FROM presets WHERE presetId = 'preset-legacy'").use { c ->
+            assertThat(c.moveToFirst()).isTrue()
+            assertThat(c.getString(0)).isEqualTo("openAI")
+        }
+        migrated.query("SELECT endpoint FROM presets WHERE presetId = 'preset-custom'").use { c ->
+            assertThat(c.moveToFirst()).isTrue()
+            assertThat(c.getString(0)).isEqualTo("OpenRouter")
+        }
+
+        migrated.close()
+    }
+
+    private fun insertLegacyConversation(
+        db: SupportSQLiteDatabase,
+        id: String,
+        endpoint: String?,
+        endpointType: String?,
+    ) {
+        db.insert(
+            "conversations",
+            SQLiteDatabase.CONFLICT_REPLACE,
+            ContentValues().apply {
+                put("conversationId", id)
+                put("title", "Title $id")
+                put("user", "user-001")
+                put("endpoint", endpoint)
+                put("endpointType", endpointType)
+                put("isArchived", 0)
+                put("tags", "[]")
+                put("createdAt", 1700000000000L)
+                put("updatedAt", 1700000000000L)
+                put("lastSyncedAt", 0L)
+            },
+        )
+    }
+
+    private fun assertEndpointPair(
+        db: SupportSQLiteDatabase,
+        id: String,
+        endpoint: String?,
+        endpointType: String?,
+    ) {
+        db.query("SELECT endpoint, endpointType FROM conversations WHERE conversationId = '$id'").use { cursor ->
+            assertThat(cursor.moveToFirst()).isTrue()
+            val actualEndpoint = if (cursor.isNull(0)) null else cursor.getString(0)
+            val actualEndpointType = if (cursor.isNull(1)) null else cursor.getString(1)
+            assertThat(actualEndpoint).isEqualTo(endpoint)
+            assertThat(actualEndpointType).isEqualTo(endpointType)
+        }
     }
 }

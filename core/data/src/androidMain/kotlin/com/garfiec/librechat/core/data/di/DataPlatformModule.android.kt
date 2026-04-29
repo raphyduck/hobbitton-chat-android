@@ -8,6 +8,7 @@ import androidx.room.Room
 import com.garfiec.librechat.core.common.di.KoinQualifiers
 import com.garfiec.librechat.core.data.datastore.TokenDataStore
 import com.garfiec.librechat.core.data.db.LibreChatDatabase
+import com.garfiec.librechat.core.data.db.migration.MIGRATION_3_4
 import com.garfiec.librechat.core.data.repository.CommonSessionCacheCleaner
 import com.garfiec.librechat.core.data.repository.RoleRepository
 import com.garfiec.librechat.core.data.repository.SessionCacheCleaner
@@ -28,7 +29,9 @@ actual val dataPlatformModule: Module = module {
 
     // --- Database ---
     single {
-        Room.databaseBuilder(androidContext(), LibreChatDatabase::class.java, "librechat.db").build()
+        Room.databaseBuilder(androidContext(), LibreChatDatabase::class.java, "librechat.db")
+            .addMigrations(MIGRATION_3_4)
+            .build()
     }
 
     // --- DataStore ---

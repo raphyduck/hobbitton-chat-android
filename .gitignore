@@ -25,3 +25,8 @@ local.properties
 # OS
 .DS_Store
 Thumbs.db
+
+# Local Claude Code working notes (issue repros, scratch captures with secrets)
+.claude/issue-*/
+.claude/worktrees/
+.claude/sync-upstream/

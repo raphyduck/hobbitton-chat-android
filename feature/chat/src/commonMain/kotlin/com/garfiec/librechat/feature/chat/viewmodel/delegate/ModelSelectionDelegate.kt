@@ -5,11 +5,11 @@ import com.garfiec.librechat.core.common.EndpointConstants
 import com.garfiec.librechat.core.common.ToolConstants
 import com.garfiec.librechat.core.common.result.Result
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
+import com.garfiec.librechat.core.data.endpoint.EndpointClassifier
 import com.garfiec.librechat.core.data.repository.AgentRepository
 import com.garfiec.librechat.core.data.repository.ConfigRepository
 import com.garfiec.librechat.core.data.repository.McpRepository
 import com.garfiec.librechat.core.data.util.PermissionGate
-import com.garfiec.librechat.core.model.EModelEndpoint
 import com.garfiec.librechat.core.model.mcp.McpServer
 import com.garfiec.librechat.core.model.permissions.Permission
 import com.garfiec.librechat.core.model.permissions.PermissionType
@@ -79,7 +79,7 @@ class ModelSelectionDelegate(
         // Validate current selection
         val currentEndpoint = stateHandle.state.selectedEndpoint
         val currentModel = stateHandle.state.selectedModel
-        val isAgentSelection = currentEndpoint == EModelEndpoint.AGENTS.toSerialName()
+        val isAgentSelection = currentEndpoint == EndpointConstants.AGENTS
         val modelsForEndpoint = filtered[currentEndpoint]
         val selectionValid = isAgentSelection || (currentModel != null &&
             modelsForEndpoint != null &&
@@ -93,7 +93,7 @@ class ModelSelectionDelegate(
         val lastEndpoint = cachedLastUsedEndpoint
         val lastModel = cachedLastUsedModel
         if (lastEndpoint != null && lastModel != null) {
-            val lastIsAgent = lastEndpoint == EModelEndpoint.AGENTS.toSerialName()
+            val lastIsAgent = lastEndpoint == EndpointConstants.AGENTS
             val lastModelsForEndpoint = filtered[lastEndpoint]
             if (lastIsAgent || (lastModelsForEndpoint != null && lastModel in lastModelsForEndpoint)) {
                 stateHandle.update {
@@ -208,12 +208,14 @@ class ModelSelectionDelegate(
         val endpoint = comparison.secondaryEndpoint ?: return null
         val model = comparison.secondaryModel ?: return null
         val isAgent = endpoint == EndpointConstants.AGENTS
-        val resolvedEndpoint = resolveEndpointEnum(endpoint)
+        val dispatch = EndpointClassifier.classify(endpoint, stateHandle.state.endpointConfigs)
         val added = AddedConversation(
             conversationId = stateHandle.state.conversationId,
             parentMessageId = parentMessageId,
-            endpoint = resolvedEndpoint,
-            endpointType = resolvedEndpoint,
+            endpoint = endpoint,
+            endpointType = dispatch.endpointType,
+            modelDisplayLabel = dispatch.modelDisplayLabel,
+            key = dispatch.key,
             agentId = if (isAgent) model else null,
             model = if (isAgent) null else model,
         )
@@ -237,19 +239,6 @@ class ModelSelectionDelegate(
         }
         // The "____N" suffix identifies the addedConvo (added/secondary) agent.
         return agentId.contains("____")
-    }
-
-    /**
-     * Resolves an endpoint string (e.g. "openAI") to its [EModelEndpoint] enum value.
-     * Defaults to [EModelEndpoint.OPENAI] for unrecognized values.
-     */
-    private fun resolveEndpointEnum(endpoint: String): EModelEndpoint {
-        return try {
-            EModelEndpoint.entries.firstOrNull { it.toSerialName() == endpoint }
-                ?: EModelEndpoint.valueOf(endpoint.uppercase())
-        } catch (_: IllegalArgumentException) {
-            EModelEndpoint.OPENAI
-        }
     }
 
     fun loadAgents() {
