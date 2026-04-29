@@ -2,7 +2,6 @@ package com.garfiec.librechat.core.data.mapper
 
 import com.garfiec.librechat.core.data.db.entity.ConversationEntity
 import com.garfiec.librechat.core.model.Conversation
-import com.garfiec.librechat.core.model.EModelEndpoint
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.serializer
@@ -10,16 +9,6 @@ import kotlin.time.Clock
 import kotlin.time.Instant
 
 private val json = Json { ignoreUnknownKeys = true }
-
-// Legacy compat: pre-fix rows stored the Kotlin enum `.name` (e.g. "OPENAI").
-// Remove once a Room schema migration normalizes the column to wire format.
-private fun normalizeEndpoint(stored: String?): String? {
-    if (stored == null) return null
-    if (stored in EModelEndpoint.BUILT_IN_NAMES) return stored
-    runCatching { EModelEndpoint.valueOf(stored).toSerialName() }
-        .getOrNull()?.let { return it }
-    return stored
-}
 
 fun Conversation.toEntity(): ConversationEntity = ConversationEntity(
     conversationId = conversationId ?: "",
@@ -42,8 +31,8 @@ fun ConversationEntity.toModel(): Conversation = Conversation(
     conversationId = conversationId,
     title = title,
     user = user,
-    endpoint = normalizeEndpoint(endpoint),
-    endpointType = normalizeEndpoint(endpointType),
+    endpoint = endpoint,
+    endpointType = endpointType,
     model = model,
     agentId = agentId,
     isArchived = isArchived,
