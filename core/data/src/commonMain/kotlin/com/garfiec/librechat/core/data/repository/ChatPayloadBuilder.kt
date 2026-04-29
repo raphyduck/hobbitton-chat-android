@@ -1,6 +1,5 @@
 package com.garfiec.librechat.core.data.repository
 
-import com.garfiec.librechat.core.model.EModelEndpoint
 import com.garfiec.librechat.core.model.FileReference
 import com.garfiec.librechat.core.model.request.AddedConversation
 import com.garfiec.librechat.core.model.request.ChatRequest
@@ -13,6 +12,9 @@ object ChatPayloadBuilder {
         text: String,
         conversationId: String?,
         endpoint: String,
+        endpointType: String? = null,
+        key: String? = null,
+        modelDisplayLabel: String? = null,
         model: String?,
         parentMessageId: String? = null,
         agentId: String? = null,
@@ -26,19 +28,16 @@ object ChatPayloadBuilder {
         addedConvo: AddedConversation? = null,
         ephemeralAgent: EphemeralAgent? = null,
     ): ChatRequest {
-        val resolvedEndpoint = try {
-            EModelEndpoint.valueOf(endpoint.uppercase())
-        } catch (_: IllegalArgumentException) {
-            EModelEndpoint.AGENTS
-        }
-
         val resolvedParentMessageId = parentMessageId ?: NO_PARENT
 
         return ChatRequest(
             text = text,
             conversationId = conversationId,
             parentMessageId = resolvedParentMessageId,
-            endpoint = resolvedEndpoint,
+            endpoint = endpoint,
+            endpointType = endpointType,
+            key = key,
+            modelDisplayLabel = modelDisplayLabel,
             model = model,
             agentId = agentId,
             overrideParentMessageId = overrideParentMessageId,

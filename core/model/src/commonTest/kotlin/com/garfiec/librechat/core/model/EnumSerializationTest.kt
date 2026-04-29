@@ -3,10 +3,32 @@ package com.garfiec.librechat.core.model
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 class EnumSerializationTest {
 
     private val json = Json { ignoreUnknownKeys = true }
+
+    @Test
+    fun fromNameResolvesAllBuiltIns() {
+        assertEquals(EModelEndpoint.OPENAI, EModelEndpoint.fromName("openAI"))
+        assertEquals(EModelEndpoint.GOOGLE, EModelEndpoint.fromName("google"))
+        assertEquals(EModelEndpoint.AZURE_OPENAI, EModelEndpoint.fromName("azureOpenAI"))
+        assertEquals(EModelEndpoint.ANTHROPIC, EModelEndpoint.fromName("anthropic"))
+        assertEquals(EModelEndpoint.AGENTS, EModelEndpoint.fromName("agents"))
+        assertNull(EModelEndpoint.fromName("OpenRouter"))
+        assertNull(EModelEndpoint.fromName("OPENAI"))
+        assertNull(EModelEndpoint.fromName(""))
+    }
+
+    @Test
+    fun builtInNamesIsAllNineWireFormatStrings() {
+        val expected = setOf(
+            "azureOpenAI", "openAI", "google", "anthropic",
+            "assistants", "azureAssistants", "agents", "custom", "bedrock",
+        )
+        assertEquals(expected, EModelEndpoint.BUILT_IN_NAMES)
+    }
 
     @Test
     fun eModelEndpointRoundTrip() {

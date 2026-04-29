@@ -53,7 +53,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.garfiec.librechat.core.ui.components.endpointIconPainter
-import com.garfiec.librechat.core.ui.components.isMonochromeIcon
+import com.garfiec.librechat.core.ui.components.isMonochromeEndpointIcon
 import com.garfiec.librechat.shared.resources.Res
 import com.garfiec.librechat.shared.resources.agents
 import com.garfiec.librechat.shared.resources.bookmark
@@ -400,7 +400,7 @@ private fun DrawerConversationItem(
                 tint = MaterialTheme.colorScheme.primary,
             )
         } else if (iconPainter != null) {
-            val isMonochrome = data.endpoint?.isMonochromeIcon() == true
+            val isMonochrome = isMonochromeEndpointIcon(data.endpoint)
             Icon(
                 painter = iconPainter,
                 contentDescription = null,

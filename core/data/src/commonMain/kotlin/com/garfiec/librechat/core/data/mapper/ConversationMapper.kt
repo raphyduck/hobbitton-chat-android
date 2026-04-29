@@ -11,12 +11,22 @@ import kotlin.time.Instant
 
 private val json = Json { ignoreUnknownKeys = true }
 
+// Legacy compat: pre-fix rows stored the Kotlin enum `.name` (e.g. "OPENAI").
+// Remove once a Room schema migration normalizes the column to wire format.
+private fun normalizeEndpoint(stored: String?): String? {
+    if (stored == null) return null
+    if (stored in EModelEndpoint.BUILT_IN_NAMES) return stored
+    runCatching { EModelEndpoint.valueOf(stored).toSerialName() }
+        .getOrNull()?.let { return it }
+    return stored
+}
+
 fun Conversation.toEntity(): ConversationEntity = ConversationEntity(
     conversationId = conversationId ?: "",
     title = title ?: "New Chat",
     user = user ?: "",
-    endpoint = endpoint?.name,
-    endpointType = endpointType?.name,
+    endpoint = endpoint,
+    endpointType = endpointType,
     model = model,
     agentId = agentId,
     isArchived = isArchived,
@@ -32,12 +42,8 @@ fun ConversationEntity.toModel(): Conversation = Conversation(
     conversationId = conversationId,
     title = title,
     user = user,
-    endpoint = endpoint?.let { name ->
-        EModelEndpoint.entries.find { it.name == name }
-    },
-    endpointType = endpointType?.let { name ->
-        EModelEndpoint.entries.find { it.name == name }
-    },
+    endpoint = normalizeEndpoint(endpoint),
+    endpointType = normalizeEndpoint(endpointType),
     model = model,
     agentId = agentId,
     isArchived = isArchived,

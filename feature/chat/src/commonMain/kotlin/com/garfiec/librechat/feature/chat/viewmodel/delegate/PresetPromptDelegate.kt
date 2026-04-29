@@ -4,7 +4,6 @@ import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.common.result.Result
 import com.garfiec.librechat.core.data.repository.PresetRepository
 import com.garfiec.librechat.core.data.repository.PromptRepository
-import com.garfiec.librechat.core.model.EModelEndpoint
 import com.garfiec.librechat.core.model.Preset
 import com.garfiec.librechat.core.model.PromptGroup
 import com.garfiec.librechat.feature.chat.model.PresetDisplayData
@@ -62,11 +61,7 @@ class PresetPromptDelegate(
         val state = stateHandle.state
         val preset = Preset(
             title = name,
-            endpoint = try {
-                EModelEndpoint.valueOf(state.selectedEndpoint.uppercase())
-            } catch (_: IllegalArgumentException) {
-                null
-            },
+            endpoint = state.selectedEndpoint.takeIf { it.isNotBlank() },
             model = state.selectedModel,
         )
         stateHandle.scope.launch {
@@ -84,7 +79,7 @@ class PresetPromptDelegate(
         val preset = cachedPresets.find { it.presetId == displayData.presetId }
         stateHandle.update {
             copy(
-                selectedEndpoint = preset?.endpoint?.name?.lowercase() ?: selectedEndpoint,
+                selectedEndpoint = preset?.endpoint ?: selectedEndpoint,
                 selectedModel = preset?.model ?: selectedModel,
             )
         }
@@ -170,7 +165,7 @@ class PresetPromptDelegate(
 internal fun Preset.toDisplayData() = PresetDisplayData(
     presetId = presetId,
     title = title ?: "Untitled Preset",
-    endpointLabel = endpoint?.name?.lowercase(),
+    endpointLabel = endpoint,
     model = model,
 )
 

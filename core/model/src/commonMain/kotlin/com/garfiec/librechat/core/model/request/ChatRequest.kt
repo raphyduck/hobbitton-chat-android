@@ -1,6 +1,5 @@
 package com.garfiec.librechat.core.model.request
 
-import com.garfiec.librechat.core.model.EModelEndpoint
 import com.garfiec.librechat.core.model.FileReference
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -14,8 +13,9 @@ data class ChatRequest(
     val text: String,
     val conversationId: String? = null,
     val parentMessageId: String,
-    val endpoint: EModelEndpoint,
-    val endpointType: EModelEndpoint? = null,
+    val endpoint: String,
+    val endpointType: String? = null,
+    val modelDisplayLabel: String? = null,
     val model: String? = null,
     @SerialName("agent_id") val agentId: String? = null,
     val isContinued: Boolean = false,
