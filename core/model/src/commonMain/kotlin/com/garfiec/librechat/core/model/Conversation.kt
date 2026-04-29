@@ -37,3 +37,13 @@ data class Conversation(
     val createdAt: String? = null,
     val updatedAt: String? = null,
 )
+
+/**
+ * Resolves the icon URL to display for this conversation, preferring the per-conversation
+ * [iconURL] (set by agents/assistants threads) over the per-endpoint URL from
+ * [EndpointConfig.iconURL]. Returns null when no URL is available — callers fall through
+ * to the bundled brand glyph or Material fallback.
+ */
+fun Conversation.resolveEndpointIconUrl(
+    endpointConfigs: Map<String, EndpointConfig>,
+): String? = iconURL ?: endpoint?.let { endpointConfigs[it]?.iconURL }

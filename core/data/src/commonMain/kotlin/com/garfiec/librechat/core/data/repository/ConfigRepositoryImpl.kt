@@ -186,4 +186,12 @@ class ConfigRepositoryImpl(
             }
         }
     }
+
+    override suspend fun clear() {
+        _endpointConfigs.value = emptyMap()
+        _availableModels.value = emptyMap()
+        _startupConfig.value = null
+        _detectedBackendVersion.value = null
+        configCache.clear()
+    }
 }

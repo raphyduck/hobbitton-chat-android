@@ -7,6 +7,7 @@ import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.common.extensions.toInstantOrNull
 import com.garfiec.librechat.core.common.extensions.toRelativeDateGroup
 import com.garfiec.librechat.core.common.result.Result
+import com.garfiec.librechat.core.data.repository.ConfigRepository
 import com.garfiec.librechat.core.data.repository.ConversationRepository
 import com.garfiec.librechat.core.data.repository.RoleRepository
 import com.garfiec.librechat.core.data.repository.SearchRepository
@@ -14,6 +15,7 @@ import com.garfiec.librechat.core.data.repository.ShareRepository
 import com.garfiec.librechat.core.data.repository.TagRepository
 import com.garfiec.librechat.core.model.Conversation
 import com.garfiec.librechat.core.model.ConversationTag
+import com.garfiec.librechat.core.model.EndpointConfig
 import com.garfiec.librechat.core.model.SAVED_TAG
 import com.garfiec.librechat.core.model.permissions.Permission
 import com.garfiec.librechat.core.model.permissions.PermissionType
@@ -32,6 +34,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 @Immutable
@@ -67,6 +70,7 @@ class ConversationListViewModel(
     private val conversationExporter: ConversationExporter,
     private val conversationImporter: ConversationImporter,
     private val roleRepository: RoleRepository,
+    private val configRepository: ConfigRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ConversationListUiState())
@@ -76,7 +80,7 @@ class ConversationListViewModel(
     val events: SharedFlow<ConversationListEvent> = _events.asSharedFlow()
 
     /** Raw conversations kept for internal lookups (action sheets, etc.). */
-    private var conversations: List<Conversation> = emptyList()
+    private val _conversations = MutableStateFlow<List<Conversation>>(emptyList())
     private var searchJob: Job? = null
 
     init {
@@ -84,6 +88,7 @@ class ConversationListViewModel(
         observeConversations()
         observeTags()
         observePermissions()
+        observeGroupedConversations()
     }
 
     private fun observePermissions() {
@@ -106,8 +111,7 @@ class ConversationListViewModel(
                     is Result.Success -> {
                         // Only update from Room when not in search mode
                         if (_uiState.value.searchQuery.isEmpty()) {
-                            conversations = result.data
-                            recomputeGroupedConversations()
+                            _conversations.value = result.data
                             _uiState.value = _uiState.value.copy(isLoading = false)
                         }
                     }
@@ -133,16 +137,21 @@ class ConversationListViewModel(
         }
     }
 
-    private fun recomputeGroupedConversations() {
-        val grouped = groupConversationsByDate(conversations)
-        _uiState.value = _uiState.value.copy(
-            groupedConversations = grouped,
-            conversationCount = conversations.size,
-        )
+    private fun observeGroupedConversations() {
+        viewModelScope.launch {
+            combine(_conversations, configRepository.endpointConfigs) { convos, configs ->
+                groupConversationsByDate(convos, configs) to convos.size
+            }.collect { (grouped, count) ->
+                _uiState.value = _uiState.value.copy(
+                    groupedConversations = grouped,
+                    conversationCount = count,
+                )
+            }
+        }
     }
 
     fun getConversation(conversationId: String): Conversation? =
-        conversations.firstOrNull { it.conversationId == conversationId }
+        _conversations.value.firstOrNull { it.conversationId == conversationId }
 
     fun toggleFavorite(conversation: Conversation) {
         val id = conversation.conversationId ?: return
@@ -260,8 +269,7 @@ class ConversationListViewModel(
             _uiState.value = _uiState.value.copy(isSearching = true)
             when (val result = searchRepository.search(query)) {
                 is Result.Success -> {
-                    conversations = result.data
-                    recomputeGroupedConversations()
+                    _conversations.value = result.data
                     _uiState.value = _uiState.value.copy(
                         isSearching = false,
                         hasMore = false,
@@ -452,6 +460,7 @@ class ConversationListViewModel(
     companion object {
         private fun groupConversationsByDate(
             conversations: List<Conversation>,
+            endpointConfigs: Map<String, EndpointConfig>,
         ): List<Pair<String, List<ConversationDisplayData>>> {
             if (conversations.isEmpty()) return emptyList()
             return conversations
@@ -462,7 +471,7 @@ class ConversationListViewModel(
                         ?: "Unknown"
                 }
                 .map { (group, convos) ->
-                    group to convos.map { it.toDisplayData() }
+                    group to convos.map { it.toDisplayData(endpointConfigs) }
                 }
         }
     }
