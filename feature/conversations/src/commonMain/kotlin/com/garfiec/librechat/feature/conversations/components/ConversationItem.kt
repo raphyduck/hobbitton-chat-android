@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -20,13 +19,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.garfiec.librechat.core.common.extensions.toInstantOrNull
 import com.garfiec.librechat.core.model.EModelEndpoint
-import com.garfiec.librechat.core.ui.components.endpointIconPainter
-import com.garfiec.librechat.core.ui.components.isMonochromeEndpointIcon
+import com.garfiec.librechat.core.ui.components.EndpointIcon
 import com.garfiec.librechat.feature.conversations.resources.*
 import com.garfiec.librechat.feature.conversations.resources.Res
 import kotlinx.datetime.TimeZone
@@ -51,8 +48,6 @@ fun ConversationItem(
         data.endpoint?.toDisplayLabel() ?: "Chat"
     }
 
-    val iconPainter = data.endpoint?.let { endpointIconPainter(it) }
-
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -60,26 +55,12 @@ fun ConversationItem(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (iconPainter != null) {
-            val isMonochrome = isMonochromeEndpointIcon(data.endpoint)
-            Icon(
-                painter = iconPainter,
-                contentDescription = endpointLabel,
-                modifier = Modifier.size(24.dp),
-                tint = if (isMonochrome) {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                } else {
-                    Color.Unspecified
-                },
-            )
-        } else {
-            Icon(
-                imageVector = Icons.Default.SmartToy,
-                contentDescription = endpointLabel,
-                modifier = Modifier.size(24.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+        EndpointIcon(
+            endpointName = data.endpoint,
+            iconUrl = data.endpointIconUrl,
+            size = 24.dp,
+            contentDescription = endpointLabel,
+        )
 
         Spacer(modifier = Modifier.width(12.dp))
 
@@ -106,7 +87,7 @@ fun ConversationItem(
                 val modelName = data.model
                 if (modelName != null) {
                     Text(
-                        text = " \u00B7 ",
+                        text = " · ",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.outline,
                     )
@@ -122,7 +103,7 @@ fun ConversationItem(
 
                 if (relativeTime.isNotEmpty()) {
                     Text(
-                        text = " \u00B7 ",
+                        text = " · ",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.outline,
                     )

@@ -47,4 +47,7 @@ interface ConfigRepository {
      * [VersionCheckResult.isCompatible] = true (fail-open).
      */
     suspend fun checkBackendVersion(): Result<VersionCheckResult>
+
+    /** Clear all cached config state (in-memory + disk). Called on logout. */
+    suspend fun clear()
 }

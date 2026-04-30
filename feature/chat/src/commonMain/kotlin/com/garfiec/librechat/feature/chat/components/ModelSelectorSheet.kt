@@ -21,10 +21,8 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
-import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Create
 import androidx.compose.material.icons.outlined.Public
-import androidx.compose.material.icons.outlined.SmartToy
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -43,16 +41,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.garfiec.librechat.core.common.EndpointConstants
 import com.garfiec.librechat.core.model.Agent
 import com.garfiec.librechat.core.model.EndpointConfig
+import com.garfiec.librechat.core.ui.components.EndpointIcon
 import com.garfiec.librechat.core.ui.components.ErrorBanner
-import com.garfiec.librechat.core.ui.components.endpointIconPainter
-import com.garfiec.librechat.core.ui.components.isMonochromeEndpointIcon
 import com.garfiec.librechat.feature.chat.resources.*
 import com.garfiec.librechat.feature.chat.resources.Res
 import com.garfiec.librechat.feature.chat.util.FuzzyMatch
@@ -76,15 +72,6 @@ private fun fuzzyScore(candidate: String, query: String): Int {
         return if (candidate.contains(query, ignoreCase = true)) 100 else 0
     }
     return FuzzyMatch.partialRatio(query, candidate)
-}
-
-/**
- * Returns a Material icon fallback for endpoint names that don't have a bundled drawable.
- */
-private fun endpointFallbackIcon(endpointName: String): ImageVector = when (endpointName) {
-    EndpointConstants.AGENTS -> Icons.Outlined.Create
-    "assistants", "azureAssistants" -> Icons.Outlined.AutoAwesome
-    else -> Icons.Outlined.SmartToy
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -322,6 +309,9 @@ private fun EndpointGroupHeader(
         EndpointIcon(
             endpointName = endpointName,
             iconUrl = iconUrl,
+            size = IconSize,
+            contentDescription = "$endpointName icon",
+            glyphTint = MaterialTheme.colorScheme.onSurface,
         )
         Spacer(modifier = Modifier.width(8.dp))
         Text(
@@ -336,47 +326,6 @@ private fun EndpointGroupHeader(
                 if (isExpanded) Res.string.cd_collapse_section else Res.string.cd_expand_section,
                 displayLabel,
             ),
-            tint = MaterialTheme.colorScheme.onSurface,
-        )
-    }
-}
-
-@Composable
-private fun EndpointIcon(
-    endpointName: String,
-    iconUrl: String?,
-) {
-    // If the endpoint config provides a remote icon URL, use it
-    if (iconUrl != null) {
-        AsyncImage(
-            model = iconUrl,
-            contentDescription = "$endpointName icon",
-            modifier = Modifier
-                .size(IconSize)
-                .clip(CircleShape),
-            contentScale = ContentScale.Crop,
-        )
-        return
-    }
-    // Use the multiplatform endpointIconPainter API
-    val painter = endpointIconPainter(endpointName)
-    if (painter != null) {
-        val tint = if (isMonochromeEndpointIcon(endpointName)) {
-            MaterialTheme.colorScheme.onSurface
-        } else {
-            Color.Unspecified
-        }
-        Icon(
-            painter = painter,
-            contentDescription = "$endpointName icon",
-            modifier = Modifier.size(IconSize),
-            tint = tint,
-        )
-    } else {
-        Icon(
-            imageVector = endpointFallbackIcon(endpointName),
-            contentDescription = "$endpointName icon",
-            modifier = Modifier.size(IconSize),
             tint = MaterialTheme.colorScheme.onSurface,
         )
     }

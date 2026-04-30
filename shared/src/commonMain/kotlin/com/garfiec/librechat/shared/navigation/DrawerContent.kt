@@ -45,15 +45,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.garfiec.librechat.core.ui.components.endpointIconPainter
-import com.garfiec.librechat.core.ui.components.isMonochromeEndpointIcon
+import com.garfiec.librechat.core.ui.components.EndpointIcon
 import com.garfiec.librechat.shared.resources.Res
 import com.garfiec.librechat.shared.resources.agents
 import com.garfiec.librechat.shared.resources.bookmark
@@ -365,8 +363,6 @@ private fun DrawerConversationItem(
     onToggleFavorite: () -> Unit = {},
     showBookmarkToggle: Boolean = true,
 ) {
-    val iconPainter = data.endpoint?.let { endpointIconPainter(it) }
-
     val backgroundColor = if (data.isActive) {
         MaterialTheme.colorScheme.secondaryContainer
     } else {
@@ -399,24 +395,12 @@ private fun DrawerConversationItem(
                 modifier = Modifier.size(18.dp),
                 tint = MaterialTheme.colorScheme.primary,
             )
-        } else if (iconPainter != null) {
-            val isMonochrome = isMonochromeEndpointIcon(data.endpoint)
-            Icon(
-                painter = iconPainter,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp),
-                tint = if (isMonochrome) {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                } else {
-                    Color.Unspecified
-                },
-            )
         } else {
-            Icon(
-                imageVector = Icons.Default.SmartToy,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp),
-                tint = if (data.isActive) {
+            EndpointIcon(
+                endpointName = data.endpoint,
+                iconUrl = data.endpointIconUrl,
+                size = 18.dp,
+                glyphTint = if (data.isActive) {
                     MaterialTheme.colorScheme.primary
                 } else {
                     MaterialTheme.colorScheme.onSurfaceVariant

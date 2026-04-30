@@ -1,6 +1,7 @@
 package com.garfiec.librechat.feature.conversations.viewmodel
 
 import com.garfiec.librechat.core.common.result.Result
+import com.garfiec.librechat.core.data.repository.ConfigRepository
 import com.garfiec.librechat.core.data.repository.ConversationRepository
 import com.garfiec.librechat.core.data.repository.RoleRepository
 import com.garfiec.librechat.core.data.repository.SearchRepository
@@ -8,6 +9,7 @@ import com.garfiec.librechat.core.data.repository.ShareRepository
 import com.garfiec.librechat.core.data.repository.TagRepository
 import com.garfiec.librechat.core.model.Conversation
 import com.garfiec.librechat.core.model.ConversationTag
+import com.garfiec.librechat.core.model.EndpointConfig
 import com.garfiec.librechat.core.model.SAVED_TAG
 import com.garfiec.librechat.feature.conversations.export.ConversationExporter
 import com.garfiec.librechat.feature.conversations.export.ConversationImporter
@@ -42,6 +44,10 @@ class ConversationListViewModelTest {
     private val conversationExporter = mockk<ConversationExporter>(relaxed = true)
     private val conversationImporter = mockk<ConversationImporter>(relaxed = true)
     private val roleRepository = mockk<RoleRepository>(relaxed = true)
+    private val endpointConfigsFlow = MutableStateFlow<Map<String, EndpointConfig>>(emptyMap())
+    private val configRepository = mockk<ConfigRepository>(relaxed = true) {
+        every { endpointConfigs } returns endpointConfigsFlow
+    }
 
     private lateinit var viewModel: ConversationListViewModel
 
@@ -92,6 +98,7 @@ class ConversationListViewModelTest {
         conversationExporter = conversationExporter,
         conversationImporter = conversationImporter,
         roleRepository = roleRepository,
+        configRepository = configRepository,
     )
 
     @Test
@@ -538,5 +545,38 @@ class ConversationListViewModelTest {
         coVerify(exactly = 0) {
             tagRepository.toggleFavorite(any(), any())
         }
+    }
+
+    @Test
+    fun `endpointConfigs arriving late re-groups rows with iconURL`() = runTest {
+        // Conversation has no per-convo iconURL; relies on the endpoint config fallback.
+        val convo = Conversation(
+            conversationId = "convo-icon-1",
+            title = "OpenRouter chat",
+            endpoint = "OpenRouter",
+            iconURL = null,
+            updatedAt = "2026-02-19T10:00:00.000Z",
+        )
+        every { conversationRepository.observeConversations(any()) } returns flowOf(
+            Result.Success(listOf(convo)),
+        )
+
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        // Initial frame: configs are empty; endpointIconUrl must be null.
+        val initialFlat = viewModel.uiState.value.groupedConversations.flatMap { it.second }
+        assertThat(initialFlat).hasSize(1)
+        assertThat(initialFlat[0].endpointIconUrl).isNull()
+
+        // Configs arrive after the first emission.
+        endpointConfigsFlow.value = mapOf(
+            "OpenRouter" to EndpointConfig(iconURL = "https://openrouter.ai/favicon.ico"),
+        )
+        advanceUntilIdle()
+
+        val updatedFlat = viewModel.uiState.value.groupedConversations.flatMap { it.second }
+        assertThat(updatedFlat).hasSize(1)
+        assertThat(updatedFlat[0].endpointIconUrl).isEqualTo("https://openrouter.ai/favicon.ico")
     }
 }

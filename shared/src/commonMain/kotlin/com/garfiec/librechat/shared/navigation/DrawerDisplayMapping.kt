@@ -3,7 +3,9 @@ package com.garfiec.librechat.shared.navigation
 import com.garfiec.librechat.core.common.extensions.formatMonthAbbrev
 import com.garfiec.librechat.core.common.extensions.toInstantOrNull
 import com.garfiec.librechat.core.model.Conversation
+import com.garfiec.librechat.core.model.EndpointConfig
 import com.garfiec.librechat.core.model.SAVED_TAG
+import com.garfiec.librechat.core.model.resolveEndpointIconUrl
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
@@ -18,6 +20,7 @@ internal data class DrawerDataSnapshot(
 
 internal fun Conversation.toDrawerDisplayData(
     activeConversationId: String?,
+    endpointConfigs: Map<String, EndpointConfig>,
 ): DrawerConversationDisplayData {
     val convId = conversationId ?: ""
     return DrawerConversationDisplayData(
@@ -29,6 +32,7 @@ internal fun Conversation.toDrawerDisplayData(
         isActive = convId == activeConversationId,
         isFavorite = SAVED_TAG in tags,
         tags = tags,
+        endpointIconUrl = resolveEndpointIconUrl(endpointConfigs),
     )
 }
 

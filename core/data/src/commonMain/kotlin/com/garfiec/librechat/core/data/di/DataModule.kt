@@ -53,6 +53,7 @@ import com.garfiec.librechat.core.data.repository.TagRepository
 import com.garfiec.librechat.core.data.repository.TagRepositoryImpl
 import com.garfiec.librechat.core.data.repository.UserRepository
 import com.garfiec.librechat.core.data.repository.UserRepositoryImpl
+import com.garfiec.librechat.core.data.util.EndpointConfigFetchSessionTask
 import com.garfiec.librechat.core.data.util.PermissionGate
 import com.garfiec.librechat.core.data.util.RefreshTagsSessionTask
 import com.garfiec.librechat.core.data.util.RoleFetchSessionTask
@@ -127,6 +128,7 @@ val dataModule = module {
     singleOf(::RoleFetchSessionTask) bind SessionTask::class
     singleOf(::RefreshTagsSessionTask) bind SessionTask::class
     singleOf(::SyncFavoritesSessionTask) bind SessionTask::class
+    singleOf(::EndpointConfigFetchSessionTask) bind SessionTask::class
     single {
         SessionTaskRunner(
             tasks = getAll<SessionTask>(),

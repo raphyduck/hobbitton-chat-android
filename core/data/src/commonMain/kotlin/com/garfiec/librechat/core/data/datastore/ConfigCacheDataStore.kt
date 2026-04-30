@@ -88,6 +88,18 @@ class ConfigCacheDataStore(
         }
     }
 
+    suspend fun clear() {
+        try {
+            dataStore.edit { prefs ->
+                prefs.remove(KEY_STARTUP_CONFIG)
+                prefs.remove(KEY_ENDPOINT_CONFIGS)
+                prefs.remove(KEY_AVAILABLE_MODELS)
+            }
+        } catch (e: Exception) {
+            Logger.w(e) { "Failed to clear cached config" }
+        }
+    }
+
     companion object {
         private val KEY_STARTUP_CONFIG = stringPreferencesKey("cached_startup_config")
         private val KEY_ENDPOINT_CONFIGS = stringPreferencesKey("cached_endpoint_configs")

@@ -33,7 +33,7 @@ import kotlinx.coroutines.launch
 class NavHostViewModel(
     private val authRepository: AuthRepository,
     bannerRepository: BannerRepository,
-    configRepository: ConfigRepository,
+    private val configRepository: ConfigRepository,
     private val conversationRepository: ConversationRepository,
     private val roleRepository: RoleRepository,
     private val sessionTaskRunner: SessionTaskRunner,
@@ -117,12 +117,16 @@ class NavHostViewModel(
             Triple(refreshing, loadingMore, hasMore)
         },
         drawerPermissionFlags,
-    ) { data, (refreshing, loadingMore, hasMore), perms ->
+        configRepository.endpointConfigs,
+    ) { data, refreshState, perms, endpointConfigs ->
+        val (refreshing, loadingMore, hasMore) = refreshState
         DrawerUiState(
             groupedConversations = data.grouped.map { (group, convos) ->
-                group to convos.map { it.toDrawerDisplayData(data.activeId) }
+                group to convos.map { it.toDrawerDisplayData(data.activeId, endpointConfigs) }
             },
-            favoriteConversations = data.favConvos.map { it.toDrawerDisplayData(data.activeId) },
+            favoriteConversations = data.favConvos.map {
+                it.toDrawerDisplayData(data.activeId, endpointConfigs)
+            },
             searchQuery = data.query,
             isRefreshing = refreshing,
             isLoadingMore = loadingMore,
@@ -216,6 +220,7 @@ class NavHostViewModel(
             _isLoggedIn.value = false
             conversationListStateHolder.reset()
             tagRepository.clearCache()
+            configRepository.clear()
             _sidebarMode.value = SidebarMode.Conversations
             _selectedSettingsCategory.value = null
         }
