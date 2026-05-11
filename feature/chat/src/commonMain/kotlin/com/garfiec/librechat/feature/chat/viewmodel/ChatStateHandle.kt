@@ -2,6 +2,7 @@ package com.garfiec.librechat.feature.chat.viewmodel
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
 
 /**
  * Shared state accessor passed to all ChatViewModel delegates.
@@ -14,6 +15,6 @@ class ChatStateHandle(
     val state: ChatUiState get() = stateFlow.value
 
     fun update(transform: ChatUiState.() -> ChatUiState) {
-        stateFlow.value = stateFlow.value.transform()
+        stateFlow.update { it.transform() }
     }
 }

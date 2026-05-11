@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.outlined.Create
 import androidx.compose.material.icons.outlined.Public
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -30,6 +31,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -39,6 +41,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -47,6 +50,7 @@ import coil3.compose.AsyncImage
 import com.garfiec.librechat.core.common.EndpointConstants
 import com.garfiec.librechat.core.model.Agent
 import com.garfiec.librechat.core.model.EndpointConfig
+import com.garfiec.librechat.core.model.endpoint.KeyState
 import com.garfiec.librechat.core.ui.components.EndpointIcon
 import com.garfiec.librechat.core.ui.components.ErrorBanner
 import com.garfiec.librechat.feature.chat.resources.*
@@ -92,6 +96,18 @@ fun ModelSelectorSheet(
     favoriteModelKeys: Set<String> = emptySet(),
     onToggleAgentFavorite: ((agentId: String) -> Unit)? = null,
     onToggleModelFavorite: ((endpoint: String, model: String) -> Unit)? = null,
+    /**
+     * Per-endpoint user-provided-key state. Endpoints whose key is [KeyState.Unset]
+     * or [KeyState.Expired] render a greyed group with a "Set API Key" CTA. Absent
+     * keys (built-in endpoints) and [KeyState.Loading] / [KeyState.Set] all
+     * fail-open to the normal selectable rendering.
+     */
+    endpointKeyStates: Map<String, KeyState> = emptyMap(),
+    /**
+     * Invoked with the endpoint name when the user taps the "Set API Key" CTA on
+     * a greyed group. Implementations should navigate to Settings → Provider API Keys.
+     */
+    onSetApiKey: (endpointName: String) -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
     var searchQuery by remember { mutableStateOf("") }
@@ -238,17 +254,24 @@ fun ModelSelectorSheet(
                         val displayLabel = config?.modelDisplayLabel ?: endpointName
                         // Auto-expand groups when searching, otherwise use manual toggle state
                         val isExpanded = expandedGroups[endpointName] != false
+                        // Endpoints with userProvide=true and Unset/Expired key render disabled
+                        // with a "Set API Key" CTA. Loading and absent states fail-open.
+                        val keyState = endpointKeyStates[endpointName]
+                        val needsKey = keyState is KeyState.Unset || keyState is KeyState.Expired
+                        val effectiveExpanded = isExpanded && !needsKey
                         item(key = "header_$endpointName") {
                             EndpointGroupHeader(
                                 endpointName = endpointName,
                                 displayLabel = displayLabel,
                                 modelCount = filteredModels.size,
-                                isExpanded = isExpanded,
+                                isExpanded = effectiveExpanded,
                                 iconUrl = config?.iconURL,
                                 onToggle = { expandedGroups[endpointName] = !isExpanded },
+                                needsKey = needsKey,
+                                onSetApiKey = { onSetApiKey(endpointName) },
                             )
                         }
-                        if (isExpanded) {
+                        if (effectiveExpanded) {
                             items(filteredModels, key = { "${endpointName}_$it" }, contentType = { "model" }) { model ->
                                 val isSelected = endpointName == selectedEndpoint && model == selectedModel
                                 val isFavorite = "$endpointName::$model" in favoriteModelKeys
@@ -298,35 +321,81 @@ private fun EndpointGroupHeader(
     isExpanded: Boolean,
     iconUrl: String?,
     onToggle: () -> Unit,
+    needsKey: Boolean = false,
+    onSetApiKey: () -> Unit = {},
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onToggle)
+            // Drop the clickable modifier entirely when needsKey — Compose's
+            // `clickable(enabled = false)` still consumes touch events and
+            // announces "disabled" to TalkBack/VoiceOver. Only the inner
+            // SetApiKeyChip remains interactive in that branch.
+            .then(if (needsKey) Modifier else Modifier.clickable(onClick = onToggle))
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        // Disabled icon + label use Material's standard 0.38 disabled alpha. The
+        // CTA chip below stays full-opacity so the action remains discoverable.
+        val labelAlpha = if (needsKey) 0.38f else 1f
         EndpointIcon(
             endpointName = endpointName,
             iconUrl = iconUrl,
             size = IconSize,
             contentDescription = "$endpointName icon",
             glyphTint = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.alpha(labelAlpha),
         )
         Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = "$displayLabel ($modelCount)",
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier
+                .weight(1f)
+                .alpha(labelAlpha),
         )
+        if (needsKey) {
+            SetApiKeyChip(
+                endpointLabel = displayLabel,
+                onClick = onSetApiKey,
+            )
+        } else {
+            Icon(
+                imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                contentDescription = stringResource(
+                    if (isExpanded) Res.string.cd_collapse_section else Res.string.cd_expand_section,
+                    displayLabel,
+                ),
+                tint = MaterialTheme.colorScheme.onSurface,
+            )
+        }
+    }
+}
+
+/**
+ * Mirrors LibreChat web's "Set API Key" pill on greyed endpoint rows. Tapping
+ * navigates to Settings → Provider API Keys with the endpoint pre-targeted.
+ */
+@Composable
+private fun SetApiKeyChip(
+    endpointLabel: String,
+    onClick: () -> Unit,
+) {
+    val label = stringResource(Res.string.set_api_key_action)
+    val cd = stringResource(Res.string.cd_set_api_key, endpointLabel)
+    TextButton(onClick = onClick) {
         Icon(
-            imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-            contentDescription = stringResource(
-                if (isExpanded) Res.string.cd_collapse_section else Res.string.cd_expand_section,
-                displayLabel,
-            ),
-            tint = MaterialTheme.colorScheme.onSurface,
+            imageVector = Icons.Outlined.Settings,
+            contentDescription = cd,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(IconSize),
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.primary,
         )
     }
 }

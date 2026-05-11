@@ -94,6 +94,7 @@ actual fun ChatScreen(
     onOpenDrawer: (() -> Unit)?,
     onNavigateToPromptsLibrary: (() -> Unit)?,
     onNavigateBack: (() -> Unit)?,
+    onNavigateToProviderKeys: (endpointName: String?) -> Unit,
 ) {
     val viewModel: ChatViewModel = koinViewModel { parametersOf(conversationId) }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -156,6 +157,12 @@ actual fun ChatScreen(
             viewModel.dismissError()
         }
     }
+
+    UserKeyErrorSnackbarEffect(
+        viewModel = viewModel,
+        snackbarHostState = snackbarHostState,
+        onNavigateToProviderKeys = onNavigateToProviderKeys,
+    )
 
     val sendBlockMessage = uiState.sendBlockReason?.asString()
 
@@ -563,6 +570,8 @@ actual fun ChatScreen(
             favoriteModelKeys = uiState.favoriteModelKeys,
             onToggleAgentFavorite = viewModel::toggleAgentFavorite,
             onToggleModelFavorite = viewModel::toggleModelFavorite,
+            endpointKeyStates = uiState.endpointKeyStates,
+            onSetApiKey = { name -> onNavigateToProviderKeys(name) },
         )
     }
 
@@ -642,11 +651,13 @@ actual fun NewChatScreen(
     modifier: Modifier,
     onOpenDrawer: (() -> Unit)?,
     onNavigateToPromptsLibrary: (() -> Unit)?,
+    onNavigateToProviderKeys: (endpointName: String?) -> Unit,
 ) {
     ChatScreen(
         modifier = modifier,
         onConversationStart = onConversationStart,
         onOpenDrawer = onOpenDrawer,
         onNavigateToPromptsLibrary = onNavigateToPromptsLibrary,
+        onNavigateToProviderKeys = onNavigateToProviderKeys,
     )
 }

@@ -6,6 +6,7 @@ import com.garfiec.librechat.feature.auth.navigation.AuthRoute
 import com.garfiec.librechat.feature.auth.navigation.ServerUrl
 import com.garfiec.librechat.feature.chat.navigation.Chat
 import com.garfiec.librechat.feature.chat.navigation.NewChat
+import com.garfiec.librechat.feature.settings.navigation.ProviderKeys
 
 /**
  * Encapsulates all back stack mutations for Nav 3 navigation.
@@ -33,6 +34,20 @@ class Navigator(val backStack: NavBackStack<NavKey>) {
             backStack.removeLastOrNull()
         }
         backStack.add(Chat(conversationId))
+    }
+
+    /**
+     * Navigate to Provider API Keys with optional auto-open dialog. Dedupes when the
+     * top of the stack is already [ProviderKeys]: no-op when the pending endpoint is
+     * identical, otherwise replace so the dialog refreshes for a different endpoint.
+     */
+    fun navigateToProviderKeys(endpointName: String?) {
+        val top = backStack.lastOrNull()
+        if (top is ProviderKeys) {
+            if (top.pendingDialogEndpoint == endpointName) return
+            backStack.removeLastOrNull()
+        }
+        backStack.add(ProviderKeys(pendingDialogEndpoint = endpointName))
     }
 
     /** Navigate to a top-level destination, popping to root first. */

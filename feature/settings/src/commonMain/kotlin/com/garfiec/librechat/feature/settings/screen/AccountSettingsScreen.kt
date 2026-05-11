@@ -73,6 +73,7 @@ fun AccountSettingsScreen(
     onNavigateBack: () -> Unit,
     onNavigateToApiKeys: () -> Unit,
     onNavigateToFavorites: () -> Unit,
+    onNavigateToProviderKeys: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
@@ -98,6 +99,7 @@ fun AccountSettingsScreen(
             onLogout = onLogout,
             onNavigateToApiKeys = onNavigateToApiKeys,
             onNavigateToFavorites = onNavigateToFavorites,
+            onNavigateToProviderKeys = onNavigateToProviderKeys,
             snackbarHostState = snackbarHostState,
             modifier = Modifier
                 .fillMaxSize()
@@ -115,6 +117,7 @@ fun AccountSettingsContent(
     onLogout: () -> Unit,
     onNavigateToApiKeys: () -> Unit,
     onNavigateToFavorites: () -> Unit,
+    onNavigateToProviderKeys: () -> Unit,
     modifier: Modifier = Modifier,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
     viewModel: SettingsViewModel = koinViewModel(),
@@ -197,6 +200,14 @@ fun AccountSettingsContent(
                         title = stringResource(Res.string.api_keys),
                         subtitle = stringResource(Res.string.api_keys_subtitle),
                         onClick = onNavigateToApiKeys,
+                    )
+                }
+                item(key = "provider_keys_row") {
+                    AccountSettingsRow(
+                        icon = Icons.Default.Key,
+                        title = stringResource(Res.string.provider_keys_title),
+                        subtitle = stringResource(Res.string.provider_keys_subtitle),
+                        onClick = onNavigateToProviderKeys,
                     )
                 }
                 item(key = "favorites_row") {

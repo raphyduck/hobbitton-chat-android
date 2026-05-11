@@ -281,6 +281,9 @@ fun MainNavDisplay(
                 onBack = { navigator.goBack() },
                 onNavigateToChat = { navigator.navigateToChat(it) },
                 onOpenDrawer = onMenuClick,
+                onNavigateToProviderKeys = { endpointName ->
+                    navigator.navigateToProviderKeys(endpointName)
+                },
             )
             conversationsEntries(
                 onConversationClick = { navigator.navigateToChat(it) },

@@ -7,6 +7,7 @@ import com.garfiec.librechat.feature.auth.navigation.Login
 import com.garfiec.librechat.feature.auth.navigation.ServerUrl
 import com.garfiec.librechat.feature.chat.navigation.Chat
 import com.garfiec.librechat.feature.chat.navigation.NewChat
+import com.garfiec.librechat.feature.settings.navigation.ProviderKeys
 import com.garfiec.librechat.feature.settings.navigation.SettingsTabbed
 import com.garfiec.librechat.shared.navigation.Navigator
 import org.junit.Assert.assertEquals
@@ -135,5 +136,45 @@ class NavigatorTest {
         val navigator = createNavigator(ServerUrl, Login)
         navigator.navigateToChat()
         assertEquals(listOf(NewChat), navigator.backStack.toList())
+    }
+
+    @Test
+    fun `navigateToProviderKeys adds route when not on top`() {
+        val navigator = createNavigator(NewChat)
+        navigator.navigateToProviderKeys("openAI")
+        assertEquals(
+            listOf(NewChat, ProviderKeys(pendingDialogEndpoint = "openAI")),
+            navigator.backStack.toList(),
+        )
+    }
+
+    @Test
+    fun `navigateToProviderKeys is no-op when same endpoint already on top`() {
+        val navigator = createNavigator(NewChat, ProviderKeys(pendingDialogEndpoint = "openAI"))
+        navigator.navigateToProviderKeys("openAI")
+        assertEquals(
+            listOf(NewChat, ProviderKeys(pendingDialogEndpoint = "openAI")),
+            navigator.backStack.toList(),
+        )
+    }
+
+    @Test
+    fun `navigateToProviderKeys replaces top when different endpoint already on top`() {
+        val navigator = createNavigator(NewChat, ProviderKeys(pendingDialogEndpoint = "openAI"))
+        navigator.navigateToProviderKeys("anthropic")
+        assertEquals(
+            listOf(NewChat, ProviderKeys(pendingDialogEndpoint = "anthropic")),
+            navigator.backStack.toList(),
+        )
+    }
+
+    @Test
+    fun `navigateToProviderKeys with null endpoint dedupes against null-top`() {
+        val navigator = createNavigator(NewChat, ProviderKeys(pendingDialogEndpoint = null))
+        navigator.navigateToProviderKeys(null)
+        assertEquals(
+            listOf(NewChat, ProviderKeys(pendingDialogEndpoint = null)),
+            navigator.backStack.toList(),
+        )
     }
 }

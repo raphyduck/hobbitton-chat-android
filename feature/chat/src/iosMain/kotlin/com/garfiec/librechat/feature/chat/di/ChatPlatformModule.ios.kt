@@ -26,6 +26,7 @@ actual val chatPlatformModule: Module = module {
             conversationRepository = get(),
             draftRepository = get(),
             favoritesRepository = get(),
+            keyRepository = get(),
             presetRepository = get(),
             promptRepository = get(),
             shareRepository = get(),

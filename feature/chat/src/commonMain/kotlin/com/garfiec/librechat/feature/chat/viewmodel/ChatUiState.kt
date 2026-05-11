@@ -10,6 +10,7 @@ import com.garfiec.librechat.core.model.Agent
 import com.garfiec.librechat.core.model.Attachment
 import com.garfiec.librechat.core.model.EndpointConfig
 import com.garfiec.librechat.core.model.Message
+import com.garfiec.librechat.core.model.endpoint.KeyState
 import com.garfiec.librechat.core.ui.components.ModelParameters
 import com.garfiec.librechat.feature.chat.model.McpServerDisplayData
 import com.garfiec.librechat.feature.chat.model.PresetDisplayData
@@ -91,6 +92,14 @@ data class ChatUiState(
     val selectedModel: String? = null,
     val selectedEndpoint: String = EndpointConstants.AGENTS,
     val endpointConfigs: Map<String, EndpointConfig> = emptyMap(),
+    /**
+     * Per-endpoint user-provided-key state for endpoints with `userProvide=true`
+     * (or `userProvideURL=true`). Drives the model selector's greyed-out group +
+     * "Set API Key" CTA. Endpoints absent from this map are implicitly "doesn't
+     * need a key" (built-ins) — [ModelSelectorSheet] fail-opens on `null` and
+     * on [KeyState.Loading] so the cold-start window doesn't flash to greyed.
+     */
+    val endpointKeyStates: Map<String, KeyState> = emptyMap(),
     val availableModels: Map<String, List<String>> = emptyMap(),
     val agents: List<Agent> = emptyList(),
     val conversationId: String? = null,

@@ -26,6 +26,13 @@ fun EntryProviderScope<NavKey>.chatEntries(
     onBack: () -> Unit,
     onNavigateToChat: (String) -> Unit,
     onOpenDrawer: (() -> Unit)? = null,
+    /**
+     * Deep-link target for the user-provided-key error CTA snackbar and
+     * the model-selector "Set API Key" CTA on greyed endpoint groups. The host navigates
+     * to Settings → Provider API Keys. When [endpointName] is non-null, the destination
+     * screen auto-opens the Set Key bottom-sheet for that endpoint.
+     */
+    onNavigateToProviderKeys: (endpointName: String?) -> Unit,
 ) {
     entry<NewChat> {
         NewChatScreen(
@@ -34,6 +41,7 @@ fun EntryProviderScope<NavKey>.chatEntries(
             },
             onOpenDrawer = onOpenDrawer,
             onNavigateToPromptsLibrary = { onNavigate(PromptsLibrary) },
+            onNavigateToProviderKeys = onNavigateToProviderKeys,
         )
     }
     entry<Chat> { key ->
@@ -43,6 +51,7 @@ fun EntryProviderScope<NavKey>.chatEntries(
             onNavigateToPromptsLibrary = { onNavigate(PromptsLibrary) },
             onNavigateBack = onBack,
             onNavigateToConversation = { conversationId -> onNavigateToChat(conversationId) },
+            onNavigateToProviderKeys = onNavigateToProviderKeys,
         )
     }
     entry<PromptsLibrary> {
