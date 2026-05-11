@@ -12,6 +12,7 @@ import com.garfiec.librechat.feature.settings.screen.GeneralSettingsScreen
 import com.garfiec.librechat.feature.settings.screen.PresetManagerScreen
 import com.garfiec.librechat.feature.settings.screen.SharedLinksScreen
 import com.garfiec.librechat.feature.settings.screen.TabbedSettingsScreen
+import com.garfiec.librechat.feature.settings.screen.providerkeys.ProviderKeysScreen
 import com.garfiec.librechat.feature.settings.viewmodel.SettingsViewModel
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.modules.SerializersModule
@@ -37,12 +38,27 @@ import org.koin.compose.viewmodel.koinViewModel
 
 @Serializable data object ApiKeys : SettingsRoute
 
+/**
+ * Provider API Keys list screen route.
+ *
+ * @property pendingDialogEndpoint when non-null, the screen auto-opens the Set Key
+ *   bottom-sheet dialog for this endpoint on first composition. Used by the chat
+ *   model-selector "Set API Key" CTA and the chat-send `UserKeyError` snackbar to
+ *   land the user directly on the right form instead of forcing a second tap.
+ *   Null on the regular Settings → Provider API Keys path (TabbedSettings,
+ *   AccountSettings) — list view is shown without auto-opening any dialog.
+ */
+@Serializable data class ProviderKeys(val pendingDialogEndpoint: String? = null) : SettingsRoute
+
 fun EntryProviderScope<NavKey>.settingsEntries(
     onNavigate: (NavKey) -> Unit,
     onBack: () -> Unit,
     onLogout: () -> Unit,
     onNavigateToArchive: () -> Unit = {},
 ) {
+    // Hoisted: navigation to ProviderKeys() (no pending endpoint) is identical in Tabbed
+    // and Account — share the resolver so callers don't construct it twice.
+    val navigateToProviderKeys: () -> Unit = { onNavigate(ProviderKeys()) }
     entry<SettingsTabbed> {
         TabbedSettingsScreen(
             onNavigateBack = onBack,
@@ -52,6 +68,7 @@ fun EntryProviderScope<NavKey>.settingsEntries(
             onNavigateToPresets = { onNavigate(PresetManager) },
             onNavigateToApiKeys = { onNavigate(ApiKeys) },
             onNavigateToFavorites = { onNavigate(Favorites) },
+            onNavigateToProviderKeys = navigateToProviderKeys,
         )
     }
     entry<SettingsGeneral> {
@@ -71,6 +88,7 @@ fun EntryProviderScope<NavKey>.settingsEntries(
             onNavigateBack = onBack,
             onNavigateToApiKeys = { onNavigate(ApiKeys) },
             onNavigateToFavorites = { onNavigate(Favorites) },
+            onNavigateToProviderKeys = navigateToProviderKeys,
         )
     }
     entry<SettingsData> {
@@ -109,6 +127,12 @@ fun EntryProviderScope<NavKey>.settingsEntries(
             onNavigateBack = onBack,
         )
     }
+    entry<ProviderKeys> { route ->
+        ProviderKeysScreen(
+            onNavigateBack = onBack,
+            pendingDialogEndpoint = route.pendingDialogEndpoint,
+        )
+    }
     favoritesEntry(onBack = onBack)
 }
 
@@ -122,6 +146,7 @@ val settingsSerializersModule = SerializersModule {
         subclass(SharedLinks::class, SharedLinks.serializer())
         subclass(PresetManager::class, PresetManager.serializer())
         subclass(ApiKeys::class, ApiKeys.serializer())
+        subclass(ProviderKeys::class, ProviderKeys.serializer())
         subclass(Memories::class, Memories.serializer())
         subclass(McpServers::class, McpServers.serializer())
         subclass(Favorites::class, Favorites.serializer())

@@ -5,7 +5,6 @@ import com.garfiec.librechat.core.common.EndpointConstants
 import com.garfiec.librechat.core.common.ToolConstants
 import com.garfiec.librechat.core.common.result.Result
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
-import com.garfiec.librechat.core.data.endpoint.EndpointClassifier
 import com.garfiec.librechat.core.data.repository.AgentRepository
 import com.garfiec.librechat.core.data.repository.ConfigRepository
 import com.garfiec.librechat.core.data.repository.McpRepository
@@ -19,6 +18,7 @@ import com.garfiec.librechat.feature.chat.model.McpServerDisplayData
 import com.garfiec.librechat.feature.chat.viewmodel.ChatScreenState
 import com.garfiec.librechat.feature.chat.viewmodel.ChatStateHandle
 import com.garfiec.librechat.feature.chat.viewmodel.ComparisonState
+import com.garfiec.librechat.feature.chat.viewmodel.resolveEndpointDispatch
 import kotlinx.coroutines.launch
 
 class ModelSelectionDelegate(
@@ -201,14 +201,23 @@ class ModelSelectionDelegate(
     /**
      * Builds an [AddedConversation] for the secondary agent/model in comparison mode.
      * Returns null if comparison is not enabled or secondary selection is incomplete.
+     *
+     * Reads the per-endpoint user-provided-key state out of `ChatUiState.endpointKeyStates`
+     * (populated by `EndpointKeyStatusDelegate`) instead of issuing a per-call
+     * `getKeyExpiry` GET — keeps the chat-send hot path off the network.
      */
     fun buildAddedConvo(parentMessageId: String? = null): AddedConversation? {
-        val comparison = stateHandle.state.comparisonState
+        val state = stateHandle.state
+        val comparison = state.comparisonState
         if (!comparison.isEnabled) return null
         val endpoint = comparison.secondaryEndpoint ?: return null
         val model = comparison.secondaryModel ?: return null
         val isAgent = endpoint == EndpointConstants.AGENTS
-        val dispatch = EndpointClassifier.classify(endpoint, stateHandle.state.endpointConfigs)
+        val dispatch = resolveEndpointDispatch(
+            endpointName = endpoint,
+            endpointConfigs = state.endpointConfigs,
+            endpointKeyStates = state.endpointKeyStates,
+        )
         val added = AddedConversation(
             conversationId = stateHandle.state.conversationId,
             parentMessageId = parentMessageId,

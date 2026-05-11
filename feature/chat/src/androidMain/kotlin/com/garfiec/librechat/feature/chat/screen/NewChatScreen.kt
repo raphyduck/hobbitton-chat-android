@@ -15,11 +15,13 @@ actual fun NewChatScreen(
     modifier: Modifier,
     onOpenDrawer: (() -> Unit)?,
     onNavigateToPromptsLibrary: (() -> Unit)?,
+    onNavigateToProviderKeys: (endpointName: String?) -> Unit,
 ) {
     ChatScreen(
         modifier = modifier,
         onConversationStart = onConversationStart,
         onOpenDrawer = onOpenDrawer,
         onNavigateToPromptsLibrary = onNavigateToPromptsLibrary,
+        onNavigateToProviderKeys = onNavigateToProviderKeys,
     )
 }

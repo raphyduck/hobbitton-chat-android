@@ -12,7 +12,6 @@ import com.garfiec.librechat.core.common.result.getOrNull
 import com.garfiec.librechat.core.data.datastore.LatexRenderer
 import com.garfiec.librechat.core.data.datastore.ServerDataStore
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
-import com.garfiec.librechat.core.data.endpoint.EndpointClassifier
 import com.garfiec.librechat.core.data.endpoint.EndpointDispatch
 import com.garfiec.librechat.core.data.repository.AgentRepository
 import com.garfiec.librechat.core.data.repository.ChatRepository
@@ -20,6 +19,7 @@ import com.garfiec.librechat.core.data.repository.ConfigRepository
 import com.garfiec.librechat.core.data.repository.ConversationRepository
 import com.garfiec.librechat.core.data.repository.DraftRepository
 import com.garfiec.librechat.core.data.repository.FavoritesRepository
+import com.garfiec.librechat.core.data.repository.KeyRepository
 import com.garfiec.librechat.core.data.repository.McpRepository
 import com.garfiec.librechat.core.data.repository.MessageRepository
 import com.garfiec.librechat.core.data.repository.PresetRepository
@@ -32,6 +32,8 @@ import com.garfiec.librechat.core.model.Attachment
 import com.garfiec.librechat.core.model.Message
 import com.garfiec.librechat.core.model.Preset
 import com.garfiec.librechat.core.model.StreamEvent
+import com.garfiec.librechat.core.model.error.UserKeyError
+import com.garfiec.librechat.core.model.error.parseUserKeyError
 import com.garfiec.librechat.core.model.permissions.Permission
 import com.garfiec.librechat.core.model.permissions.PermissionType
 import com.garfiec.librechat.core.model.permissions.hasAccessOrPermissive
@@ -43,6 +45,7 @@ import com.garfiec.librechat.feature.chat.model.PromptMentionDisplayData
 import com.garfiec.librechat.feature.chat.util.NEW_CHAT_DRAFT_KEY
 import com.garfiec.librechat.feature.chat.util.buildActiveMessagePath
 import com.garfiec.librechat.feature.chat.viewmodel.delegate.ConversationActionsDelegate
+import com.garfiec.librechat.feature.chat.viewmodel.delegate.EndpointKeyStatusDelegate
 import com.garfiec.librechat.feature.chat.viewmodel.delegate.FavoritesDelegate
 import com.garfiec.librechat.feature.chat.viewmodel.delegate.InConversationSearchDelegate
 import com.garfiec.librechat.feature.chat.viewmodel.delegate.ModelSelectionDelegate
@@ -50,6 +53,7 @@ import com.garfiec.librechat.feature.chat.viewmodel.delegate.PlatformDelegateFac
 import com.garfiec.librechat.feature.chat.viewmodel.delegate.PresetPromptDelegate
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -59,6 +63,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
@@ -78,6 +83,7 @@ class ChatViewModel(
     private val conversationRepository: ConversationRepository,
     private val draftRepository: DraftRepository,
     favoritesRepository: FavoritesRepository,
+    private val keyRepository: KeyRepository,
     presetRepository: PresetRepository,
     promptRepository: PromptRepository,
     shareRepository: ShareRepository,
@@ -107,8 +113,18 @@ class ChatViewModel(
         ConversationActionsDelegate(stateHandle, conversationRepository, shareRepository)
     private val presetPromptDelegate = PresetPromptDelegate(stateHandle, presetRepository, promptRepository)
     private val favoritesDelegate = FavoritesDelegate(stateHandle, favoritesRepository)
-    private val modelDelegate =
-        ModelSelectionDelegate(stateHandle, configRepository, agentRepository, mcpRepository, settingsDataStore, permissionGate)
+    private val modelDelegate = ModelSelectionDelegate(
+        stateHandle = stateHandle,
+        configRepository = configRepository,
+        agentRepository = agentRepository,
+        mcpRepository = mcpRepository,
+        settingsDataStore = settingsDataStore,
+        permissionGate = permissionGate,
+    )
+    private val keyStatusDelegate = EndpointKeyStatusDelegate(
+        stateHandle = stateHandle,
+        keyRepository = keyRepository,
+    )
 
     // --- Delegate-owned flows exposed to the UI ---
     val attachedFiles: StateFlow<List<AttachedFile>> get() = fileDelegate.attachedFiles
@@ -152,6 +168,10 @@ class ChatViewModel(
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, ChatUiState())
 
+    // Channel-backed for exactly-once snackbar delivery across rotation.
+    private val _userKeyErrors = Channel<UserKeyError>(Channel.BUFFERED)
+    val userKeyErrors: Flow<UserKeyError> = _userKeyErrors.receiveAsFlow()
+
     private var streamJob: Job? = null
     private var roomObserverJob: Job? = null
     private var streamingUpdateJob: Job? = null
@@ -188,10 +208,12 @@ class ChatViewModel(
         val conversationId = initialConversationId
         isNewConversation = conversationId == null
         if (conversationId != null) {
-            _uiState.value = _uiState.value.copy(
-                conversationId = conversationId,
-                screenState = ChatScreenState.LOADING,
-            )
+            _uiState.update {
+                it.copy(
+                    conversationId = conversationId,
+                    screenState = ChatScreenState.LOADING,
+                )
+            }
             loadConversation(conversationId)
             loadConversationModel(conversationId)
             restoreDraft(conversationId)
@@ -227,10 +249,12 @@ class ChatViewModel(
             // initial selection. refilterModels will validate it when
             // the available models list arrives.
             if (isNewConversation && endpoint != null && model != null) {
-                _uiState.value = _uiState.value.copy(
-                    selectedEndpoint = endpoint,
-                    selectedModel = model,
-                )
+                _uiState.update {
+                    it.copy(
+                        selectedEndpoint = endpoint,
+                        selectedModel = model,
+                    )
+                }
             }
             // Re-run validation now that we have the DataStore values.
             modelDelegate.refilterModels(isNewConversation)
@@ -238,16 +262,18 @@ class ChatViewModel(
 
         viewModelScope.launch {
             configRepository.endpointConfigs.collect { configs ->
-                _uiState.value = _uiState.value.copy(endpointConfigs = configs)
+                _uiState.update { it.copy(endpointConfigs = configs) }
                 modelDelegate.refilterModels(isNewConversation)
+                keyStatusDelegate.recomputeFor(configs)
                 // If code interpreter is no longer available, remove it from enabled tools
                 val agentsCapabilities = configs[EndpointConstants.AGENTS]?.capabilities ?: emptyList()
                 if (agentsCapabilities.isNotEmpty() && ToolConstants.EXECUTE_CODE !in agentsCapabilities) {
-                    val currentTools = _uiState.value.enabledTools
-                    if (ToolConstants.CODE_INTERPRETER in currentTools) {
-                        _uiState.value = _uiState.value.copy(
-                            enabledTools = currentTools - ToolConstants.CODE_INTERPRETER,
-                        )
+                    _uiState.update {
+                        if (ToolConstants.CODE_INTERPRETER in it.enabledTools) {
+                            it.copy(enabledTools = it.enabledTools - ToolConstants.CODE_INTERPRETER)
+                        } else {
+                            it
+                        }
                     }
                 }
             }
@@ -255,7 +281,7 @@ class ChatViewModel(
 
         viewModelScope.launch {
             configRepository.availableModels.collect { models ->
-                _uiState.value = _uiState.value.copy(availableModels = models)
+                _uiState.update { it.copy(availableModels = models) }
                 modelDelegate.refilterModels(isNewConversation)
             }
         }
@@ -273,16 +299,16 @@ class ChatViewModel(
         viewModelScope.launch {
             val endpointsResult = configRepository.fetchEndpoints()
             if (endpointsResult is Result.Error) {
-                _uiState.value = _uiState.value.copy(
-                    error = endpointsResult.message ?: "Could not load endpoint configuration",
-                )
+                _uiState.update {
+                    it.copy(error = endpointsResult.message ?: "Could not load endpoint configuration")
+                }
                 return@launch
             }
             val modelsResult = configRepository.fetchModels()
             if (modelsResult is Result.Error) {
-                _uiState.value = _uiState.value.copy(
-                    error = modelsResult.message ?: "Could not load available models",
-                )
+                _uiState.update {
+                    it.copy(error = modelsResult.message ?: "Could not load available models")
+                }
             }
         }
 
@@ -337,19 +363,22 @@ class ChatViewModel(
                 messageRepository.getMessages(conversationId)
             } catch (e: Exception) {
                 Logger.e(e) { "Failed to fetch messages for $conversationId" }
-                _uiState.value = _uiState.value.copy(
-                    error = "Could not load messages",
-                    screenState = ChatScreenState.ACTIVE,
-                )
+                _uiState.update {
+                    it.copy(
+                        error = "Could not load messages",
+                        screenState = ChatScreenState.ACTIVE,
+                    )
+                }
             }
             messageRepository.observeMessages(conversationId).collect { messages ->
-                val state = _uiState.value
-                val displayMessages = buildActiveMessagePath(messages, state.activeBranches)
-                _uiState.value = state.copy(
-                    messages = messages,
-                    displayMessages = displayMessages,
-                    screenState = ChatScreenState.ACTIVE,
-                )
+                _uiState.update {
+                    val displayMessages = buildActiveMessagePath(messages, it.activeBranches)
+                    it.copy(
+                        messages = messages,
+                        displayMessages = displayMessages,
+                        screenState = ChatScreenState.ACTIVE,
+                    )
+                }
             }
         }
     }
@@ -360,8 +389,10 @@ class ChatViewModel(
     private fun restoreDraft(draftKey: String) {
         viewModelScope.launch {
             val draft = draftRepository.getDraft(draftKey)
-            if (!draft.isNullOrBlank() && _uiState.value.inputText.isBlank()) {
-                _uiState.value = _uiState.value.copy(inputText = draft)
+            if (!draft.isNullOrBlank()) {
+                _uiState.update {
+                    if (it.inputText.isBlank()) it.copy(inputText = draft) else it
+                }
             }
         }
     }
@@ -379,19 +410,21 @@ class ChatViewModel(
                 } else {
                     model
                 }
-                _uiState.value = _uiState.value.copy(
-                    selectedEndpoint = if (endpoint != null && (resolvedModel != null || isAgentConversation)) {
-                        endpoint
-                    } else {
-                        _uiState.value.selectedEndpoint
-                    },
-                    selectedModel = if (endpoint != null && resolvedModel != null) {
-                        resolvedModel
-                    } else {
-                        _uiState.value.selectedModel
-                    },
-                    conversationTitle = conversation.title,
-                )
+                _uiState.update {
+                    it.copy(
+                        selectedEndpoint = if (endpoint != null && (resolvedModel != null || isAgentConversation)) {
+                            endpoint
+                        } else {
+                            it.selectedEndpoint
+                        },
+                        selectedModel = if (endpoint != null && resolvedModel != null) {
+                            resolvedModel
+                        } else {
+                            it.selectedModel
+                        },
+                        conversationTitle = conversation.title,
+                    )
+                }
             }
             modelDelegate.conversationModelLoaded = true
             modelDelegate.refilterModels(isNewConversation)
@@ -402,9 +435,7 @@ class ChatViewModel(
         viewModelScope.launch {
             val result = conversationRepository.getConversation(conversationId)
             val conversation = result.getOrNull() ?: return@launch
-            _uiState.value = _uiState.value.copy(
-                conversationTitle = conversation.title,
-            )
+            _uiState.update { it.copy(conversationTitle = conversation.title) }
         }
     }
 
@@ -412,9 +443,7 @@ class ChatViewModel(
         viewModelScope.launch {
             when (val result = conversationRepository.generateTitle(conversationId)) {
                 is Result.Success -> {
-                    _uiState.value = _uiState.value.copy(
-                        conversationTitle = result.data,
-                    )
+                    _uiState.update { it.copy(conversationTitle = result.data) }
                 }
                 is Result.Error -> {
                     Logger.d { "Title generation failed for $conversationId: ${result.message}" }
@@ -426,21 +455,22 @@ class ChatViewModel(
     }
 
     private fun rebuildDisplayMessages() {
-        val state = _uiState.value
-        val displayMessages = buildActiveMessagePath(state.messages, state.activeBranches)
-        _uiState.value = state.copy(displayMessages = displayMessages)
+        _uiState.update {
+            it.copy(displayMessages = buildActiveMessagePath(it.messages, it.activeBranches))
+        }
     }
 
     fun switchBranch(parentMessageId: String, siblingIndex: Int) {
-        val state = _uiState.value
-        val newBranches = state.activeBranches.toMutableMap()
-        newBranches[parentMessageId] = siblingIndex
-        _uiState.value = state.copy(activeBranches = newBranches)
+        _uiState.update {
+            val newBranches = it.activeBranches.toMutableMap()
+            newBranches[parentMessageId] = siblingIndex
+            it.copy(activeBranches = newBranches)
+        }
         rebuildDisplayMessages()
     }
 
     fun onInputChanged(text: String) {
-        _uiState.value = _uiState.value.copy(inputText = text)
+        _uiState.update { it.copy(inputText = text) }
         val draftKey = _uiState.value.conversationId ?: NEW_CHAT_DRAFT_KEY
         viewModelScope.launch {
             draftRepository.saveDraft(draftKey, text)
@@ -452,7 +482,7 @@ class ChatViewModel(
         Logger.d { "consumeShareIntent: text=${shareData.text != null}, files=${shareData.fileRefs.size}" }
 
         if (!shareData.text.isNullOrBlank()) {
-            _uiState.value = _uiState.value.copy(inputText = shareData.text)
+            _uiState.update { it.copy(inputText = shareData.text) }
         }
 
         if (shareData.fileRefs.isNotEmpty()) {
@@ -481,9 +511,6 @@ class ChatViewModel(
         runWhenSendReady { doSendMessage(text) }
     }
 
-    private fun classifyCurrentEndpoint(name: String): EndpointDispatch =
-        EndpointClassifier.classify(name, _uiState.value.endpointConfigs)
-
     /**
      * Builds an [EphemeralAgent] from the current UI state (selected MCP servers
      * and enabled tools). Returns null when there is nothing to send.
@@ -502,6 +529,21 @@ class ChatViewModel(
             webSearch = if (webSearchEnabled) true else null,
             fileSearch = if (ToolConstants.FILE_SEARCH in enabledTools) true else null,
             executeCode = if (ToolConstants.CODE_INTERPRETER in enabledTools || ToolConstants.EXECUTE_CODE in enabledTools) true else null,
+        )
+    }
+
+    /**
+     * Resolves the chat-send dispatch for the currently-selected endpoint by snapshotting
+     * `_uiState.value` once. Used by every chat-send code path (new message, edit, regenerate,
+     * continue) — callers that target a different endpoint (e.g. the comparison-mode
+     * secondary) must call [resolveEndpointDispatch] directly with that endpoint name.
+     */
+    private fun currentDispatch(): EndpointDispatch {
+        val state = _uiState.value
+        return resolveEndpointDispatch(
+            endpointName = state.selectedEndpoint,
+            endpointConfigs = state.endpointConfigs,
+            endpointKeyStates = state.endpointKeyStates,
         )
     }
 
@@ -528,23 +570,24 @@ class ChatViewModel(
             createdAt = Clock.System.now().toString(),
             files = fileRefs.takeIf { it.isNotEmpty() },
         )
-        val updatedMessages = _uiState.value.messages + optimisticMessage
-        val updatedDisplay = buildActiveMessagePath(updatedMessages, _uiState.value.activeBranches)
-
         isEditOrRegenerate = false
 
         val isNewChat = conversationId == null
-        _uiState.value = _uiState.value.copy(
-            inputText = "",
-            isStreaming = true,
-            streamingContent = "",
-            activeToolCalls = emptyList(),
-            streamingAttachments = emptyList(),
-            screenState = if (isNewChat) ChatScreenState.LANDING else ChatScreenState.ACTIVE,
-            error = null,
-            messages = updatedMessages,
-            displayMessages = updatedDisplay,
-        )
+        _uiState.update {
+            val updatedMessages = it.messages + optimisticMessage
+            val updatedDisplay = buildActiveMessagePath(updatedMessages, it.activeBranches)
+            it.copy(
+                inputText = "",
+                isStreaming = true,
+                streamingContent = "",
+                activeToolCalls = emptyList(),
+                streamingAttachments = emptyList(),
+                screenState = if (isNewChat) ChatScreenState.LANDING else ChatScreenState.ACTIVE,
+                error = null,
+                messages = updatedMessages,
+                displayMessages = updatedDisplay,
+            )
+        }
         // Clear draft
         val draftKey = conversationId ?: NEW_CHAT_DRAFT_KEY
         viewModelScope.launch { draftRepository.deleteDraft(draftKey) }
@@ -565,22 +608,14 @@ class ChatViewModel(
                 "ephemeralAgent=$ephemeralAgent"
         }
 
-        // Build addedConvo if comparison mode is enabled
-        val addedConvo = if (_uiState.value.comparisonState.isEnabled) {
-            modelDelegate.buildAddedConvo(parentMessageId = lastMessageId)
-        } else {
-            null
-        }
-
         // Resolve effective endpoint/agentId for comparison mode.
         // All requests go through api/agents/chat/{endpoint} — the server's
         // middleware creates ephemeral agents for non-agent endpoints, so no
         // swapping is needed. Just keep the primary's original endpoint.
         val effectiveEndpoint = _uiState.value.selectedEndpoint
         val effectiveAgentId = if (isAgent) _uiState.value.selectedModel else null
-        val effectiveAddedConvo = addedConvo // null when no comparison
-        // If comparison enabled, prepare comparison streaming state
-        if (addedConvo != null) {
+        val isComparisonEnabled = _uiState.value.comparisonState.isEnabled
+        if (isComparisonEnabled) {
             modelDelegate.primaryComparisonBuffer.clear()
             modelDelegate.secondaryComparisonBuffer.clear()
             _uiState.update {
@@ -600,9 +635,14 @@ class ChatViewModel(
             }
         }
 
-        val dispatch = classifyCurrentEndpoint(effectiveEndpoint)
         streamJob?.cancel()
         streamJob = viewModelScope.launch {
+            val effectiveAddedConvo = if (isComparisonEnabled) {
+                modelDelegate.buildAddedConvo(parentMessageId = lastMessageId)
+            } else {
+                null
+            }
+            val dispatch = currentDispatch()
             collectStreamSafely(
                 chatRepository.startChat(
                     text = messageText,
@@ -626,7 +666,7 @@ class ChatViewModel(
                 if (cid != null && roomObserverJob?.isActive != true) {
                     loadConversation(cid)
                 } else if (cid == null) {
-                    _uiState.value = _uiState.value.copy(isStreaming = false)
+                    _uiState.update { it.copy(isStreaming = false) }
                 }
             }
         }
@@ -637,13 +677,15 @@ class ChatViewModel(
      * for a new stream (edit, regenerate, or continue).
      */
     private fun prepareForStreaming() {
-        _uiState.value = _uiState.value.copy(
-            isStreaming = true,
-            streamingContent = "",
-            activeToolCalls = emptyList(),
-            streamingAttachments = emptyList(),
-            error = null,
-        )
+        _uiState.update {
+            it.copy(
+                isStreaming = true,
+                streamingContent = "",
+                activeToolCalls = emptyList(),
+                streamingAttachments = emptyList(),
+                error = null,
+            )
+        }
         streamingBuffer.clear()
         streamingBufferDirty = false
         startStreamingUpdater()
@@ -671,9 +713,7 @@ class ChatViewModel(
     private fun flushStreamingBuffer() {
         if (!streamingBufferDirty) return
         streamingBufferDirty = false
-        _uiState.value = _uiState.value.copy(
-            streamingContent = streamingBuffer.toString(),
-        )
+        _uiState.update { it.copy(streamingContent = streamingBuffer.toString()) }
     }
 
     /**
@@ -710,9 +750,9 @@ class ChatViewModel(
         val webSearchEnabled = _uiState.value.modelParameters.webSearch
         val ephemeralAgent = buildEphemeralAgent()
         Logger.d { "editUserMessage: webSearch=$webSearchEnabled, ephemeralAgent=$ephemeralAgent" }
-        val dispatch = classifyCurrentEndpoint(_uiState.value.selectedEndpoint)
         streamJob?.cancel()
         streamJob = viewModelScope.launch {
+            val dispatch = currentDispatch()
             collectStreamSafely(
                 chatRepository.startChat(
                     text = newText,
@@ -746,9 +786,9 @@ class ChatViewModel(
         val webSearchEnabled = _uiState.value.modelParameters.webSearch
         val ephemeralAgent = buildEphemeralAgent()
         Logger.d { "editAiMessage: webSearch=$webSearchEnabled, ephemeralAgent=$ephemeralAgent" }
-        val dispatch = classifyCurrentEndpoint(_uiState.value.selectedEndpoint)
         streamJob?.cancel()
         streamJob = viewModelScope.launch {
+            val dispatch = currentDispatch()
             messageRepository.updateMessageText(conversationId, aiMessage.messageId, newText)
             collectStreamSafely(
                 chatRepository.startChat(
@@ -792,9 +832,9 @@ class ChatViewModel(
         val webSearchEnabled = _uiState.value.modelParameters.webSearch
         val ephemeralAgent = buildEphemeralAgent()
         Logger.d { "regenerateMessage: webSearch=$webSearchEnabled, ephemeralAgent=$ephemeralAgent" }
-        val dispatch = classifyCurrentEndpoint(_uiState.value.selectedEndpoint)
         streamJob?.cancel()
         streamJob = viewModelScope.launch {
+            val dispatch = currentDispatch()
             collectStreamSafely(
                 chatRepository.startChat(
                     text = parentUserMessage.text,
@@ -836,19 +876,21 @@ class ChatViewModel(
             stopStreamingUpdater()
             // Preserve partial content so users can read/copy what was received
             val partialContent = streamingBuffer.toString()
-            _uiState.value = _uiState.value.copy(
-                isStreaming = false,
-                streamingContent = partialContent,
-                activeToolCalls = emptyList(),
-                streamingAttachments = emptyList(),
-                error = e.message ?: "Chat request failed",
-                comparisonState = _uiState.value.comparisonState.copy(
-                    primaryIsStreaming = false,
-                    secondaryIsStreaming = false,
-                    primaryActiveToolCalls = emptyList(),
-                    secondaryActiveToolCalls = emptyList(),
-                ),
-            )
+            _uiState.update {
+                it.copy(
+                    isStreaming = false,
+                    streamingContent = partialContent,
+                    activeToolCalls = emptyList(),
+                    streamingAttachments = emptyList(),
+                    error = e.message ?: "Chat request failed",
+                    comparisonState = it.comparisonState.copy(
+                        primaryIsStreaming = false,
+                        secondaryIsStreaming = false,
+                        primaryActiveToolCalls = emptyList(),
+                        secondaryActiveToolCalls = emptyList(),
+                    ),
+                )
+            }
             // If the server already created a conversation, fetch whatever it persisted
             val conversationId = _uiState.value.conversationId
             if (conversationId != null) {
@@ -924,22 +966,32 @@ class ChatViewModel(
                 if (event.isNetworkError) {
                     startConnectivityObserver()
                 }
+                // Try to parse the message as a typed user-provided-key error envelope.
+                // If recognized, emit a one-shot effect so the UI can surface a snackbar
+                // with a deep-link CTA to Settings → Provider Keys, and skip the generic
+                // `error = event.message` fallback to avoid double-surfacing.
+                val keyError = parseUserKeyError(event.message)
                 // Preserve partial content so users can read/copy what was received
                 val partialContent = streamingBuffer.toString()
-                _uiState.value = _uiState.value.copy(
-                    isStreaming = false,
-                    streamingContent = partialContent,
-                    error = event.message,
-                    retryInfo = null,
-                    activeToolCalls = emptyList(),
-                    streamingAttachments = emptyList(),
-                    comparisonState = _uiState.value.comparisonState.copy(
-                        primaryIsStreaming = false,
-                        secondaryIsStreaming = false,
-                        primaryActiveToolCalls = emptyList(),
-                        secondaryActiveToolCalls = emptyList(),
-                    ),
-                )
+                _uiState.update {
+                    it.copy(
+                        isStreaming = false,
+                        streamingContent = partialContent,
+                        error = if (keyError != null) null else event.message,
+                        retryInfo = null,
+                        activeToolCalls = emptyList(),
+                        streamingAttachments = emptyList(),
+                        comparisonState = it.comparisonState.copy(
+                            primaryIsStreaming = false,
+                            secondaryIsStreaming = false,
+                            primaryActiveToolCalls = emptyList(),
+                            secondaryActiveToolCalls = emptyList(),
+                        ),
+                    )
+                }
+                if (keyError != null) {
+                    _userKeyErrors.trySend(keyError)
+                }
                 // If the server already created a conversation, fetch whatever it persisted
                 val conversationId = _uiState.value.conversationId
                 if (conversationId != null) {
@@ -947,12 +999,14 @@ class ChatViewModel(
                 }
             }
             is StreamEvent.Retrying -> {
-                _uiState.value = _uiState.value.copy(
-                    retryInfo = RetryInfo(
-                        attempt = event.attempt,
-                        maxAttempts = event.maxAttempts,
-                    ),
-                )
+                _uiState.update {
+                    it.copy(
+                        retryInfo = RetryInfo(
+                            attempt = event.attempt,
+                            maxAttempts = event.maxAttempts,
+                        ),
+                    )
+                }
             }
             is StreamEvent.ToolCallStart -> {
                 val newToolCall = ActiveToolCall(
@@ -973,9 +1027,9 @@ class ChatViewModel(
                         ))
                     }
                 } else {
-                    _uiState.value = _uiState.value.copy(
-                        activeToolCalls = _uiState.value.activeToolCalls + newToolCall,
-                    )
+                    _uiState.update {
+                        it.copy(activeToolCalls = it.activeToolCalls + newToolCall)
+                    }
                 }
             }
             is StreamEvent.ToolCallComplete -> {
@@ -995,14 +1049,16 @@ class ChatViewModel(
                         state.copy(comparisonState = state.comparisonState.copy(primaryActiveToolCalls = updated))
                     }
                 } else {
-                    val updated = _uiState.value.activeToolCalls.map { tc ->
-                        if (tc.id == event.toolCallId) {
-                            tc.copy(isComplete = true, output = event.output)
-                        } else {
-                            tc
+                    _uiState.update { state ->
+                        val updated = state.activeToolCalls.map { tc ->
+                            if (tc.id == event.toolCallId) {
+                                tc.copy(isComplete = true, output = event.output)
+                            } else {
+                                tc
+                            }
                         }
+                        state.copy(activeToolCalls = updated)
                     }
-                    _uiState.value = _uiState.value.copy(activeToolCalls = updated)
                 }
             }
             is StreamEvent.AttachmentCreated -> {
@@ -1015,9 +1071,9 @@ class ChatViewModel(
                     width = event.width,
                     height = event.height,
                 )
-                _uiState.value = _uiState.value.copy(
-                    streamingAttachments = _uiState.value.streamingAttachments + attachment,
-                )
+                _uiState.update {
+                    it.copy(streamingAttachments = it.streamingAttachments + attachment)
+                }
             }
             is StreamEvent.Sync -> {
                 // State-snapshot protocol: replace streaming buffer with synced content
@@ -1025,8 +1081,8 @@ class ChatViewModel(
                     lastErrorWasNetwork = false
                     cancelConnectivityObserver()
                 }
-                if (_uiState.value.retryInfo != null) {
-                    _uiState.value = _uiState.value.copy(retryInfo = null)
+                _uiState.update {
+                    if (it.retryInfo != null) it.copy(retryInfo = null) else it
                 }
                 val textContent = event.aggregatedContent
                     .mapNotNull { it.text }
@@ -1046,7 +1102,7 @@ class ChatViewModel(
     }
 
     private fun handleCreated(event: StreamEvent.Created) {
-        if (isNewConversation && event.conversationId != null) {
+        if (isNewConversation) {
             viewModelScope.launch {
                 val existingDraft = draftRepository.getDraft(NEW_CHAT_DRAFT_KEY)
                 if (existingDraft != null) {
@@ -1059,26 +1115,26 @@ class ChatViewModel(
             lastErrorWasNetwork = false
             cancelConnectivityObserver()
         }
-        val createdCopy = if (_uiState.value.retryInfo != null) {
-            _uiState.value.copy(conversationId = event.conversationId, retryInfo = null)
-        } else {
-            _uiState.value.copy(conversationId = event.conversationId)
+        _uiState.update {
+            if (it.retryInfo != null) {
+                it.copy(conversationId = event.conversationId, retryInfo = null)
+            } else {
+                it.copy(conversationId = event.conversationId)
+            }
         }
-        _uiState.value = createdCopy
-        if (isNewConversation && event.conversationId != null &&
-            _uiState.value.pendingNavigationConversationId == null &&
-            !_uiState.value.comparisonState.isEnabled
-        ) {
-            _uiState.value = _uiState.value.copy(
-                pendingNavigationConversationId = event.conversationId,
-            )
+        if (isNewConversation) {
+            _uiState.update {
+                if (it.pendingNavigationConversationId == null && !it.comparisonState.isEnabled) {
+                    it.copy(pendingNavigationConversationId = event.conversationId)
+                } else {
+                    it
+                }
+            }
         }
         // Eagerly fetch and cache the conversation the server just created,
         // so it appears in the conversation list even if the stream fails later
-        if (event.conversationId != null) {
-            viewModelScope.launch {
-                conversationRepository.getConversation(event.conversationId)
-            }
+        viewModelScope.launch {
+            conversationRepository.getConversation(event.conversationId)
         }
     }
 
@@ -1118,13 +1174,15 @@ class ChatViewModel(
                 )
             }
         } else {
-            _uiState.value = _uiState.value.copy(
-                isStreaming = false,
-                streamingContent = "",
-                activeToolCalls = emptyList(),
-                streamingAttachments = emptyList(),
-                conversationId = conversationId ?: _uiState.value.conversationId,
-            )
+            _uiState.update {
+                it.copy(
+                    isStreaming = false,
+                    streamingContent = "",
+                    activeToolCalls = emptyList(),
+                    streamingAttachments = emptyList(),
+                    conversationId = conversationId ?: it.conversationId,
+                )
+            }
         }
         val finalConversation = event.conversation
         if (finalConversation?.conversationId != null) {
@@ -1160,25 +1218,26 @@ class ChatViewModel(
                 Logger.w(abortResult.exception) { "Failed to abort chat: ${abortResult.message}" }
             }
             // Clean up comparison state if active
-            val isComparison = _uiState.value.comparisonState.isEnabled
-            _uiState.value = _uiState.value.copy(
-                isStreaming = false,
-                streamingContent = "",
-                activeToolCalls = emptyList(),
-                streamingAttachments = emptyList(),
-                comparisonState = if (isComparison) {
-                    _uiState.value.comparisonState.copy(
-                        primaryIsStreaming = false,
-                        secondaryIsStreaming = false,
-                        primaryStreamingContent = "",
-                        secondaryStreamingContent = "",
-                        primaryActiveToolCalls = emptyList(),
-                        secondaryActiveToolCalls = emptyList(),
-                    )
-                } else {
-                    _uiState.value.comparisonState
-                },
-            )
+            _uiState.update {
+                it.copy(
+                    isStreaming = false,
+                    streamingContent = "",
+                    activeToolCalls = emptyList(),
+                    streamingAttachments = emptyList(),
+                    comparisonState = if (it.comparisonState.isEnabled) {
+                        it.comparisonState.copy(
+                            primaryIsStreaming = false,
+                            secondaryIsStreaming = false,
+                            primaryStreamingContent = "",
+                            secondaryStreamingContent = "",
+                            primaryActiveToolCalls = emptyList(),
+                            secondaryActiveToolCalls = emptyList(),
+                        )
+                    } else {
+                        it.comparisonState
+                    },
+                )
+            }
             // Refresh messages from server so the message tree reflects
             // the partially-streamed response that was aborted.
             loadConversation(conversationId)
@@ -1206,9 +1265,9 @@ class ChatViewModel(
         val webSearchEnabled = _uiState.value.modelParameters.webSearch
         val ephemeralAgent = buildEphemeralAgent()
         Logger.d { "continueGeneration: webSearch=$webSearchEnabled, ephemeralAgent=$ephemeralAgent" }
-        val dispatch = classifyCurrentEndpoint(_uiState.value.selectedEndpoint)
         streamJob?.cancel()
         streamJob = viewModelScope.launch {
+            val dispatch = currentDispatch()
             collectStreamSafely(
                 chatRepository.startChat(
                     text = parentUserMessage.text,
@@ -1250,22 +1309,23 @@ class ChatViewModel(
             try {
                 val status = chatRepository.checkStreamStatus(conversationId)
                 if (status.active) {
-                    _uiState.value = _uiState.value.copy(isStreaming = true)
+                    _uiState.update { it.copy(isStreaming = true) }
                     resumeStream(conversationId)
                 } else {
-                    _uiState.value = _uiState.value.copy(
-                        isStreaming = false,
-                        streamingContent = "",
-                    )
+                    _uiState.update {
+                        it.copy(isStreaming = false, streamingContent = "")
+                    }
                     loadConversation(conversationId)
                 }
             } catch (e: Exception) {
                 Logger.e(e) { "Could not resume stream" }
-                _uiState.value = _uiState.value.copy(
-                    isStreaming = false,
-                    streamingContent = "",
-                    error = "Could not resume stream",
-                )
+                _uiState.update {
+                    it.copy(
+                        isStreaming = false,
+                        streamingContent = "",
+                        error = "Could not resume stream",
+                    )
+                }
             }
         }
     }
@@ -1290,10 +1350,12 @@ class ChatViewModel(
             try {
                 val status = chatRepository.checkStreamStatus(conversationId)
                 if (status.active) {
-                    _uiState.value = _uiState.value.copy(
-                        isStreaming = true,
-                        screenState = ChatScreenState.ACTIVE,
-                    )
+                    _uiState.update {
+                        it.copy(
+                            isStreaming = true,
+                            screenState = ChatScreenState.ACTIVE,
+                        )
+                    }
                     resumeStream(conversationId)
                 }
             } catch (e: Exception) {
@@ -1345,18 +1407,17 @@ class ChatViewModel(
             try {
                 val status = chatRepository.checkStreamStatus(conversationId)
                 if (status.active) {
-                    _uiState.value = _uiState.value.copy(
-                        isStreaming = true,
-                        error = null,
-                        retryInfo = null,
-                    )
+                    _uiState.update {
+                        it.copy(
+                            isStreaming = true,
+                            error = null,
+                            retryInfo = null,
+                        )
+                    }
                     resumeStream(conversationId)
                 } else {
                     // Stream expired while offline — reload conversation from server
-                    _uiState.value = _uiState.value.copy(
-                        error = null,
-                        retryInfo = null,
-                    )
+                    _uiState.update { it.copy(error = null, retryInfo = null) }
                     loadConversation(conversationId)
                 }
             } catch (e: Exception) {
@@ -1374,18 +1435,17 @@ class ChatViewModel(
 
     fun startEditing(messageId: String) {
         val text = getMessageText(messageId)
-        _uiState.value = _uiState.value.copy(
-            editingMessageId = messageId,
-            editingText = text,
-        )
+        _uiState.update {
+            it.copy(editingMessageId = messageId, editingText = text)
+        }
     }
 
     fun onEditTextChanged(text: String) {
-        _uiState.value = _uiState.value.copy(editingText = text)
+        _uiState.update { it.copy(editingText = text) }
     }
 
     fun cancelEditing() {
-        _uiState.value = _uiState.value.copy(editingMessageId = null, editingText = "")
+        _uiState.update { it.copy(editingMessageId = null, editingText = "") }
     }
 
     fun submitEdit() {
@@ -1393,7 +1453,7 @@ class ChatViewModel(
         val newText = _uiState.value.editingText.trim()
         if (newText.isBlank()) return
 
-        _uiState.value = _uiState.value.copy(editingMessageId = null, editingText = "")
+        _uiState.update { it.copy(editingMessageId = null, editingText = "") }
         editMessage(messageId, newText)
     }
 
@@ -1403,7 +1463,7 @@ class ChatViewModel(
         val newText = _uiState.value.editingText.trim()
         if (newText.isBlank()) return
 
-        _uiState.value = _uiState.value.copy(editingMessageId = null, editingText = "")
+        _uiState.update { it.copy(editingMessageId = null, editingText = "") }
         viewModelScope.launch {
             messageRepository.updateMessageText(conversationId, messageId, newText)
         }
@@ -1415,40 +1475,39 @@ class ChatViewModel(
         stopStreamingUpdater()
         roomObserverJob?.cancel()
         roomObserverJob = null
-        val current = _uiState.value
-        _uiState.value = ChatUiState(
-            selectedEndpoint = current.selectedEndpoint,
-            selectedModel = current.selectedModel,
-            availableModels = current.availableModels,
-            endpointConfigs = current.endpointConfigs,
-            agents = current.agents,
-            presets = current.presets,
-            availablePrompts = current.availablePrompts,
-            mcpServers = current.mcpServers,
-            selectedMcpServerNames = current.selectedMcpServerNames,
-            enabledTools = current.enabledTools,
-            serverSttEnabled = current.serverSttEnabled,
-            userName = current.userName,
-            userAvatarUrl = current.userAvatarUrl,
-            sharedLinksEnabled = current.sharedLinksEnabled,
-        )
+        _uiState.update { current ->
+            ChatUiState(
+                selectedEndpoint = current.selectedEndpoint,
+                selectedModel = current.selectedModel,
+                availableModels = current.availableModels,
+                endpointConfigs = current.endpointConfigs,
+                agents = current.agents,
+                presets = current.presets,
+                availablePrompts = current.availablePrompts,
+                mcpServers = current.mcpServers,
+                selectedMcpServerNames = current.selectedMcpServerNames,
+                enabledTools = current.enabledTools,
+                serverSttEnabled = current.serverSttEnabled,
+                userName = current.userName,
+                userAvatarUrl = current.userAvatarUrl,
+                sharedLinksEnabled = current.sharedLinksEnabled,
+            )
+        }
         streamingBuffer.clear()
     }
 
     fun toggleTemporaryChat() {
-        _uiState.value = _uiState.value.copy(
-            isTemporaryChat = !_uiState.value.isTemporaryChat,
-        )
+        _uiState.update { it.copy(isTemporaryChat = !it.isTemporaryChat) }
     }
 
     fun refreshMessages() {
         val conversationId = _uiState.value.conversationId ?: return
         if (_uiState.value.isRefreshingMessages) return
-        _uiState.value = _uiState.value.copy(isRefreshingMessages = true)
+        _uiState.update { it.copy(isRefreshingMessages = true) }
         viewModelScope.launch {
             messageRepository.refreshMessages(conversationId)
             loadConversation(conversationId)
-            _uiState.value = _uiState.value.copy(isRefreshingMessages = false)
+            _uiState.update { it.copy(isRefreshingMessages = false) }
         }
     }
 
@@ -1586,10 +1645,12 @@ class ChatViewModel(
             when (val result = userRepository.getUser()) {
                 is Result.Success -> {
                     val user = result.data
-                    _uiState.value = _uiState.value.copy(
-                        userName = user.name ?: user.username,
-                        userAvatarUrl = user.avatar,
-                    )
+                    _uiState.update {
+                        it.copy(
+                            userName = user.name ?: user.username,
+                            userAvatarUrl = user.avatar,
+                        )
+                    }
                 }
                 is Result.Error -> {
                     Logger.d(result.exception) { "Failed to load user profile: ${result.message}" }
@@ -1600,11 +1661,11 @@ class ChatViewModel(
     }
 
     fun dismissError() {
-        _uiState.value = _uiState.value.copy(error = null)
+        _uiState.update { it.copy(error = null) }
     }
 
     fun dismissSendBlockReason() {
-        _uiState.value = _uiState.value.copy(sendBlockReason = null)
+        _uiState.update { it.copy(sendBlockReason = null) }
     }
 
     override fun onCleared() {

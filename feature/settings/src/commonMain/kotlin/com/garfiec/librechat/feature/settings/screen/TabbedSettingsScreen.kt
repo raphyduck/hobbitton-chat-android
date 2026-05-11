@@ -44,6 +44,7 @@ fun TabbedSettingsScreen(
     onNavigateToPresets: () -> Unit,
     onNavigateToApiKeys: () -> Unit,
     onNavigateToFavorites: () -> Unit,
+    onNavigateToProviderKeys: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val pagerState = rememberPagerState(pageCount = { SettingsTabs.size })
@@ -104,6 +105,7 @@ fun TabbedSettingsScreen(
                     onLogout = onLogout,
                     onNavigateToApiKeys = onNavigateToApiKeys,
                     onNavigateToFavorites = onNavigateToFavorites,
+                    onNavigateToProviderKeys = onNavigateToProviderKeys,
                     snackbarHostState = snackbarHostState,
                     modifier = Modifier.fillMaxSize(),
                 )
