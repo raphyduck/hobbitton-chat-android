@@ -1,5 +1,7 @@
 package com.garfiec.librechat.core.common.result
 
+import kotlinx.coroutines.CancellationException
+
 sealed interface Result<out T> {
     data class Success<T>(val data: T) : Result<T>
     data class Error(val exception: Throwable? = null, val message: String? = null) : Result<Nothing>
@@ -20,6 +22,10 @@ fun <T> Result<T>.getOrThrow(): T = when (this) {
 suspend fun <T> safeApiCall(block: suspend () -> T): Result<T> =
     try {
         Result.Success(block())
+    } catch (e: CancellationException) {
+        // Cooperative cancellation must propagate — callers rely on cancel()ed jobs
+        // not writing stale errors back to state (e.g. SettingsViewModel.loadUserJob).
+        throw e
     } catch (e: Exception) {
         Result.Error(e, e.message ?: "An unexpected error occurred")
     }
