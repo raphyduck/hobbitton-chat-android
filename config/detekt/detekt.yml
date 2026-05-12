@@ -129,6 +129,17 @@ koin-rules:
       - "**/src/commonMain/**"
       - "**/src/androidMain/**"
       - "**/src/iosMain/**"
+  # Project convention is top-level `val xModule = module { }`; rule is a
+  # stylistic preference (defer factory-lambda alloc), not a correctness issue.
+  ModuleAsTopLevelVal:
+    active: false
+  # Path-exclude DataModule.kt only: it intentionally registers multiple
+  # SessionTask implementations bound to SessionTask::class for getAll<SessionTask>()
+  # multi-binding. Rule still active elsewhere to catch accidental same-type binds.
+  DuplicateBindingWithoutQualifier:
+    active: true
+    excludes:
+      - "**/core/data/**/DataModule.kt"
 
 formatting:
   Indentation:
