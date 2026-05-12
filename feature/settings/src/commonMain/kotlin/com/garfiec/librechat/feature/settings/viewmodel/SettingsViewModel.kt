@@ -44,6 +44,7 @@ import com.garfiec.librechat.feature.settings.viewmodel.delegate.McpServerDelega
 import com.garfiec.librechat.feature.settings.viewmodel.delegate.MemoryManagementDelegate
 import com.garfiec.librechat.feature.settings.viewmodel.delegate.SpeechSettingsFactory
 import com.garfiec.librechat.feature.settings.viewmodel.delegate.TwoFactorSecurityDelegate
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -72,8 +73,21 @@ data class SettingsUiState(
     val user: UserDisplayData? = null,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val serverUrl: String = "",
-    val isLoading: Boolean = false,
+    val isDeletingAccount: Boolean = false,
+    /**
+     * Transient errors surfaced via snackbar; cleared by [SettingsViewModel.dismissError]
+     * after the snackbar is shown/acted on. Used for one-shot failures: avatar upload,
+     * account-deletion submit, 2FA mutations, etc. Do NOT use this for profile-fetch
+     * failures — those are sticky and must remain visible until the user retries.
+     * See [profileLoadError].
+     */
     val error: String? = null,
+    /**
+     * Sticky inline error for profile-fetch failures. Rendered as an `ErrorBanner` inside
+     * the Account section so the rest of the screen (Sign Out, Delete Account, etc.) stays
+     * reachable while the server is unreachable. Cleared at the start of each `loadUser()`.
+     */
+    val profileLoadError: String? = null,
     val isLoggedOut: Boolean = false,
     val isAccountDeleted: Boolean = false,
     /**
@@ -224,6 +238,10 @@ class SettingsViewModel(
     private val _uiState = MutableStateFlow(SettingsUiState())
 
     private val stateHandle = SettingsStateHandle(_uiState, viewModelScope)
+
+    // In-flight profile-load job. Cancelled before each retry so a hung 90s request
+    // doesn't continue racing the fresh one.
+    private var loadUserJob: Job? = null
 
     // --- Delegates ---
     private val speechDelegate = speechSettingsFactory.create(stateHandle)
@@ -452,14 +470,15 @@ class SettingsViewModel(
     // ── Account & user profile ─────────────────────────────────────
 
     private fun loadUser() {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
+        loadUserJob?.cancel()
+        loadUserJob = viewModelScope.launch {
+            _uiState.update { it.copy(profileLoadError = null) }
             when (val result = userRepository.getUser()) {
                 is Result.Success -> {
                     _uiState.update {
                         it.copy(
                             user = result.data.toDisplayData(),
-                            isLoading = false,
+                            profileLoadError = null,
                             isTwoFactorEnabled = result.data.twoFactorEnabled,
                         )
                     }
@@ -467,8 +486,7 @@ class SettingsViewModel(
                 is Result.Error -> {
                     _uiState.update {
                         it.copy(
-                            isLoading = false,
-                            error = result.message ?: "Failed to load user profile",
+                            profileLoadError = result.message ?: "Failed to load user profile",
                         )
                     }
                 }
@@ -665,17 +683,17 @@ class SettingsViewModel(
 
     fun deleteAccount(token: String? = null, backupCode: String? = null) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
+            _uiState.update { it.copy(isDeletingAccount = true) }
             when (val result = userRepository.deleteUser(token = token, backupCode = backupCode)) {
                 is Result.Success -> {
-                    _uiState.update { it.copy(isLoading = false, isAccountDeleted = true, showDeleteAccountOtpDialog = false) }
+                    _uiState.update { it.copy(isDeletingAccount = false, isAccountDeleted = true, showDeleteAccountOtpDialog = false) }
                 }
                 is Result.Error -> {
                     val needsOtp = token == null && backupCode == null &&
                         result.isHttpStatus(403)
                     _uiState.update {
                         it.copy(
-                            isLoading = false,
+                            isDeletingAccount = false,
                             showDeleteAccountOtpDialog = if (needsOtp) true else it.showDeleteAccountOtpDialog,
                             error = if (needsOtp) null else (result.message ?: "Failed to delete account"),
                         )

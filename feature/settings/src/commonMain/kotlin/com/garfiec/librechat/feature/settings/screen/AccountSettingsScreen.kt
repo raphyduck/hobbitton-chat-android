@@ -11,13 +11,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Key
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -45,17 +42,11 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil3.compose.AsyncImage
-import com.garfiec.librechat.core.ui.components.ErrorBanner
-import com.garfiec.librechat.core.ui.components.LoadingIndicator
 import com.garfiec.librechat.core.ui.components.OtpVerificationDialog
 import com.garfiec.librechat.feature.settings.resources.*
 import com.garfiec.librechat.feature.settings.resources.Res
@@ -147,94 +138,85 @@ fun AccountSettingsContent(
     }
 
     Column(modifier = modifier) {
-        if (uiState.isLoading && uiState.user == null) {
-            LoadingIndicator()
-        } else if (uiState.error != null && uiState.user == null) {
-            ErrorBanner(
-                message = uiState.error ?: stringResource(Res.string.error_could_not_load_settings),
-                onRetry = { viewModel.retry() },
-            )
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-            ) {
-                // Account section
-                item(key = "account_header") {
-                    SectionHeader(stringResource(Res.string.section_profile))
-                }
-                item(key = "account_info") {
-                    AccountInfo(
-                        name = uiState.user?.name ?: "",
-                        email = uiState.user?.email ?: "",
-                        avatarUrl = uiState.user?.avatar,
-                        onAvatarClick = viewModel::showAvatarDialog,
-                    )
-                }
-
-                // Balance section
-                item(key = "balance_header") {
-                    SectionHeader(stringResource(Res.string.section_balance))
-                }
-                item(key = "balance_section") {
-                    BalanceSection(
-                        tokenCredits = uiState.tokenCredits,
-                        isLoading = uiState.isBalanceLoading,
-                    )
-                }
-
-                // Security section
-                item(key = "security_header") {
-                    SectionHeader(stringResource(Res.string.section_security))
-                }
-                item(key = "security_settings") {
-                    SecuritySection(
-                        isTwoFactorEnabled = uiState.isTwoFactorEnabled,
-                        isLoading = uiState.isTwoFactorLoading,
-                        onToggleTwoFactor = viewModel::toggleTwoFactor,
-                        onViewBackupCodes = viewModel::viewBackupCodes,
-                    )
-                }
-                item(key = "api_keys_row") {
-                    AccountSettingsRow(
-                        icon = Icons.Default.Key,
-                        title = stringResource(Res.string.api_keys),
-                        subtitle = stringResource(Res.string.api_keys_subtitle),
-                        onClick = onNavigateToApiKeys,
-                    )
-                }
-                item(key = "provider_keys_row") {
-                    AccountSettingsRow(
-                        icon = Icons.Default.Key,
-                        title = stringResource(Res.string.provider_keys_title),
-                        subtitle = stringResource(Res.string.provider_keys_subtitle),
-                        onClick = onNavigateToProviderKeys,
-                    )
-                }
-                item(key = "favorites_row") {
-                    AccountSettingsRow(
-                        icon = Icons.Default.Star,
-                        title = stringResource(Res.string.favorites),
-                        subtitle = stringResource(Res.string.favorites_subtitle),
-                        onClick = onNavigateToFavorites,
-                    )
-                }
-
-                // Danger zone
-                item(key = "danger_header") {
-                    SectionHeader(stringResource(Res.string.section_danger_zone))
-                }
-                item(key = "danger_actions") {
-                    DangerZone(
-                        isLoading = uiState.isLoading,
-                        allowAccountDeletion = uiState.allowAccountDeletion,
-                        onLogoutClick = { showLogoutDialog = true },
-                        onDeleteClick = { showDeleteDialog = true },
-                    )
-                }
-
-                // Bottom spacing
-                item { Spacer(modifier = Modifier.height(32.dp)) }
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            // Account section
+            item(key = "account_header") {
+                SectionHeader(stringResource(Res.string.section_profile))
             }
+            item(key = "account_info") {
+                AccountInfoSection(
+                    user = uiState.user,
+                    profileLoadError = uiState.profileLoadError,
+                    onAvatarClick = viewModel::showAvatarDialog,
+                    onRetry = viewModel::retry,
+                )
+            }
+
+            // Balance section
+            item(key = "balance_header") {
+                SectionHeader(stringResource(Res.string.section_balance))
+            }
+            item(key = "balance_section") {
+                BalanceSection(
+                    tokenCredits = uiState.tokenCredits,
+                    isLoading = uiState.isBalanceLoading,
+                )
+            }
+
+            // Security section
+            item(key = "security_header") {
+                SectionHeader(stringResource(Res.string.section_security))
+            }
+            item(key = "security_settings") {
+                SecuritySection(
+                    isTwoFactorEnabled = uiState.isTwoFactorEnabled,
+                    isLoading = uiState.isTwoFactorLoading,
+                    onToggleTwoFactor = viewModel::toggleTwoFactor,
+                    onViewBackupCodes = viewModel::viewBackupCodes,
+                )
+            }
+            item(key = "api_keys_row") {
+                AccountSettingsRow(
+                    icon = Icons.Default.Key,
+                    title = stringResource(Res.string.api_keys),
+                    subtitle = stringResource(Res.string.api_keys_subtitle),
+                    onClick = onNavigateToApiKeys,
+                )
+            }
+            item(key = "provider_keys_row") {
+                AccountSettingsRow(
+                    icon = Icons.Default.Key,
+                    title = stringResource(Res.string.provider_keys_title),
+                    subtitle = stringResource(Res.string.provider_keys_subtitle),
+                    onClick = onNavigateToProviderKeys,
+                )
+            }
+            item(key = "favorites_row") {
+                AccountSettingsRow(
+                    icon = Icons.Default.Star,
+                    title = stringResource(Res.string.favorites),
+                    subtitle = stringResource(Res.string.favorites_subtitle),
+                    onClick = onNavigateToFavorites,
+                )
+            }
+
+            // Danger zone
+            item(key = "danger_header") {
+                SectionHeader(stringResource(Res.string.section_danger_zone))
+            }
+            item(key = "danger_actions") {
+                DangerZone(
+                    isDeleting = uiState.isDeletingAccount,
+                    allowAccountDeletion = uiState.allowAccountDeletion,
+                    onLogoutClick = { showLogoutDialog = true },
+                    onDeleteClick = { showDeleteDialog = true },
+                )
+            }
+
+            // Bottom spacing
+            item { Spacer(modifier = Modifier.height(32.dp)) }
         }
 
         // Avatar upload dialog
@@ -334,7 +316,7 @@ fun AccountSettingsContent(
             OtpVerificationDialog(
                 title = stringResource(Res.string.otp_title_verify_identity),
                 description = stringResource(Res.string.otp_desc_delete_account),
-                isLoading = uiState.isLoading,
+                isLoading = uiState.isDeletingAccount,
                 onVerify = { token, backupCode ->
                     viewModel.deleteAccount(token = token, backupCode = backupCode)
                 },
@@ -398,77 +380,8 @@ private fun SectionHeader(title: String) {
 }
 
 @Composable
-private fun AccountInfo(
-    name: String,
-    email: String,
-    avatarUrl: String? = null,
-    onAvatarClick: () -> Unit = {},
-) {
-    Column {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Surface(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape),
-                color = MaterialTheme.colorScheme.primaryContainer,
-                onClick = onAvatarClick,
-            ) {
-                if (avatarUrl != null) {
-                    AsyncImage(
-                        model = avatarUrl,
-                        contentDescription = stringResource(Res.string.cd_user_avatar),
-                        modifier = Modifier.size(48.dp),
-                        contentScale = ContentScale.Crop,
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = null,
-                        modifier = Modifier.padding(12.dp),
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                if (name.isNotBlank()) {
-                    Text(
-                        text = name,
-                        style = MaterialTheme.typography.bodyLarge,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                if (email.isNotBlank()) {
-                    Text(
-                        text = email,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-            IconButton(onClick = onAvatarClick) {
-                Icon(
-                    imageVector = Icons.Default.CameraAlt,
-                    contentDescription = stringResource(Res.string.cd_change_avatar),
-                    modifier = Modifier.size(20.dp),
-                )
-            }
-        }
-        HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
-    } // Column
-}
-
-@Composable
 private fun DangerZone(
-    isLoading: Boolean,
+    isDeleting: Boolean,
     allowAccountDeletion: Boolean,
     onLogoutClick: () -> Unit,
     onDeleteClick: () -> Unit,
@@ -481,7 +394,7 @@ private fun DangerZone(
     ) {
         OutlinedButton(
             onClick = onLogoutClick,
-            enabled = !isLoading,
+            enabled = !isDeleting,
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text(stringResource(Res.string.action_sign_out))
@@ -489,7 +402,7 @@ private fun DangerZone(
         if (allowAccountDeletion) {
             Button(
                 onClick = onDeleteClick,
-                enabled = !isLoading,
+                enabled = !isDeleting,
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.error,

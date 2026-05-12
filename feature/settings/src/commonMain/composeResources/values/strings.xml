@@ -39,6 +39,7 @@
     <string name="cd_edit_memory">Edit memory</string>
     <string name="cd_edit_server">Edit server</string>
     <string name="cd_expand_tools">Expand tools</string>
+    <string name="cd_loading_profile">Loading profile</string>
     <string name="cd_make_private">Make private</string>
     <string name="cd_make_public">Make public</string>
     <string name="cd_preview_voice">Preview voice</string>

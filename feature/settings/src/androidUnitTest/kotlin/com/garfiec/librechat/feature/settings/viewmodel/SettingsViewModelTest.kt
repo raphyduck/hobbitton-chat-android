@@ -32,8 +32,10 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -155,11 +157,11 @@ class SettingsViewModelTest {
         assertThat(state.user).isNotNull()
         assertThat(state.user?.name).isEqualTo("Test User")
         assertThat(state.user?.email).isEqualTo("test@example.com")
-        assertThat(state.isLoading).isFalse()
+        assertThat(state.profileLoadError).isNull()
     }
 
     @Test
-    fun `user load failure shows error`() = runTest {
+    fun `user load failure routes to profileLoadError, not snackbar error`() = runTest {
         coEvery { userRepository.getUser() } returns Result.Error(message = "Network error")
 
         viewModel = createViewModel()
@@ -167,8 +169,48 @@ class SettingsViewModelTest {
 
         val state = viewModel.uiState.value
         assertThat(state.user).isNull()
-        assertThat(state.error).isEqualTo("Network error")
-        assertThat(state.isLoading).isFalse()
+        assertThat(state.profileLoadError).isEqualTo("Network error")
+        assertThat(state.error).isNull()
+    }
+
+    @Test
+    fun `retry after profile load failure clears profileLoadError on success`() = runTest {
+        coEvery { userRepository.getUser() } returns Result.Error(message = "Network error")
+        viewModel = createViewModel()
+        advanceUntilIdle()
+        assertThat(viewModel.uiState.value.profileLoadError).isEqualTo("Network error")
+
+        coEvery { userRepository.getUser() } returns Result.Success(testUser)
+        viewModel.retry()
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertThat(state.profileLoadError).isNull()
+        assertThat(state.user).isNotNull()
+    }
+
+    @Test
+    fun `retry cancels in-flight load so its stale error cannot overwrite the new result`() = runTest {
+        // First call hangs (simulates a 90s unreachable-server timeout) then resolves to an error.
+        // Production correctness requires UserRepositoryImpl to wrap the call in safeApiCall so
+        // CancellationException propagates; this test exercises the ViewModel-level guard given
+        // that wrapping. A regression in UserRepositoryImpl bypassing safeApiCall would not be
+        // caught here — covered separately by SafeApiCallTest.safeApiCallPropagatesCancellation.
+        coEvery { userRepository.getUser() } coAnswers {
+            delay(60_000)
+            Result.Error(message = "stale cancelled error")
+        }
+        viewModel = createViewModel()
+        advanceTimeBy(100) // let init { loadUser() } start the request and suspend inside delay()
+
+        // Second call returns success immediately.
+        coEvery { userRepository.getUser() } returns Result.Success(testUser)
+        viewModel.retry()
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertThat(state.user?.name).isEqualTo("Test User")
+        assertThat(state.profileLoadError).isNull()
     }
 
     @Test
@@ -253,11 +295,12 @@ class SettingsViewModelTest {
 
     @Test
     fun `dismissError clears error state`() = runTest {
-        coEvery { userRepository.getUser() } returns Result.Error(message = "Error")
+        coEvery { conversationRepository.deleteAll() } returns Result.Error(message = "Error")
 
         viewModel = createViewModel()
         advanceUntilIdle()
-
+        viewModel.clearAllChats()
+        advanceUntilIdle()
         assertThat(viewModel.uiState.value.error).isNotNull()
 
         viewModel.dismissError()
