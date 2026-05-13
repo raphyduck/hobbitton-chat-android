@@ -57,33 +57,10 @@ NON_BROWSER_VIOLATION_SCORE=0
 
 Without this setting, the server's violation system may accumulate ban points against the mobile client if the User-Agent check fails, eventually locking the account out.
 
-### Self-Signed Certificates (iOS)
-
-The iOS app can connect to a LibreChat server using a self-signed certificate, but iOS enforces strict requirements on all TLS certificates regardless of whether they are self-signed or CA-issued. The certificate must meet **all** of the following or iOS will reject the connection:
-
-| Requirement | Details |
-|---|---|
-| **Validity period** | ≤ 398 days (for certificates issued after September 1, 2020) |
-| **Subject Alternative Name** | DNS name must be present in the SAN extension — CommonName alone is not accepted |
-| **Key algorithm** | RSA ≥ 2048 bits |
-| **Signature algorithm** | SHA-256 or better (SHA-1 is not accepted) |
-| **Extended Key Usage** | Must include `id-kp-serverAuth` (TLS Web Server Authentication) |
-
-The 398-day validity limit is the most common cause of failures — a certificate that works in every browser but was generated with a multi-year validity will be rejected by iOS.
-
-**Setup steps:**
-
-1. Generate a compliant certificate signed by your own CA (tools like [`mkcert`](https://github.com/FiloSottile/mkcert) handle all requirements automatically)
-2. On your iPhone: **Settings → General → VPN & Device Management** — install your CA certificate
-3. Go to **Settings → General → About → Certificate Trust Settings** — enable full trust for your CA
-
-Once the CA is trusted on the device, you only need to re-install it if you create a new CA. The server certificate itself (which you replace when it expires) does not need to be installed separately.
-
-> **Android** has no equivalent restrictions — self-signed certificates with any validity period work as long as the CA is trusted on the device.
-
 ### Notes
 
 - **Registration** — The app respects your server's registration settings. If registration is disabled server-side, only the login form is shown.
+- **Self-signed TLS certificates** — Both platforms enforce certificate requirements stricter than browsers, and Android additionally does not trust user-installed CAs by default. See [FAQ.md](FAQ.md#can-i-use-a-self-signed-tls-certificate) for details and workarounds.
 
 ## Requirements
 
