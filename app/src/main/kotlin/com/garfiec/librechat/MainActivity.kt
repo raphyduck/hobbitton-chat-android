@@ -14,9 +14,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -96,6 +100,7 @@ class MainActivity : ComponentActivity() {
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .background(MaterialTheme.colorScheme.errorContainer)
+                                    .windowInsetsPadding(WindowInsets.statusBars)
                                     .padding(vertical = 6.dp, horizontal = 16.dp),
                                 contentAlignment = Alignment.Center,
                             ) {
@@ -111,7 +116,11 @@ class MainActivity : ComponentActivity() {
                             deepLinkUri = deepLinkUri,
                             onDeepLinkConsume = { deepLinkUri = null },
                             shareNavigationTrigger = shareNavigationTrigger,
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier
+                                .weight(1f)
+                                .consumeWindowInsets(
+                                    if (!isConnected) WindowInsets.statusBars else WindowInsets(0, 0, 0, 0),
+                                ),
                         )
                     }
                 }
