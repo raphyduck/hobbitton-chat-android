@@ -118,8 +118,12 @@ class MainActivity : ComponentActivity() {
                             shareNavigationTrigger = shareNavigationTrigger,
                             modifier = Modifier
                                 .weight(1f)
-                                .consumeWindowInsets(
-                                    if (!isConnected) WindowInsets.statusBars else WindowInsets(0, 0, 0, 0),
+                                .then(
+                                    if (!isConnected) {
+                                        Modifier.consumeWindowInsets(WindowInsets.statusBars)
+                                    } else {
+                                        Modifier
+                                    },
                                 ),
                         )
                     }
