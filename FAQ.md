@@ -48,4 +48,4 @@ If you need TLS with a self-hosted server on Android today, the practical option
 - Put the server behind a reverse proxy (e.g., Caddy, Cloudflare Tunnel) that terminates TLS with a publicly-trusted certificate.
 - Connect over plain HTTP on a trusted local network and accept the in-app warning. (Cleartext is permitted but TLS validation is **not** weakened — `cleartextTrafficPermitted="true"` only governs `http://`, not which roots are trusted for `https://`.)
 
-> **Looking ahead:** Android 17 (API 37) turns on Certificate Transparency by default for app TLS connections. If user-CA opt-in is added later, self-signed leaf certs without SCTs will additionally need `<certificateTransparency enabled="false"/>` in the Network Security Config to work on Android 17+ devices.
+> **Looking ahead:** Apps that target API 37+ (Android 17) get Certificate Transparency enabled by default for TLS connections. If user-CA opt-in is added later and the app's `targetSdk` reaches 37, self-signed leaf certs without SCTs will additionally need `<certificateTransparency enabled="false"/>` in the Network Security Config.
