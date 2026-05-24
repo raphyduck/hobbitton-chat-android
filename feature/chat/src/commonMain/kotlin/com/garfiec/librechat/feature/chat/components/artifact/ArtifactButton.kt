@@ -107,25 +107,23 @@ fun ArtifactButton(
     }
 }
 
-private fun artifactTypeIcon(type: String): ImageVector {
-    return when {
-        type.contains("mermaid") -> Icons.Default.AccountTree
-        type.contains("react") -> Icons.Default.Widgets
-        type.contains("html") || type.contains("code-html") -> Icons.Default.Web
-        type.contains("svg") || type.contains("image") -> Icons.Default.Image
-        type.contains("markdown") || type == "text/md" -> Icons.AutoMirrored.Filled.Article
-        else -> Icons.Default.Code
+private fun artifactTypeIcon(type: String): ImageVector =
+    when (ArtifactType.from(type)) {
+        ArtifactType.MERMAID -> Icons.Default.AccountTree
+        ArtifactType.REACT -> Icons.Default.Widgets
+        ArtifactType.HTML -> Icons.Default.Web
+        ArtifactType.SVG -> Icons.Default.Image
+        ArtifactType.MARKDOWN -> Icons.AutoMirrored.Filled.Article
+        ArtifactType.PLAIN, ArtifactType.CODE -> Icons.Default.Code
     }
-}
 
-private fun artifactTypeSubtitle(type: String): String {
-    return when {
-        type.contains("mermaid") -> "Mermaid Diagram"
-        type.contains("react") -> "React Component"
-        type.contains("svg") -> "SVG Image"
-        type.contains("markdown") || type == "text/md" -> "Markdown Document"
-        type.contains("html") || type.contains("code-html") -> "HTML Page"
-        type == "text/plain" -> "Plain Text"
-        else -> "Code"
+private fun artifactTypeSubtitle(type: String): String =
+    when (ArtifactType.from(type)) {
+        ArtifactType.MERMAID -> "Mermaid Diagram"
+        ArtifactType.REACT -> "React Component"
+        ArtifactType.SVG -> "SVG Image"
+        ArtifactType.MARKDOWN -> "Markdown Document"
+        ArtifactType.HTML -> "HTML Page"
+        ArtifactType.PLAIN -> "Plain Text"
+        ArtifactType.CODE -> "Code"
     }
-}

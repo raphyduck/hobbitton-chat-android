@@ -118,6 +118,21 @@ fun ChatSettingsContent(
                 )
             }
 
+            // Artifacts section
+            item(key = "artifacts_header") {
+                SectionHeader(stringResource(Res.string.section_artifacts))
+            }
+            item(key = "artifacts_settings") {
+                ArtifactSettingsSection(
+                    prefs = uiState.inlineArtifactPrefs,
+                    onMermaidChange = viewModel::setInlineArtifactMermaid,
+                    onSvgChange = viewModel::setInlineArtifactSvg,
+                    onHtmlChange = viewModel::setInlineArtifactHtml,
+                    onReactChange = viewModel::setInlineArtifactReact,
+                    onMarkdownChange = viewModel::setInlineArtifactMarkdown,
+                )
+            }
+
             // Presets section
             item(key = "presets_header") {
                 SectionHeader(stringResource(Res.string.section_presets))

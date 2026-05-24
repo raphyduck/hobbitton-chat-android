@@ -61,7 +61,6 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.garfiec.librechat.feature.chat.resources.*
 import com.garfiec.librechat.feature.chat.resources.Res
-import com.mikepenz.markdown.m3.Markdown
 import com.mikepenz.markdown.m3.markdownColor
 import com.mikepenz.markdown.m3.markdownTypography
 import org.jetbrains.compose.resources.stringResource
@@ -95,6 +94,7 @@ actual fun MarkdownContent(
     searchQuery: String?,
     searchFocusedOccurrence: Int,
     onFocusedOccurrencePosition: ((LayoutCoordinates) -> Unit)?,
+    immediate: Boolean,
 ) {
     val segments = remember(text) { parseMarkdownSegments(text) }
     val isSearchActive = !searchQuery.isNullOrBlank()
@@ -162,6 +162,7 @@ actual fun MarkdownContent(
                                             MarkdownTextSegment(
                                                 content = inlineSegment.text,
                                                 fontSizeMultiplier = fontSizeMultiplier,
+                                                immediate = immediate,
                                             )
                                         }
                                     }
@@ -217,6 +218,7 @@ actual fun MarkdownContent(
                             MarkdownTextSegment(
                                 content = segment.text,
                                 fontSizeMultiplier = fontSizeMultiplier,
+                                immediate = immediate,
                             )
                         }
                     }
@@ -286,6 +288,7 @@ private fun MarkdownTextSegment(
     content: String,
     modifier: Modifier = Modifier,
     fontSizeMultiplier: Float = 1.0f,
+    immediate: Boolean = false,
 ) {
     val colors = markdownColor(
         text = MaterialTheme.colorScheme.onSurface,
@@ -312,16 +315,20 @@ private fun MarkdownTextSegment(
         list = bodyLarge.scaleFontSize(fontSizeMultiplier),
     )
 
-    // The Markdown composable caches internally keyed on content. Wrapping
-    // in key(fontSizeMultiplier) forces disposal and recreation when the
-    // user changes the font size setting, so the new typography takes effect.
+    // CachedMarkdown reads the ParsedMarkdownCache hoisted on ChatViewModel and
+    // renders directly from the cached State.Success on re-entry, which skips the
+    // library's async Loading→Success transition. That transition is what produces
+    // the 0-px → final-height cascade on LazyColumn item recycle.
+    //
+    // key(fontSizeMultiplier) forces a fresh composition when the user changes
+    // the font-size setting so the new typography takes effect.
     key(fontSizeMultiplier) {
-        Markdown(
+        CachedMarkdown(
             content = content,
             colors = colors,
             typography = typography,
-            modifier = modifier
-                .fillMaxWidth(),
+            modifier = modifier.fillMaxWidth(),
+            immediate = immediate,
         )
     }
 }

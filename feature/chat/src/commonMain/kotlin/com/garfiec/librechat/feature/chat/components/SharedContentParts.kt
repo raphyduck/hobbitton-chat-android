@@ -50,12 +50,25 @@ import com.garfiec.librechat.core.common.ToolConstants
 import com.garfiec.librechat.core.model.Attachment
 import com.garfiec.librechat.core.model.ContentType
 import com.garfiec.librechat.core.model.content.MessageContentPart
+import com.garfiec.librechat.core.ui.theme.isSurfaceDark
 import com.garfiec.librechat.feature.chat.components.artifact.Artifact
 import com.garfiec.librechat.feature.chat.components.artifact.ArtifactButton
 import com.garfiec.librechat.feature.chat.components.artifact.ArtifactPanel
 import com.garfiec.librechat.feature.chat.components.artifact.ArtifactSegment
+import com.garfiec.librechat.feature.chat.components.artifact.ArtifactType
+import com.garfiec.librechat.feature.chat.components.artifact.InlineArtifactStrategy
+import com.garfiec.librechat.feature.chat.components.artifact.InlineArtifactView
+import com.garfiec.librechat.feature.chat.components.artifact.InlineMarkdownArtifact
+import com.garfiec.librechat.feature.chat.components.artifact.InlineSvgArtifact
+import com.garfiec.librechat.feature.chat.components.artifact.InlineSvgSurface
+import com.garfiec.librechat.feature.chat.components.artifact.LocalInlineArtifactPrefs
+import com.garfiec.librechat.feature.chat.components.artifact.LocalMermaidRenderCache
 import com.garfiec.librechat.feature.chat.components.artifact.detectArtifacts
 import com.garfiec.librechat.feature.chat.components.artifact.groupArtifactVersions
+import com.garfiec.librechat.feature.chat.components.artifact.isCacheableMermaid
+import com.garfiec.librechat.feature.chat.components.artifact.mermaidCacheKey
+import com.garfiec.librechat.feature.chat.components.artifact.selectInlineArtifactStrategy
+import com.garfiec.librechat.feature.chat.components.artifact.shouldRenderInline
 import com.garfiec.librechat.feature.chat.resources.*
 import com.garfiec.librechat.feature.chat.resources.Res
 import kotlinx.serialization.json.JsonArray
@@ -294,9 +307,18 @@ private fun TextContentPart(
     val hasArtifacts = remember(segments) { segments.any { it is ArtifactSegment.ArtifactReference } }
 
     if (!hasArtifacts) {
-        MarkdownContent(text, modifier, fontSizeMultiplier, useKatex, searchQuery, searchFocusedOccurrence, onFocusedOccurrencePosition)
+        MarkdownContent(
+            text,
+            modifier,
+            fontSizeMultiplier,
+            useKatex,
+            searchQuery,
+            searchFocusedOccurrence,
+            onFocusedOccurrencePosition,
+        )
     } else {
         val versionMap = remember(segments) { groupArtifactVersions(segments) }
+        val inlinePrefs = LocalInlineArtifactPrefs.current
         var activeArtifact by remember {
             mutableStateOf<Artifact?>(null)
         }
@@ -317,11 +339,43 @@ private fun TextContentPart(
                     is ArtifactSegment.ArtifactReference -> {
                         val versions = versionMap[segment.artifact.identifier] ?: listOf(segment.artifact)
                         Spacer(modifier = Modifier.height(8.dp))
-                        ArtifactButton(
-                            artifact = segment.artifact,
-                            onClick = { activeArtifact = segment.artifact },
-                            versionCount = versions.size,
-                        )
+                        if (inlinePrefs.shouldRenderInline(segment.artifact.type)) {
+                            val type = ArtifactType.from(segment.artifact.type)
+                            val cachedSvg = rememberCachedMermaidSvg(segment.artifact.content, type)
+                            when (val strategy = selectInlineArtifactStrategy(type, segment.artifact.content, cachedSvg)) {
+                                is InlineArtifactStrategy.CachedMermaidSvg -> InlineSvgSurface(
+                                    svg = strategy.svg,
+                                    onTap = { activeArtifact = segment.artifact },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    contentPadding = 4.dp,
+                                )
+                                InlineArtifactStrategy.NativeMarkdown -> InlineMarkdownArtifact(
+                                    artifact = segment.artifact,
+                                    onTap = { activeArtifact = segment.artifact },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    fontSizeMultiplier = fontSizeMultiplier,
+                                    searchQuery = searchQuery,
+                                    searchFocusedOccurrence = searchFocusedOccurrence,
+                                    onFocusedOccurrencePosition = onFocusedOccurrencePosition,
+                                )
+                                InlineArtifactStrategy.IntrinsicSvg -> InlineSvgArtifact(
+                                    artifact = segment.artifact,
+                                    onTap = { activeArtifact = segment.artifact },
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                                InlineArtifactStrategy.WebViewSlot -> InlineArtifactView(
+                                    artifact = segment.artifact,
+                                    onTap = { activeArtifact = segment.artifact },
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                            }
+                        } else {
+                            ArtifactButton(
+                                artifact = segment.artifact,
+                                onClick = { activeArtifact = segment.artifact },
+                                versionCount = versions.size,
+                            )
+                        }
                         Spacer(modifier = Modifier.height(8.dp))
                     }
                 }
@@ -336,6 +390,20 @@ private fun TextContentPart(
             )
         }
     }
+}
+
+/**
+ * Reads the [LocalMermaidRenderCache] for the given artifact content and theme,
+ * returning the cached SVG when present. Returns `null` for non-mermaid types
+ * or non-cacheable mermaid sources so callers don't need to gate themselves.
+ */
+@Composable
+private fun rememberCachedMermaidSvg(content: String, type: ArtifactType): String? {
+    if (type != ArtifactType.MERMAID || !isCacheableMermaid(content)) return null
+    val cache = LocalMermaidRenderCache.current
+    val isDark = isSurfaceDark()
+    val key = remember(content, isDark) { mermaidCacheKey(content, isDark) }
+    return cache[key]
 }
 
 // ─── ThinkingContentPart ────────────────────────────────────────────

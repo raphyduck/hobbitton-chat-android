@@ -74,4 +74,5 @@ expect fun MarkdownContent(
     searchQuery: String? = null,
     searchFocusedOccurrence: Int = -1,
     onFocusedOccurrencePosition: ((LayoutCoordinates) -> Unit)? = null,
+    immediate: Boolean = false,
 )

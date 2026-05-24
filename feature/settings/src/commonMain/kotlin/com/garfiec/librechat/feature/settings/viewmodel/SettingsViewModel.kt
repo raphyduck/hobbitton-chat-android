@@ -7,6 +7,7 @@ import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.common.ChatLayoutConstants
 import com.garfiec.librechat.core.common.result.Result
 import com.garfiec.librechat.core.data.datastore.ChatFontSize
+import com.garfiec.librechat.core.data.datastore.InlineArtifactPrefs
 import com.garfiec.librechat.core.data.datastore.LatexRenderer
 import com.garfiec.librechat.core.data.datastore.ServerDataStore
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
@@ -186,6 +187,8 @@ data class SettingsUiState(
     val showAvatars: Boolean = true,
     val showBubbles: Boolean = false,
     val latexRenderer: LatexRenderer = LatexRenderer.KATEX,
+    // Inline artifact rendering (per-type toggles)
+    val inlineArtifactPrefs: InlineArtifactPrefs = InlineArtifactPrefs(),
     // Role-permission gates. `serverMemoriesEnabled` is the SERVER-level MEMORIES.USE
     // gate and is orthogonal to [memoriesEnabled], which is the user's own opt-out
     // stored on their profile (`user.personalization.memories`).
@@ -337,6 +340,9 @@ class SettingsViewModel(
     private val latexRendererPref: StateFlow<LatexRenderer> = settingsDataStore.latexRenderer
         .stateIn(viewModelScope, SharingStarted.Eagerly, LatexRenderer.KATEX)
 
+    private val inlineArtifactPrefsFlow: StateFlow<InlineArtifactPrefs> = settingsDataStore.inlineArtifactPrefs
+        .stateIn(viewModelScope, SharingStarted.Eagerly, InlineArtifactPrefs())
+
     /** Additional preferences combined separately to stay within the 5-arg combine limit. */
     private data class AdditionalPreferences(
         val tabletSidebarGestureEnabled: Boolean,
@@ -348,6 +354,7 @@ class SettingsViewModel(
         val showAvatars: Boolean = true,
         val showBubbles: Boolean = false,
         val latexRenderer: LatexRenderer = LatexRenderer.KATEX,
+        val inlineArtifactPrefs: InlineArtifactPrefs = InlineArtifactPrefs(),
     )
 
     private val baseAdditionalPreferences = combine(
@@ -368,6 +375,8 @@ class SettingsViewModel(
         latexRendererPref,
     ) { base, layoutStyle, showAvatars, showBubbles, latexRenderer ->
         base.copy(chatLayoutStyle = layoutStyle, showAvatars = showAvatars, showBubbles = showBubbles, latexRenderer = latexRenderer)
+    }.combine(inlineArtifactPrefsFlow) { additional, inlineArtifact ->
+        additional.copy(inlineArtifactPrefs = inlineArtifact)
     }.stateIn(viewModelScope, SharingStarted.Eagerly, AdditionalPreferences(true, false, "", "", true))
 
     /** The single public UI state that merges DataStore preferences with imperative state. */
@@ -404,6 +413,7 @@ class SettingsViewModel(
             showAvatars = additional.showAvatars,
             showBubbles = additional.showBubbles,
             latexRenderer = additional.latexRenderer,
+            inlineArtifactPrefs = additional.inlineArtifactPrefs,
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, SettingsUiState())
 
@@ -580,6 +590,26 @@ class SettingsViewModel(
 
     fun setLatexRenderer(renderer: LatexRenderer) {
         viewModelScope.launch { settingsDataStore.setLatexRenderer(renderer) }
+    }
+
+    fun setInlineArtifactMermaid(enabled: Boolean) {
+        viewModelScope.launch { settingsDataStore.setInlineArtifactMermaid(enabled) }
+    }
+
+    fun setInlineArtifactSvg(enabled: Boolean) {
+        viewModelScope.launch { settingsDataStore.setInlineArtifactSvg(enabled) }
+    }
+
+    fun setInlineArtifactHtml(enabled: Boolean) {
+        viewModelScope.launch { settingsDataStore.setInlineArtifactHtml(enabled) }
+    }
+
+    fun setInlineArtifactReact(enabled: Boolean) {
+        viewModelScope.launch { settingsDataStore.setInlineArtifactReact(enabled) }
+    }
+
+    fun setInlineArtifactMarkdown(enabled: Boolean) {
+        viewModelScope.launch { settingsDataStore.setInlineArtifactMarkdown(enabled) }
     }
 
     // ── Tablet preferences ─────────────────────────────────────────

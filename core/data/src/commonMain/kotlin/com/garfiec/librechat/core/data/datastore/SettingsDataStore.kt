@@ -112,6 +112,16 @@ class SettingsDataStore(
         prefs[KEY_SHOW_BUBBLES] ?: false
     }
 
+    val inlineArtifactPrefs: Flow<InlineArtifactPrefs> = dataStore.data.map { prefs ->
+        InlineArtifactPrefs(
+            mermaid = prefs[KEY_INLINE_ARTIFACT_MERMAID] ?: false,
+            svg = prefs[KEY_INLINE_ARTIFACT_SVG] ?: false,
+            html = prefs[KEY_INLINE_ARTIFACT_HTML] ?: false,
+            react = prefs[KEY_INLINE_ARTIFACT_REACT] ?: false,
+            markdown = prefs[KEY_INLINE_ARTIFACT_MARKDOWN] ?: false,
+        )
+    }
+
     val selectedMcpServers: Flow<Set<String>> = dataStore.data.map { prefs ->
         prefs[KEY_SELECTED_MCP_SERVERS]?.split(",")?.filter { it.isNotBlank() }?.toSet() ?: emptySet()
     }
@@ -273,6 +283,26 @@ class SettingsDataStore(
         }
     }
 
+    suspend fun setInlineArtifactMermaid(enabled: Boolean) {
+        dataStore.edit { prefs -> prefs[KEY_INLINE_ARTIFACT_MERMAID] = enabled }
+    }
+
+    suspend fun setInlineArtifactSvg(enabled: Boolean) {
+        dataStore.edit { prefs -> prefs[KEY_INLINE_ARTIFACT_SVG] = enabled }
+    }
+
+    suspend fun setInlineArtifactHtml(enabled: Boolean) {
+        dataStore.edit { prefs -> prefs[KEY_INLINE_ARTIFACT_HTML] = enabled }
+    }
+
+    suspend fun setInlineArtifactReact(enabled: Boolean) {
+        dataStore.edit { prefs -> prefs[KEY_INLINE_ARTIFACT_REACT] = enabled }
+    }
+
+    suspend fun setInlineArtifactMarkdown(enabled: Boolean) {
+        dataStore.edit { prefs -> prefs[KEY_INLINE_ARTIFACT_MARKDOWN] = enabled }
+    }
+
     /**
      * Saves the backend version for which the user chose "Don't warn again".
      * If the backend later updates to a different version, the warning will reappear.
@@ -329,6 +359,11 @@ class SettingsDataStore(
         private val KEY_CHAT_LAYOUT_STYLE = stringPreferencesKey("chat_layout_style")
         private val KEY_SHOW_AVATARS = booleanPreferencesKey("show_avatars")
         private val KEY_SHOW_BUBBLES = booleanPreferencesKey("show_bubbles")
+        private val KEY_INLINE_ARTIFACT_MERMAID = booleanPreferencesKey("inline_artifact_mermaid")
+        private val KEY_INLINE_ARTIFACT_SVG = booleanPreferencesKey("inline_artifact_svg")
+        private val KEY_INLINE_ARTIFACT_HTML = booleanPreferencesKey("inline_artifact_html")
+        private val KEY_INLINE_ARTIFACT_REACT = booleanPreferencesKey("inline_artifact_react")
+        private val KEY_INLINE_ARTIFACT_MARKDOWN = booleanPreferencesKey("inline_artifact_markdown")
         private val KEY_DISMISSED_VERSION_WARNING = stringPreferencesKey("dismissed_version_warning")
         private val KEY_SELECTED_MCP_SERVERS = stringPreferencesKey("selected_mcp_servers")
         private val KEY_ENABLED_TOOLS = stringPreferencesKey("enabled_tools")

@@ -40,6 +40,7 @@ import com.garfiec.librechat.core.model.permissions.hasAccessOrPermissive
 import com.garfiec.librechat.core.model.request.EphemeralAgent
 import com.garfiec.librechat.core.ui.components.ModelParameters
 import com.garfiec.librechat.feature.chat.components.AttachedFile
+import com.garfiec.librechat.feature.chat.components.ParsedMarkdownCache
 import com.garfiec.librechat.feature.chat.model.PresetDisplayData
 import com.garfiec.librechat.feature.chat.model.PromptMentionDisplayData
 import com.garfiec.librechat.feature.chat.util.NEW_CHAT_DRAFT_KEY
@@ -101,6 +102,19 @@ class ChatViewModel(
 
     private val stateHandle = ChatStateHandle(_uiState, viewModelScope)
 
+    // Mermaid SVG cache, scoped to this ViewModel's lifecycle. Filled by inline-
+    // artifact WebViews via a JS bridge; read by SharedContentParts when a
+    // recompose reaches an already-rendered flowchart mermaid.
+    val mermaidRenderCache: com.garfiec.librechat.feature.chat.components.artifact.MermaidRenderCache =
+        com.garfiec.librechat.feature.chat.components.artifact.MermaidRenderCache()
+
+    // Parsed-AST cache for chat-text markdown. m3 parses async; when a LazyColumn
+    // item is recycled its remembered state dies and parsing restarts, producing
+    // a 0-px → final-height cascade that pushes adjacent inline-artifact slots
+    // around (the scroll-jump root cause). Caching the parsed State.Success lets
+    // re-entry render directly from the cached AST. See CachedMarkdown.
+    val parsedMarkdownCache: ParsedMarkdownCache = ParsedMarkdownCache()
+
     // --- Platform delegates (created via factory so they get the ViewModel's stateHandle) ---
     private val fileDelegate = platformDelegateFactory.createFileHandler(stateHandle)
     private val ttsDelegate = platformDelegateFactory.createTts(stateHandle, ::getMessageText)
@@ -130,30 +144,60 @@ class ChatViewModel(
     val attachedFiles: StateFlow<List<AttachedFile>> get() = fileDelegate.attachedFiles
     val shareLinkUrl: StateFlow<String?> get() = conversationActionsDelegate.shareLinkUrl
 
-    @Suppress("UNCHECKED_CAST")
-    val chatPreferences: StateFlow<ChatPreferences> = combine<Any, ChatPreferences>(
-        listOf(
-            settingsDataStore.showImageDescriptions,
-            settingsDataStore.dismissKeyboardOnSend,
-            settingsDataStore.chatLayoutStyle,
-            settingsDataStore.showAvatars,
-            settingsDataStore.showBubbles,
-            settingsDataStore.latexRenderer,
-            settingsDataStore.autoSendAfterStt,
-            settingsDataStore.sttEngine,
-            settingsDataStore.sttLanguage,
-        ),
-    ) { values ->
+    private data class BaseChatPrefs(
+        val showImageDescriptions: Boolean,
+        val dismissKeyboardOnSend: Boolean,
+        val chatLayoutStyle: String,
+        val showAvatars: Boolean,
+        val showBubbles: Boolean,
+    )
+
+    private data class SttAndRendererPrefs(
+        val latexRenderer: LatexRenderer,
+        val autoSendAfterStt: Boolean,
+        val sttEngine: String,
+        val sttLanguage: String,
+        val inlineArtifactPrefs: com.garfiec.librechat.core.data.datastore.InlineArtifactPrefs,
+    )
+
+    // Combined in stages because Kotlin's `combine` maxes out at 5 args. Each stage
+    // produces a typed sub-record, and they're folded into `ChatPreferences` at the end.
+    // Adding a new pref: extend a sub-record (or add a third combine) — no positional casts.
+    private val baseChatPrefs = combine(
+        settingsDataStore.showImageDescriptions,
+        settingsDataStore.dismissKeyboardOnSend,
+        settingsDataStore.chatLayoutStyle,
+        settingsDataStore.showAvatars,
+        settingsDataStore.showBubbles,
+    ) { imgDesc, dismissKb, layout, avatars, bubbles ->
+        BaseChatPrefs(imgDesc, dismissKb, layout, avatars, bubbles)
+    }
+
+    private val sttAndRendererPrefs = combine(
+        settingsDataStore.latexRenderer,
+        settingsDataStore.autoSendAfterStt,
+        settingsDataStore.sttEngine,
+        settingsDataStore.sttLanguage,
+        settingsDataStore.inlineArtifactPrefs,
+    ) { latex, autoSendStt, sttEngine, sttLang, inlineArtifacts ->
+        SttAndRendererPrefs(latex, autoSendStt, sttEngine, sttLang, inlineArtifacts)
+    }
+
+    val chatPreferences: StateFlow<ChatPreferences> = combine(
+        baseChatPrefs,
+        sttAndRendererPrefs,
+    ) { base, sttRenderer ->
         ChatPreferences(
-            showImageDescriptions = values[0] as Boolean,
-            dismissKeyboardOnSend = values[1] as Boolean,
-            chatLayoutStyle = values[2] as String,
-            showAvatars = values[3] as Boolean,
-            showBubbles = values[4] as Boolean,
-            latexRenderer = values[5] as LatexRenderer,
-            autoSendAfterStt = values[6] as Boolean,
-            sttEngine = values[7] as String,
-            sttLanguage = values[8] as String,
+            showImageDescriptions = base.showImageDescriptions,
+            dismissKeyboardOnSend = base.dismissKeyboardOnSend,
+            chatLayoutStyle = base.chatLayoutStyle,
+            showAvatars = base.showAvatars,
+            showBubbles = base.showBubbles,
+            latexRenderer = sttRenderer.latexRenderer,
+            autoSendAfterStt = sttRenderer.autoSendAfterStt,
+            sttEngine = sttRenderer.sttEngine,
+            sttLanguage = sttRenderer.sttLanguage,
+            inlineArtifactPrefs = sttRenderer.inlineArtifactPrefs,
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, ChatPreferences())
 

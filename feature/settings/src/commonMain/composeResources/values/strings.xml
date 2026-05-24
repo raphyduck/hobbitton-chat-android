@@ -167,6 +167,20 @@
     <string name="dismiss_keyboard_on_send">Dismiss keyboard after sending</string>
     <string name="dismiss_keyboard_on_send_desc">Automatically hide the keyboard after sending a message</string>
 
+    <!-- Artifacts -->
+    <string name="section_artifacts">Artifacts</string>
+    <string name="artifacts_section_desc">Render artifacts directly in the chat instead of behind a tap-to-open card. Tap an inline artifact to open the fullscreen view.</string>
+    <string name="inline_artifact_mermaid">Mermaid diagrams</string>
+    <string name="inline_artifact_mermaid_desc">Render Mermaid flowcharts and diagrams inline</string>
+    <string name="inline_artifact_svg">SVG images</string>
+    <string name="inline_artifact_svg_desc">Render SVG vector graphics inline</string>
+    <string name="inline_artifact_html">HTML</string>
+    <string name="inline_artifact_html_desc">Render HTML pages inline (loads Tailwind from CDN)</string>
+    <string name="inline_artifact_react">React components</string>
+    <string name="inline_artifact_react_desc">Render React components inline (loads React + Babel from CDN)</string>
+    <string name="inline_artifact_markdown">Markdown documents</string>
+    <string name="inline_artifact_markdown_desc">Render Markdown artifacts inline with syntax-highlighted code blocks</string>
+
     <!-- Security -->
     <string name="two_factor_auth">Two-Factor Authentication</string>
     <string name="enable_two_factor">Enable Two-Factor Authentication</string>

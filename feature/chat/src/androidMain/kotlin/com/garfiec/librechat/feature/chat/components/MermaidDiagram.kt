@@ -47,6 +47,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import co.touchlab.kermit.Logger
+import com.garfiec.librechat.feature.chat.components.web.safelyDestroyWebView
 import com.garfiec.librechat.feature.chat.resources.*
 import com.garfiec.librechat.feature.chat.resources.Res
 import org.jetbrains.compose.resources.stringResource
@@ -241,10 +242,7 @@ private fun MermaidWebView(
                 loadedHtml = html
             }
         },
-        onRelease = { webView ->
-            webView.stopLoading()
-            webView.destroy()
-        },
+        onRelease = ::safelyDestroyWebView,
     )
 }
 
@@ -256,6 +254,7 @@ private fun buildMermaidHtml(escapedCode: String, theme: String): String {
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'unsafe-inline'; img-src data:;">
             <style>
+                html, body { max-width: 100%; }
                 body {
                     margin: 0;
                     padding: 8px;
@@ -263,7 +262,7 @@ private fun buildMermaidHtml(escapedCode: String, theme: String): String {
                     justify-content: center;
                     align-items: center;
                     background: transparent;
-                    overflow: hidden;
+                    overflow: visible;
                 }
                 .mermaid {
                     width: 100%;

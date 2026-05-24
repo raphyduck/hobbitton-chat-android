@@ -72,16 +72,12 @@ import com.garfiec.librechat.feature.chat.resources.cd_expand_table
 import com.garfiec.librechat.feature.chat.resources.dialog_table
 import com.garfiec.librechat.feature.chat.resources.sender_assistant
 import com.garfiec.librechat.feature.chat.resources.sender_you
-import com.mikepenz.markdown.m3.Markdown
 import com.mikepenz.markdown.m3.markdownColor
 import com.mikepenz.markdown.m3.markdownTypography
 import kotlinx.coroutines.delay
-import org.intellij.markdown.flavours.gfm.GFMFlavourDescriptor
 import org.jetbrains.compose.resources.stringResource
 
 private const val ACTION_AUTO_HIDE_MILLIS = 30_000L
-
-private val GFM_FLAVOUR = GFMFlavourDescriptor()
 
 // ─── MessageBubble ───────────────────────────────────────────────────
 
@@ -382,6 +378,7 @@ actual fun MarkdownContent(
     text: String, modifier: Modifier, fontSizeMultiplier: Float, useKatex: Boolean,
     searchQuery: String?, searchFocusedOccurrence: Int,
     onFocusedOccurrencePosition: ((LayoutCoordinates) -> Unit)?,
+    immediate: Boolean,
 ) {
     val segments = remember(text) { parseMarkdownSegments(text) }
 
@@ -441,12 +438,12 @@ actual fun MarkdownContent(
                                 is InlineSegment.Text -> {
                                     if (inlineSegment.text.isNotBlank()) {
                                         key(fontSizeMultiplier) {
-                                            Markdown(
+                                            CachedMarkdown(
                                                 content = inlineSegment.text,
                                                 colors = colors,
                                                 typography = typography,
-                                                flavour = GFM_FLAVOUR,
                                                 modifier = Modifier.fillMaxWidth(),
+                                                immediate = immediate,
                                             )
                                         }
                                     }
@@ -474,12 +471,12 @@ actual fun MarkdownContent(
                 }
                 is MarkdownSegment.TextBlock -> {
                     key(fontSizeMultiplier, index) {
-                        Markdown(
+                        CachedMarkdown(
                             content = segment.text,
                             colors = colors,
                             typography = typography,
-                            flavour = GFM_FLAVOUR,
                             modifier = Modifier.fillMaxWidth(),
+                            immediate = immediate,
                         )
                     }
                 }
