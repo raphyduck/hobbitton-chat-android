@@ -6,13 +6,14 @@ package com.garfiec.librechat.feature.chat.components.artifact
  */
 object MarkdownWebContent {
 
-    fun buildHtml(markdownContent: String, isDarkTheme: Boolean): String {
+    fun buildHtml(markdownContent: String, isDarkTheme: Boolean, inline: Boolean = false): String {
         val bgColor = if (isDarkTheme) "#1C1B1F" else "#FFFBFE"
         val fgColor = if (isDarkTheme) "#E6E1E5" else "#1C1B1F"
         val codeBg = if (isDarkTheme) "#2B2930" else "#F3EDF7"
         val borderColor = if (isDarkTheme) "#48464C" else "#CAC4D0"
         val linkColor = if (isDarkTheme) "#D0BCFF" else "#6750A4"
         val hlTheme = if (isDarkTheme) "github-dark" else "github"
+        val bodyPadding = if (inline) "8px" else "16px"
         val escapedContent = markdownContent
             .replace("\\", "\\\\")
             .replace("`", "\\`")
@@ -26,9 +27,10 @@ object MarkdownWebContent {
                 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'unsafe-inline' https://cdn.jsdelivr.net; img-src data: blob: https:;">
                 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11/styles/$hlTheme.min.css">
                 <style>
+                    html, body { max-width: 100%; overflow-x: hidden; }
                     body {
                         margin: 0;
-                        padding: 16px;
+                        padding: $bodyPadding;
                         background: $bgColor;
                         color: $fgColor;
                         font-family: -apple-system, system-ui, sans-serif;

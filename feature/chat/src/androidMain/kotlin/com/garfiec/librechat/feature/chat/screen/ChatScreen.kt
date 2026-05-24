@@ -78,6 +78,7 @@ import com.garfiec.librechat.core.model.content.MessageContentPart
 import com.garfiec.librechat.core.ui.components.LoadingIndicator
 import com.garfiec.librechat.core.ui.components.ModelParameterSheet
 import com.garfiec.librechat.feature.chat.components.ChatInput
+import com.garfiec.librechat.feature.chat.components.ChatRoot
 import com.garfiec.librechat.feature.chat.components.ComparisonDualPane
 import com.garfiec.librechat.feature.chat.components.ComparisonTabBar
 import com.garfiec.librechat.feature.chat.components.ForkOptionsBottomSheet
@@ -317,6 +318,11 @@ actual fun ChatScreen(
         hadConversation = uiState.conversationId != null
     }
 
+    ChatRoot(
+        inlineArtifactPrefs = prefs.inlineArtifactPrefs,
+        mermaidRenderCache = viewModel.mermaidRenderCache,
+        parsedMarkdownCache = viewModel.parsedMarkdownCache,
+    ) {
     Scaffold(
         modifier = modifier
             .fillMaxSize()
@@ -803,6 +809,7 @@ actual fun ChatScreen(
             endpointKeyStates = uiState.endpointKeyStates,
             onSetApiKey = { name -> onNavigateToProviderKeys(name) },
         )
+    }
     }
 }
 

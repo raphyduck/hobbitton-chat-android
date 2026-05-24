@@ -10,6 +10,7 @@ import coil3.compose.setSingletonImageLoaderFactory
 import coil3.memory.MemoryCache
 import coil3.network.ktor3.KtorNetworkFetcherFactory
 import coil3.request.crossfade
+import coil3.svg.SvgDecoder
 import com.garfiec.librechat.core.data.datastore.ThemeDataStore
 import com.garfiec.librechat.core.data.datastore.ThemeMode
 import com.garfiec.librechat.core.ui.theme.LibreChatTheme
@@ -35,6 +36,7 @@ fun LibreChatApp() {
             ImageLoader.Builder(context)
                 .components {
                     add(KtorNetworkFetcherFactory(httpClient))
+                    add(SvgDecoder.Factory())
                 }
                 .memoryCache {
                     MemoryCache.Builder()

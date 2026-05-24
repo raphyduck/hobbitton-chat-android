@@ -64,6 +64,7 @@ import com.garfiec.librechat.core.data.datastore.LatexRenderer
 import com.garfiec.librechat.feature.chat.components.InConvoSearchBar
 import com.garfiec.librechat.feature.chat.components.IosChatInput
 import com.garfiec.librechat.feature.chat.components.LandingContent
+import com.garfiec.librechat.feature.chat.components.ChatRoot
 import com.garfiec.librechat.feature.chat.components.MessageList
 import com.garfiec.librechat.feature.chat.components.ModelSelectorButton
 import com.garfiec.librechat.feature.chat.components.ModelSelectorSheet
@@ -166,6 +167,11 @@ actual fun ChatScreen(
 
     val sendBlockMessage = uiState.sendBlockReason?.asString()
 
+    ChatRoot(
+        inlineArtifactPrefs = prefs.inlineArtifactPrefs,
+        mermaidRenderCache = viewModel.mermaidRenderCache,
+        parsedMarkdownCache = viewModel.parsedMarkdownCache,
+    ) {
     Scaffold(
         modifier = modifier.imePadding(),
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -642,6 +648,7 @@ actual fun ChatScreen(
                 }
             },
         )
+    }
     }
 }
 

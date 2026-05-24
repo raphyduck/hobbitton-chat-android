@@ -9,6 +9,7 @@ A third-party native mobile client for [LibreChat](https://www.librechat.ai/) (A
 ## Features
 
 - **Chat** — Real-time streaming (SSE), message branching & sibling navigation, stop/regenerate/continue, markdown with syntax highlighting, LaTeX math rendering, code blocks with copy, image display, file attachments, tool call progress cards
+- **Inline Artifacts** — Render Mermaid, SVG, HTML, React, and Markdown artifacts directly in chat messages at full message width with content-fit height. Per-type toggle in Settings → Chat → Artifacts.
 - **Model Selection** — Searchable bottom sheet grouped by endpoint, model comparison mode
 - **Agents** — Marketplace with search and categories, MCP server configuration
 - **Conversations** — Paginated list with date grouping, tags, search, rename, archive, delete, share, fork, duplicate, export/import

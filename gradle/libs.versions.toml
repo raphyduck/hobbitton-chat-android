@@ -28,6 +28,7 @@ security-crypto = "1.1.0"
 
 # Async
 coroutines = "1.10.2"
+atomicfu = "0.28.0"
 
 # Paging
 paging = "3.5.0"
@@ -131,6 +132,7 @@ security-crypto = { group = "androidx.security", name = "security-crypto", versi
 coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutines" }
 coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
 coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
+atomicfu = { group = "org.jetbrains.kotlinx", name = "atomicfu", version.ref = "atomicfu" }
 
 # Paging
 paging-runtime = { group = "androidx.paging", name = "paging-runtime", version.ref = "paging" }
@@ -152,6 +154,7 @@ media3-datasource = { group = "androidx.media3", name = "media3-datasource", ver
 # Image Loading
 coil3-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil3" }
 coil3-network-ktor = { group = "io.coil-kt.coil3", name = "coil-network-ktor3", version.ref = "coil3" }
+coil3-svg = { group = "io.coil-kt.coil3", name = "coil-svg", version.ref = "coil3" }
 
 # Logging
 kermit = { group = "co.touchlab", name = "kermit", version.ref = "kermit" }

@@ -9,11 +9,18 @@ package com.garfiec.librechat.feature.chat.components.artifact
  */
 object MermaidWebContent {
 
-    fun buildHtml(mermaidCode: String, isDarkTheme: Boolean): String {
+    fun buildHtml(
+        mermaidCode: String,
+        isDarkTheme: Boolean,
+        inline: Boolean = false,
+        htmlLabels: Boolean = false,
+    ): String {
         val theme = if (isDarkTheme) "dark" else "default"
         val bgColor = if (isDarkTheme) "#1C1B1F" else "#FFFBFE"
         val fgColor = if (isDarkTheme) "#E6E1E5" else "#1C1B1F"
         val btnBg = if (isDarkTheme) "#332D41" else "#E8DEF8"
+        val bodyPadding = if (inline) "4px" else "16px"
+        val zoomDisplay = if (inline) "none" else "flex"
         val escapedCode = mermaidCode
             .replace("\\", "\\\\")
             .replace("`", "\\`")
@@ -26,9 +33,10 @@ object MermaidWebContent {
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'unsafe-inline'; img-src data:;">
                 <style>
+                    html, body { max-width: 100%; overflow-x: hidden; }
                     body {
                         margin: 0;
-                        padding: 16px;
+                        padding: $bodyPadding;
                         background: $bgColor;
                         color: $fgColor;
                         display: flex;
@@ -52,7 +60,7 @@ object MermaidWebContent {
                         position: fixed;
                         bottom: 12px;
                         right: 12px;
-                        display: flex;
+                        display: $zoomDisplay;
                         gap: 8px;
                         z-index: 10;
                     }
@@ -134,7 +142,8 @@ object MermaidWebContent {
                     mermaid.initialize({
                         startOnLoad: false,
                         theme: '$theme',
-                        securityLevel: 'loose'
+                        securityLevel: 'loose',
+                        flowchart: { htmlLabels: $htmlLabels }
                     });
 
                     (async function() {
@@ -142,6 +151,11 @@ object MermaidWebContent {
                             var code = `$escapedCode`;
                             var result = await mermaid.render('mermaid-graph', code);
                             document.getElementById('mermaid-container').innerHTML = result.svg;
+                            try {
+                                if (window.MermaidBridge && window.MermaidBridge.onSvg) {
+                                    window.MermaidBridge.onSvg(result.svg);
+                                }
+                            } catch (e) { /* swallow; bridge failure must not break visible render */ }
                         } catch (e) {
                             document.getElementById('error-display').style.display = 'block';
                             document.getElementById('error-display').textContent = 'Mermaid parse error:\n' + e.message + '\n\nRaw code:\n' + `$escapedCode`;

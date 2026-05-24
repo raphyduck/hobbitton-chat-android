@@ -5,6 +5,7 @@ import com.garfiec.librechat.core.common.ChatLayoutConstants
 import com.garfiec.librechat.core.common.EndpointConstants
 import com.garfiec.librechat.core.common.ToolConstants
 import com.garfiec.librechat.core.data.datastore.ChatFontSize
+import com.garfiec.librechat.core.data.datastore.InlineArtifactPrefs
 import com.garfiec.librechat.core.data.datastore.LatexRenderer
 import com.garfiec.librechat.core.model.Agent
 import com.garfiec.librechat.core.model.Attachment
@@ -48,6 +49,7 @@ data class ChatPreferences(
     val autoSendAfterStt: Boolean = false,
     val sttEngine: String = "",
     val sttLanguage: String = "",
+    val inlineArtifactPrefs: InlineArtifactPrefs = InlineArtifactPrefs(),
 )
 
 /**

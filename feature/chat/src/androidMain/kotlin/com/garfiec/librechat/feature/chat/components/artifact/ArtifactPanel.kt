@@ -52,7 +52,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
@@ -63,6 +62,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import co.touchlab.kermit.Logger
+import com.garfiec.librechat.core.ui.theme.isSurfaceDark
 import com.garfiec.librechat.feature.chat.components.CodeBlock
 import com.garfiec.librechat.feature.chat.resources.*
 import com.garfiec.librechat.feature.chat.resources.Res
@@ -98,16 +98,17 @@ actual fun ArtifactPanel(
     }
 }
 
-private fun isPreviewableType(type: String): Boolean {
-    return type.contains("html") ||
-        type.contains("svg") ||
-        type.contains("react") ||
-        type.contains("mermaid") ||
-        type.contains("markdown") ||
-        type == "text/md" ||
-        type == "text/plain" ||
-        type.contains("code-html")
-}
+private fun isPreviewableType(type: String): Boolean =
+    when (ArtifactType.from(type)) {
+        ArtifactType.MERMAID,
+        ArtifactType.REACT,
+        ArtifactType.SVG,
+        ArtifactType.MARKDOWN,
+        ArtifactType.HTML,
+        ArtifactType.PLAIN,
+        -> true
+        ArtifactType.CODE -> false
+    }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -127,7 +128,7 @@ private fun ArtifactPanelContent(
 
     val currentArtifact = versions.getOrElse(currentVersionIndex) { artifact }
     val isPreviewable = isPreviewableType(currentArtifact.type)
-    val isDarkTheme = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+    val isDarkTheme = isSurfaceDark()
 
     Column(modifier = modifier.fillMaxWidth()) {
         // Title row with version nav and action buttons
@@ -300,7 +301,7 @@ private fun ArtifactPreviewWebView(
     var isLoading by remember { mutableStateOf(true) }
 
     val html = remember(content, type, isDarkTheme) {
-        buildWebViewHtml(content, type, isDarkTheme)
+        ArtifactWebContent.buildHtml(content, type, isDarkTheme, inline = false)
     }
 
     // Track what HTML is currently loaded to avoid reloading on every recomposition.
@@ -395,207 +396,6 @@ private fun ArtifactPreviewWebView(
     }
 }
 
-private fun buildWebViewHtml(content: String, type: String, isDarkTheme: Boolean): String {
-    val bgColor = if (isDarkTheme) "#1C1B1F" else "#FFFBFE"
-    val fgColor = if (isDarkTheme) "#E6E1E5" else "#1C1B1F"
-
-    return when {
-        type.contains("mermaid") -> MermaidWebContent.buildHtml(content, isDarkTheme)
-        type.contains("markdown") || type == "text/md" -> MarkdownWebContent.buildHtml(content, isDarkTheme)
-        type == "text/plain" -> MarkdownWebContent.buildHtml(content, isDarkTheme)
-        type.contains("react") -> buildReactHtml(content, bgColor, fgColor)
-        type.contains("svg") -> buildSvgHtml(content, bgColor)
-        type.contains("html") || type.contains("code-html") -> buildEnhancedHtml(content, bgColor, fgColor)
-        else -> {
-            val escapedContent = escapeHtml(content)
-            """
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline';">
-                <style>
-                    :root { --bg: $bgColor; --fg: $fgColor; }
-                    body { background: var(--bg); color: var(--fg); margin: 0; padding: 16px; }
-                </style>
-            </head>
-            <body><pre>$escapedContent</pre></body>
-            </html>
-            """.trimIndent()
-        }
-    }
-}
-
-// Security note: HTML artifacts intentionally render unsanitized HTML content.
-// This is by design — HTML artifacts are meant to be rendered as-is. The WebView
-// is sandboxed with a Content Security Policy restricting script/resource origins.
-private fun buildEnhancedHtml(content: String, bgColor: String, fgColor: String): String {
-    // If content already contains <html> or <!DOCTYPE>, inject Tailwind + theme vars
-    val hasHtmlTag = content.contains("<html", ignoreCase = true) ||
-        content.contains("<!DOCTYPE", ignoreCase = true)
-
-    if (hasHtmlTag) {
-        val themeStyle = """
-            <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' https://cdn.tailwindcss.com; style-src 'unsafe-inline'; img-src data: blob: https:; connect-src https://cdn.tailwindcss.com;">
-            <style>:root { --bg: $bgColor; --fg: $fgColor; } body { background: var(--bg); color: var(--fg); }</style>
-            <script src="https://cdn.tailwindcss.com"></script>
-        """.trimIndent()
-        // Insert after <head> if present, otherwise before content
-        return if (content.contains("<head>", ignoreCase = true)) {
-            content.replaceFirst(
-                Regex("<head>", RegexOption.IGNORE_CASE),
-                "<head>$themeStyle",
-            )
-        } else if (content.contains("<head ", ignoreCase = true)) {
-            val headMatch = Regex("<head\\s[^>]*>", RegexOption.IGNORE_CASE).find(content)
-            if (headMatch != null) {
-                content.replaceRange(headMatch.range.last + 1, headMatch.range.last + 1, themeStyle)
-            } else {
-                "$themeStyle\n$content"
-            }
-        } else {
-            "$themeStyle\n$content"
-        }
-    }
-
-    return """
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' https://cdn.tailwindcss.com; style-src 'unsafe-inline'; img-src data: blob: https:; connect-src https://cdn.tailwindcss.com;">
-            <script src="https://cdn.tailwindcss.com"></script>
-            <style>
-                :root { --bg: $bgColor; --fg: $fgColor; }
-                body { background: var(--bg); color: var(--fg); margin: 0; padding: 0; }
-            </style>
-        </head>
-        <body>$content</body>
-        </html>
-    """.trimIndent()
-}
-
-// Security note: SVG content is rendered unsanitized because SVG artifacts are
-// designed to display user-provided vector graphics. CSP restricts script execution.
-private fun buildSvgHtml(content: String, bgColor: String): String {
-    return """
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data: blob:;">
-            <style>
-                body {
-                    margin: 0;
-                    padding: 16px;
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    min-height: 100vh;
-                    background: $bgColor;
-                }
-                svg, .svg-container {
-                    width: 100%;
-                    height: auto;
-                    max-width: 100%;
-                }
-            </style>
-        </head>
-        <body><div class="svg-container">$content</div></body>
-        </html>
-    """.trimIndent()
-}
-
-// Security note: React artifacts intentionally render unsanitized content because they
-// must execute user-provided JSX/JS code. 'unsafe-inline' and 'unsafe-eval' are required
-// in script-src for Babel transpilation and React rendering. CSP restricts script origins
-// to specific CDN hosts (unpkg.com, cdn.tailwindcss.com).
-private fun buildReactHtml(content: String, bgColor: String, fgColor: String): String {
-    // Preprocess: strip ES module imports/exports for browser compatibility.
-    // React/ReactDOM are loaded as UMD globals, so `import { useState } from 'react'`
-    // becomes a destructuring from the global React object.
-    val processed = content
-        .replace(Regex("""import\s*\{([^}]+)\}\s*from\s*['"]react['"];?""")) {
-            "const {${it.groupValues[1]}} = React;"
-        }
-        .replace(Regex("""import\s*React\s*from\s*['"]react['"];?"""), "")
-        .replace(Regex("""import\s*\{([^}]+)\}\s*from\s*['"]react-dom['"];?""")) {
-            "const {${it.groupValues[1]}} = ReactDOM;"
-        }
-        .replace(Regex("""export\s+default\s+function\s+"""), "function ")
-        .replace(Regex("""export\s+default\s+"""), "const _DefaultExport = ")
-
-    return """
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://cdn.tailwindcss.com; style-src 'unsafe-inline'; img-src data: blob: https:; connect-src https://cdn.tailwindcss.com;">
-            <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-            <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-            <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-            <script src="https://cdn.tailwindcss.com"></script>
-            <style>
-                :root { --bg: $bgColor; --fg: $fgColor; }
-                body { background: var(--bg); color: var(--fg); margin: 0; padding: 0; }
-                #error-display {
-                    display: none;
-                    padding: 16px;
-                    margin: 16px;
-                    background: #B3261E22;
-                    border: 1px solid #B3261E;
-                    border-radius: 8px;
-                    font-family: monospace;
-                    font-size: 13px;
-                    white-space: pre-wrap;
-                    color: $fgColor;
-                }
-            </style>
-        </head>
-        <body>
-            <div id="root"></div>
-            <div id="error-display"></div>
-            <script>
-                window.addEventListener('error', function(e) {
-                    var errDiv = document.getElementById('error-display');
-                    if (errDiv && !document.getElementById('root').hasChildNodes()) {
-                        errDiv.style.display = 'block';
-                        errDiv.textContent = 'Component compilation failed:\n' + (e.message || 'Unknown error');
-                    }
-                });
-            </script>
-            <script type="text/babel">
-                try {
-                    const { useState, useEffect, useRef, useMemo, useCallback, useReducer, useContext, createContext } = React;
-
-                    $processed
-
-                    const _root = ReactDOM.createRoot(document.getElementById('root'));
-                    // Find the component to render: look for common names or _DefaultExport
-                    const _Component = typeof _DefaultExport !== 'undefined' ? _DefaultExport
-                        : typeof App !== 'undefined' ? App
-                        : typeof Counter !== 'undefined' ? Counter
-                        : typeof Main !== 'undefined' ? Main
-                        : typeof Component !== 'undefined' ? Component
-                        : null;
-                    if (_Component) {
-                        if (typeof _Component === 'function') {
-                            _root.render(React.createElement(_Component));
-                        } else {
-                            _root.render(_Component);
-                        }
-                    }
-                } catch (e) {
-                    var errDiv = document.getElementById('error-display');
-                    errDiv.style.display = 'block';
-                    errDiv.textContent = 'Component compilation failed:\n' + e.message;
-                }
-            </script>
-        </body>
-        </html>
-    """.trimIndent()
-}
-
 /**
  * Intercepts all vertical scroll and manually dispatches it to the given [ScrollState],
  * then reports it all as consumed so the parent ModalBottomSheet never receives it.
@@ -620,19 +420,8 @@ private class SheetScrollBlocker(private val scrollState: ScrollState) : NestedS
     }
 }
 
-/**
- * Escapes HTML special characters to prevent XSS when embedding user-supplied
- * or error-derived text into WebView HTML.
- */
-private fun escapeHtml(text: String): String = text
-    .replace("&", "&amp;")
-    .replace("<", "&lt;")
-    .replace(">", "&gt;")
-    .replace("\"", "&quot;")
-    .replace("'", "&#39;")
-
 private fun buildErrorHtml(errorMessage: String): String {
-    val safeMessage = escapeHtml(errorMessage)
+    val safeMessage = ArtifactWebContent.escapeHtml(errorMessage)
     return """
         <!DOCTYPE html>
         <html>

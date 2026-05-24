@@ -117,6 +117,16 @@ exceptions:
 coroutines:
   active: true
 
+# Allowlist for tree-scoped infrastructure CompositionLocals (chat-session render
+# caches and DataStore-projected user prefs). These match the rule's intended
+# legit-use criteria (tree-scoped, cross-cutting, default or error-on-missing);
+# the screen-specific-ViewModel anti-pattern the rule actually targets is absent
+# from this project.
+Compose:
+  CompositionLocalAllowlist:
+    active: true
+    allowedCompositionLocals: LocalInlineArtifactPrefs,LocalMermaidRenderCache,LocalParsedMarkdownCache
+
 # detekt-koin rule overrides (defaults ship in plugin jar; buildUponDefaultConfig = true)
 koin-rules:
   # Scope "test hygiene" rule to test sources only; the rule's heuristic
