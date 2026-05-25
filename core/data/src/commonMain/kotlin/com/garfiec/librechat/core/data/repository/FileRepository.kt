@@ -6,7 +6,12 @@ import com.garfiec.librechat.core.model.request.DeleteFileEntry
 
 interface FileRepository {
     suspend fun getFiles(): Result<List<FileObject>>
-    suspend fun uploadFile(bytes: ByteArray, filename: String, type: String): Result<FileObject>
+    suspend fun uploadFile(
+        bytes: ByteArray,
+        filename: String,
+        type: String,
+        onProgress: ((Float) -> Unit)? = null,
+    ): Result<FileObject>
     suspend fun uploadFile(
         bytes: ByteArray,
         filename: String,
@@ -18,6 +23,7 @@ interface FileRepository {
         messageFile: Boolean? = null,
         width: Int? = null,
         height: Int? = null,
+        onProgress: ((Float) -> Unit)? = null,
     ): Result<FileObject>
     suspend fun deleteFiles(files: List<DeleteFileEntry>): Result<Unit>
     suspend fun downloadFile(userId: String, fileId: String): Result<ByteArray>

@@ -19,7 +19,12 @@ class FileRepositoryImpl(
     override suspend fun getFiles(): Result<List<FileObject>> =
         safeApiCall { filesApi.getFiles() }
 
-    override suspend fun uploadFile(bytes: ByteArray, filename: String, type: String): Result<FileObject> =
+    override suspend fun uploadFile(
+        bytes: ByteArray,
+        filename: String,
+        type: String,
+        onProgress: ((Float) -> Unit)?,
+    ): Result<FileObject> =
         safeApiCall {
             filesApi.uploadFile(
                 bytes = bytes,
@@ -28,6 +33,7 @@ class FileRepositoryImpl(
                 // file_id and endpoint are required by the backend; provide defaults
                 fileId = Uuid.random().toString(),
                 endpoint = "agents",
+                onProgress = onProgress,
             )
         }
 
@@ -42,6 +48,7 @@ class FileRepositoryImpl(
         messageFile: Boolean?,
         width: Int?,
         height: Int?,
+        onProgress: ((Float) -> Unit)?,
     ): Result<FileObject> =
         safeApiCall {
             filesApi.uploadFile(
@@ -55,6 +62,7 @@ class FileRepositoryImpl(
                 messageFile = messageFile,
                 width = width,
                 height = height,
+                onProgress = onProgress,
             )
         }
 

@@ -9,6 +9,8 @@ import com.garfiec.librechat.feature.chat.components.AttachedFile
 import com.garfiec.librechat.feature.chat.util.IosFileData
 import com.garfiec.librechat.feature.chat.util.IosImageData
 import com.garfiec.librechat.feature.chat.viewmodel.ChatStateHandle
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,6 +28,7 @@ import kotlin.uuid.Uuid
 class IosFileHandler(
     private val stateHandle: ChatStateHandle,
     private val fileRepository: FileRepository,
+    private val ioDispatcher: CoroutineDispatcher,
 ) : PlatformFileHandler {
     private val _attachedFiles = MutableStateFlow<List<AttachedFile>>(emptyList())
     override val attachedFiles: StateFlow<List<AttachedFile>> = _attachedFiles.asStateFlow()
@@ -48,17 +51,13 @@ class IosFileHandler(
             uri = uniqueId,
             name = imageData.filename,
             isImage = true,
-            uploadProgress = 0f,
+            uploadProgress = null,
             type = imageData.mimeType,
         )
         _attachedFiles.update { it + pendingFile }
 
-        stateHandle.scope.launch {
+        stateHandle.scope.launch(ioDispatcher) {
             try {
-                _attachedFiles.update { list ->
-                    list.map { f -> if (f.uri == uniqueId) f.copy(uploadProgress = 0.5f) else f }
-                }
-
                 val state = stateHandle.state
                 val isAgent = state.selectedEndpoint == EndpointConstants.AGENTS
                 val fileId = Uuid.random().toString()
@@ -74,6 +73,11 @@ class IosFileHandler(
                     messageFile = true,
                     width = imageData.width,
                     height = imageData.height,
+                    onProgress = { pct ->
+                        _attachedFiles.update { list ->
+                            list.map { f -> if (f.uri == uniqueId) f.copy(uploadProgress = pct) else f }
+                        }
+                    },
                 )
 
                 when (result) {
@@ -110,6 +114,8 @@ class IosFileHandler(
                     }
                     is Result.Loading -> { /* unexpected */ }
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Logger.e(e) { "IosFileHandler: unexpected exception for ${imageData.filename}" }
                 _attachedFiles.update { list ->
@@ -130,17 +136,13 @@ class IosFileHandler(
             uri = uniqueId,
             name = fileData.filename,
             isImage = false,
-            uploadProgress = 0f,
+            uploadProgress = null,
             type = fileData.mimeType,
         )
         _attachedFiles.update { it + pendingFile }
 
-        stateHandle.scope.launch {
+        stateHandle.scope.launch(ioDispatcher) {
             try {
-                _attachedFiles.update { list ->
-                    list.map { f -> if (f.uri == uniqueId) f.copy(uploadProgress = 0.5f) else f }
-                }
-
                 val state = stateHandle.state
                 val isAgent = state.selectedEndpoint == EndpointConstants.AGENTS
                 val fileId = Uuid.random().toString()
@@ -154,6 +156,11 @@ class IosFileHandler(
                     model = if (!isAgent) state.selectedModel else null,
                     agentId = if (isAgent) state.selectedModel else null,
                     messageFile = true,
+                    onProgress = { pct ->
+                        _attachedFiles.update { list ->
+                            list.map { f -> if (f.uri == uniqueId) f.copy(uploadProgress = pct) else f }
+                        }
+                    },
                 )
 
                 when (result) {
@@ -188,6 +195,8 @@ class IosFileHandler(
                     }
                     is Result.Loading -> { /* unexpected */ }
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Logger.e(e) { "IosFileHandler: unexpected exception for ${fileData.filename}" }
                 _attachedFiles.update { list ->

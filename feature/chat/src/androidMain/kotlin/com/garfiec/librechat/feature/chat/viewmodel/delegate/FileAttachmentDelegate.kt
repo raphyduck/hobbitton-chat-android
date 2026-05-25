@@ -15,6 +15,8 @@ import com.garfiec.librechat.feature.chat.util.guessMimeType
 import com.garfiec.librechat.feature.chat.util.reEncodeImageIfNeeded
 import com.garfiec.librechat.feature.chat.util.resolveFileName
 import com.garfiec.librechat.feature.chat.viewmodel.ChatStateHandle
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,6 +30,7 @@ class FileAttachmentDelegate(
     private val stateHandle: ChatStateHandle,
     private val appContext: Context,
     private val fileRepository: FileRepository,
+    private val ioDispatcher: CoroutineDispatcher,
 ) {
 
     private val _attachedFiles = MutableStateFlow<List<AttachedFile>>(emptyList())
@@ -61,13 +64,13 @@ class FileAttachmentDelegate(
             uri = uri,
             name = filename,
             isImage = isImage,
-            uploadProgress = 0f,
+            uploadProgress = null,
             type = preliminaryMimeType,
         )
 
         _attachedFiles.update { currentList -> currentList + pendingFile }
 
-        stateHandle.scope.launch {
+        stateHandle.scope.launch(ioDispatcher) {
             try {
                 // Read file bytes
                 val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() }
@@ -149,9 +152,6 @@ class FileAttachmentDelegate(
                     }
                 }
 
-                // Update progress to 50% (upload starting)
-                updateFileProgress(uri, 0.5f)
-
                 // Generate a UUID for the file_id -- the backend requires this field
                 val fileId = UUID.randomUUID().toString()
 
@@ -170,6 +170,7 @@ class FileAttachmentDelegate(
                     messageFile = true,
                     width = imageWidth,
                     height = imageHeight,
+                    onProgress = { pct -> updateFileProgress(uri, pct) },
                 )
 
                 when (result) {
@@ -214,6 +215,10 @@ class FileAttachmentDelegate(
                         Logger.w { "uploadFile: unexpected Result.Loading received for $filename" }
                     }
                 }
+            } catch (e: CancellationException) {
+                // Cooperative cancellation must propagate — never mark a cancelled
+                // upload as failed (matches safeApiCall behavior in core/common).
+                throw e
             } catch (e: Exception) {
                 Logger.e(e) { "uploadFile: unexpected exception for $filename" }
                 markUploadFailed(uri)

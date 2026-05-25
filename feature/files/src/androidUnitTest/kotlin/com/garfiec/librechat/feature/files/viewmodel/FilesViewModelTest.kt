@@ -75,6 +75,7 @@ class FilesViewModelTest {
         fileRepository = fileRepository,
         fileReader = fileReader,
         serverDataStore = serverDataStore,
+        ioDispatcher = testDispatcher,
     )
 
     @Test

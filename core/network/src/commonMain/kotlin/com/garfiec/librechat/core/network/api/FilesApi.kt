@@ -6,14 +6,17 @@ import com.garfiec.librechat.core.model.request.DeleteFilesRequest
 import com.garfiec.librechat.core.model.response.FileUploadConfig
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
+import io.ktor.client.plugins.onUpload
 import io.ktor.client.request.delete
+import io.ktor.client.request.forms.MultiPartFormDataContent
 import io.ktor.client.request.forms.formData
-import io.ktor.client.request.forms.submitFormWithBinaryData
 import io.ktor.client.request.get
+import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
 import io.ktor.http.path
+import kotlinx.coroutines.CancellationException
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
@@ -43,14 +46,15 @@ class FilesApi constructor(
         messageFile: Boolean? = null,
         width: Int? = null,
         height: Int? = null,
+        onProgress: ((Float) -> Unit)? = null,
     ): FileObject {
         Logger.d("FilesApi") {
             "uploadFile: filename=$filename, type=$type, size=${bytes.size} bytes, fileId=$fileId, " +
                 "endpoint=$endpoint, model=$model, agentId=$agentId, messageFile=$messageFile, width=$width, height=$height"
         }
 
-        val response: FileObject = client.submitFormWithBinaryData(
-            formData = formData {
+        val multipart = MultiPartFormDataContent(
+            formData {
                 append("file", bytes, Headers.build {
                     append(HttpHeaders.ContentDisposition, "filename=\"${encodeFilename(filename)}\"")
                     append(HttpHeaders.ContentType, type)
@@ -63,9 +67,33 @@ class FilesApi constructor(
                 if (messageFile != null) append("message_file", messageFile.toString())
                 if (width != null) append("width", width.toString())
                 if (height != null) append("height", height.toString())
-            }
-        ) {
+            },
+        )
+
+        val response: FileObject = client.post {
             url { path("api/files") }
+            setBody(multipart)
+            if (onProgress != null) {
+                var lastPct = -1
+                var lastSent = -1L
+                onUpload { sent, total ->
+                    if (total == null || total <= 0L) return@onUpload
+                    // Detect HttpRequestRetry replays: byte counter resets to 0.
+                    if (sent < lastSent) lastPct = -1
+                    lastSent = sent
+                    val pct = ((sent * 100L) / total).toInt().coerceIn(0, 100)
+                    if (pct != lastPct) {
+                        lastPct = pct
+                        try {
+                            onProgress(pct / 100f)
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            Logger.w("FilesApi", e) { "onProgress callback threw; suppressing to keep upload alive" }
+                        }
+                    }
+                }
+            }
         }.body()
 
         Logger.d("FilesApi") {
