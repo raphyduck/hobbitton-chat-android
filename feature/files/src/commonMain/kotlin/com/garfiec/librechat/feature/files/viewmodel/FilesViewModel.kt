@@ -13,12 +13,14 @@ import com.garfiec.librechat.feature.files.FileDisplayData
 import com.garfiec.librechat.feature.files.FilePreviewDisplayData
 import com.garfiec.librechat.feature.files.platform.FileReader
 import com.garfiec.librechat.feature.files.platform.formatFileSize
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -71,6 +73,7 @@ class FilesViewModel(
     private val fileRepository: FileRepository,
     private val fileReader: FileReader,
     private val serverDataStore: ServerDataStore,
+    private val ioDispatcher: CoroutineDispatcher,
 ) : ViewModel() {
 
     private val _files = MutableStateFlow<List<FileObject>>(emptyList())
@@ -175,7 +178,9 @@ class FilesViewModel(
      */
     @OptIn(ExperimentalUuidApi::class)
     fun uploadFile(fileRef: Any) {
-        uploadJob = viewModelScope.launch {
+        uploadJob?.cancel()
+        lateinit var thisJob: Job
+        thisJob = viewModelScope.launch(ioDispatcher) {
             val filename = fileReader.getFileName(fileRef) ?: "upload"
             updateTransient {
                 copy(
@@ -209,6 +214,11 @@ class FilesViewModel(
                 type = mimeType,
                 fileId = fileId,
                 endpoint = "agents",
+                // Gate progress writes on the launching job: a tardy onProgress
+                // from a cancelled upload must not overwrite the new upload's state.
+                onProgress = { pct ->
+                    if (thisJob.isActive) updateTransient { copy(uploadProgress = pct) }
+                },
             )) {
                 is Result.Success -> {
                     Logger.d { "uploadFile: success -- serverFileId=${result.data.fileId}" }
@@ -235,6 +245,7 @@ class FilesViewModel(
                 is Result.Loading -> { /* no-op */ }
             }
         }
+        uploadJob = thisJob
     }
 
     fun cancelUpload() {
@@ -471,8 +482,8 @@ class FilesViewModel(
         )
     }
 
-    private inline fun updateTransient(update: TransientState.() -> TransientState) {
-        _transientState.value = _transientState.value.update()
+    private inline fun updateTransient(crossinline transform: TransientState.() -> TransientState) {
+        _transientState.update { it.transform() }
     }
 }
 

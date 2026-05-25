@@ -1,5 +1,6 @@
 package com.garfiec.librechat.feature.chat.di
 
+import com.garfiec.librechat.core.common.di.KoinQualifiers
 import com.garfiec.librechat.feature.chat.viewmodel.ChatViewModel
 import com.garfiec.librechat.feature.chat.viewmodel.delegate.IosDelegateFactory
 import com.garfiec.librechat.feature.chat.viewmodel.delegate.PlatformDelegateFactory
@@ -13,6 +14,7 @@ actual val chatPlatformModule: Module = module {
             fileRepository = get(),
             speechRepository = get(),
             settingsDataStore = get(),
+            ioDispatcher = get(KoinQualifiers.IO),
         )
     }
 

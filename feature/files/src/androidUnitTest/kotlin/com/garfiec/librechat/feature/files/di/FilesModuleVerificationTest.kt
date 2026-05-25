@@ -5,6 +5,7 @@ import android.content.Context
 import com.garfiec.librechat.core.data.datastore.ServerDataStore
 import com.garfiec.librechat.core.data.repository.FileRepository
 import com.garfiec.librechat.feature.files.platform.FileReader
+import kotlinx.coroutines.CoroutineDispatcher
 import org.junit.Test
 import org.koin.test.verify.verify
 
@@ -18,6 +19,7 @@ class FilesModuleVerificationTest {
                 FileRepository::class,
                 ServerDataStore::class,
                 FileReader::class,
+                CoroutineDispatcher::class,
             ),
         )
     }

@@ -23,11 +23,13 @@ import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.FindInPage
 import androidx.compose.material.icons.filled.TravelExplore
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -42,6 +44,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.Role
@@ -316,6 +319,50 @@ private fun FilePreviewItem(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+
+        val progress = file.uploadProgress
+        val inFlight = file.fileId == null && !file.uploadFailed
+        if (inFlight) {
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.45f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (progress != null) {
+                    CircularProgressIndicator(
+                        progress = { progress },
+                        modifier = Modifier.size(28.dp),
+                        strokeWidth = 3.dp,
+                        color = Color.White,
+                        trackColor = Color.White.copy(alpha = 0.3f),
+                    )
+                } else {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(28.dp),
+                        strokeWidth = 3.dp,
+                        color = Color.White,
+                        trackColor = Color.White.copy(alpha = 0.3f),
+                    )
+                }
+            }
+        } else if (file.uploadFailed) {
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.error.copy(alpha = 0.6f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ErrorOutline,
+                    contentDescription = null,
+                    modifier = Modifier.size(28.dp),
+                    tint = MaterialTheme.colorScheme.onError,
                 )
             }
         }
