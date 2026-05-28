@@ -20,12 +20,17 @@ interface FileRepository {
         endpoint: String? = null,
         model: String? = null,
         agentId: String? = null,
+        toolResource: String? = null,
         messageFile: Boolean? = null,
         width: Int? = null,
         height: Int? = null,
         onProgress: ((Float) -> Unit)? = null,
     ): Result<FileObject>
-    suspend fun deleteFiles(files: List<DeleteFileEntry>): Result<Unit>
+    suspend fun deleteFiles(
+        files: List<DeleteFileEntry>,
+        agentId: String? = null,
+        toolResource: String? = null,
+    ): Result<Unit>
     suspend fun downloadFile(userId: String, fileId: String): Result<ByteArray>
     suspend fun getAgentFiles(agentId: String): Result<List<FileObject>>
     suspend fun downloadCode(sessionId: String, fileId: String): Result<ByteArray>

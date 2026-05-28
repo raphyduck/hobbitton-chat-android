@@ -41,12 +41,17 @@ import com.garfiec.librechat.feature.agents.resources.*
 import com.garfiec.librechat.feature.agents.resources.Res
 import org.jetbrains.compose.resources.stringResource
 
+/**
+ * Sequential multi-agent chain. Saved as upstream `agent_ids`. Gated on the
+ * `chain` capability in the agents endpoint config.
+ */
 @Composable
-fun AgentHandoffConfig(
-    handoffAgentIds: List<String>,
+fun AgentChainSection(
+    chainAgentIds: List<String>,
     availableAgents: List<AgentHandoffDisplayData>,
-    onAddHandoff: (agentId: String) -> Unit,
-    onRemoveHandoff: (agentId: String) -> Unit,
+    chainMax: Int,
+    onAddAgent: (agentId: String) -> Unit,
+    onRemoveAgent: (agentId: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -62,7 +67,7 @@ fun AgentHandoffConfig(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = stringResource(Res.string.handoff_agents_count, handoffAgentIds.size),
+                text = stringResource(Res.string.chain_agents_count, chainAgentIds.size),
                 style = MaterialTheme.typography.titleSmall,
             )
             Icon(
@@ -77,21 +82,21 @@ fun AgentHandoffConfig(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Text(
-                    text = stringResource(Res.string.handoff_description),
+                    text = stringResource(Res.string.chain_description, chainMax),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
 
-                if (handoffAgentIds.isEmpty()) {
+                if (chainAgentIds.isEmpty()) {
                     Text(
-                        text = stringResource(Res.string.no_handoff_agents),
+                        text = stringResource(Res.string.no_chain_agents),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(vertical = 4.dp),
                     )
                 }
 
-                handoffAgentIds.forEach { agentId ->
+                chainAgentIds.forEach { agentId ->
                     val agentDisplay = availableAgents.find { it.id == agentId }
                     val displayName = agentDisplay?.name ?: agentId
                     InputChip(
@@ -99,7 +104,7 @@ fun AgentHandoffConfig(
                         onClick = {},
                         label = { Text(displayName) },
                         trailingIcon = {
-                            IconButton(onClick = { onRemoveHandoff(agentId) }) {
+                            IconButton(onClick = { onRemoveAgent(agentId) }) {
                                 Icon(
                                     imageVector = Icons.Default.Close,
                                     contentDescription = stringResource(Res.string.cd_remove_item, displayName),
@@ -109,8 +114,18 @@ fun AgentHandoffConfig(
                     )
                 }
 
+                val atCap = chainAgentIds.size >= chainMax
+                if (atCap) {
+                    Text(
+                        text = stringResource(Res.string.chain_full),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+
                 OutlinedButton(
                     onClick = { showAddDialog = true },
+                    enabled = !atCap,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Icon(
@@ -118,18 +133,18 @@ fun AgentHandoffConfig(
                         contentDescription = null,
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(stringResource(Res.string.add_handoff_agent))
+                    Text(stringResource(Res.string.add_chain_agent))
                 }
             }
         }
     }
 
     if (showAddDialog) {
-        AddHandoffAgentDialog(
-            availableAgents = availableAgents.filter { it.id !in handoffAgentIds },
+        AddChainAgentDialog(
+            availableAgents = availableAgents.filter { it.id !in chainAgentIds },
             onDismiss = { showAddDialog = false },
             onSelect = { agentId ->
-                onAddHandoff(agentId)
+                onAddAgent(agentId)
                 showAddDialog = false
             },
         )
@@ -138,7 +153,7 @@ fun AgentHandoffConfig(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AddHandoffAgentDialog(
+private fun AddChainAgentDialog(
     availableAgents: List<AgentHandoffDisplayData>,
     onDismiss: () -> Unit,
     onSelect: (String) -> Unit,
@@ -148,7 +163,7 @@ private fun AddHandoffAgentDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.add_handoff_agent)) },
+        title = { Text(stringResource(Res.string.add_chain_agent)) },
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
                 if (availableAgents.isEmpty()) {

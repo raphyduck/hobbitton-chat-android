@@ -47,6 +47,12 @@ interface AgentRepository {
     // Avatar
     suspend fun uploadAgentAvatar(id: String, imageBytes: ByteArray, mimeType: String): Result<Agent>
 
+    /**
+     * Reset the agent's avatar to the default. Upstream signals this by PATCHing
+     * the agent with explicit `"avatar": null`.
+     */
+    suspend fun resetAgentAvatar(id: String): Result<Agent>
+
     // Actions
     suspend fun getAgentActions(): Result<List<AgentAction>>
     suspend fun addOrUpdateAction(agentId: String, request: CreateActionRequest): Result<Pair<Agent, AgentAction>>

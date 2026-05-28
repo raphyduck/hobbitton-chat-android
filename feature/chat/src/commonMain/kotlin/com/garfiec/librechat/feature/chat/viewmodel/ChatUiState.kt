@@ -189,10 +189,10 @@ data class ChatUiState(
     val favoriteModelKeys: Set<String> = emptySet(),
     /**
      * Whether the detected backend is v0.8.5+ and therefore accepts the `xhigh`
-     * value in the reasoning-effort and effort dropdowns. False on older or
-     * unknown servers (per VERSION_GATES.md guideline #2). See VERSION_GATES.md.
+     * and `max` values in the reasoning-effort and effort dropdowns. False on
+     * older or unknown servers (per VERSION_GATES.md guideline #2). See VERSION_GATES.md.
      */
-    val xhighEffortSupported: Boolean = false,
+    val extendedEffortSupported: Boolean = false,
 ) {
     /**
      * Effective tool set that merges [enabledTools] with the web search state from

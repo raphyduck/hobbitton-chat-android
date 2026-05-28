@@ -10,6 +10,7 @@ import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.datastore.ThemeDataStore
 import com.garfiec.librechat.core.data.di.dataModule
 import com.garfiec.librechat.core.data.repository.AgentRepository
+import com.garfiec.librechat.core.data.repository.AgentToolsRepository
 import com.garfiec.librechat.core.data.repository.ApiKeyRepository
 import com.garfiec.librechat.core.data.repository.AuthRepository
 import com.garfiec.librechat.core.data.repository.BalanceRepository
@@ -24,6 +25,7 @@ import com.garfiec.librechat.core.data.repository.KeyRepository
 import com.garfiec.librechat.core.data.repository.McpRepository
 import com.garfiec.librechat.core.data.repository.MemoryRepository
 import com.garfiec.librechat.core.data.repository.MessageRepository
+import com.garfiec.librechat.core.data.repository.PermissionsRepository
 import com.garfiec.librechat.core.data.repository.PresetRepository
 import com.garfiec.librechat.core.data.repository.PromptRepository
 import com.garfiec.librechat.core.data.repository.RoleRepository
@@ -35,6 +37,7 @@ import com.garfiec.librechat.core.data.repository.UserRepository
 import com.garfiec.librechat.core.data.util.PermissionGate
 import com.garfiec.librechat.core.data.util.SessionTask
 import com.garfiec.librechat.core.data.util.SessionTaskRunner
+import com.garfiec.librechat.core.network.api.AgentToolsApi
 import com.garfiec.librechat.core.network.api.AgentsApi
 import com.garfiec.librechat.core.network.api.ApiKeysApi
 import com.garfiec.librechat.core.network.api.AuthApi
@@ -50,6 +53,7 @@ import com.garfiec.librechat.core.network.api.KeysApi
 import com.garfiec.librechat.core.network.api.McpApi
 import com.garfiec.librechat.core.network.api.MemoriesApi
 import com.garfiec.librechat.core.network.api.MessagesApi
+import com.garfiec.librechat.core.network.api.PermissionsApi
 import com.garfiec.librechat.core.network.api.PresetsApi
 import com.garfiec.librechat.core.network.api.PromptsApi
 import com.garfiec.librechat.core.network.api.SearchApi
@@ -119,6 +123,7 @@ class KoinGraphVerificationTest {
             SecureTokenStorage::class,
             ServerUrlProvider::class,
             SseClient::class,
+            AgentToolsApi::class,
             AgentsApi::class,
             ApiKeysApi::class,
             AuthApi::class,
@@ -134,6 +139,7 @@ class KoinGraphVerificationTest {
             McpApi::class,
             MemoriesApi::class,
             MessagesApi::class,
+            PermissionsApi::class,
             PresetsApi::class,
             PromptsApi::class,
             SearchApi::class,
@@ -147,6 +153,7 @@ class KoinGraphVerificationTest {
             SettingsDataStore::class,
             ThemeDataStore::class,
             AgentRepository::class,
+            AgentToolsRepository::class,
             ApiKeyRepository::class,
             AuthRepository::class,
             BalanceRepository::class,
@@ -161,6 +168,7 @@ class KoinGraphVerificationTest {
             McpRepository::class,
             MemoryRepository::class,
             MessageRepository::class,
+            PermissionsRepository::class,
             PresetRepository::class,
             PromptRepository::class,
             RoleRepository::class,

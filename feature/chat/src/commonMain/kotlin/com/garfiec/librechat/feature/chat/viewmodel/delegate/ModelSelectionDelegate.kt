@@ -76,26 +76,35 @@ class ModelSelectionDelegate(
         // conversation model has been loaded.
         if (!isNewConversation && !conversationModelLoaded) return
 
-        // Validate current selection
+        // Validate current selection. The previous version exempted the
+        // agents endpoint from the `currentModel in modelsForEndpoint` check,
+        // which let a stale selectedModel (a real model name carried over
+        // from a non-agent endpoint) be re-used as an agent_id by the
+        // sendMessage path — the server then rejects the chat because no
+        // such agent exists. Treat agents like any other endpoint: validate
+        // that selectedModel is actually one of the loaded agent IDs.
+        // When modelsForEndpoint is absent (still loading), skip the check
+        // rather than clobber the selection.
         val currentEndpoint = stateHandle.state.selectedEndpoint
         val currentModel = stateHandle.state.selectedModel
-        val isAgentSelection = currentEndpoint == EndpointConstants.AGENTS
         val modelsForEndpoint = filtered[currentEndpoint]
-        val selectionValid = isAgentSelection || (currentModel != null &&
-            modelsForEndpoint != null &&
-            currentModel in modelsForEndpoint)
+        val selectionValid = currentModel != null &&
+            (modelsForEndpoint == null || currentModel in modelsForEndpoint)
 
         if (selectionValid) return
 
         // --- Fallback chain ---
 
-        // Fallback 1: Try the last-used model from DataStore
+        // Fallback 1: Try the last-used model from DataStore.
+        // Apply the same agents-endpoint guard as the validation above —
+        // a stale lastUsedModel that isn't an agent_id must not be restored
+        // as the agents-endpoint selection, or it'll be sent to the chat
+        // start request as an agent_id and the server will reject it.
         val lastEndpoint = cachedLastUsedEndpoint
         val lastModel = cachedLastUsedModel
         if (lastEndpoint != null && lastModel != null) {
-            val lastIsAgent = lastEndpoint == EndpointConstants.AGENTS
             val lastModelsForEndpoint = filtered[lastEndpoint]
-            if (lastIsAgent || (lastModelsForEndpoint != null && lastModel in lastModelsForEndpoint)) {
+            if (lastModelsForEndpoint != null && lastModel in lastModelsForEndpoint) {
                 stateHandle.update {
                     copy(
                         selectedEndpoint = lastEndpoint,

@@ -21,7 +21,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
-/** Labeled dropdown selector using ExposedDropdownMenuBox with read-only text field anchor. */
+/** Labeled dropdown selector using ExposedDropdownMenuBox with read-only text field anchor.
+ *  Pass [optionLabels] to override display text per option (e.g. "" → "Unset"). */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DynamicDropdown(
@@ -31,8 +32,12 @@ fun DynamicDropdown(
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
     description: String? = null,
+    optionLabels: Map<String, String>? = null,
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val labelFor: (String) -> String = { option ->
+        optionLabels?.get(option) ?: option.ifEmpty { "Unset" }
+    }
 
     Column(modifier = modifier.fillMaxWidth()) {
         Text(
@@ -52,7 +57,7 @@ fun DynamicDropdown(
             onExpandedChange = { expanded = it },
         ) {
             OutlinedTextField(
-                value = selectedValue,
+                value = labelFor(selectedValue),
                 onValueChange = {},
                 readOnly = true,
                 trailingIcon = {
@@ -68,7 +73,7 @@ fun DynamicDropdown(
             ) {
                 options.forEach { option ->
                     DropdownMenuItem(
-                        text = { Text(option) },
+                        text = { Text(labelFor(option)) },
                         onClick = {
                             onValueChange(option)
                             expanded = false

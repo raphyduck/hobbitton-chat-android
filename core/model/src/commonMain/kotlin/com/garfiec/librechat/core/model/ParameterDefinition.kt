@@ -18,6 +18,11 @@ data class ParameterDefinition(
     val default: String? = null,
     val description: String? = null,
     val options: List<String>? = null,
+    /** Optional input/textarea placeholder shown when the value is blank. */
+    val placeholder: String? = null,
+    /** Optional dropdown label overrides keyed by option value. Lets the UI display
+     *  e.g. "Unset" for the empty-string wire value, matching upstream enumMappings. */
+    val optionLabels: Map<String, String>? = null,
 )
 
 @Serializable
@@ -42,4 +47,10 @@ enum class ParameterType {
 
     @SerialName("tags")
     TAGS,
+
+    /** Discrete-value slider over a list of [ParameterDefinition.options].
+     *  Used for enum-valued controls (reasoning_effort, verbosity, etc.)
+     *  that upstream renders as a slider mapped onto enum positions. */
+    @SerialName("enum_slider")
+    ENUM_SLIDER,
 }

@@ -725,12 +725,25 @@ actual fun ChatScreen(
     }
 
     if (uiState.showModelParameters) {
+        val activeAgent = remember(uiState.agents, uiState.selectedModel, uiState.selectedEndpoint) {
+            if (uiState.selectedEndpoint == EndpointConstants.AGENTS) {
+                uiState.agents.find { it.id == uiState.selectedModel }
+            } else {
+                null
+            }
+        }
         ModelParameterSheet(
             parameters = uiState.modelParameters,
             onParametersChange = viewModel::updateModelParameters,
             onDismiss = viewModel::hideModelParameters,
             selectedEndpoint = uiState.selectedEndpoint,
-            xhighEffortSupported = uiState.xhighEffortSupported,
+            extendedEffortSupported = uiState.extendedEffortSupported,
+            selectedProvider = activeAgent?.provider,
+            selectedModel = activeAgent?.model ?: uiState.selectedModel,
+            onSaveAsPreset = {
+                viewModel.hideModelParameters()
+                showSavePresetDialog = true
+            },
         )
     }
 

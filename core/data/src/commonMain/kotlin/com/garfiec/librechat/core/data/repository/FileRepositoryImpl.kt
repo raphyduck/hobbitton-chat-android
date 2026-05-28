@@ -45,6 +45,7 @@ class FileRepositoryImpl(
         endpoint: String?,
         model: String?,
         agentId: String?,
+        toolResource: String?,
         messageFile: Boolean?,
         width: Int?,
         height: Int?,
@@ -59,6 +60,7 @@ class FileRepositoryImpl(
                 endpoint = endpoint,
                 model = model,
                 agentId = agentId,
+                toolResource = toolResource,
                 messageFile = messageFile,
                 width = width,
                 height = height,
@@ -66,8 +68,20 @@ class FileRepositoryImpl(
             )
         }
 
-    override suspend fun deleteFiles(files: List<DeleteFileEntry>): Result<Unit> =
-        safeApiCall { filesApi.deleteFiles(DeleteFilesRequest(files = files)) }
+    override suspend fun deleteFiles(
+        files: List<DeleteFileEntry>,
+        agentId: String?,
+        toolResource: String?,
+    ): Result<Unit> =
+        safeApiCall {
+            filesApi.deleteFiles(
+                DeleteFilesRequest(
+                    files = files,
+                    agentId = agentId,
+                    toolResource = toolResource,
+                ),
+            )
+        }
 
     override suspend fun downloadFile(userId: String, fileId: String): Result<ByteArray> =
         safeApiCall { filesApi.downloadFile(userId, fileId) }

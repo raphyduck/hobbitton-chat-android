@@ -37,9 +37,49 @@ data class Agent(
     @SerialName("projectIds") val projectIds: List<String> = emptyList(),
     val updatedAt: String? = null,
     val createdAt: String? = null,
+    /**
+     * Full per-version snapshots of the agent. Each entry is a serialized agent
+     * state (name/description/instructions/artifacts/capabilities/tools/...) plus
+     * createdAt/updatedAt for that revision. Indexed positionally — index N in
+     * this list is the [version_index] used by POST /api/agents/:id/revert.
+     */
+    val versions: List<JsonElement>? = null,
     @SerialName("support_contact") val supportContact: JsonElement? = null,
     @SerialName("tool_options") val toolOptions: JsonObject? = null,
+    /**
+     * Runtime-supplied extra instructions appended to the agent system prompt.
+     * Set by admin tooling or the agent runtime, not the editor UI.
+     *
+     * NOTE: as of the upstream LibreChat backend pinned by `UPSTREAM_VERSION`,
+     * `agentBaseSchema` (`packages/api/src/agents/validation.ts`) does not
+     * include this field and Zod's default `strip` mode discards it on
+     * `agentUpdateSchema.parse()` — so sending it has no server effect today.
+     * The field is plumbed so future backend versions that admit it (or
+     * server forks that already do) will round-trip correctly without a
+     * mobile change. Treat the value as informational; do not assume the
+     * backend persists what we send.
+     */
+    @SerialName("additional_instructions") val additionalInstructions: String? = null,
+    /**
+     * Runtime-supplied per-tool kwargs. The upstream Mongoose schema
+     * (`packages/data-schemas/src/schema/agent.ts:47-49`) declares this as
+     * `[{ type: Mixed }]` (an array of mixed values), so consumers must
+     * branch on the [JsonElement] shape (`jsonArray` vs `jsonObject`) rather
+     * than assuming a map.
+     *
+     * NOTE: stripped by the upstream `agentBaseSchema` (same situation as
+     * [additionalInstructions]) — round-tripped for forward compatibility,
+     * no server-side persistence effect today.
+     */
+    @SerialName("tool_kwargs") val toolKwargs: JsonElement? = null,
     val mcpServerNames: List<String>? = null,
+    /**
+     * Per-capability file attachments. Shape: `{ execute_code: { file_ids: [...] },
+     * file_search: { file_ids: [...] }, context: { file_ids: [...] }, ocr: { file_ids: [...] } }`.
+     * The backend writes these when a file is uploaded with `agent_id` + `tool_resource`;
+     * mobile parses `file_ids` to surface per-capability chips in the agent editor.
+     */
+    @SerialName("tool_resources") val toolResources: JsonObject? = null,
 ) {
     val avatarUrl: String?
         get() = try {

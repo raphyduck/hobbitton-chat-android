@@ -146,6 +146,14 @@ class AgentRepositoryImpl(
         }
     }
 
+    override suspend fun resetAgentAvatar(id: String): Result<Agent> {
+        return safeApiCall {
+            val agent = agentsApi.resetAgentAvatar(id)
+            invalidateCache()
+            agent
+        }
+    }
+
     // --- Actions ---
 
     override suspend fun getAgentActions(): Result<List<AgentAction>> {

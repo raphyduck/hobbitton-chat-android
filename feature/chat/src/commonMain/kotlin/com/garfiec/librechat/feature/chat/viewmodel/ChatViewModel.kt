@@ -330,13 +330,13 @@ class ChatViewModel(
             }
         }
 
-        // Gate the `xhigh` reasoning-effort dropdown value to v0.8.5+ servers.
-        // Older servers reject the unknown enum at request time. See VERSION_GATES.md.
+        // Gate the `xhigh` and `max` reasoning-effort dropdown values to v0.8.5+ servers.
+        // Older servers reject the unknown enums at request time. See VERSION_GATES.md.
         viewModelScope.launch {
             configRepository.detectedBackendVersion.collect { version ->
                 val supported = version != null &&
                     BackendVersion.isCompatibleOrNewer(version, "0.8.5")
-                _uiState.update { it.copy(xhighEffortSupported = supported) }
+                _uiState.update { it.copy(extendedEffortSupported = supported) }
             }
         }
 

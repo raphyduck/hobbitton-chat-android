@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import androidx.datastore.core.DataStore
 import com.garfiec.librechat.core.common.network.ConnectivityObserver
+import com.garfiec.librechat.core.network.api.AgentToolsApi
 import com.garfiec.librechat.core.network.api.AgentsApi
 import com.garfiec.librechat.core.network.api.ApiKeysApi
 import com.garfiec.librechat.core.network.api.AuthApi
@@ -19,6 +20,7 @@ import com.garfiec.librechat.core.network.api.KeysApi
 import com.garfiec.librechat.core.network.api.McpApi
 import com.garfiec.librechat.core.network.api.MemoriesApi
 import com.garfiec.librechat.core.network.api.MessagesApi
+import com.garfiec.librechat.core.network.api.PermissionsApi
 import com.garfiec.librechat.core.network.api.PresetsApi
 import com.garfiec.librechat.core.network.api.PromptsApi
 import com.garfiec.librechat.core.network.api.RolesApi
@@ -57,7 +59,9 @@ class DataModuleVerificationTest {
                 FavoritesApi::class,
                 FilesApi::class,
                 FilesExtApi::class,
+                AgentToolsApi::class,
                 AgentsApi::class,
+                PermissionsApi::class,
                 PresetsApi::class,
                 PromptsApi::class,
                 RolesApi::class,

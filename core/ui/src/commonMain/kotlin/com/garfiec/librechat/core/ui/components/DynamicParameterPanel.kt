@@ -68,6 +68,17 @@ fun DynamicParameterPanel(
                     )
                 }
 
+                ParameterType.ENUM_SLIDER -> {
+                    DynamicEnumSlider(
+                        label = definition.label,
+                        selectedValue = currentValue,
+                        options = definition.options ?: emptyList(),
+                        onValueChange = { onValueChange(definition.key, it) },
+                        description = definition.description,
+                        optionLabels = definition.optionLabels,
+                    )
+                }
+
                 ParameterType.CHECKBOX -> {
                     val checked = currentValue.toBooleanStrictOrNull() ?: false
                     DynamicCheckbox(
