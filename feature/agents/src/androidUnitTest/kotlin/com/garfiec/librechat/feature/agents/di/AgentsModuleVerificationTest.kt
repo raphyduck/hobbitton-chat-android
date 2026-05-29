@@ -4,8 +4,11 @@ import android.app.Application
 import android.content.Context
 import com.garfiec.librechat.core.data.datastore.ServerDataStore
 import com.garfiec.librechat.core.data.repository.AgentRepository
+import com.garfiec.librechat.core.data.repository.AgentToolsRepository
 import com.garfiec.librechat.core.data.repository.ConfigRepository
+import com.garfiec.librechat.core.data.repository.FileRepository
 import com.garfiec.librechat.core.data.repository.McpRepository
+import com.garfiec.librechat.core.data.repository.PermissionsRepository
 import com.garfiec.librechat.core.data.repository.RoleRepository
 import com.garfiec.librechat.core.data.util.PermissionGate
 import org.junit.Test
@@ -19,8 +22,11 @@ class AgentsModuleVerificationTest {
                 Context::class,
                 Application::class,
                 AgentRepository::class,
+                AgentToolsRepository::class,
                 ConfigRepository::class,
+                FileRepository::class,
                 McpRepository::class,
+                PermissionsRepository::class,
                 RoleRepository::class,
                 PermissionGate::class,
                 ServerDataStore::class,

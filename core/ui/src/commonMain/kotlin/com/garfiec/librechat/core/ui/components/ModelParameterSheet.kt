@@ -16,10 +16,12 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -62,7 +64,9 @@ data class ModelParameters(
         "top_p", "topP" -> topP.toString()
         "frequency_penalty" -> frequencyPenalty.toString()
         "presence_penalty" -> presencePenalty.toString()
-        "topK" -> (topK ?: 0).toString()
+        // null means "unset" — return "" so valueDiffersFromDefault doesn't
+        // light up the per-field reset icon on a fresh, untouched state.
+        "topK" -> topK?.toString() ?: ""
         "resendFiles" -> resendFiles.toString()
         "thinking" -> thinking.toString()
         "thinkingBudget" -> thinkingBudget
@@ -98,6 +102,42 @@ data class ModelParameters(
         "fileTokenLimit" -> copy(fileTokenLimit = value.toIntOrNull())
         else -> copy(dynamicValues = dynamicValues.toMutableMap().apply { this[key] = value })
     }
+
+    /**
+     * Resets a single registry-keyed value back to its definition default.
+     * Other typed fields and unrelated [dynamicValues] entries are preserved.
+     * For dynamic-only keys, the entry is removed from the map (so reading
+     * falls back to the registry default via [getValueForKey]).
+     */
+    fun resetKeyToDefault(definition: ParameterDefinition): ModelParameters {
+        val typedKeys = setOf(
+            "chatGptLabel", "modelLabel",
+            "promptPrefix", "system",
+            "maxContextTokens",
+            "max_tokens", "maxOutputTokens", "maxTokens",
+            "temperature", "top_p", "topP",
+            "frequency_penalty", "presence_penalty",
+            "topK",
+            "resendFiles", "thinking", "thinkingBudget",
+            "web_search", "fileTokenLimit",
+        )
+        return if (definition.key in typedKeys) {
+            withUpdatedKey(definition.key, definition.default.orEmpty())
+        } else {
+            copy(dynamicValues = dynamicValues - definition.key)
+        }
+    }
+
+    /** True when the value rendered for [definition] differs from its definition default. */
+    fun valueDiffersFromDefault(definition: ParameterDefinition): Boolean {
+        val current = getValueForKey(definition.key)
+        val default = definition.default.orEmpty()
+        // For numeric fields, compare as numbers so "1.0" == "1" doesn't show as differing.
+        val currentNum = current.toDoubleOrNull()
+        val defaultNum = default.toDoubleOrNull()
+        if (currentNum != null && defaultNum != null) return currentNum != defaultNum
+        return current != default
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -109,7 +149,13 @@ fun ModelParameterSheet(
     modifier: Modifier = Modifier,
     selectedEndpoint: String = "",
     dynamicParameterDefinitions: List<ParameterDefinition>? = null,
-    xhighEffortSupported: Boolean = false,
+    extendedEffortSupported: Boolean = false,
+    /** Underlying provider when [selectedEndpoint] is "agents". Routes the
+     *  agents dispatcher to the matching provider's parameter set. */
+    selectedProvider: String? = null,
+    /** Model id; consumed by the bedrock dispatcher (or the agents dispatcher
+     *  when its underlying provider is bedrock). */
+    selectedModel: String? = null,
     onSaveAsPreset: () -> Unit = {},
     sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
 ) {
@@ -123,7 +169,9 @@ fun ModelParameterSheet(
             onParametersChange = onParametersChange,
             selectedEndpoint = selectedEndpoint,
             dynamicParameterDefinitions = dynamicParameterDefinitions,
-            xhighEffortSupported = xhighEffortSupported,
+            extendedEffortSupported = extendedEffortSupported,
+            selectedProvider = selectedProvider,
+            selectedModel = selectedModel,
             onSaveAsPreset = onSaveAsPreset,
             modifier = Modifier
                 .padding(horizontal = 24.dp)
@@ -139,34 +187,65 @@ fun ModelParameterContent(
     modifier: Modifier = Modifier,
     selectedEndpoint: String = "",
     dynamicParameterDefinitions: List<ParameterDefinition>? = null,
-    xhighEffortSupported: Boolean = false,
+    extendedEffortSupported: Boolean = false,
+    selectedProvider: String? = null,
+    selectedModel: String? = null,
     onSaveAsPreset: () -> Unit = {},
+    showHeader: Boolean = true,
+    showSaveAsPreset: Boolean = true,
+    /** When false, skips the internal `verticalScroll` modifier — required when
+     *  the host already provides scrolling (e.g. embedded inside another
+     *  scrollable Column on the agent editor screen). Default true preserves
+     *  the bottom-sheet use case. */
+    applyVerticalScroll: Boolean = true,
 ) {
-    val definitions = remember(selectedEndpoint, dynamicParameterDefinitions, xhighEffortSupported) {
+    val definitions = remember(
+        selectedEndpoint,
+        dynamicParameterDefinitions,
+        extendedEffortSupported,
+        selectedProvider,
+        selectedModel,
+    ) {
         if (!dynamicParameterDefinitions.isNullOrEmpty()) {
             dynamicParameterDefinitions
         } else {
-            EndpointParameterRegistry.getDefinitions(selectedEndpoint, xhighEffortSupported)
+            EndpointParameterRegistry.getDefinitions(
+                endpoint = selectedEndpoint,
+                extendedEffortSupported = extendedEffortSupported,
+                provider = selectedProvider,
+                model = selectedModel,
+            )
         }
     }
 
+    val scrollableModifier = if (applyVerticalScroll) {
+        modifier.fillMaxWidth().verticalScroll(rememberScrollState())
+    } else {
+        modifier.fillMaxWidth()
+    }
+
     Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .verticalScroll(rememberScrollState()),
+        modifier = scrollableModifier,
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text(
-            text = "Model Parameters",
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.semantics { heading() },
-        )
+        if (showHeader) {
+            Text(
+                text = "Model Parameters",
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.semantics { heading() },
+            )
 
-        Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(4.dp))
+        }
 
         definitions.forEach { definition ->
             val currentValue = parameters.getValueForKey(definition.key)
+            val differs = parameters.valueDiffersFromDefault(definition)
 
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
             when (definition.type) {
                 ParameterType.TEXT -> {
                     DynamicInput(
@@ -175,7 +254,9 @@ fun ModelParameterContent(
                         onValueChange = { newValue ->
                             onParametersChange(parameters.withUpdatedKey(definition.key, newValue))
                         },
-                        placeholder = definition.default?.ifEmpty { "Default" } ?: "Default",
+                        placeholder = definition.placeholder
+                            ?: definition.default?.ifEmpty { "Default" }
+                            ?: "Default",
                         description = definition.description,
                     )
                 }
@@ -187,7 +268,8 @@ fun ModelParameterContent(
                         onValueChange = { newValue ->
                             onParametersChange(parameters.withUpdatedKey(definition.key, newValue))
                         },
-                        placeholder = definition.default?.ifEmpty { null },
+                        placeholder = definition.placeholder
+                            ?: definition.default?.ifEmpty { null },
                         description = definition.description,
                     )
                 }
@@ -227,7 +309,7 @@ fun ModelParameterContent(
 
                 ParameterType.DROPDOWN -> {
                     val displayValue = if (currentValue.isEmpty()) {
-                        definition.options?.firstOrNull() ?: ""
+                        definition.default ?: definition.options?.firstOrNull() ?: ""
                     } else {
                         currentValue
                     }
@@ -240,6 +322,26 @@ fun ModelParameterContent(
                             onParametersChange(parameters.withUpdatedKey(definition.key, newValue))
                         },
                         description = definition.description,
+                        optionLabels = definition.optionLabels,
+                    )
+                }
+
+                ParameterType.ENUM_SLIDER -> {
+                    val opts = definition.options ?: emptyList()
+                    val displayValue = if (currentValue.isEmpty()) {
+                        definition.default ?: opts.firstOrNull() ?: ""
+                    } else {
+                        currentValue
+                    }
+                    DynamicEnumSlider(
+                        label = definition.label,
+                        selectedValue = displayValue,
+                        options = opts,
+                        onValueChange = { newValue ->
+                            onParametersChange(parameters.withUpdatedKey(definition.key, newValue))
+                        },
+                        description = definition.description,
+                        optionLabels = definition.optionLabels,
                     )
                 }
 
@@ -263,12 +365,27 @@ fun ModelParameterContent(
                     )
                 }
             }
+
+                if (differs) {
+                    TextButton(
+                        onClick = {
+                            onParametersChange(parameters.resetKeyToDefault(definition))
+                        },
+                        modifier = Modifier.align(Alignment.End),
+                    ) {
+                        Text("Restore default")
+                    }
+                }
+            }
         }
 
-        // Reset to defaults
+        // Reset visible definitions to their defaults; dynamicValues for keys
+        // not in the current schema are preserved (other endpoints' state stays
+        // intact when the user is just resetting the active endpoint's view).
         OutlinedButton(
             onClick = {
-                onParametersChange(ModelParameters.DEFAULT)
+                val reset = definitions.fold(parameters) { acc, def -> acc.resetKeyToDefault(def) }
+                onParametersChange(reset)
             },
             modifier = Modifier.fillMaxWidth(),
         ) {
@@ -276,11 +393,13 @@ fun ModelParameterContent(
         }
 
         // Save As Preset
-        FilledTonalButton(
-            onClick = onSaveAsPreset,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text("Save As Preset")
+        if (showSaveAsPreset) {
+            FilledTonalButton(
+                onClick = onSaveAsPreset,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Save As Preset")
+            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))

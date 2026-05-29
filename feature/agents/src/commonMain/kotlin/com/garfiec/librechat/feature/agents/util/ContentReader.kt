@@ -7,4 +7,5 @@ package com.garfiec.librechat.feature.agents.util
 interface ContentReader {
     fun readBytes(uri: Any): ByteArray?
     fun getMimeType(uri: Any): String?
+    fun getFileName(uri: Any): String?
 }

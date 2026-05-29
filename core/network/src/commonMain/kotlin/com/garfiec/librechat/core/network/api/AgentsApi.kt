@@ -29,6 +29,8 @@ import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
 import io.ktor.http.path
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
 
 class AgentsApi constructor(
     private val client: HttpClient,
@@ -141,6 +143,18 @@ class AgentsApi constructor(
     }
 
     // --- Agent Avatar ---
+
+    /**
+     * Reset the agent's avatar to the default. Upstream's wire format is a
+     * PATCH with explicit `"avatar": null` — we build the body as a raw
+     * [JsonObject] so the network module's `explicitNulls = false` config
+     * doesn't drop the null.
+     */
+    suspend fun resetAgentAvatar(agentId: String): Agent =
+        client.patch {
+            url { path("api/agents/$agentId") }
+            setBody(JsonObject(mapOf("avatar" to JsonNull)))
+        }.body()
 
     suspend fun uploadAgentAvatar(
         agentId: String,

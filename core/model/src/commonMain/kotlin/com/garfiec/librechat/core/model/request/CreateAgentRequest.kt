@@ -3,6 +3,7 @@ package com.garfiec.librechat.core.model.request
 import com.garfiec.librechat.core.model.SupportContact
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 
 @Serializable
@@ -25,4 +26,11 @@ data class CreateAgentRequest(
     @SerialName("projectIds") val projectIds: List<String>? = null,
     @SerialName("support_contact") val supportContact: SupportContact? = null,
     @SerialName("tool_options") val toolOptions: JsonObject? = null,
+    @SerialName("agent_ids") val agentIds: List<String>? = null,
+    val edges: List<JsonElement>? = null,
+    @SerialName("tool_kwargs") val toolKwargs: JsonElement? = null,
+    @SerialName("additional_instructions") val additionalInstructions: String? = null,
+    @SerialName("code_files") val codeFiles: List<String>? = null,
+    @SerialName("knowledge_files") val knowledgeFiles: List<String>? = null,
+    @SerialName("context_files") val contextFiles: List<String>? = null,
 )

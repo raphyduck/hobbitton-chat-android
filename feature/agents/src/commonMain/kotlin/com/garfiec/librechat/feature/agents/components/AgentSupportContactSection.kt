@@ -20,6 +20,8 @@ fun AgentSupportContactSection(
     supportContact: SupportContactState,
     onSupportContactChange: (SupportContactState) -> Unit,
     modifier: Modifier = Modifier,
+    nameError: String? = null,
+    emailError: String? = null,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
         Text(
@@ -40,6 +42,8 @@ fun AgentSupportContactSection(
                 onSupportContactChange(supportContact.copy(name = it))
             },
             placeholder = { Text(stringResource(Res.string.support_contact_placeholder)) },
+            isError = nameError != null,
+            supportingText = nameError?.let { error -> { Text(error) } },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
@@ -58,6 +62,8 @@ fun AgentSupportContactSection(
                 onSupportContactChange(supportContact.copy(email = it))
             },
             placeholder = { Text("support@example.com") },
+            isError = emailError != null,
+            supportingText = emailError?.let { error -> { Text(error) } },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )

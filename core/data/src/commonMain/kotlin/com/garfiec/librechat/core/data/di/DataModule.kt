@@ -9,6 +9,8 @@ import com.garfiec.librechat.core.data.datastore.ThemeDataStore
 import com.garfiec.librechat.core.data.db.LibreChatDatabase
 import com.garfiec.librechat.core.data.repository.AgentRepository
 import com.garfiec.librechat.core.data.repository.AgentRepositoryImpl
+import com.garfiec.librechat.core.data.repository.AgentToolsRepository
+import com.garfiec.librechat.core.data.repository.AgentToolsRepositoryImpl
 import com.garfiec.librechat.core.data.repository.ApiKeyRepository
 import com.garfiec.librechat.core.data.repository.ApiKeyRepositoryImpl
 import com.garfiec.librechat.core.data.repository.AuthRepository
@@ -37,6 +39,8 @@ import com.garfiec.librechat.core.data.repository.MemoryRepository
 import com.garfiec.librechat.core.data.repository.MemoryRepositoryImpl
 import com.garfiec.librechat.core.data.repository.MessageRepository
 import com.garfiec.librechat.core.data.repository.MessageRepositoryImpl
+import com.garfiec.librechat.core.data.repository.PermissionsRepository
+import com.garfiec.librechat.core.data.repository.PermissionsRepositoryImpl
 import com.garfiec.librechat.core.data.repository.PresetRepository
 import com.garfiec.librechat.core.data.repository.PresetRepositoryImpl
 import com.garfiec.librechat.core.data.repository.PromptRepository
@@ -159,12 +163,14 @@ val dataModule = module {
     singleOf(::MessageRepositoryImpl) bind MessageRepository::class
     singleOf(::FileRepositoryImpl) bind FileRepository::class
     singleOf(::AgentRepositoryImpl) bind AgentRepository::class
+    singleOf(::AgentToolsRepositoryImpl) bind AgentToolsRepository::class
     singleOf(::TagRepositoryImpl) bind TagRepository::class
     singleOf(::SearchRepositoryImpl) bind SearchRepository::class
     singleOf(::KeyRepositoryImpl) bind KeyRepository::class
     singleOf(::ApiKeyRepositoryImpl) bind ApiKeyRepository::class
     singleOf(::McpRepositoryImpl) bind McpRepository::class
     singleOf(::MemoryRepositoryImpl) bind MemoryRepository::class
+    singleOf(::PermissionsRepositoryImpl) bind PermissionsRepository::class
     singleOf(::PresetRepositoryImpl) bind PresetRepository::class
     singleOf(::PromptRepositoryImpl) bind PromptRepository::class
     singleOf(::ShareRepositoryImpl) bind ShareRepository::class

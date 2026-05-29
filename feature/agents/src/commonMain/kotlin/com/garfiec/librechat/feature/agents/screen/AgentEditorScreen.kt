@@ -35,6 +35,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -53,23 +55,34 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.garfiec.librechat.core.ui.components.ErrorBanner
 import com.garfiec.librechat.core.ui.components.LoadingIndicator
+import com.garfiec.librechat.feature.agents.components.AgentAclSharingSection
 import com.garfiec.librechat.feature.agents.components.AgentActionsPanel
 import com.garfiec.librechat.feature.agents.components.AgentAdvancedPanel
 import com.garfiec.librechat.feature.agents.components.AgentAvatarPicker
+import com.garfiec.librechat.feature.agents.components.AgentCapabilitiesSection
 import com.garfiec.librechat.feature.agents.components.AgentCategorySelector
+import com.garfiec.librechat.feature.agents.components.AgentChainSection
 import com.garfiec.librechat.feature.agents.components.AgentCodeInterpreterSection
+import com.garfiec.librechat.feature.agents.components.AgentFileAttachments
+import com.garfiec.librechat.feature.agents.components.AgentFileContextSection
 import com.garfiec.librechat.feature.agents.components.AgentFileSearchSection
-import com.garfiec.librechat.feature.agents.components.AgentHandoffConfig
+import com.garfiec.librechat.feature.agents.components.AgentHandoffsSection
 import com.garfiec.librechat.feature.agents.components.AgentMcpToolsSelector
 import com.garfiec.librechat.feature.agents.components.AgentModelPicker
 import com.garfiec.librechat.feature.agents.components.AgentSharingSection
 import com.garfiec.librechat.feature.agents.components.AgentSupportContactSection
 import com.garfiec.librechat.feature.agents.components.AgentVersionHistory
+import com.garfiec.librechat.feature.agents.components.AgentWebSearchSection
+import com.garfiec.librechat.feature.agents.components.ToolAuthDialog
 import com.garfiec.librechat.feature.agents.components.ToolSelectDialog
+import com.garfiec.librechat.feature.agents.components.rememberAgentFilePicker
 import com.garfiec.librechat.feature.agents.resources.*
 import com.garfiec.librechat.feature.agents.resources.Res
+import com.garfiec.librechat.feature.agents.viewmodel.AgentAclViewModel
 import com.garfiec.librechat.feature.agents.viewmodel.AgentEditorEvent
 import com.garfiec.librechat.feature.agents.viewmodel.AgentEditorViewModel
+import com.garfiec.librechat.feature.agents.viewmodel.AgentFileSlot
+import com.garfiec.librechat.feature.agents.viewmodel.ToolAuthState
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -90,6 +103,46 @@ fun AgentEditorScreen(
     val currentOnSaved by rememberUpdatedState(onSave)
     val currentOnDuplicated by rememberUpdatedState(onDuplicate)
     val currentOnDeleted by rememberUpdatedState(onDelete)
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // One picker per slot; iOS impl is a stub today.
+    val codeFilePicker = rememberAgentFilePicker(
+        onFilePick = { ref -> viewModel.uploadAgentFile(ref, AgentFileSlot.CODE) },
+    )
+    val knowledgeFilePicker = rememberAgentFilePicker(
+        onFilePick = { ref -> viewModel.uploadAgentFile(ref, AgentFileSlot.KNOWLEDGE) },
+    )
+    val contextFilePicker = rememberAgentFilePicker(
+        onFilePick = { ref -> viewModel.uploadAgentFile(ref, AgentFileSlot.CONTEXT) },
+    )
+
+    // Map VM sentinel error markers to localized snackbar messages. Other errors
+    // continue to flow through the ErrorBanner banner below.
+    val saveFirstMsg = stringResource(Res.string.agent_files_save_first)
+    val uploadFailedMsg = stringResource(Res.string.agent_file_upload_failed)
+    val removeFailedMsg = stringResource(Res.string.agent_file_remove_failed)
+    // The numeric MB comes from a VM-side marker; resolve the format with a placeholder
+    // we replace at LaunchedEffect time. `%1$d` -> "%d" makes the substitution trivial.
+    val tooLargeTemplate = stringResource(Res.string.agent_file_too_large, 0)
+        .replaceFirst("0", "%d")
+    LaunchedEffect(uiState.error) {
+        val err = uiState.error ?: return@LaunchedEffect
+        val localized = when {
+            err == AgentEditorViewModel.AGENT_FILES_SAVE_FIRST_MARKER -> saveFirstMsg
+            err.startsWith(AgentEditorViewModel.AGENT_FILES_TOO_LARGE_MARKER) -> {
+                val mb = err.removePrefix(AgentEditorViewModel.AGENT_FILES_TOO_LARGE_MARKER)
+                    .toIntOrNull() ?: 0
+                tooLargeTemplate.replace("%d", mb.toString())
+            }
+            err == AgentEditorViewModel.AGENT_FILE_UPLOAD_FAILED_MARKER -> uploadFailedMsg
+            err == AgentEditorViewModel.AGENT_FILE_REMOVE_FAILED_MARKER -> removeFailedMsg
+            else -> null
+        }
+        if (localized != null) {
+            snackbarHostState.showSnackbar(localized)
+            viewModel.dismissError()
+        }
+    }
 
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
@@ -159,8 +212,23 @@ fun AgentEditorScreen(
         )
     }
 
+    // Code Interpreter API key dialog
+    if (uiState.showCodeAuthDialog) {
+        val alreadyAuthed = uiState.codeToolAuthState == ToolAuthState.UserProvided
+        ToolAuthDialog(
+            title = stringResource(Res.string.tool_auth_code_title),
+            fieldLabel = stringResource(Res.string.tool_auth_code_field),
+            description = stringResource(Res.string.tool_auth_code_description),
+            isAlreadyAuthenticated = alreadyAuthed,
+            onSubmit = viewModel::submitCodeToolApiKey,
+            onRevoke = viewModel::revokeCodeToolApiKey,
+            onDismiss = viewModel::dismissCodeToolAuthDialog,
+        )
+    }
+
     Scaffold(
         modifier = modifier,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -295,6 +363,11 @@ fun AgentEditorScreen(
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                        if (uiState.isEditMode && !uiState.avatarUrl.isNullOrBlank()) {
+                            TextButton(onClick = viewModel::resetAvatar) {
+                                Text(stringResource(Res.string.remove_avatar))
+                            }
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -323,6 +396,10 @@ fun AgentEditorScreen(
                         onValueChange = viewModel::onDescriptionChanged,
                         label = { Text(stringResource(Res.string.agent_description_label)) },
                         placeholder = { Text(stringResource(Res.string.agent_description_placeholder)) },
+                        isError = uiState.descriptionError != null,
+                        supportingText = uiState.descriptionError?.let { error ->
+                            { Text(error) }
+                        },
                         minLines = 2,
                         maxLines = 4,
                         modifier = Modifier.fillMaxWidth(),
@@ -340,15 +417,10 @@ fun AgentEditorScreen(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // 5. Instructions field (multi-line)
-                    OutlinedTextField(
+                    // 5. Instructions field (multi-line) + Insert-variable menu
+                    InstructionsField(
                         value = uiState.instructions,
                         onValueChange = viewModel::onInstructionsChanged,
-                        label = { Text(stringResource(Res.string.agent_instructions_label)) },
-                        placeholder = { Text(stringResource(Res.string.agent_instructions_placeholder)) },
-                        minLines = 4,
-                        maxLines = 10,
-                        modifier = Modifier.fillMaxWidth(),
                     )
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -363,11 +435,12 @@ fun AgentEditorScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // 7. Capabilities section
-                    Text(
-                        text = stringResource(Res.string.label_capabilities),
-                        style = MaterialTheme.typography.titleSmall,
+                    // 7. Capabilities section (Artifacts, EndAfterTools, HideSeq, RecursionLimit)
+                    AgentCapabilitiesSection(
+                        capabilities = uiState.capabilities,
+                        onCapabilitiesChange = viewModel::onCapabilitiesChanged,
                     )
+
                     Spacer(modifier = Modifier.height(8.dp))
 
                     // Code Interpreter toggle (only shown when the server supports it)
@@ -375,6 +448,26 @@ fun AgentEditorScreen(
                         AgentCodeInterpreterSection(
                             enabled = uiState.codeInterpreterEnabled,
                             onToggle = viewModel::onCodeInterpreterToggled,
+                        )
+                        if (uiState.codeInterpreterEnabled) {
+                            AgentFileAttachments(
+                                files = uiState.codeFiles,
+                                isUploading = AgentFileSlot.CODE in uiState.uploadingSlots,
+                                onAddClick = { codeFilePicker.launch("*/*") },
+                                onRemove = { id ->
+                                    viewModel.removeAgentFile(id, AgentFileSlot.CODE)
+                                },
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+
+                    // Web Search toggle (only shown when the server has it configured)
+                    if (uiState.isWebSearchAvailable) {
+                        AgentWebSearchSection(
+                            enabled = uiState.webSearchEnabled,
+                            onToggle = viewModel::onWebSearchToggled,
                         )
 
                         Spacer(modifier = Modifier.height(8.dp))
@@ -385,6 +478,34 @@ fun AgentEditorScreen(
                         enabled = uiState.fileSearchEnabled,
                         onToggle = viewModel::onFileSearchToggled,
                     )
+                    if (uiState.fileSearchEnabled) {
+                        AgentFileAttachments(
+                            files = uiState.knowledgeFiles,
+                            isUploading = AgentFileSlot.KNOWLEDGE in uiState.uploadingSlots,
+                            onAddClick = { knowledgeFilePicker.launch("*/*") },
+                            onRemove = { id ->
+                                viewModel.removeAgentFile(id, AgentFileSlot.KNOWLEDGE)
+                            },
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // File Context toggle (persistent files attached as context)
+                    AgentFileContextSection(
+                        enabled = uiState.fileContextEnabled,
+                        onToggle = viewModel::onFileContextToggled,
+                    )
+                    if (uiState.fileContextEnabled) {
+                        AgentFileAttachments(
+                            files = uiState.contextFiles,
+                            isUploading = AgentFileSlot.CONTEXT in uiState.uploadingSlots,
+                            onAddClick = { contextFilePicker.launch("*/*") },
+                            onRemove = { id ->
+                                viewModel.removeAgentFile(id, AgentFileSlot.CONTEXT)
+                            },
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(16.dp))
 
@@ -477,6 +598,8 @@ fun AgentEditorScreen(
                     AgentSupportContactSection(
                         supportContact = uiState.supportContact,
                         onSupportContactChange = viewModel::onSupportContactChanged,
+                        nameError = uiState.supportContactNameError,
+                        emailError = uiState.supportContactEmailError,
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -534,22 +657,64 @@ fun AgentEditorScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Sharing & Permissions
-                    AgentSharingSection(
-                        sharingState = uiState.sharingState,
-                        onSharingChange = viewModel::onSharingChanged,
-                        showCollaborativeToggle = uiState.showCollaborativeToggle,
-                    )
+                    // Sharing & Permissions:
+                    // v0.8.5+ servers expose a granular ACL surface; older servers keep the
+                    // legacy Private / Team / Public + Collaborative toggle.
+                    // The ACL section is only meaningful for an existing agent (the API
+                    // operates on a specific agentId). In create-mode on v0.8.5+ we show
+                    // a notice instead of the legacy Private/Team/Public toggle — which
+                    // would silently no-op since v0.8.5+ dropped the projects/isCollaborative
+                    // model the toggle wrote to.
+                    when {
+                        uiState.isAclAvailable && uiState.agentId != null -> {
+                            val aclViewModel: AgentAclViewModel = koinViewModel()
+                            LaunchedEffect(uiState.agentId) {
+                                aclViewModel.load(uiState.agentId!!)
+                            }
+                            AgentAclSharingSection(viewModel = aclViewModel)
+                        }
+                        uiState.isAclAvailable && uiState.agentId == null -> {
+                            Text(
+                                text = stringResource(Res.string.acl_create_mode_notice),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        else -> {
+                            AgentSharingSection(
+                                sharingState = uiState.sharingState,
+                                onSharingChange = viewModel::onSharingChanged,
+                                showCollaborativeToggle = uiState.showCollaborativeToggle,
+                            )
+                        }
+                    }
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // Handoff configuration
-                    AgentHandoffConfig(
-                        handoffAgentIds = uiState.handoffAgentIds,
-                        availableAgents = uiState.allAgents,
-                        onAddHandoff = viewModel::addHandoffAgent,
-                        onRemoveHandoff = viewModel::removeHandoffAgent,
-                    )
+                    // Chain (sequential multi-agent), gated on agents-endpoint capabilities
+                    if (uiState.isChainAvailable) {
+                        AgentChainSection(
+                            chainAgentIds = uiState.chainAgentIds,
+                            availableAgents = uiState.allAgents,
+                            chainMax = AgentEditorViewModel.CHAIN_MAX,
+                            onAddAgent = viewModel::addChainAgent,
+                            onRemoveAgent = viewModel::removeChainAgent,
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+
+                    // Handoffs graph editor, v0.8.5+ only
+                    if (uiState.isHandoffsAvailable) {
+                        AgentHandoffsSection(
+                            edges = uiState.handoffEdges,
+                            availableAgents = uiState.allAgents,
+                            currentAgentId = uiState.agentId,
+                            onAddEdge = viewModel::addHandoffEdge,
+                            onUpdateEdge = viewModel::updateHandoffEdge,
+                            onRemoveEdge = viewModel::removeHandoffEdge,
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(16.dp))
 
@@ -557,6 +722,9 @@ fun AgentEditorScreen(
                     AgentAdvancedPanel(
                         settings = uiState.advancedSettings,
                         onSettingsChange = viewModel::onAdvancedSettingsChanged,
+                        provider = uiState.provider,
+                        model = uiState.model,
+                        extendedEffortSupported = uiState.isHandoffsAvailable,
                     )
 
                     Spacer(modifier = Modifier.height(24.dp))
@@ -585,6 +753,100 @@ fun AgentEditorScreen(
                 }
             }
         }
+    }
+}
+
+/**
+ * Instructions field with an "Insert variable" overflow that inserts upstream's
+ * special variables (`{{current_date}}`, `{{iso_datetime}}`, etc.) at the
+ * current cursor position. Mirrors upstream `Instructions.tsx`.
+ */
+@Composable
+private fun InstructionsField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    // Track cursor + selection via TextFieldValue so the menu can insert at the caret.
+    var fieldValue by remember(value) {
+        mutableStateOf(
+            androidx.compose.ui.text.input.TextFieldValue(
+                text = value,
+                selection = androidx.compose.ui.text.TextRange(value.length),
+            )
+        )
+    }
+    // Sync VM value into local state when it changes from outside (e.g. agent load).
+    if (fieldValue.text != value) {
+        fieldValue = fieldValue.copy(text = value)
+    }
+    var menuExpanded by remember { mutableStateOf(false) }
+    val variables = listOf(
+        "current_date" to stringResource(Res.string.special_var_current_date),
+        "iso_datetime" to stringResource(Res.string.special_var_iso_datetime),
+        "current_datetime" to stringResource(Res.string.special_var_current_datetime),
+        "current_user" to stringResource(Res.string.special_var_current_user),
+    )
+    Column(modifier = modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(Res.string.agent_instructions_label),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = stringResource(Res.string.insert_variable),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                IconButton(onClick = { menuExpanded = true }) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = stringResource(Res.string.cd_insert_variable),
+                    )
+                }
+                DropdownMenu(
+                    expanded = menuExpanded,
+                    onDismissRequest = { menuExpanded = false },
+                ) {
+                    variables.forEach { (key, label) ->
+                        DropdownMenuItem(
+                            text = { Text("$label  ($key)") },
+                            onClick = {
+                                menuExpanded = false
+                                val insertion = "{{$key}}"
+                                val sel = fieldValue.selection
+                                val newText = fieldValue.text.replaceRange(
+                                    sel.min, sel.max, insertion,
+                                )
+                                val newCaret = sel.min + insertion.length
+                                fieldValue = androidx.compose.ui.text.input.TextFieldValue(
+                                    text = newText,
+                                    selection = androidx.compose.ui.text.TextRange(newCaret),
+                                )
+                                onValueChange(newText)
+                            },
+                        )
+                    }
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        OutlinedTextField(
+            value = fieldValue,
+            onValueChange = {
+                fieldValue = it
+                onValueChange(it.text)
+            },
+            placeholder = { Text(stringResource(Res.string.agent_instructions_placeholder)) },
+            minLines = 4,
+            maxLines = 10,
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 

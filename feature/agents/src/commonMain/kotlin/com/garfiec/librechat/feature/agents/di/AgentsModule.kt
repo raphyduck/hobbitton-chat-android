@@ -1,5 +1,6 @@
 package com.garfiec.librechat.feature.agents.di
 
+import com.garfiec.librechat.feature.agents.viewmodel.AgentAclViewModel
 import com.garfiec.librechat.feature.agents.viewmodel.AgentDetailViewModel
 import com.garfiec.librechat.feature.agents.viewmodel.AgentEditorViewModel
 import com.garfiec.librechat.feature.agents.viewmodel.AgentMarketplaceViewModel
@@ -14,6 +15,7 @@ val agentsModule = module {
     includes(agentsPlatformModule)
 
     viewModelOf(::AgentMarketplaceViewModel)
+    viewModelOf(::AgentAclViewModel)
     // Koin's constructor-DSL (`viewModelOf`) wires every argument via `get()` and cannot read
     // values passed through `parametersOf`. Both VMs below receive `initialAgentId` from the
     // navigation layer via `parametersOf`, so the lambda-form `viewModel { params -> ... }` is
@@ -33,6 +35,8 @@ val agentsModule = module {
             agentRepository = get(),
             configRepository = get(),
             mcpRepository = get(),
+            agentToolsRepository = get(),
+            fileRepository = get(),
             contentReader = get(),
             initialAgentId = params.getOrNull(),
         )

@@ -10,6 +10,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -17,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.garfiec.librechat.core.model.ArtifactsMode
 import com.garfiec.librechat.feature.agents.components.model.AgentCapabilities
 import com.garfiec.librechat.feature.agents.resources.*
 import com.garfiec.librechat.feature.agents.resources.Res
@@ -35,14 +39,25 @@ fun AgentCapabilitiesSection(
         )
         Spacer(modifier = Modifier.height(8.dp))
 
-        CapabilityToggle(
-            label = stringResource(Res.string.label_artifacts),
-            description = stringResource(Res.string.artifacts_description),
-            checked = capabilities.artifacts,
-            onCheckedChange = {
-                onCapabilitiesChange(capabilities.copy(artifacts = it))
-            },
-        )
+        // Artifacts: 4-option SegmentedButton (Off / Default / shadcnui / Custom)
+        Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+            Text(
+                text = stringResource(Res.string.label_artifacts),
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            Text(
+                text = stringResource(Res.string.artifacts_description),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            ArtifactsModePicker(
+                selected = capabilities.artifactsMode,
+                onSelect = { mode ->
+                    onCapabilitiesChange(capabilities.copy(artifactsMode = mode))
+                },
+            )
+        }
 
         CapabilityToggle(
             label = stringResource(Res.string.label_end_after_tools),
@@ -88,6 +103,32 @@ fun AgentCapabilitiesSection(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
+        }
+    }
+}
+
+@Composable
+private fun ArtifactsModePicker(
+    selected: ArtifactsMode?,
+    onSelect: (ArtifactsMode?) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    // Order: Off (null), Default, shadcnui, Custom
+    val options: List<Pair<ArtifactsMode?, String>> = listOf(
+        null to stringResource(Res.string.artifacts_mode_off),
+        ArtifactsMode.DEFAULT to stringResource(Res.string.artifacts_mode_default),
+        ArtifactsMode.SHADCN_UI to stringResource(Res.string.artifacts_mode_shadcnui),
+        ArtifactsMode.CUSTOM to stringResource(Res.string.artifacts_mode_custom),
+    )
+    SingleChoiceSegmentedButtonRow(modifier = modifier.fillMaxWidth()) {
+        options.forEachIndexed { index, (mode, label) ->
+            SegmentedButton(
+                selected = selected == mode,
+                onClick = { onSelect(mode) },
+                shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
+            ) {
+                Text(label)
+            }
         }
     }
 }
