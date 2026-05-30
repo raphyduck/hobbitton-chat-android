@@ -1,0 +1,175 @@
+name: Release
+
+# Manual, one-button release. Pick a semver bump; the job bumps version.properties,
+# builds a signed universal APK, and ONLY THEN commits + tags it and publishes a draft
+# GitHub Release with auto-generated notes — so a failed build never leaves an orphaned
+# tag or a burned version on the branch. Review the draft, then publish it;
+# Obtainium/IzzyOnDroid pick up published releases.
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Version bump (pre* starts an -rc, rc advances it, finalize promotes to stable)"
+        required: true
+        type: choice
+        default: patch
+        options:
+          - patch
+          - minor
+          - major
+          - prepatch
+          - preminor
+          - premajor
+          - rc
+          - finalize
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write       # push the version-bump commit + tag, and create the Release
+  id-token: write       # OIDC identity for keyless Sigstore signing of the attestation
+  attestations: write   # write the build-provenance attestation to the repo's attestation store
+
+jobs:
+  release:
+    name: Build & publish release
+    runs-on: ubuntu-latest
+    # Gate signing secrets behind a protected environment (add required reviewers in repo
+    # settings). Secrets are unavailable to fork PRs, so this stays off the PR path.
+    environment: release
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0   # full history for auto-generated release notes
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Setup Gradle
+        # Pinned to a commit SHA (not a moving tag) so a compromise of the action's
+        # repo can't inject code into this secret-bearing job. Dependabot keeps it
+        # current — see .github/dependabot.yml.
+        uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c # v5.0.2
+
+      # Fail in seconds if the signing secrets are missing/blank, before doing any
+      # work — rather than deep inside the Gradle signing task after a full build.
+      - name: Verify signing secrets
+        env:
+          SIGNING_KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+        run: |
+          missing=""
+          [ -z "$SIGNING_KEYSTORE_BASE64" ] && missing="$missing SIGNING_KEYSTORE_BASE64"
+          [ -z "$SIGNING_STORE_PASSWORD" ] && missing="$missing SIGNING_STORE_PASSWORD"
+          [ -z "$SIGNING_KEY_PASSWORD" ] && missing="$missing SIGNING_KEY_PASSWORD"
+          [ -z "$SIGNING_KEY_ALIAS" ] && missing="$missing SIGNING_KEY_ALIAS"
+          if [ -n "$missing" ]; then
+            echo "::error title=Missing signing secrets::Set these in the 'release' environment:$missing"
+            exit 1
+          fi
+
+      - name: Bump version
+        id: bump
+        run: ./scripts/bump-version.sh "${{ inputs.bump }}"
+
+      - name: Decode keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.jks"
+          echo "SIGNING_STORE_FILE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+
+      - name: Build signed release APK
+        env:
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+        run: ./gradlew :app:assembleRelease --no-daemon
+
+      - name: Prepare artifacts
+        id: artifacts
+        env:
+          VERSION: ${{ steps.bump.outputs.version_name }}
+        run: |
+          src="app/build/outputs/apk/release/app-release.apk"
+          out="librechat-v${VERSION}.apk"
+          cp "$src" "$out"
+          sha256sum "$out" > "${out}.sha256"
+          echo "apk=$out" >> "$GITHUB_OUTPUT"
+
+      # Sign a SLSA provenance attestation for the published APK (keyless, via Sigstore +
+      # Rekor). This is the only check that resists a tampered upload — unlike the .sha256,
+      # it can't be forged outside GitHub's CI. Runs on the renamed artifact so the attested
+      # subject name matches the downloaded asset (verification is by digest regardless).
+      - name: Attest build provenance
+        id: attest
+        # GitHub-owned action → moving major tag, consistent with actions/checkout@v5 and
+        # actions/setup-java@v5; Dependabot tracks it via .github/dependabot.yml.
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: ${{ steps.artifacts.outputs.apk }}
+
+      # Commit + tag the bump ONLY after a signed APK exists, so a failed build never
+      # leaves an orphaned tag or a burned version on the branch. --atomic makes the
+      # branch push and the tag push all-or-nothing.
+      - name: Commit, tag & push
+        env:
+          TAG: ${{ steps.bump.outputs.tag }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add version.properties
+          git commit -m "chore(release): $TAG"
+          git tag -a "$TAG" -m "Release $TAG"
+          git push --atomic origin "HEAD:${{ github.ref_name }}" "refs/tags/$TAG"
+
+      - name: Create draft release
+        # Pinned to a commit SHA (not a moving tag): this step runs with a
+        # contents:write token, so a hijacked tag could push tags/releases on our
+        # behalf. Dependabot bumps the pin — see .github/dependabot.yml.
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
+        with:
+          tag_name: ${{ steps.bump.outputs.tag }}
+          name: "LibreChat Mobile ${{ steps.bump.outputs.tag }}"
+          draft: true
+          # A hyphenated version (e.g. 0.2.0-rc1) is a pre-release; Obtainium then
+          # ignores it unless the user opts into "Include prereleases".
+          prerelease: ${{ contains(steps.bump.outputs.tag, '-') }}
+          generate_release_notes: true
+          # Append our provenance block to the auto-generated changelog (don't replace it).
+          append_body: true
+          body: |
+            ## Provenance & verification
+
+            Built by CI — [view the workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) · [view the attestation](${{ steps.attest.outputs.attestation-url }})
+
+            These links show how the APK was built; they are **not** proof on their own (whoever
+            writes a release also writes its links). To cryptographically verify the downloaded
+            APK came from this repo's release workflow, with the [GitHub CLI](https://cli.github.com):
+
+            ```bash
+            gh attestation verify ${{ steps.artifacts.outputs.apk }} \
+              --repo ${{ github.repository }} \
+              --signer-workflow ${{ github.repository }}/.github/workflows/release.yml
+            ```
+
+            Weaker checks: `apksigner verify --print-certs ${{ steps.artifacts.outputs.apk }}`
+            (signing cert) and `sha256sum -c ${{ steps.artifacts.outputs.apk }}.sha256` (checksum).
+          files: |
+            ${{ steps.artifacts.outputs.apk }}
+            ${{ steps.artifacts.outputs.apk }}.sha256
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Remind to publish the draft
+        run: |
+          echo "::warning title=Release is a DRAFT::${{ steps.bump.outputs.tag }} was created as a DRAFT. Obtainium and direct downloads will NOT see it until you open it in the GitHub Releases UI and click Publish."

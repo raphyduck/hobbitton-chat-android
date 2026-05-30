@@ -1,5 +1,6 @@
 package com.garfiec.librechat.feature.settings.viewmodel
 
+import com.garfiec.librechat.core.common.AppInfo
 import com.garfiec.librechat.core.common.ChatLayoutConstants
 import com.garfiec.librechat.core.common.result.Result
 import com.garfiec.librechat.core.data.datastore.ChatFontSize
@@ -146,6 +147,11 @@ class SettingsViewModelTest {
         roleRepository = roleRepository,
         permissionGate = permissionGate,
         configRepository = configRepository,
+        appInfo = object : AppInfo {
+            override val versionName = "0.1.0"
+            override val versionCode = 1L
+            override val gitSha = "testsha0"
+        },
     )
 
     @Test

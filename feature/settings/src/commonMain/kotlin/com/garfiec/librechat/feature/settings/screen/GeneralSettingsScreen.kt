@@ -151,7 +151,11 @@ fun GeneralSettingsContent(
                 SectionHeader(stringResource(Res.string.section_about))
             }
             item(key = "about_info") {
-                AboutInfo(serverUrl = uiState.serverUrl)
+                AboutInfo(
+                    serverUrl = uiState.serverUrl,
+                    appVersion = uiState.appVersion,
+                    gitSha = uiState.gitSha,
+                )
             }
 
             // Bottom spacing
@@ -278,7 +282,7 @@ private fun TabletSidebarGestureToggle(
 }
 
 @Composable
-private fun AboutInfo(serverUrl: String) {
+private fun AboutInfo(serverUrl: String, appVersion: String, gitSha: String) {
     Column {
         Column(
             modifier = Modifier
@@ -294,10 +298,27 @@ private fun AboutInfo(serverUrl: String) {
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Text(
-                    text = stringResource(Res.string.app_version_value),
+                    text = appVersion,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+            if (gitSha.isNotBlank()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text(
+                        text = stringResource(Res.string.app_build_label),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Text(
+                        text = gitSha,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
             Spacer(modifier = Modifier.height(8.dp))
             Row(
