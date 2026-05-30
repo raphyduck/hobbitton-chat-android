@@ -126,7 +126,7 @@
 
     <!-- About info -->
     <string name="app_version_label">App version</string>
-    <string name="app_version_value">1.0.0</string>
+    <string name="app_build_label">Build</string>
     <string name="server_label">Server</string>
     <string name="server_not_configured">Not configured</string>
 

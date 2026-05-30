@@ -4,6 +4,7 @@ import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
+import com.garfiec.librechat.core.common.AppInfo
 import com.garfiec.librechat.core.common.ChatLayoutConstants
 import com.garfiec.librechat.core.common.result.Result
 import com.garfiec.librechat.core.data.datastore.ChatFontSize
@@ -74,6 +75,10 @@ data class SettingsUiState(
     val user: UserDisplayData? = null,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val serverUrl: String = "",
+    /** Human-facing app version (e.g. `0.1.0`), sourced from the installed package. */
+    val appVersion: String = "",
+    /** Short git commit the build was cut from (e.g. `1a2b3c4d`), or `unknown`. */
+    val gitSha: String = "",
     val isDeletingAccount: Boolean = false,
     /**
      * Transient errors surfaced via snackbar; cleared by [SettingsViewModel.dismissError]
@@ -235,10 +240,13 @@ class SettingsViewModel(
     private val roleRepository: RoleRepository,
     private val permissionGate: PermissionGate,
     private val configRepository: ConfigRepository,
+    appInfo: AppInfo,
 ) : ViewModel() {
 
     /** Raw state for everything not driven by DataStore flows. */
-    private val _uiState = MutableStateFlow(SettingsUiState())
+    private val _uiState = MutableStateFlow(
+        SettingsUiState(appVersion = appInfo.versionName, gitSha = appInfo.gitSha),
+    )
 
     private val stateHandle = SettingsStateHandle(_uiState, viewModelScope)
 

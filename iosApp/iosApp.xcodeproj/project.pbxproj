@@ -45,6 +45,22 @@
 			shellPath = /bin/sh;
 			shellScript = "# Aggregate and copy Compose Multiplatform resources into the app bundle.\n# Runs the Gradle aggregation task to ensure resources from all feature\n# modules are collected, then copies them into the .app bundle where\n# the Compose resource reader expects them at runtime.\n\nif [ \"$PLATFORM_NAME\" = \"iphonesimulator\" ]; then\n    ARCH_DIR=\"iosSimulatorArm64\"\n    GRADLE_TASK=\":shared:iosSimulatorArm64AggregateResources\"\nelif [ \"$PLATFORM_NAME\" = \"iphoneos\" ]; then\n    ARCH_DIR=\"iosArm64\"\n    GRADLE_TASK=\":shared:iosArm64AggregateResources\"\nelse\n    echo \"error: Unsupported PLATFORM_NAME: $PLATFORM_NAME\"\n    exit 1\nfi\n\nPROJECT_ROOT=\"$SRCROOT/..\"\nSRC=\"$PROJECT_ROOT/shared/build/kotlin-multiplatform-resources/aggregated-resources/$ARCH_DIR/composeResources\"\nDST=\"$BUILT_PRODUCTS_DIR/$PRODUCT_NAME.app/compose-resources/composeResources\"\n\n# Run Gradle aggregation to ensure resources are up to date\necho \"Running $GRADLE_TASK...\"\ncd \"$PROJECT_ROOT\" && ./gradlew \"$GRADLE_TASK\" 2>&1\nGRADLE_EXIT=$?\nif [ $GRADLE_EXIT -ne 0 ]; then\n    echo \"error: Gradle task $GRADLE_TASK failed with exit code $GRADLE_EXIT\"\n    exit $GRADLE_EXIT\nfi\n\n# Clean stale resources before copying fresh ones\nif [ -d \"$DST\" ]; then\n    rm -rf \"$DST\"\nfi\n\nif [ -d \"$SRC\" ]; then\n    mkdir -p \"$DST\"\n    cp -R \"$SRC/\" \"$DST/\"\n    echo \"Copied Compose resources from $SRC to $DST\"\nelse\n    echo \"error: Compose resources not found at $SRC after Gradle aggregation\"\n    exit 1\nfi\n";
 		};
+		SSS00002 /* Stamp Version from version.properties */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/../version.properties",
+			);
+			name = "Stamp Version from version.properties";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# Stamp the iOS bundle version from version.properties, the single source of\n# truth shared with Android. versionName -> CFBundleShortVersionString; a derived\n# XXYYZZ versionCode (MAJOR*10000 + MINOR*100 + PATCH) -> CFBundleVersion, using the\n# same formula as Android so both platforms report the same version. This runs as the\n# last build phase (after Info.plist is in the bundle, before codesign), so the value\n# always reflects version.properties regardless of the committed Info.plist literals.\nset -eu\nPROPS=\"$SRCROOT/../version.properties\"\nif [ ! -f \"$PROPS\" ]; then\n    echo \"error: version.properties not found at $PROPS\"\n    exit 1\nfi\nVERSION_NAME=$(grep -E '^versionName=' \"$PROPS\" | cut -d'=' -f2 | tr -d '[:space:]')\nif [ -z \"$VERSION_NAME\" ]; then\n    echo \"error: versionName missing or malformed in $PROPS\"\n    exit 1\nfi\nCORE=${VERSION_NAME%%-*}\n# Split into MAJOR/MINOR/PATCH on '.'; any missing component defaults to 0.\nIFS=.\nset -f\nset -- $CORE\nset +f\nunset IFS\nMAJOR=${1:-0}\nMINOR=${2:-0}\nPATCH=${3:-0}\n# Treat any empty or non-numeric component as 0, the same way Android parses it.\ncase \"$MAJOR\" in \"\"|*[!0-9]*) MAJOR=0 ;; esac\ncase \"$MINOR\" in \"\"|*[!0-9]*) MINOR=0 ;; esac\ncase \"$PATCH\" in \"\"|*[!0-9]*) PATCH=0 ;; esac\nif [ \"$MINOR\" -gt 99 ] || [ \"$PATCH\" -gt 99 ]; then\n    echo \"error: versionName '$VERSION_NAME' exceeds the XXYYZZ scheme (MINOR/PATCH must be <= 99)\"\n    exit 1\nfi\n# Force base 10 so a zero-padded component (e.g. 08) is not interpreted as octal.\nVERSION_CODE=$((10#$MAJOR * 10000 + 10#$MINOR * 100 + 10#$PATCH))\nPLIST=\"$TARGET_BUILD_DIR/$INFOPLIST_PATH\"\n/usr/libexec/PlistBuddy -c \"Set :CFBundleShortVersionString $VERSION_NAME\" \"$PLIST\"\n/usr/libexec/PlistBuddy -c \"Set :CFBundleVersion $VERSION_CODE\" \"$PLIST\"\necho \"Stamped iOS version $VERSION_NAME ($VERSION_CODE) into $PLIST\"\n";
+		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXResourcesBuildPhase section */
@@ -131,6 +147,7 @@
 				EEE00001 /* Frameworks */,
 				CCC00001 /* Embed Frameworks */,
 				SSS00001 /* Copy Compose Resources */,
+				SSS00002 /* Stamp Version from version.properties */,
 			);
 			buildRules = (
 			);
@@ -239,7 +256,7 @@
 				CODE_SIGN_IDENTITY = "-";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 100;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				FRAMEWORK_SEARCH_PATHS = (
@@ -259,7 +276,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 0.1.0;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-lsqlite3",
@@ -278,7 +295,7 @@
 				CODE_SIGN_IDENTITY = "-";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 100;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				FRAMEWORK_SEARCH_PATHS = (
@@ -298,7 +315,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 0.1.0;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-lsqlite3",

@@ -2,6 +2,7 @@ package com.garfiec.librechat
 
 import android.app.Application
 import android.content.Context
+import com.garfiec.librechat.core.common.AppInfo
 import com.garfiec.librechat.core.common.di.commonModule
 import com.garfiec.librechat.core.common.network.ConnectivityObserver
 import com.garfiec.librechat.core.data.datastore.ConfigCacheDataStore
@@ -118,6 +119,7 @@ class KoinGraphVerificationTest {
             CoroutineDispatcher::class,
             CoroutineScope::class,
             ConnectivityObserver::class,
+            AppInfo::class,
             // core:network provides
             TokenManager::class,
             SecureTokenStorage::class,
