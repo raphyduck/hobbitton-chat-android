@@ -45,6 +45,12 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 0   # full history for auto-generated release notes
+          # Pushing the bump commit + tag to the ruleset-protected default branch needs an
+          # actor that bypasses the ruleset. The github-actions bot can't be a bypass actor
+          # on a personal (non-org) repo, so authenticate as the repo owner via a
+          # fine-grained PAT (Contents: write) — already a bypass actor. Set in the
+          # 'release' environment. checkout persists it for the later push.
+          token: ${{ secrets.RELEASE_PAT }}
 
       - name: Set up JDK 21
         uses: actions/setup-java@v5
@@ -66,12 +72,15 @@ jobs:
           SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
           SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
           SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          RELEASE_PAT: ${{ secrets.RELEASE_PAT }}
         run: |
           missing=""
           [ -z "$SIGNING_KEYSTORE_BASE64" ] && missing="$missing SIGNING_KEYSTORE_BASE64"
           [ -z "$SIGNING_STORE_PASSWORD" ] && missing="$missing SIGNING_STORE_PASSWORD"
           [ -z "$SIGNING_KEY_PASSWORD" ] && missing="$missing SIGNING_KEY_PASSWORD"
           [ -z "$SIGNING_KEY_ALIAS" ] && missing="$missing SIGNING_KEY_ALIAS"
+          # PAT used by checkout to push past the branch ruleset (see Checkout step).
+          [ -z "$RELEASE_PAT" ] && missing="$missing RELEASE_PAT"
           if [ -n "$missing" ]; then
             echo "::error title=Missing signing secrets::Set these in the 'release' environment:$missing"
             exit 1
