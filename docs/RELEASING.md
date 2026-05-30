@@ -125,8 +125,12 @@ release builds fall back to the debug key so local builds and CI checks still wo
 > warning annotation reminding you to publish; don't skip it.
 
 > **Branch protection:** the workflow pushes the version-bump commit and tag to the default
-> branch. If that branch is protected, allow the `github-actions[bot]` to bypass push
-> restrictions, or the *Commit & tag* step will fail.
+> branch, which is ruleset-protected. The `github-actions` bot can't be a ruleset bypass
+> actor on a personal (non-org) repo, so the workflow authenticates the push with a
+> fine-grained PAT instead. Create one (**Contents: read & write**, this repo only, short
+> expiry) and add it as a secret named `RELEASE_PAT` in the `release` environment. It pushes
+> as the repo owner (already a bypass actor); without it the run fails fast at the
+> *Verify signing secrets* step.
 
 ## Verifying a release
 
