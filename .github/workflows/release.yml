@@ -154,25 +154,14 @@ jobs:
           # ignores it unless the user opts into "Include prereleases".
           prerelease: ${{ contains(steps.bump.outputs.tag, '-') }}
           generate_release_notes: true
-          # Append our provenance block to the auto-generated changelog (don't replace it).
+          # Append a slim provenance footer to the auto-generated changelog (don't replace it).
+          # These links are for discoverability, not proof; the canonical "how to verify a
+          # download" instructions live in docs/RELEASING.md + README, not in every release.
           append_body: true
           body: |
-            ## Provenance & verification
 
-            Built by CI — [view the workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) · [view the attestation](${{ steps.attest.outputs.attestation-url }})
-
-            These links show how the APK was built; they are **not** proof on their own (whoever
-            writes a release also writes its links). To cryptographically verify the downloaded
-            APK came from this repo's release workflow, with the [GitHub CLI](https://cli.github.com):
-
-            ```bash
-            gh attestation verify ${{ steps.artifacts.outputs.apk }} \
-              --repo ${{ github.repository }} \
-              --signer-workflow ${{ github.repository }}/.github/workflows/release.yml
-            ```
-
-            Weaker checks: `apksigner verify --print-certs ${{ steps.artifacts.outputs.apk }}`
-            (signing cert) and `sha256sum -c ${{ steps.artifacts.outputs.apk }}.sha256` (checksum).
+            ---
+            [Build provenance attestation](${{ steps.attest.outputs.attestation-url }}) · [CI workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
           files: |
             ${{ steps.artifacts.outputs.apk }}
             ${{ steps.artifacts.outputs.apk }}.sha256
