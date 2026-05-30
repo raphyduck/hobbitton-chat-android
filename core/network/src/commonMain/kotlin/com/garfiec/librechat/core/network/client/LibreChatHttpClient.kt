@@ -1,6 +1,9 @@
 package com.garfiec.librechat.core.network.client
 
 import co.touchlab.kermit.Logger
+import com.garfiec.librechat.core.logging.Diag
+import com.garfiec.librechat.core.logging.LogOrigin
+import com.garfiec.librechat.core.logging.redact.LogRedactor
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.HttpClientEngineFactory
 import io.ktor.client.plugins.HttpRequestRetry
@@ -29,6 +32,7 @@ object LibreChatHttpClient {
         json: Json,
         tokenManager: TokenManager,
         serverUrlProvider: ServerUrlProvider,
+        redactor: LogRedactor,
         debug: Boolean = false,
     ): HttpClient = HttpClient(engineFactory) {
         install(ContentNegotiation) {
@@ -38,10 +42,9 @@ object LibreChatHttpClient {
         install(Logging) {
             logger = object : KtorLogger {
                 override fun log(message: String) {
-                    val sanitized = message
-                        .replace(Regex("Authorization: Bearer [^\\s]+"), "Authorization: Bearer [REDACTED]")
-                        .replace(Regex("refreshToken=[^;&\\s]+"), "refreshToken=[REDACTED]")
-                    Logger.d("HTTP") { sanitized }
+                    // Route through the shared redactor so Logcat/NSLog get the same scrubbing as the
+                    // persistent sink (tokens, JWTs, emails, hosts, IDs) — one redaction policy, not two.
+                    Logger.d("HTTP") { redactor.redact(message) }
                 }
             }
             level = if (debug) LogLevel.HEADERS else LogLevel.NONE
@@ -71,7 +74,15 @@ object LibreChatHttpClient {
                     val errorMessage = extractErrorMessage(json, bodyText, statusCode)
                     val isBanned = statusCode == 403 && bodyText.contains("ban", ignoreCase = true)
 
-                    Logger.w("HTTP") { "HTTP $statusCode: $errorMessage" }
+                    Diag.w(
+                        "HTTP",
+                        origin = LogOrigin.SERVER,
+                        attrs = mapOf(
+                            "status" to statusCode.toString(),
+                            "path" to response.call.request.url.encodedPath,
+                            "method" to response.call.request.method.value,
+                        ),
+                    ) { "HTTP $statusCode" }
 
                     if (isBanned) {
                         tokenManager.emitSessionExpired()
