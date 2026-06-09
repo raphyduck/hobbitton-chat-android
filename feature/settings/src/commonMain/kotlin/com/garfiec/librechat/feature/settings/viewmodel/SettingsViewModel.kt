@@ -211,7 +211,7 @@ data class SettingsUiState(
     val isCacheClearing: Boolean = false,
     val isKeyRevoking: Boolean = false,
     // Language
-    val selectedLanguage: String = "en",
+    val selectedLanguage: String = SettingsDataStore.DEFAULT_LANGUAGE,
     val showLanguageDialog: Boolean = false,
     // Fork settings
     val forkMode: String = "targetLevel",
@@ -411,6 +411,9 @@ class SettingsViewModel(
     private val starredModelsDisplayPref: StateFlow<StarredModelsDisplay> = settingsDataStore.starredModelsDisplay
         .stateIn(viewModelScope, SharingStarted.Eagerly, StarredModelsDisplay.OFF)
 
+    private val selectedLanguagePref: StateFlow<String> = settingsDataStore.selectedLanguage
+        .stateIn(viewModelScope, SharingStarted.Eagerly, SettingsDataStore.DEFAULT_LANGUAGE)
+
     /** Additional preferences combined separately to stay within the 5-arg combine limit. */
     private data class AdditionalPreferences(
         val tabletSidebarGestureEnabled: Boolean,
@@ -424,6 +427,7 @@ class SettingsViewModel(
         val latexRenderer: LatexRenderer = LatexRenderer.KATEX,
         val inlineArtifactPrefs: InlineArtifactPrefs = InlineArtifactPrefs(),
         val starredModelsDisplay: StarredModelsDisplay = StarredModelsDisplay.OFF,
+        val selectedLanguage: String = SettingsDataStore.DEFAULT_LANGUAGE,
     )
 
     private val baseAdditionalPreferences = combine(
@@ -448,6 +452,8 @@ class SettingsViewModel(
         additional.copy(inlineArtifactPrefs = inlineArtifact)
     }.combine(starredModelsDisplayPref) { additional, starredDisplay ->
         additional.copy(starredModelsDisplay = starredDisplay)
+    }.combine(selectedLanguagePref) { additional, selectedLanguage ->
+        additional.copy(selectedLanguage = selectedLanguage)
     }.stateIn(viewModelScope, SharingStarted.Eagerly, AdditionalPreferences(true, false, "", "", true))
 
     /** The single public UI state that merges DataStore preferences with imperative state. */
@@ -489,6 +495,7 @@ class SettingsViewModel(
             latexRenderer = additional.latexRenderer,
             inlineArtifactPrefs = additional.inlineArtifactPrefs,
             starredModelsDisplay = additional.starredModelsDisplay,
+            selectedLanguage = additional.selectedLanguage,
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, SettingsUiState())
 
@@ -765,7 +772,8 @@ class SettingsViewModel(
     }
 
     fun setLanguage(languageCode: String) {
-        _uiState.update { it.copy(selectedLanguage = languageCode, showLanguageDialog = false) }
+        viewModelScope.launch { settingsDataStore.setSelectedLanguage(languageCode) }
+        _uiState.update { it.copy(showLanguageDialog = false) }
     }
 
     // ── Fork settings ──────────────────────────────────────────────
