@@ -671,6 +671,14 @@ object EndpointParameterRegistry {
             description = "Enable prompt caching to reduce latency and cost.",
         ),
         ParameterDefinition(
+            key = "promptCacheTtl",
+            label = "Prompt Cache Duration",
+            type = ParameterType.ENUM_SLIDER,
+            options = listOf("5m", "1h"),
+            default = "5m",
+            description = "How long prompt caches persist (Anthropic). Applies when prompt caching is on.",
+        ),
+        ParameterDefinition(
             key = "thinking",
             label = "Thinking",
             type = ParameterType.SWITCH,
@@ -822,6 +830,13 @@ object EndpointParameterRegistry {
             type = ParameterType.SWITCH,
             default = "false",
             description = "Enable web search to get up-to-date information.",
+        ),
+        ParameterDefinition(
+            key = "url_context",
+            label = "Use URL Context",
+            type = ParameterType.SWITCH,
+            default = "false",
+            description = "Let the model fetch and ground on URLs (and YouTube) you reference.",
         ),
         ParameterDefinition(
             key = "fileTokenLimit",

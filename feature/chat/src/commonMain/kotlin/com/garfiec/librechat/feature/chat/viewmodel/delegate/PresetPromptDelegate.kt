@@ -104,7 +104,9 @@ class PresetPromptDelegate(
             thinkingDisplay = dyn["thinkingDisplay"],
             thinkingLevel = dyn["thinkingLevel"],
             promptCache = dyn["promptCache"]?.toBooleanStrictOrNull(),
+            promptCacheTtl = dyn["promptCacheTtl"]?.takeIf { it == "5m" || it == "1h" },
             webSearch = params.webSearch,
+            urlContext = params.urlContext,
             imageDetail = dyn["imageDetail"],
             fileTokenLimit = params.fileTokenLimit,
             tags = dyn["tags"]?.takeIf { it.isNotBlank() }?.split("\n")?.filter { it.isNotBlank() },
@@ -235,6 +237,7 @@ internal fun ModelParameters.mergedFromPreset(preset: Preset): ModelParameters {
     preset.thinkingDisplay?.let { dyn["thinkingDisplay"] = it }
     preset.thinkingLevel?.let { dyn["thinkingLevel"] = it }
     preset.promptCache?.let { dyn["promptCache"] = it.toString() }
+    preset.promptCacheTtl?.let { dyn["promptCacheTtl"] = it }
     preset.imageDetail?.let { dyn["imageDetail"] = it }
     preset.tags?.takeIf { it.isNotEmpty() }?.let { dyn["tags"] = it.joinToString("\n") }
     preset.region?.let { dyn["region"] = it }
@@ -251,6 +254,7 @@ internal fun ModelParameters.mergedFromPreset(preset: Preset): ModelParameters {
         thinking = preset.thinking ?: thinking,
         thinkingBudget = preset.thinkingBudget?.toString() ?: thinkingBudget,
         webSearch = preset.webSearch ?: webSearch,
+        urlContext = preset.urlContext ?: urlContext,
         fileTokenLimit = preset.fileTokenLimit ?: fileTokenLimit,
         resendFiles = preset.resendFiles ?: resendFiles,
         dynamicValues = dyn,

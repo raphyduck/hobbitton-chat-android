@@ -7,6 +7,7 @@ import com.garfiec.librechat.core.common.ToolConstants
 import com.garfiec.librechat.core.data.datastore.ChatFontSize
 import com.garfiec.librechat.core.data.datastore.ChatHeaderAlignment
 import com.garfiec.librechat.core.data.datastore.ChatHeaderContent
+import com.garfiec.librechat.core.data.datastore.ContextBarPlacement
 import com.garfiec.librechat.core.data.datastore.InlineArtifactPrefs
 import com.garfiec.librechat.core.data.datastore.LatexRenderer
 import com.garfiec.librechat.core.data.datastore.StarredModelsDisplay
@@ -20,6 +21,8 @@ import com.garfiec.librechat.core.model.content.MessageContentPart
 import com.garfiec.librechat.core.model.endpoint.KeyState
 import com.garfiec.librechat.core.model.request.EphemeralAgent
 import com.garfiec.librechat.core.model.response.FileUploadConfig
+import com.garfiec.librechat.core.model.usage.ContextUsage
+import com.garfiec.librechat.core.model.usage.TokenUsage
 import com.garfiec.librechat.core.ui.components.ModelParameters
 import com.garfiec.librechat.core.ui.media.MediaPreviewState
 import com.garfiec.librechat.feature.chat.components.AttachedFile
@@ -27,6 +30,7 @@ import com.garfiec.librechat.feature.chat.model.McpServerDisplayData
 import com.garfiec.librechat.feature.chat.model.PresetDisplayData
 import com.garfiec.librechat.feature.chat.model.PromptMentionDisplayData
 import com.garfiec.librechat.feature.chat.util.MessageNode
+import kotlinx.serialization.json.JsonObject
 
 enum class ChatScreenState { LANDING, LOADING, ACTIVE }
 
@@ -70,6 +74,7 @@ data class ChatPreferences(
 data class ChatHeaderPrefs(
     val content: ChatHeaderContent = ChatHeaderContent.TITLE,
     val alignment: ChatHeaderAlignment = ChatHeaderAlignment.LEFT,
+    val contextBarPlacement: ContextBarPlacement = ContextBarPlacement.OPTIONS_SHEET,
 )
 
 /**
@@ -128,6 +133,11 @@ data class QueuedMessage(
     val mcpServerNames: Set<String> = emptySet(),
     /** Full composer parameters (web search, reasoning effort, etc.) — restored to the composer on edit. */
     val modelParameters: ModelParameters = ModelParameters.DEFAULT,
+    /**
+     * Non-default model params (provider-keyed) serialized for the wire, snapshotted at enqueue time
+     * so a queued send carries the params it was composed with. Null when nothing was customized.
+     */
+    val modelParamsPayload: JsonObject? = null,
     val ephemeralAgent: EphemeralAgent? = null,
     val dispatch: EndpointDispatch,
     val isTemporary: Boolean = false,
@@ -366,6 +376,24 @@ data class ChatUiState(
     val presetsEnabled: Boolean = true,
     val modelSelectEnabled: Boolean = true,
     val parametersEnabled: Boolean = true,
+    /** `interface.defaultPinnedTools` (v0.8.7): tool keys the server pins to the prompt bar.
+     *  Raw, as sent; mapped/filtered to renderable chips by [pinnedToolChips]. */
+    val pinnedTools: List<String> = emptyList(),
+    /**
+     * Context-usage gauge gate (v0.8.7). [contextUsageEnabled] = `interface.contextUsage`
+     * AND backend ≥ 0.8.7. Fails closed on older/unknown servers (the gauge has no data source there).
+     */
+    val contextUsageEnabled: Boolean = false,
+    /** Latest context-window usage snapshot for the gauge, from the `on_context_usage` SSE
+     *  event or the context-projection endpoint. Null until the first snapshot arrives. */
+    val contextUsage: ContextUsage? = null,
+    /** Latest per-call provider token usage (`on_token_usage` SSE), feeding the context
+     *  sheet's Input/Output rows. Null until a stream reports usage. */
+    val tokenUsage: TokenUsage? = null,
+    /** User preference (Settings → Chat) for where the context gauge is surfaced (above the
+     *  composer, in the "+" sheet, in the overflow menu, or hidden). Default
+     *  [ContextBarPlacement.OPTIONS_SHEET]; independent of [contextUsageEnabled] (the server/version gate). */
+    val contextBarPlacement: ContextBarPlacement = ContextBarPlacement.OPTIONS_SHEET,
     /**
      * User-pinned agent IDs (v0.8.5 favorites). Pinned agents sort to the top
      * of the "My Agents" group in [ModelSelectorSheet] and get a filled star.
@@ -423,10 +451,50 @@ data class ChatUiState(
      * reflect the same web search toggle as the Model Parameters sheet.
      */
     val effectiveEnabledTools: Set<String>
-        get() = if (modelParameters.webSearch) {
-            enabledTools + ToolConstants.WEB_SEARCH
-        } else {
-            enabledTools - ToolConstants.WEB_SEARCH
+        get() {
+            // web_search and url_context are model parameters, not entries in [enabledTools];
+            // synthesize them in so the toolbar, bottom sheet, and pinned chips all reflect
+            // the same toggle state as the Model Parameters sheet.
+            var tools = enabledTools
+            tools = if (modelParameters.webSearch) tools + ToolConstants.WEB_SEARCH else tools - ToolConstants.WEB_SEARCH
+            tools = if (modelParameters.urlContext) tools + ToolConstants.URL_CONTEXT else tools - ToolConstants.URL_CONTEXT
+            return tools
+        }
+
+    /**
+     * Whether the active provider is Google/Gemini, the only provider that supports the
+     * `url_context` toggle (upstream gates it to `googleConfig`). Computed (not folded into
+     * the static permission/config flow) because it depends on the live model selection:
+     * a direct `google` endpoint, or the agents endpoint backed by a Google-provider agent.
+     * Mirrors the provider resolution in [ChatRequestBuilder.buildModelParams].
+     */
+    val urlContextProviderGate: Boolean
+        get() {
+            if (selectedEndpoint.equals("google", ignoreCase = true)) return true
+            if (selectedEndpoint != EndpointConstants.AGENTS) return false
+            val agentProvider = agents.firstOrNull { it.id == selectedModel }?.provider
+            return agentProvider.equals("google", ignoreCase = true)
+        }
+
+    /**
+     * The server's [pinnedTools] mapped to mobile tool keys and filtered to those mobile
+     * recognizes AND whose own enable-gate is currently satisfied, preserving config order.
+     * Rendered as inline quick-toggle chips on the input bar. Empty for the agents endpoint
+     * (ephemeral tools are hidden there) and for any unsupported key (`artifacts`, `mcp`, …).
+     */
+    val pinnedToolChips: List<String>
+        get() {
+            if (!showEphemeralTools || pinnedTools.isEmpty()) return emptyList()
+            return pinnedTools.mapNotNull { key ->
+                when (key) {
+                    ToolConstants.WEB_SEARCH -> ToolConstants.WEB_SEARCH.takeIf { webSearchEnabled }
+                    ToolConstants.URL_CONTEXT -> ToolConstants.URL_CONTEXT.takeIf { urlContextProviderGate }
+                    ToolConstants.FILE_SEARCH -> ToolConstants.FILE_SEARCH.takeIf { fileSearchEnabled }
+                    ToolConstants.EXECUTE_CODE, ToolConstants.CODE_INTERPRETER ->
+                        ToolConstants.CODE_INTERPRETER.takeIf { isCodeInterpreterAvailable && runCodeEnabled }
+                    else -> null
+                }
+            }.distinct()
         }
 
     /**

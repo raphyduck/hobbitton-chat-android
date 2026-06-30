@@ -155,6 +155,8 @@
     <string name="tool_model_parameters_desc">Adjust temperature, tokens, and more</string>
     <string name="tool_web_search">Web Search</string>
     <string name="tool_web_search_desc">Search the web for information</string>
+    <string name="tool_url_context">URL Context</string>
+    <string name="tool_url_context_desc">Let the model read URLs and YouTube you reference</string>
     <string name="tool_code">Code</string>
     <string name="tool_code_desc">Run and analyze code</string>
     <string name="tool_file_search">File Search</string>
@@ -162,6 +164,7 @@
     <string name="tool_mcp">MCP</string>
     <string name="tool_mcp_desc">Model Context Protocol servers</string>
     <string name="cd_web_search_enabled">Web Search enabled</string>
+    <string name="cd_quoted_excerpt">Quoted excerpt</string>
     <string name="cd_code_enabled">Code interpreter enabled</string>
     <string name="cd_file_search_enabled">File Search enabled</string>
 
@@ -392,4 +395,19 @@
     <string name="media_empty_files">No files in this conversation</string>
     <string name="media_empty_links">No links in this conversation</string>
     <string name="media_empty_artifacts">No artifacts in this conversation</string>
+
+    <!-- Context usage gauge (v0.8.7) -->
+    <string name="context_usage_label">Context</string>
+    <string name="context_usage_title">Context usage</string>
+    <string name="context_usage_used">Used</string>
+    <string name="context_usage_remaining">Remaining</string>
+    <string name="context_usage_window">Context window</string>
+    <string name="context_usage_messages">Messages</string>
+    <string name="context_usage_instructions">Instructions</string>
+    <string name="context_usage_tools">Tool schemas</string>
+    <string name="context_usage_summary">Summary</string>
+    <string name="context_usage_system">System</string>
+    <string name="context_usage_free">Free space</string>
+    <string name="context_usage_input">Input</string>
+    <string name="context_usage_output">Output</string>
 </resources>

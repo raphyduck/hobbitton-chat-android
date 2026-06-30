@@ -12,6 +12,7 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
@@ -50,6 +51,9 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.garfiec.librechat.core.data.datastore.ContextBarPlacement
+import com.garfiec.librechat.core.model.usage.ContextUsage
+import com.garfiec.librechat.core.model.usage.TokenUsage
 import com.garfiec.librechat.feature.chat.model.McpServerDisplayData
 import com.garfiec.librechat.feature.chat.resources.Res
 import com.garfiec.librechat.feature.chat.resources.cd_add_to_queue
@@ -73,6 +77,9 @@ data class ChatInputState(
     val isRecording: Boolean,
     val isTranscribing: Boolean,
     val enabledTools: Set<String>,
+    /** Tool keys (already mapped + gated) to surface as inline quick-toggle chips on the
+     *  input bar (v0.8.7 `defaultPinnedTools`). Selected state reads from [enabledTools]. */
+    val pinnedToolKeys: List<String> = emptyList(),
     val mcpServers: List<McpServerDisplayData>,
     val selectedMcpServerNames: Set<String>,
     val selectedModelDisplay: String?,
@@ -86,6 +93,15 @@ data class ChatInputState(
     /** True while the composer is editing a queued item (queued-edit mode): the send button
      *  becomes "Update" and an editing banner shows above the input. */
     val isEditingQueued: Boolean = false,
+    /** Latest context-window usage snapshot; drives the context bar above the composer. */
+    val contextUsage: ContextUsage? = null,
+    /** Latest per-call token usage, for the breakdown sheet's Input/Output rows. */
+    val tokenUsage: TokenUsage? = null,
+    /** Server/version gate for the context gauge (`interface.contextUsage` AND backend ≥ 0.8.7). */
+    val contextUsageEnabled: Boolean = false,
+    /** User preference (Settings → Chat) for where the context gauge is surfaced. The composer
+     *  only renders it when this is [ContextBarPlacement.ABOVE_INPUT]. */
+    val contextBarPlacement: ContextBarPlacement = ContextBarPlacement.OPTIONS_SHEET,
 )
 
 /**
@@ -102,6 +118,8 @@ fun CommonChatInputCore(
     onStop: () -> Unit,
     onRemoveFile: (AttachedFile) -> Unit,
     modifier: Modifier = Modifier,
+    /** Toggle a pinned tool from its inline chip (v0.8.7 `defaultPinnedTools`). */
+    onToggleTool: (String) -> Unit = {},
     /** Queue a follow-up while streaming. Null (or [ChatInputState.canQueue] false) keeps the
      *  button as plain Stop mid-stream (e.g. on a brand-new conversation). */
     onQueue: (() -> Unit)? = null,
@@ -178,6 +196,36 @@ fun CommonChatInputCore(
                 selectedMcpServerNames = state.selectedMcpServerNames,
                 showEphemeralTools = state.gates.showEphemeralTools,
             )
+
+            // Server-pinned tools (v0.8.7 defaultPinnedTools) as inline quick-toggle chips.
+            if (state.pinnedToolKeys.isNotEmpty()) {
+                PinnedToolsRow(
+                    pinnedToolKeys = state.pinnedToolKeys,
+                    enabledTools = state.enabledTools,
+                    onToggleTool = onToggleTool,
+                    modifier = Modifier.padding(bottom = 4.dp),
+                )
+            }
+
+            // Context-usage bar, between the chips and the composer row. Gated on the placement
+            // preference (ABOVE_INPUT here), the server/version support flag, and a snapshot with
+            // real usage. Other placements render in the "+" sheet / overflow menu instead.
+            val contextUsage = state.contextUsage
+            if (state.contextBarPlacement == ContextBarPlacement.ABOVE_INPUT &&
+                state.contextUsageEnabled &&
+                contextUsage != null &&
+                contextUsage.usedTokens > 0
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 6.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    ContextUsageGauge(usage = contextUsage, tokenUsage = state.tokenUsage)
+                }
+            }
 
             Row(
                 modifier = Modifier.fillMaxWidth(),

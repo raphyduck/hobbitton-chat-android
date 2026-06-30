@@ -26,6 +26,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.garfiec.librechat.core.data.datastore.ContextBarPlacement
+import com.garfiec.librechat.core.model.usage.ContextUsage
+import com.garfiec.librechat.core.model.usage.TokenUsage
 import com.garfiec.librechat.feature.chat.model.McpServerDisplayData
 import com.garfiec.librechat.feature.chat.resources.Res
 import com.garfiec.librechat.feature.chat.resources.cd_attach_file
@@ -55,6 +58,7 @@ fun IosChatInput(
     onReorderQueuedMessages: (fromIndex: Int, toIndex: Int) -> Unit = { _, _ -> },
     fontSizeMultiplier: Float = 1f,
     enabledTools: Set<String> = emptySet(),
+    pinnedToolKeys: List<String> = emptyList(),
     onToggleTool: (String) -> Unit = {},
     mcpServers: List<McpServerDisplayData> = emptyList(),
     selectedMcpServerNames: Set<String> = emptySet(),
@@ -76,10 +80,15 @@ fun IosChatInput(
     onPickPhotos: () -> Unit = {},
     onAttachFromServer: () -> Unit = {},
     webSearchEnabled: Boolean = true,
+    urlContextEnabled: Boolean = false,
     runCodeEnabled: Boolean = true,
     fileSearchEnabled: Boolean = true,
     mcpServersEnabled: Boolean = true,
     gates: ChatInputGates = ChatInputGates(),
+    contextUsage: ContextUsage? = null,
+    tokenUsage: TokenUsage? = null,
+    contextUsageEnabled: Boolean = false,
+    contextBarPlacement: ContextBarPlacement = ContextBarPlacement.OPTIONS_SHEET,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     var showToolsSheet by remember { mutableStateOf(false) }
@@ -90,6 +99,7 @@ fun IosChatInput(
         isRecording = isRecording,
         isTranscribing = isTranscribing,
         enabledTools = enabledTools,
+        pinnedToolKeys = pinnedToolKeys,
         mcpServers = mcpServers,
         selectedMcpServerNames = selectedMcpServerNames,
         selectedModelDisplay = selectedModelDisplay,
@@ -98,12 +108,17 @@ fun IosChatInput(
         gates = gates,
         canQueue = canQueue,
         isEditingQueued = isEditingQueued,
+        contextUsage = contextUsage,
+        tokenUsage = tokenUsage,
+        contextUsageEnabled = contextUsageEnabled,
+        contextBarPlacement = contextBarPlacement,
     )
 
     CommonChatInputCore(
         state = state,
         onSend = onSend,
         onStop = onStop,
+        onToggleTool = onToggleTool,
         onQueue = onQueue,
         queuedPausedCount = queuedPausedCount,
         onSendQueuedMessages = onSendQueuedMessages,
@@ -246,10 +261,15 @@ fun IosChatInput(
             onDismiss = { showToolsSheet = false },
             isCodeInterpreterAvailable = isCodeInterpreterAvailable,
             webSearchEnabled = webSearchEnabled,
+            urlContextEnabled = urlContextEnabled,
             runCodeEnabled = runCodeEnabled,
             fileSearchEnabled = fileSearchEnabled,
             mcpServersEnabled = mcpServersEnabled,
             gates = gates,
+            contextUsage = contextUsage,
+            tokenUsage = tokenUsage,
+            contextUsageEnabled = contextUsageEnabled,
+            contextBarPlacement = contextBarPlacement,
         )
     }
 }

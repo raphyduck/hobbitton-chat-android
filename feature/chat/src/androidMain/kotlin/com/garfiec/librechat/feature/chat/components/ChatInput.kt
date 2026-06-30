@@ -50,6 +50,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import com.garfiec.librechat.core.data.datastore.ContextBarPlacement
+import com.garfiec.librechat.core.model.usage.ContextUsage
+import com.garfiec.librechat.core.model.usage.TokenUsage
 import com.garfiec.librechat.feature.chat.model.McpServerDisplayData
 import com.garfiec.librechat.feature.chat.model.PromptMentionDisplayData
 import com.garfiec.librechat.feature.chat.viewmodel.ChatInputGates
@@ -93,6 +96,7 @@ fun ChatInput(
     onImagePasted: ((Uri) -> Unit)? = null,
     enabledTools: Set<String> = emptySet(),
     onToggleTool: (String) -> Unit = {},
+    pinnedToolKeys: List<String> = emptyList(),
     mcpServers: List<McpServerDisplayData> = emptyList(),
     selectedMcpServerNames: Set<String> = emptySet(),
     onToggleMcpServer: (String) -> Unit = {},
@@ -101,10 +105,15 @@ fun ChatInput(
     selectedModelDisplay: String? = null,
     isCodeInterpreterAvailable: Boolean = true,
     webSearchEnabled: Boolean = true,
+    urlContextEnabled: Boolean = false,
     runCodeEnabled: Boolean = true,
     fileSearchEnabled: Boolean = true,
     mcpServersEnabled: Boolean = true,
     gates: ChatInputGates = ChatInputGates(),
+    contextUsage: ContextUsage? = null,
+    tokenUsage: TokenUsage? = null,
+    contextUsageEnabled: Boolean = false,
+    contextBarPlacement: ContextBarPlacement = ContextBarPlacement.OPTIONS_SHEET,
 ) {
     val cdOpenToolsMenu = stringResource(Res.string.cd_open_tools_menu)
     val cdPasteImage = stringResource(Res.string.cd_paste_image)
@@ -234,6 +243,7 @@ fun ChatInput(
         isRecording = isRecording,
         isTranscribing = isTranscribing,
         enabledTools = enabledTools,
+        pinnedToolKeys = pinnedToolKeys,
         mcpServers = mcpServers,
         selectedMcpServerNames = selectedMcpServerNames,
         selectedModelDisplay = selectedModelDisplay,
@@ -242,12 +252,17 @@ fun ChatInput(
         gates = gates,
         canQueue = canQueue,
         isEditingQueued = isEditingQueued,
+        contextUsage = contextUsage,
+        tokenUsage = tokenUsage,
+        contextUsageEnabled = contextUsageEnabled,
+        contextBarPlacement = contextBarPlacement,
     )
 
     CommonChatInputCore(
         state = state,
         onSend = onSend,
         onStop = onStop,
+        onToggleTool = onToggleTool,
         onQueue = onQueue,
         queuedPausedCount = queuedPausedCount,
         onSendQueuedMessages = onSendQueuedMessages,
@@ -432,10 +447,15 @@ fun ChatInput(
             onDismiss = { showToolsSheet = false },
             isCodeInterpreterAvailable = isCodeInterpreterAvailable,
             webSearchEnabled = webSearchEnabled,
+            urlContextEnabled = urlContextEnabled,
             runCodeEnabled = runCodeEnabled,
             fileSearchEnabled = fileSearchEnabled,
             mcpServersEnabled = mcpServersEnabled,
             gates = gates,
+            contextUsage = contextUsage,
+            tokenUsage = tokenUsage,
+            contextUsageEnabled = contextUsageEnabled,
+            contextBarPlacement = contextBarPlacement,
         )
     }
 }
