@@ -41,6 +41,14 @@ class AndroidDelegateFactory(
                 speechRepository = speechRepository,
                 autoSendAfterStt = settingsDataStore.autoSendAfterStt
                     .stateIn(handle.scope, SharingStarted.Eagerly, false),
+                sttEngine = settingsDataStore.sttEngine
+                    .stateIn(handle.scope, SharingStarted.Eagerly, ""),
+                sttLanguage = settingsDataStore.sttLanguage
+                    .stateIn(handle.scope, SharingStarted.Eagerly, ""),
+                sttOnDevice = settingsDataStore.sttOnDevice
+                    .stateIn(handle.scope, SharingStarted.Eagerly, true),
+                sttEndOfSpeech = settingsDataStore.sttEndOfSpeech
+                    .stateIn(handle.scope, SharingStarted.Eagerly, false),
                 ioDispatcher = ioDispatcher,
                 onTranscriptionComplete = onTranscriptionComplete,
             ),
