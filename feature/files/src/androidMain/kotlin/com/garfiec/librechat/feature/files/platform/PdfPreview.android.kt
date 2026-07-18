@@ -1,10 +1,5 @@
 package com.garfiec.librechat.feature.files.platform
 
-import android.graphics.Bitmap
-import android.graphics.Color
-import android.graphics.pdf.PdfRenderer
-import android.os.ParcelFileDescriptor
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.Arrangement
@@ -14,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material3.Card
@@ -23,38 +17,41 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import co.touchlab.kermit.Logger
+import com.garfiec.librechat.core.ui.pdf.PdfDocumentHolder
+import com.garfiec.librechat.core.ui.pdf.PdfPageContent
 import com.garfiec.librechat.feature.files.FilePreviewDisplayData
 import com.garfiec.librechat.feature.files.resources.*
 import com.garfiec.librechat.feature.files.resources.Res
 import com.garfiec.librechat.feature.files.screen.InfoRow
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
-import java.io.File
 
 private sealed interface PdfLoadState {
     data object Loading : PdfLoadState
-    data class Success(val pages: List<Bitmap>) : PdfLoadState
-    data class Error(val message: String) : PdfLoadState
+    data class Success(val doc: PdfDocumentHolder) : PdfLoadState
+
+    /** [detail] carries the underlying cause (e.g. an HTTP error message) when one is known. */
+    data class Error(val message: StringResource, val detail: String? = null) : PdfLoadState
 }
 
 @Composable
@@ -64,90 +61,35 @@ actual fun PdfPreview(
     modifier: Modifier,
 ) {
     val context = LocalContext.current
-    var loadState by remember { mutableStateOf<PdfLoadState>(PdfLoadState.Loading) }
-    var tempFile by remember { mutableStateOf<File?>(null) }
+    val currentOnDownloadFile by rememberUpdatedState(onDownloadFile)
 
-    DisposableEffect(file.fileId) {
-        onDispose {
-            tempFile?.delete()
-            val currentState = loadState
-            if (currentState is PdfLoadState.Success) {
-                currentState.pages.forEach { bitmap ->
-                    if (!bitmap.isRecycled) {
-                        bitmap.recycle()
-                    }
-                }
-            }
-        }
-    }
-
-    LaunchedEffect(file.fileId) {
-        loadState = PdfLoadState.Loading
-        try {
-            // Download, disk write, and PdfRenderer page rendering are all blocking.
-            // Run them off the Main thread; only the resulting state lands on Main.
-            val result = withContext(Dispatchers.IO) {
-                val bytes = onDownloadFile?.invoke(file.fileId, file.userId)
-                    ?: return@withContext PdfLoadState.Error("Failed to download PDF")
-
-                val pdfPreviewDir = File(context.cacheDir, "pdf_preview").apply { mkdirs() }
-                val pdfTempFile = File(pdfPreviewDir, "pdf_preview_${file.fileId}.pdf")
-                pdfTempFile.writeBytes(bytes)
-                tempFile = pdfTempFile
-
-                val fd = ParcelFileDescriptor.open(
-                    pdfTempFile,
-                    ParcelFileDescriptor.MODE_READ_ONLY,
-                )
-                val renderer = PdfRenderer(fd)
-                val pageCount = renderer.pageCount
-                Logger.d { "PdfPreview: opened PDF with $pageCount pages" }
-
-                val maxPages = minOf(pageCount, 50)
-                val bitmaps = mutableListOf<Bitmap>()
-                val displayMetrics = context.resources.displayMetrics
-                val targetWidth = displayMetrics.widthPixels
-
-                for (i in 0 until maxPages) {
-                    val page = renderer.openPage(i)
-                    val scale = targetWidth.toFloat() / page.width
-                    val bitmapWidth = targetWidth
-                    val bitmapHeight = (page.height * scale).toInt()
-
-                    val bitmap = Bitmap.createBitmap(
-                        bitmapWidth,
-                        bitmapHeight,
-                        Bitmap.Config.ARGB_8888,
-                    )
-                    bitmap.eraseColor(Color.WHITE)
-                    page.render(
-                        bitmap,
-                        null,
-                        null,
-                        PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY,
-                    )
-                    page.close()
-                    bitmaps.add(bitmap)
-                }
-
-                renderer.close()
-                fd.close()
-
-                if (pageCount > maxPages) {
-                    Logger.d { "PdfPreview: showing first $maxPages of $pageCount pages" }
-                }
-                PdfLoadState.Success(bitmaps)
-            }
-
-            loadState = result
+    // The producer owns the holder's lifecycle: it closes the same instance it published, via
+    // awaitDispose. The download stays cancellable; create() is NonCancellable so a create
+    // finishing after dismissal is still closed rather than leaking its fd/renderer.
+    val loadState by produceState<PdfLoadState>(PdfLoadState.Loading, file.fileId) {
+        value = PdfLoadState.Loading
+        val bytes = try {
+            withContext(Dispatchers.IO) { currentOnDownloadFile?.invoke(file.fileId, file.userId) }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            Logger.e(e) { "PdfPreview: failed to render PDF" }
-            loadState = PdfLoadState.Error(
-                e.message ?: "Failed to render PDF",
-            )
+            Logger.e(e) { "PdfPreview: download failed" }
+            value = PdfLoadState.Error(Res.string.failed_to_download_pdf, e.message)
+            return@produceState
         }
+        if (bytes == null) {
+            value = PdfLoadState.Error(Res.string.failed_to_download_pdf)
+            return@produceState
+        }
+        val doc = withContext(Dispatchers.IO + NonCancellable) {
+            PdfDocumentHolder.create(context, bytes)
+        }
+        if (doc == null) {
+            value = PdfLoadState.Error(Res.string.failed_to_render_pdf)
+            return@produceState
+        }
+        value = PdfLoadState.Success(doc)
+        awaitDispose { doc.close() }
     }
 
     when (val state = loadState) {
@@ -172,13 +114,14 @@ actual fun PdfPreview(
         is PdfLoadState.Error -> {
             PdfErrorFallback(
                 file = file,
-                errorMessage = state.message,
+                message = state.message,
+                detail = state.detail,
                 modifier = modifier,
             )
         }
         is PdfLoadState.Success -> {
             PdfPagesList(
-                pages = state.pages,
+                doc = state.doc,
                 filename = file.filename,
                 modifier = modifier,
             )
@@ -188,7 +131,7 @@ actual fun PdfPreview(
 
 @Composable
 private fun PdfPagesList(
-    pages: List<Bitmap>,
+    doc: PdfDocumentHolder,
     filename: String,
     modifier: Modifier = Modifier,
 ) {
@@ -214,19 +157,15 @@ private fun PdfPagesList(
             .transformable(state = transformableState),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        itemsIndexed(
-            items = pages,
-            key = { index, _ -> "page_$index" },
-        ) { index, bitmap ->
+        items(count = doc.pageCount, key = { it }, contentType = { "pdf_page" }) { index ->
             Column {
-                Image(
-                    bitmap = bitmap.asImageBitmap(),
+                PdfPageContent(
+                    doc = doc,
+                    index = index,
                     contentDescription = stringResource(Res.string.page_cd, index + 1, filename),
-                    modifier = Modifier.fillMaxWidth(),
-                    contentScale = ContentScale.FillWidth,
                 )
                 Text(
-                    text = stringResource(Res.string.page_of, index + 1, pages.size),
+                    text = stringResource(Res.string.page_of, index + 1, doc.pageCount),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
@@ -242,7 +181,8 @@ private fun PdfPagesList(
 @Composable
 private fun PdfErrorFallback(
     file: FilePreviewDisplayData,
-    errorMessage: String,
+    message: StringResource,
+    detail: String?,
     modifier: Modifier = Modifier,
 ) {
     Box(
@@ -280,11 +220,20 @@ private fun PdfErrorFallback(
                 )
 
                 Text(
-                    text = errorMessage,
+                    text = stringResource(message),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
                     textAlign = TextAlign.Center,
                 )
+
+                detail?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                    )
+                }
 
                 Column(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
