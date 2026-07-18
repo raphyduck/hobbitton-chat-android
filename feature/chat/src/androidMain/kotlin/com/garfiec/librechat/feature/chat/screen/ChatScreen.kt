@@ -76,8 +76,10 @@ import com.garfiec.librechat.feature.chat.components.rememberChatOptionsSheetCon
 import com.garfiec.librechat.feature.chat.components.rememberChatAttachmentActions
 import com.garfiec.librechat.feature.chat.viewmodel.ChatViewModel
 import com.garfiec.librechat.feature.chat.viewmodel.asString
+import com.garfiec.librechat.feature.chat.viewmodel.neutralizeStreamingChurn
 import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -117,7 +119,12 @@ actual fun ChatScreen(
         koinViewModel {
             parametersOf(conversationId, initialAgentId, isTemporaryRoute, initialEndpoint, initialModel)
         }
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    // Chrome-rate state; ChatContent collects at full rate. Never read a neutralized field here.
+    val chromeFlow = remember(viewModel) {
+        viewModel.uiState.map { it.neutralizeStreamingChurn() }.distinctUntilChanged()
+    }
+    val initialChrome = remember(viewModel) { viewModel.uiState.value.neutralizeStreamingChurn() }
+    val uiState by chromeFlow.collectAsStateWithLifecycle(initialChrome)
     val attachedFiles by viewModel.attachedFiles.collectAsStateWithLifecycle()
     val shareLinkUrl by viewModel.shareLinkUrl.collectAsStateWithLifecycle()
     val prefs by viewModel.chatPreferences.collectAsStateWithLifecycle()
@@ -430,7 +437,6 @@ actual fun ChatScreen(
                 ChatContent(
                     listPullUpModifier = pullUpListModifier,
                     pullUpModifier = pullUpLandingModifier,
-                    uiState = uiState,
                     viewModel = viewModel,
                     clipboardManager = clipboardManager,
                     agentName = agentName,
