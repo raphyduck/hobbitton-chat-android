@@ -6,7 +6,6 @@ import com.garfiec.librechat.core.common.extensions.dayBoundaryReferences
 import com.garfiec.librechat.core.common.result.Result
 import com.garfiec.librechat.core.data.repository.ConversationRepository
 import com.garfiec.librechat.core.model.Conversation
-import com.garfiec.librechat.feature.conversations.viewmodel.DatedConversation
 import com.garfiec.librechat.feature.conversations.viewmodel.groupedByDateBucket
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.FlowPreview
@@ -36,8 +35,8 @@ class ConversationListStateHolder(
     private val _recentConversations = MutableStateFlow<List<Conversation>>(emptyList())
     val recentConversations: StateFlow<List<Conversation>> = _recentConversations.asStateFlow()
 
-    private val _groupedConversations = MutableStateFlow<List<Pair<String, List<DatedConversation>>>>(emptyList())
-    val groupedConversations: StateFlow<List<Pair<String, List<DatedConversation>>>> = _groupedConversations.asStateFlow()
+    private val _groupedConversations = MutableStateFlow<List<Pair<String, List<Conversation>>>>(emptyList())
+    val groupedConversations: StateFlow<List<Pair<String, List<Conversation>>>> = _groupedConversations.asStateFlow()
 
     private val _activeConversationId = MutableStateFlow<String?>(null)
     val activeConversationId: StateFlow<String?> = _activeConversationId.asStateFlow()
@@ -101,9 +100,9 @@ class ConversationListStateHolder(
         val conversations = _recentConversations.value
         val query = _searchQuery.value
         _groupedConversations.value = if (query.isBlank()) {
-            groupConversationsByDate(conversations.withoutPinned())
+            conversations.withoutPinned().groupedByDateBucket()
         } else {
-            groupConversationsByDate(filterByQuery(conversations, query))
+            filterByQuery(conversations, query).groupedByDateBucket()
         }
     }
 
@@ -172,7 +171,7 @@ class ConversationListStateHolder(
                 .debounce(SEARCH_DEBOUNCE_MS)
                 .collectLatest { query ->
                     _groupedConversations.value =
-                        groupConversationsByDate(filterByQuery(_recentConversations.value, query))
+                        filterByQuery(_recentConversations.value, query).groupedByDateBucket()
                 }
         }
     }
@@ -200,8 +199,4 @@ class ConversationListStateHolder(
      * so this is only applied on the non-search grouping paths.
      */
     private fun List<Conversation>.withoutPinned(): List<Conversation> = filterNot { it.pinned == true }
-
-    private fun groupConversationsByDate(
-        conversations: List<Conversation>,
-    ): List<Pair<String, List<DatedConversation>>> = conversations.groupedByDateBucket()
 }

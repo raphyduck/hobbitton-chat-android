@@ -10,24 +10,30 @@ import kotlin.time.Instant
 
 private val json = Json { ignoreUnknownKeys = true }
 
-fun Conversation.toEntity(): ConversationEntity = ConversationEntity(
-    conversationId = conversationId ?: "",
-    title = title ?: "New Chat",
-    user = user ?: "",
-    endpoint = endpoint,
-    endpointType = endpointType,
-    model = model,
-    agentId = agentId,
-    isArchived = isArchived,
-    pinned = pinned ?: false,
-    chatProjectId = chatProjectId,
-    tags = json.encodeToString(ListSerializer(serializer<String>()), tags),
-    iconURL = iconURL,
-    greeting = greeting,
-    modelParams = null,
-    createdAt = parseTimestamp(createdAt),
-    updatedAt = parseTimestamp(updatedAt),
-)
+fun Conversation.toEntity(): ConversationEntity {
+    // The entity columns are non-null and drive `ORDER BY updatedAt DESC` — a null timestamp
+    // must stamp "now" rather than 0L, or the row sinks to the bottom of the list. One shared
+    // read so a conversation missing both timestamps gets a consistent pair.
+    val now = Clock.System.now().toEpochMilliseconds()
+    return ConversationEntity(
+        conversationId = conversationId ?: "",
+        title = title ?: "New Chat",
+        user = user ?: "",
+        endpoint = endpoint,
+        endpointType = endpointType,
+        model = model,
+        agentId = agentId,
+        isArchived = isArchived,
+        pinned = pinned ?: false,
+        chatProjectId = chatProjectId,
+        tags = json.encodeToString(ListSerializer(serializer<String>()), tags),
+        iconURL = iconURL,
+        greeting = greeting,
+        modelParams = null,
+        createdAt = createdAt?.toEpochMilliseconds() ?: now,
+        updatedAt = updatedAt?.toEpochMilliseconds() ?: now,
+    )
+}
 
 fun ConversationEntity.toModel(): Conversation = Conversation(
     conversationId = conversationId,
@@ -47,21 +53,8 @@ fun ConversationEntity.toModel(): Conversation = Conversation(
     },
     iconURL = iconURL,
     greeting = greeting,
-    createdAt = formatTimestamp(createdAt),
-    updatedAt = formatTimestamp(updatedAt),
+    createdAt = Instant.fromEpochMilliseconds(createdAt),
+    updatedAt = Instant.fromEpochMilliseconds(updatedAt),
 )
 
 fun List<ConversationEntity>.toModels(): List<Conversation> = map { it.toModel() }
-
-private fun parseTimestamp(dateString: String?): Long {
-    if (dateString == null) return Clock.System.now().toEpochMilliseconds()
-    return try {
-        Instant.parse(dateString).toEpochMilliseconds()
-    } catch (_: Exception) {
-        Clock.System.now().toEpochMilliseconds()
-    }
-}
-
-private fun formatTimestamp(epochMillis: Long): String {
-    return Instant.fromEpochMilliseconds(epochMillis).toString()
-}
