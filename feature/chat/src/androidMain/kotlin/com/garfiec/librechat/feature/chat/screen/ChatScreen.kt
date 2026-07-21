@@ -268,16 +268,6 @@ actual fun ChatScreen(
                 positionalThreshold = { distance -> distance * 0.4f },
                 animationSpec = tween(),
             )
-            LaunchedEffect(pullUpSheetHeightPx) {
-                if (pullUpSheetHeightPx > 0) {
-                    pullUpState.updateAnchors(
-                        DraggableAnchors {
-                            PullUpAnchor.Hidden at pullUpSheetHeightPx.toFloat()
-                            PullUpAnchor.Revealed at 0f
-                        },
-                    )
-                }
-            }
             // Dismiss the IME the moment the sheet starts to reveal (the Scaffold uses imePadding()).
             LaunchedEffect(pullUpState, pullUpSheetHeightPx) {
                 snapshotFlow {
@@ -585,7 +575,19 @@ actual fun ChatScreen(
                     // measured height is still 0, so without this the sheet would place at offset 0
                     // (fully revealed) and flash the whole menu open on every chat entry.
                     .graphicsLayer { alpha = if (pullUpSheetHeightPx > 0) 1f else 0f }
-                    .onSizeChanged { pullUpSheetHeightPx = it.height }
+                    .onSizeChanged { size ->
+                        if (size.height != pullUpSheetHeightPx) {
+                            pullUpSheetHeightPx = size.height
+                            if (size.height > 0) {
+                                pullUpState.updateAnchors(
+                                    DraggableAnchors {
+                                        PullUpAnchor.Hidden at size.height.toFloat()
+                                        PullUpAnchor.Revealed at 0f
+                                    },
+                                )
+                            }
+                        }
+                    }
                     .offset {
                         val o = pullUpState.offset
                         IntOffset(0, if (o.isNaN()) pullUpSheetHeightPx else o.roundToInt())
