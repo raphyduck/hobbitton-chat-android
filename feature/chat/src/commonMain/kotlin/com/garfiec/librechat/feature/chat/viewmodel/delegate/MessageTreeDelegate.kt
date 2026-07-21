@@ -91,12 +91,13 @@ class MessageTreeDelegate(
      * rows to disk. Keeping that "never touch Room" decision in the caller lets both share
      * this merge.
      *
-     * Returns the completed turn (request then response) for the caller to persist, so the
-     * cached rows can't drift from the screen. The request is backfilled from its in-memory
-     * parent when the payload omits it — the server adopts the client-minted id (PR #139), so
-     * the response's parentMessageId matches the optimistic user message, which was never
-     * written to Room during streaming and would otherwise be lost on reopen. Temp chats
-     * ignore the return value.
+     * Returns the completed turn (request then response) for the caller to persist — resolved
+     * from the POST-merge state, not the raw event, so the cached rows are the same merged
+     * instances the screen shows (caching the frame's skeletal request would diverge disk from
+     * display). The request resolves via the response's parentMessageId when the payload omits
+     * it — the server adopts the client-minted id (PR #139), so it matches the optimistic user
+     * message, which was never written to Room during streaming and would otherwise be lost on
+     * reopen. Temp chats ignore the return value.
      */
     fun finalizeChatDisplay(event: StreamEvent.Final): List<Message> {
         // Defensive: upstream 0.8.7 sets responseMessage.attachments before saving, but the app
@@ -125,6 +126,10 @@ class MessageTreeDelegate(
                 screenState = ChatScreenState.ACTIVE,
                 isStreaming = false,
                 streamingContent = "",
+                // The stream is over, so no retry can be pending. Matters for a Final that
+                // lands while a reconnect banner is up (e.g. a stop during a retry window):
+                // without this the stale banner survives the finalize.
+                retryInfo = null,
                 activeToolCalls = emptyList(),
                 streamingAttachments = emptyList(),
                 // The turn is finalized and (for normal chats) about to be persisted, so the
@@ -136,11 +141,48 @@ class MessageTreeDelegate(
             )
         }
         if (finalMessages.isEmpty()) return emptyList()
-        val request = event.requestMessage
-            ?: response?.parentMessageId?.let { parentId ->
-                handle.state.messages.firstOrNull { it.messageId == parentId }
+        val merged = handle.state.messages
+        val request = (event.requestMessage?.messageId ?: response?.parentMessageId)
+            ?.let { id -> merged.firstOrNull { it.messageId == id } }
+        val mergedResponse = response?.messageId
+            ?.let { id -> merged.firstOrNull { it.messageId == id } }
+        return listOfNotNull(request, mergedResponse)
+    }
+
+    /**
+     * Un-sends the current turn after an early abort: the Stop landed before the server's
+     * `created` milestone, so nothing was persisted — not even the user message. Keeping the
+     * optimistic bubble would bake in a known inconsistency (the next sync silently drops it),
+     * so remove it and let the caller restore its text to the composer, mirroring the web
+     * client's early-abort handling.
+     *
+     * [userMessageId] is the id minted for THIS turn's optimistic insert; null when the turn
+     * re-submitted a pre-existing persisted message (regenerate / continue / edit-AI) — those
+     * must not be removed, so a null id only clears the streaming fields.
+     *
+     * ONE `handle.update`: removal, path rebuild, and streaming-field clear are a single
+     * StateFlow emission — the same atomicity discipline as [finalizeChatDisplay] (#169).
+     */
+    fun unsendOptimisticTurn(userMessageId: String?) {
+        handle.update {
+            val remaining = if (userMessageId == null) {
+                content.messages
+            } else {
+                content.messages.filterNot { it.messageId == userMessageId }
             }
-        return listOfNotNull(request, response)
+            content = content.copy(
+                messages = remaining,
+                displayMessages = buildActiveMessagePath(remaining, content.activeBranches),
+                isStreaming = false,
+                streamingContent = "",
+                retryInfo = null,
+                activeToolCalls = emptyList(),
+                streamingAttachments = emptyList(),
+                // Defensive: earlyAbort means `created` never fired, so no handoff seeded this —
+                // but clearing keeps the invariant "finalize/unsend always retires the seed".
+                pendingResumeUserMessage = null,
+            )
+        }
     }
 }
 
