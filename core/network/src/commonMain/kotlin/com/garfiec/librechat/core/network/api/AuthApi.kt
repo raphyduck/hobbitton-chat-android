@@ -125,10 +125,13 @@ class AuthApi constructor(
         }.body()
 
     /**
-     * Verify 2FA during login using a temporary token.
-     * POST /api/auth/2fa/verify-temp with { tempToken, token: totpCode, backupCode? }
+     * POST /api/auth/2fa/verify-temp with { tempToken, token: totpCode } or { tempToken, backupCode }.
      */
-    suspend fun verifyTempToken(tempToken: String, totpCode: String, backupCode: String? = null): LoginResult {
+    suspend fun verifyTempToken(
+        tempToken: String,
+        totpCode: String? = null,
+        backupCode: String? = null,
+    ): LoginResult {
         val httpResponse = client.post {
             url { path("api/auth/2fa/verify-temp") }
             setBody(

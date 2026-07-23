@@ -9,6 +9,7 @@ import io.ktor.client.request.HttpRequestPipeline
 import io.ktor.client.request.headers
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.URLBuilder
 import io.ktor.http.Url
 import io.ktor.util.AttributeKey
 
@@ -58,10 +59,20 @@ class AuthInterceptorPlugin private constructor(
         }
 
         override fun install(plugin: AuthInterceptorPlugin, scope: HttpClient) {
+            // Endpoints that take no bearer and whose 401 is the endpoint's own verdict, not an
+            // expired session — kept out of the refresh/session-expiry leg below.
             val skipPaths = setOf(
                 "auth/login", "auth/register", "auth/refresh",
                 "auth/requestPasswordReset", "auth/resetPassword",
+                "auth/2fa/verify-temp",
             )
+
+            // Matched on whole path segments, not as a substring of the URL, so a path-prefixed
+            // deployment (e.g. /apps/auth/login-x) doesn't match every request it serves.
+            fun isSkipPath(url: URLBuilder): Boolean {
+                val path = url.encodedPathSegments.filter { it.isNotEmpty() }.joinToString("/")
+                return skipPaths.any { path == it || path.endsWith("/$it") }
+            }
 
             // Attach token to outgoing requests. Runs at State, which is after
             // the SwitchBarrier/defaultRequest phases have applied the base URL —
@@ -76,11 +87,9 @@ class AuthInterceptorPlugin private constructor(
             // pair. Without the barrier (refresh client / tests) fall back to the
             // live active account, preserving legacy behavior.
             scope.requestPipeline.intercept(HttpRequestPipeline.State) {
-                val path = context.url.buildString()
-                val isSkipPath = skipPaths.any { path.contains(it) }
                 val snapshot = context.attributes.getOrNull(RequestIdentityKey)
                 val serverBaseUrl = snapshot?.baseUrl ?: plugin.serverUrlProvider?.getBaseUrl()
-                if (!isSkipPath && plugin.isSameHostAsServer(context.url.host, serverBaseUrl)) {
+                if (!isSkipPath(context.url) && plugin.isSameHostAsServer(context.url.host, serverBaseUrl)) {
                     // Explicit branch (not `?:`): a snapshot whose bearer is null must attach
                     // nothing — a pending add-account probe before sign-in has no token yet, and
                     // falling through to the live cache would send the ACTIVE account's bearer to
@@ -97,6 +106,10 @@ class AuthInterceptorPlugin private constructor(
                 val originalCall = execute(request)
 
                 if (originalCall.response.status != HttpStatusCode.Unauthorized) {
+                    return@intercept originalCall
+                }
+
+                if (isSkipPath(request.url)) {
                     return@intercept originalCall
                 }
 

@@ -138,6 +138,87 @@ class AuthInterceptorTest {
     }
 
     @Test
+    fun `401 from verify-temp passes through without refresh or session expiry`() = runTest {
+        val tokenManager = FakeTokenManager(accessToken = null, refreshOutcome = RefreshResult.HardExpired)
+        var requestCount = 0
+
+        val engine = MockEngine {
+            requestCount++
+            respond("""{"message":"Invalid 2FA code."}""", HttpStatusCode.Unauthorized)
+        }
+        val client = createClient(tokenManager, engine)
+
+        val response = client.get("https://example.com/api/auth/2fa/verify-temp")
+        assertThat(response.status).isEqualTo(HttpStatusCode.Unauthorized)
+        assertThat(response.bodyAsText()).contains("Invalid 2FA code.")
+        assertThat(requestCount).isEqualTo(1)
+        assertThat(tokenManager.refreshCallCount).isEqualTo(0)
+        assertThat(tokenManager.sessionExpiredCount).isEqualTo(0)
+    }
+
+    @Test
+    fun `401 from the authenticated verify endpoint still refreshes`() = runTest {
+        val tokenManager = FakeTokenManager(accessToken = "expired-token", refreshOutcome = RefreshResult.HardExpired)
+
+        val engine = MockEngine { respond("Unauthorized", HttpStatusCode.Unauthorized) }
+        val client = createClient(tokenManager, engine)
+
+        client.get("https://example.com/api/auth/2fa/verify")
+        assertThat(tokenManager.refreshCallCount).isEqualTo(1)
+        assertThat(tokenManager.sessionExpiredCount).isEqualTo(1)
+    }
+
+    @Test
+    fun `a base path containing a skip token does not exempt the whole deployment`() = runTest {
+        val tokenManager = FakeTokenManager(accessToken = "expired-token", refreshOutcome = RefreshResult.HardExpired)
+        var capturedAuth: String? = null
+
+        val engine = MockEngine { request ->
+            capturedAuth = request.headers[HttpHeaders.Authorization]
+            respond("Unauthorized", HttpStatusCode.Unauthorized)
+        }
+        val client = createClient(tokenManager, engine)
+
+        client.get("https://example.com/apps/auth/login-portal/api/conversations")
+        assertThat(capturedAuth).isEqualTo("Bearer expired-token")
+        assertThat(tokenManager.refreshCallCount).isEqualTo(1)
+        assertThat(tokenManager.sessionExpiredCount).isEqualTo(1)
+    }
+
+    @Test
+    fun `a skip endpoint under a mounted base path is still exempt`() = runTest {
+        val tokenManager = FakeTokenManager(accessToken = null, refreshOutcome = RefreshResult.HardExpired)
+
+        val engine = MockEngine { respond("Unauthorized", HttpStatusCode.Unauthorized) }
+        val client = createClient(tokenManager, engine)
+
+        client.get("https://example.com/librechat/api/auth/2fa/verify-temp")
+        assertThat(tokenManager.refreshCallCount).isEqualTo(0)
+        assertThat(tokenManager.sessionExpiredCount).isEqualTo(0)
+    }
+
+    @Test
+    fun `a query string containing a skip token does not exempt the request`() = runTest {
+        val tokenManager = FakeTokenManager(
+            accessToken = "expired-token",
+            refreshOutcome = RefreshResult.Refreshed,
+            refreshedToken = "new-token",
+        )
+        var requestCount = 0
+
+        val engine = MockEngine {
+            requestCount++
+            if (requestCount == 1) respond("Unauthorized", HttpStatusCode.Unauthorized)
+            else respond("OK", HttpStatusCode.OK)
+        }
+        val client = createClient(tokenManager, engine)
+
+        val response = client.get("https://example.com/api/search?q=auth/login")
+        assertThat(response.status).isEqualTo(HttpStatusCode.OK)
+        assertThat(tokenManager.refreshCallCount).isEqualTo(1)
+    }
+
+    @Test
     fun `refreshes token on 401 and retries`() = runTest {
         val tokenManager = FakeTokenManager(
             accessToken = "expired-token",
@@ -186,8 +267,6 @@ class AuthInterceptorTest {
 
     @Test
     fun `transient refresh failure does not emit session expired`() = runTest {
-        // A recoverable refresh failure (network/5xx/malformed/server false-negative) must NOT log the
-        // user out — the request fails but the session is kept so a later attempt can recover.
         val tokenManager = FakeTokenManager(
             accessToken = "expired-token",
             refreshOutcome = RefreshResult.Transient,
@@ -219,8 +298,6 @@ class AuthInterceptorTest {
 
         val response = client.get("https://example.com/api/data")
         assertThat(response.status).isEqualTo(HttpStatusCode.Unauthorized)
-        // Refresh was attempted once, then the retry 401 is returned as-is
-        // (execute() inside interceptor doesn't re-enter the same interceptor)
         assertThat(tokenManager.refreshCallCount).isEqualTo(1)
     }
 
@@ -292,8 +369,6 @@ class AuthInterceptorTest {
             serverUrlProvider = FakeServerUrlProvider("https://chat.example.com"),
         )
 
-        // Insidious case: a CDN on a SUBDOMAIN of the base host must NOT get the
-        // token — host-matching is exact-equals, not suffix.
         client.get("https://cdn.example.com/file/abc?sig=xyz")
         assertThat(capturedAuth).isNull()
     }
@@ -314,7 +389,6 @@ class AuthInterceptorTest {
         )
 
         val response = client.get("https://cdn.example.com/file/abc?sig=xyz")
-        // Foreign-host 401 passes straight through — no refresh, no retry.
         assertThat(response.status).isEqualTo(HttpStatusCode.Unauthorized)
         assertThat(tokenManager.refreshCallCount).isEqualTo(0)
         assertThat(requestCount).isEqualTo(1)
@@ -336,8 +410,6 @@ class AuthInterceptorTest {
             if (requestCount == 1) respond("Unauthorized", HttpStatusCode.Unauthorized)
             else respond("OK", HttpStatusCode.OK)
         }
-        // Cold-start: provider returns empty base → attach-always fallback, and the
-        // 401-retry path stays active (host-scope helper returns true on empty base).
         val client = createClient(
             tokenManager,
             engine,
@@ -360,7 +432,6 @@ class AuthInterceptorTest {
             capturedAuth = request.headers[HttpHeaders.Authorization]
             respond("OK", HttpStatusCode.OK)
         }
-        // No serverUrlProvider → legacy behavior, token attached regardless of host.
         val client = createClient(tokenManager, engine)
 
         client.get("https://anyhost.example.org/api/data")
@@ -369,8 +440,6 @@ class AuthInterceptorTest {
 
     @Test
     fun `pending-identity request carries the staged bearer and its 401 passes through untouched`() = runTest {
-        // Add-account flow: the pending snapshot routes URL + bearer; a 401 must neither refresh any
-        // account nor emit the global session-expired signal (which would tear down the live account).
         val tokenManager = FakeTokenManager(accessToken = "live-a-token", refreshOutcome = RefreshResult.Refreshed)
         var requestCount = 0
         var capturedAuth: String? = null
@@ -407,9 +476,6 @@ class AuthInterceptorTest {
 
     @Test
     fun `refresh failure on a snapshot request scopes the expiry signal to the snapshot account`() = runTest {
-        // The store decides whether a scoped expiry still matters (it suppresses non-active
-        // accounts); the plugin's contract is to pass the snapshot's account along, never a blanket
-        // global signal.
         val tokenManager = FakeTokenManager(accessToken = "a-token", refreshOutcome = RefreshResult.HardExpired)
         val engine = MockEngine { respond("Unauthorized", HttpStatusCode.Unauthorized) }
         val gate = SwitchGate(

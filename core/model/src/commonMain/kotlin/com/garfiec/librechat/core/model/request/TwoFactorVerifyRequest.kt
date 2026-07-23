@@ -20,6 +20,6 @@ data class TwoFactorVerifyRequest(
 @Serializable
 data class TwoFactorVerifyTempRequest(
     val tempToken: String,
-    val token: String,
+    val token: String? = null,
     val backupCode: String? = null,
 )

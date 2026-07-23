@@ -91,8 +91,10 @@ abstract class CommonTokenDataStore(
 
     private fun ensureTokenLoaded(): String? {
         if (!tokenInitialized) loadCacheFromStorage()
-        return cachedAccessToken
+        return cachedAccessToken.nonBlankOrNull()
     }
+
+    private fun String?.nonBlankOrNull(): String? = this?.takeUnless { it.isBlank() }
 
     // The bare key (null account) is the logged-out / legacy / mid-auth-staging fallback; a resolved
     // account namespaces to `acct:<id>:<base>`. One helper so both token bases scope identically.
@@ -177,7 +179,7 @@ abstract class CommonTokenDataStore(
         // restore of already-keyed tokens whose mirror diverged), leave the keyed slot intact.
         // Crash-safe ordering: write the keyed slot, THEN the mirror, and only then drop the staging
         // keys — an interruption before the mirror write re-stages on the next resolve.
-        val stagedAccess = readValue(KEY_ACCESS_TOKEN)
+        val stagedAccess = readValue(KEY_ACCESS_TOKEN).nonBlankOrNull()
         val stagedRefresh = readValue(KEY_REFRESH_TOKEN)
         val rehomed = stagedAccess != null && stagedRefresh != null
         if (rehomed) {
@@ -227,11 +229,12 @@ abstract class CommonTokenDataStore(
         // Serve the active account from the in-memory cache (the per-request hot path via the switch
         // barrier's keyed bearer read); fall to storage only for a non-active account's slot. Under
         // stateMutex so the account check and the cache read can't interleave with a select/teardown.
-        if (accountId == activeAccountKey) cachedAccessToken else readValue(accessKey(accountId))
+        val token = if (accountId == activeAccountKey) cachedAccessToken else readValue(accessKey(accountId))
+        token.nonBlankOrNull()
     }
 
     override suspend fun getStagedAccessToken(): String? = stateMutex.withLock {
-        readValue(KEY_ACCESS_TOKEN)
+        readValue(KEY_ACCESS_TOKEN).nonBlankOrNull()
     }
 
     override suspend fun clearStagedTokens() = stateMutex.withLock {

@@ -108,6 +108,10 @@ class LoginViewModel(
         }
     }
 
+    fun consumeTwoFactorNavigation() {
+        _uiState.value = _uiState.value.copy(twoFactorTempToken = null)
+    }
+
     /** Set once this screen launches its own OAuth round-trip; gates add-mode cookie consumption. */
     private var oAuthLaunched = false
 
