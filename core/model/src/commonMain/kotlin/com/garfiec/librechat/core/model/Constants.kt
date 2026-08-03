@@ -10,3 +10,12 @@ const val SAVED_TAG = "Saved"
  * (see AccountClaimDao.claimLegacyRows).
  */
 const val NEW_CHAT_DRAFT_KEY: String = "__new_chat__"
+
+/**
+ * Default accent seed color as `0xAARRGGBB` — the turquoise brand hue of the app icon's cable,
+ * sampled from the iOS 1024px icon asset. Canonical here in `:core:model` (the shared, pure-Kotlin
+ * module both consumers depend on) so the Compose seed (`DefaultAccentSeed` in `:core:ui`) and the
+ * persisted-preference fallback (`ThemeDataStore.DEFAULT_ACCENT_COLOR` in `:core:data`) derive from
+ * one literal and can never drift.
+ */
+const val DEFAULT_ACCENT_SEED_ARGB: Long = 0xFF00D8BB
