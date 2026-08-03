@@ -29,7 +29,7 @@ expect fun supportsDynamicColor(): Boolean
  * 1. [useDynamicColor] on **and** the platform supports it -> wallpaper-based scheme.
  * 2. Otherwise the full scheme is generated from [accentColor] via MaterialKolor
  *    ([rememberDynamicColorScheme], remembered/keyed on its inputs). The default
- *    [accentColor] reproduces the app's original lavender brand hue.
+ *    [accentColor] matches the turquoise brand hue of the app icon.
  */
 @Composable
 fun LibreChatTheme(
