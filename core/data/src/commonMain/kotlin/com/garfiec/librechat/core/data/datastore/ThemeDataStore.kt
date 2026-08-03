@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import com.garfiec.librechat.core.model.DEFAULT_ACCENT_SEED_ARGB
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -106,8 +107,12 @@ class ThemeDataStore(
     }
 
     companion object {
-        /** Turquoise brand hue (ARGB) used when no accent has been chosen. Matches `DefaultAccentSeed` in :core:ui. */
-        val DEFAULT_ACCENT_COLOR: Int = 0xFF00D8BB.toInt()
+        /**
+         * Turquoise brand hue (ARGB) used when no accent has been chosen. Derived from the
+         * canonical [DEFAULT_ACCENT_SEED_ARGB] in `:core:model`, same as `DefaultAccentSeed`
+         * in `:core:ui`.
+         */
+        val DEFAULT_ACCENT_COLOR: Int = DEFAULT_ACCENT_SEED_ARGB.toInt()
 
         private val KEY_THEME = stringPreferencesKey("theme_mode")
         private val KEY_ACCENT_COLOR = intPreferencesKey("accent_color")
