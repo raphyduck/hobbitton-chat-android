@@ -1,0 +1,166 @@
+name: App Store Upload
+
+# Manual, on-demand upload of an already-tagged release to App Store Connect. TestFlight
+# distribution and App Store review both start from the same uploaded build, chosen later
+# in the App Store Connect UI. Deliberately separate from release.yml: cutting a GitHub
+# release never contacts Apple, and any existing tag can be (re-)uploaded without
+# re-releasing. Signing is Xcode CLOUD signing — the App Store Connect API key is the only
+# Apple credential; certificates and provisioning profiles are created and managed in
+# Apple's cloud by -allowProvisioningUpdates, so no .p12/.mobileprovision lives in the
+# repo or its secrets. Prerequisite: the app record must exist in App Store Connect.
+# Setup & runbook: docs/RELEASING.md.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag to build & upload (e.g. v2026.07.3)"
+        required: true
+        type: string
+
+concurrency:
+  group: appstore
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  upload:
+    name: Build, sign & upload to App Store Connect
+    runs-on: macos-latest
+    # Same reviewer-gated environment as the Android signing secrets; holds the four
+    # ASC_/APPLE_ secrets (docs/RELEASING.md "One-time App Store Connect setup").
+    environment: release
+
+    steps:
+      # Fail in seconds if secrets are missing/blank — not 30 minutes into the K/N build.
+      - name: Verify App Store secrets
+        env:
+          ASC_API_KEY_P8_BASE64: ${{ secrets.ASC_API_KEY_P8_BASE64 }}
+          ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          ASC_API_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          missing=""
+          [ -z "$ASC_API_KEY_P8_BASE64" ] && missing="$missing ASC_API_KEY_P8_BASE64"
+          [ -z "$ASC_API_KEY_ID" ] && missing="$missing ASC_API_KEY_ID"
+          [ -z "$ASC_API_ISSUER_ID" ] && missing="$missing ASC_API_ISSUER_ID"
+          [ -z "$APPLE_TEAM_ID" ] && missing="$missing APPLE_TEAM_ID"
+          if [ -n "$missing" ]; then
+            echo "::error title=Missing App Store secrets::Set these in the 'release' environment:$missing"
+            exit 1
+          fi
+
+      - name: Checkout (release tag)
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag }}
+
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Setup Gradle
+        # SHA-pinned to match release.yml's supply-chain policy (Dependabot bumps it).
+        uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
+
+      - name: Cache Kotlin/Native toolchain
+        uses: actions/cache@v6
+        with:
+          path: ~/.konan
+          key: ${{ runner.os }}-konan-${{ hashFiles('gradle/libs.versions.toml') }}
+          restore-keys: ${{ runner.os }}-konan-
+
+      - name: Decode App Store Connect API key
+        env:
+          ASC_API_KEY_P8_BASE64: ${{ secrets.ASC_API_KEY_P8_BASE64 }}
+        run: echo "$ASC_API_KEY_P8_BASE64" | base64 --decode > "$RUNNER_TEMP/AuthKey.p8"
+
+      # The Kotlin framework is built by the Xcode "Compile Kotlin Framework" build phase
+      # (./gradlew :shared:embedAndSignAppleFrameworkForXcode) inside the archive — which
+      # is why JDK + Gradle are set up above. Automatic signing + -allowProvisioningUpdates
+      # + the API key = cloud signing: certs/profiles are created in Apple's cloud on the
+      # first run and reused afterwards. The archive is development-signed; the export step
+      # below re-signs it for App Store distribution (standard Xcode flow).
+      - name: Archive (cloud-signed)
+        env:
+          ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          ASC_API_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          # App Store Connect permanently rejects a REUSED CFBundleVersion within one
+          # version train, so give every upload a unique, ordered suffix (consumed by the
+          # "Stamp Version" build phase → CFBundleVersion YYYYMMPP.N): run_number*100 +
+          # run_attempt stays unique across both new runs and re-runs of a failed run.
+          export IOS_BUILD_NUMBER_SUFFIX=$(( GITHUB_RUN_NUMBER * 100 + GITHUB_RUN_ATTEMPT ))
+          echo "CFBundleVersion suffix for this upload: .$IOS_BUILD_NUMBER_SUFFIX"
+          xcodebuild archive \
+            -project iosApp/iosApp.xcodeproj \
+            -scheme iosApp \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/iosApp.xcarchive" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/AuthKey.p8" \
+            -authenticationKeyID "$ASC_API_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_API_ISSUER_ID" \
+            CODE_SIGN_STYLE=Automatic \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            ONLY_ACTIVE_ARCH=NO
+
+      # destination=upload pushes the build to App Store Connect during export — no
+      # deprecated altool, no Transporter, no fastlane. manageAppVersionAndBuildNumber=false
+      # keeps the deterministically stamped version/build (Apple would otherwise auto-bump).
+      - name: Export & upload to App Store Connect
+        env:
+          ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          ASC_API_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>method</key>
+              <string>app-store-connect</string>
+              <key>destination</key>
+              <string>upload</string>
+              <key>signingStyle</key>
+              <string>automatic</string>
+              <key>teamID</key>
+              <string>${APPLE_TEAM_ID}</string>
+              <key>manageAppVersionAndBuildNumber</key>
+              <false/>
+          </dict>
+          </plist>
+          EOF
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/iosApp.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/AuthKey.p8" \
+            -authenticationKeyID "$ASC_API_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_API_ISSUER_ID"
+
+      - name: Write summary
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          {
+            echo "## Uploaded to App Store Connect"
+            echo ""
+            echo "- **Tag:** \`$TAG\`"
+            echo "- Apple-side processing takes ~5–15 min, then the build appears under **TestFlight** in App Store Connect."
+            echo "- From there: add it to a TestFlight group and/or submit it for App Store review — both use this same build."
+          } >> "$GITHUB_STEP_SUMMARY"

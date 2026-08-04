@@ -127,8 +127,8 @@ Without this setting, the server's violation system may accumulate ban points ag
 | Android Studio or IntelliJ IDEA | Latest stable (recommended IDE for all code editing) |
 | Xcode | 15+ (iOS only, Apple Silicon Mac required — IDE not needed, CLI only) |
 | iOS Deployment Target | 16.0+ |
-| Gradle | 9.4.1 (via wrapper) |
-| Kotlin | 2.3.20 |
+| Gradle | 9.5.1 (via wrapper) |
+| Kotlin | 2.4.10 |
 
 ## Building from Source
 
@@ -177,7 +177,7 @@ See [iosApp/README.md](iosApp/README.md) for full build and launch instructions.
 - Ktor Client (OkHttp on Android, Darwin on iOS)
 - Kotlinx Serialization
 - Room (cache), DataStore (preferences), EncryptedSharedPreferences / Keychain (tokens)
-- Kotlin 2.3.20, compileSdk 36, minSdk 26
+- Kotlin 2.4.10, compileSdk 36, minSdk 26
 
 ## Contributing
 

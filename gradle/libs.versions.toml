@@ -1,8 +1,8 @@
 [versions]
 # Core Android
 agp = "9.2.1"
-kotlin = "2.3.20"
-ksp = "2.3.9"
+kotlin = "2.4.10"
+ksp = "2.3.11"
 compose-bom = "2026.06.00"
 compose-multiplatform = "1.11.0-beta03"
 material3 = "1.3.1"
@@ -17,10 +17,7 @@ lifecycle-viewmodel-nav3-kmp = "2.11.0-beta01"
 koin = "4.2.2"
 
 # Network
-# Pinned to 3.4.3 (do not bump). 3.5.0 enlarges the iOS framework enough that the
-# Kotlin/Native Release link OOMs in DevirtualizationAnalysis on the 7 GB CI runner
-# (JetBrains KT-80367, fixed in Kotlin 2.4.0). Unpin once we upgrade to Kotlin 2.4.x.
-ktor = "3.4.3"
+ktor = "3.5.1"
 kotlinx-serialization = "1.11.0"
 kotlinx-datetime = "0.8.0"
 
@@ -65,7 +62,7 @@ kermit = "2.1.0"
 okio = "3.10.2"
 
 # KMP / iOS
-skie = "0.10.11"
+skie = "0.10.14"
 
 # Testing
 junit = "4.13.2"
