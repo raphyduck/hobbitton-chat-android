@@ -1,5 +1,21 @@
 # GitHub CI/CD
 
+## Workflow: App Store Upload
+
+File: `.github/workflows/appstore.yml`
+
+- **Manual only** (`workflow_dispatch`) with a required `tag` input (e.g. `v2026.07.3`) —
+  cutting a GitHub release never uploads to Apple.
+- Single `upload` job: `macos-latest`, `environment: release` (reviewer-gated secrets).
+- Xcode **cloud signing** via an App Store Connect API key — no certificates or profiles
+  stored anywhere; `-allowProvisioningUpdates` manages them in Apple's cloud.
+- Archives the tagged commit, then `xcodebuild -exportArchive` with
+  `method: app-store-connect`, `destination: upload` uploads during export (no altool/fastlane).
+- Passes `IOS_BUILD_NUMBER_SUFFIX` (run_number×100 + run_attempt) so the "Stamp Version"
+  build phase emits a per-upload-unique `CFBundleVersion` (`YYYYMMPP.N`).
+- Secrets (in the `release` environment): `ASC_API_KEY_P8_BASE64`, `ASC_API_KEY_ID`,
+  `ASC_API_ISSUER_ID`, `APPLE_TEAM_ID`. Setup runbook: `docs/RELEASING.md`.
+
 ## Workflow: CI
 
 File: `.github/workflows/ci.yml`
