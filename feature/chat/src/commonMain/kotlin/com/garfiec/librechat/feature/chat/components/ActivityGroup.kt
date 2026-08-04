@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.DisableSelection
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.ExpandLess
@@ -30,6 +32,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
@@ -129,16 +132,22 @@ internal fun ActivityGroup(
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = headerLabel,
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (group.failed) {
-                    MaterialTheme.colorScheme.error
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
-                modifier = Modifier.weight(1f),
-            )
+            val labelColor = if (group.failed) {
+                MaterialTheme.colorScheme.error
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            }
+            if (group.labelText.isEmpty()) {
+                // "Used N tools" is our own fallback — chrome, kept out of "Select all". The Box
+                // carries the weight that the DisableSelection lambda cannot (it is not RowScope).
+                Box(modifier = Modifier.weight(1f)) {
+                    DisableSelection { ActivityHeaderLabel(headerLabel, labelColor) }
+                }
+            } else {
+                // The server's own label is message text: SearchMatchEnumeration counts it, so a
+                // user who searched for a phrase and found it here has to be able to copy it too.
+                ActivityHeaderLabel(headerLabel, labelColor, Modifier.weight(1f))
+            }
             Icon(
                 if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                 contentDescription = null,
@@ -157,9 +166,21 @@ internal fun ActivityGroup(
     }
 }
 
+@Composable
+private fun ActivityHeaderLabel(text: String, color: Color, modifier: Modifier = Modifier) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodyMedium,
+        color = color,
+        modifier = modifier,
+    )
+}
+
 /**
  * A label whose own block was filtered out of the render. Upstream keeps it as a bare line rather
  * than dropping it — it is still the only description of what happened at that point.
+ *
+ * Selectable: this is the server's text, and search already treats it as message content.
  */
 @Composable
 internal fun OrphanActivityLabel(text: String, modifier: Modifier = Modifier) {
