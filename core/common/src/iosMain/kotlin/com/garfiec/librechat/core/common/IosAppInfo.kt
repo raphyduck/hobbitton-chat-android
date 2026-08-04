@@ -5,11 +5,11 @@ import platform.Foundation.NSBundle
 internal class IosAppInfo : AppInfo {
     private val bundle = NSBundle.mainBundle
 
-    // "LibreChatVersionName" is stamped by the "Stamp Version" Xcode build phase with the
+    // "SwitchboardVersionName" is stamped by the "Stamp Version" Xcode build phase with the
     // full versionName (incl. any -rcN suffix); CFBundleShortVersionString carries only the
     // numeric calver core because App Store Connect rejects non-numeric versions there.
     override val versionName: String =
-        bundle.objectForInfoDictionaryKey("LibreChatVersionName") as? String
+        bundle.objectForInfoDictionaryKey("SwitchboardVersionName") as? String
             ?: bundle.objectForInfoDictionaryKey("CFBundleShortVersionString") as? String
             ?: "unknown"
 
