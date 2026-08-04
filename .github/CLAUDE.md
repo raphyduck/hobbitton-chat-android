@@ -43,6 +43,10 @@ File: `.github/workflows/ci.yml`
 - Caches `~/.konan`
 - Runs `xcodebuild` for the iOS simulator (arm64-only, no signing). The Kotlin framework is built by the Xcode "Compile Kotlin Framework" build phase (`./gradlew :shared:embedAndSignAppleFrameworkForXcode`) — no separate link step.
 
+#### `ios-release-link` (iOS Release Link (OOM canary))
+- `./gradlew :shared:linkReleaseFrameworkIosArm64` — the Release device link that release.yml/appstore.yml archives run
+- Exists because the Release link's DevirtualizationAnalysis pass OOM'd the 7 GB runner on every release Jul 2–25, 2026 (KT-80367) while PR CI stayed green: Debug/simulator builds skip whole-program optimization, so code growth crossing the heap ceiling was invisible until release day. This job fails the PR that crosses it instead.
+
 ### Environment
 
 - `lint` + `test` + `android` jobs: `ubuntu-latest`, JDK 21
