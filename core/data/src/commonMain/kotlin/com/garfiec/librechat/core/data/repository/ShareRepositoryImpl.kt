@@ -4,6 +4,7 @@ import com.garfiec.librechat.core.common.BackendVersion
 import com.garfiec.librechat.core.common.result.Result
 import com.garfiec.librechat.core.common.result.safeApiCall
 import com.garfiec.librechat.core.model.SharedLink
+import com.garfiec.librechat.core.model.response.ForkConversationResponse
 import com.garfiec.librechat.core.model.response.SharedLinksResponse
 import com.garfiec.librechat.core.network.api.ShareApi
 import com.garfiec.librechat.core.network.client.ServerUrlProvider
@@ -15,18 +16,18 @@ class ShareRepositoryImpl(
 ) : ShareRepository {
 
     /**
-     * Backends older than 0.8.7 filter `GET /api/share` on the `isPublic` query param and default
+     * Backends older than 0.8.7-rc1 filter `GET /api/share` on the `isPublic` query param and default
      * it to false when absent, so the Shared Links screen returns empty unless we send `isPublic=true`.
-     * 0.8.7+ dropped that filter; the param is ignored there (verified), so it's harmless to send.
+     * 0.8.7-rc1+ dropped that filter; the param is ignored there (verified), so it's harmless to send.
      *
      * Fail-safe on an unknown version: when the backend version hasn't resolved yet (cold start,
      * immediately post-login, or detection failure) we send `isPublic=true` so a legacy server still
-     * returns links. The param is omitted only when the backend is *confirmed* >= 0.8.7. Returns null
+     * returns links. The param is omitted only when the backend is *confirmed* >= 0.8.7-rc1. Returns null
      * to omit, which threads straight into [ShareApi.getSharedLinks].
      */
     private fun isPublicFilter(): Boolean? {
         val version = configRepository.detectedBackendVersion.value
-        val isConfirmedModern = version != null && BackendVersion.isCompatibleOrNewer(version, "0.8.7")
+        val isConfirmedModern = version != null && BackendVersion.isCompatibleOrNewer(version, "0.8.7-rc1")
         return if (isConfirmedModern) null else true
     }
 
@@ -55,6 +56,19 @@ class ShareRepositoryImpl(
     override suspend fun deleteShareLink(shareId: String): Result<Unit> {
         return safeApiCall {
             shareApi.deleteShareLink(shareId)
+        }
+    }
+
+    override suspend fun forkSharedConversation(
+        shareId: String,
+        targetMessageIndex: Int?,
+    ): Result<ForkConversationResponse> {
+        // Deliberately not version-gated: a pre-0.8.8 server 404s, which safeApiCall already
+        // turns into the error the (future) caller has to handle anyway, and the call only ever
+        // happens because a user pressed a button — there is nothing to fail closed on ahead of
+        // time. Gating on a date here would just hide the button on dev servers that have it.
+        return safeApiCall {
+            shareApi.forkSharedConversation(shareId, targetMessageIndex)
         }
     }
 }

@@ -6,6 +6,7 @@ import com.garfiec.librechat.core.data.datastore.ChatFontSize
 import com.garfiec.librechat.core.data.datastore.ChatHeaderAlignment
 import com.garfiec.librechat.core.data.datastore.ChatHeaderContent
 import com.garfiec.librechat.core.data.datastore.ContextBarPlacement
+import com.garfiec.librechat.core.data.datastore.DuringRunAction
 import com.garfiec.librechat.core.data.datastore.InlineArtifactPrefs
 import com.garfiec.librechat.core.data.datastore.LatexRenderer
 import com.garfiec.librechat.core.data.datastore.StarredModelsDisplay
@@ -34,6 +35,19 @@ data class ChatPrefsState(
     val contextBarPlacement: ContextBarPlacement = ContextBarPlacement.OPTIONS_SHEET,
     /** Whether the options-sheet context gauge's inline breakdown is expanded. */
     val contextGaugeExpanded: Boolean = false,
+    /**
+     * What the send control does while a reply is generating (v0.8.8 steering): inject into the
+     * running turn, or queue for after it. Read through [ChatUiState.effectiveDuringRunAction],
+     * which degrades to queueing when steering is unavailable.
+     *
+     * **Unlike every other field here this one drives BEHAVIOUR, not just rendering**, so
+     * `ChatViewModel` mirrors it into the backing `_uiState` with its own collector rather than
+     * relying on the `uiState` combine that fills the rest of this slice. A decision made from the
+     * backing state would otherwise always read the default below: that is exactly how steering
+     * became unreachable from the composer while the send button still drew itself as "Steer this
+     * reply". Anything added here that a non-UI code path branches on needs the same treatment.
+     */
+    val duringRunAction: DuringRunAction = DuringRunAction.QUEUE,
 )
 
 /**
@@ -56,9 +70,9 @@ data class ChatPreferences(
 )
 
 /**
- * Chat-screen display preferences (floating top bar + options-sheet context gauge), bundled
- * into a single flow so [ChatViewModel]'s `uiState` combine stays within Kotlin's 5-arg
- * typed limit.
+ * Chat-screen display preferences (floating top bar, options-sheet context gauge, during-run
+ * send action), bundled into a single flow so [ChatViewModel]'s `uiState` combine stays within
+ * Kotlin's 5-arg typed limit.
  */
 @Immutable
 data class ChatDisplayPrefs(
@@ -66,4 +80,5 @@ data class ChatDisplayPrefs(
     val alignment: ChatHeaderAlignment = ChatHeaderAlignment.LEFT,
     val contextBarPlacement: ContextBarPlacement = ContextBarPlacement.OPTIONS_SHEET,
     val contextGaugeExpanded: Boolean = false,
+    val duringRunAction: DuringRunAction = DuringRunAction.QUEUE,
 )

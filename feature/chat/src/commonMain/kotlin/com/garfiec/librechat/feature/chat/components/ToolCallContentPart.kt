@@ -26,6 +26,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,6 +44,9 @@ import org.jetbrains.compose.resources.stringResource
 
 // ─── ToolCallDispatcher ─────────────────────────────────────────────
 
+// A dispatcher: each branch emits one card and returns. Wrapping it to satisfy the rule would
+// add a layout node to every tool call in every message.
+@Suppress("MultipleEmitters")
 @Composable
 internal fun ToolCallDispatcher(
     part: MessageContentPart,
@@ -50,9 +54,13 @@ internal fun ToolCallDispatcher(
     attachments: List<Attachment>,
     showImageDescriptions: Boolean,
     modifier: Modifier = Modifier,
+    // Scopes every expand state below this point. A tool call's own id when it has one — the card
+    // then keeps its state across a reorder — falling back to the caller's per-part key.
+    stateKey: String = "",
     allowSubagentCard: Boolean = true,
 ) {
     val toolCall = part.toolCall
+    val cardKey = toolCall?.id?.takeIf { it.isNotEmpty() } ?: stateKey
     val toolName = toolCall?.name ?: toolCall?.function?.name ?: "Tool Call"
     val toolNameLower = toolName.lowercase()
     val output = toolCall?.output ?: toolCall?.function?.output
@@ -72,8 +80,35 @@ internal fun ToolCallDispatcher(
             baseUrl = baseUrl,
             attachments = attachments,
             showImageDescriptions = showImageDescriptions,
+            stateKey = cardKey,
         )
         return
+    }
+
+    // A settled `ask_user_question` call is a Q&A exchange, not a tool run — render the record
+    // rather than the call. Its arguments carry the question and options, its output the answer.
+    if (isAskUserQuestionToolCall(toolNameLower)) {
+        val question = remember(toolCall) {
+            parseAskUserQuestion(toolCall?.args) ?: parseAskUserQuestion(toolCall?.function?.arguments)
+        }
+        AskUserQuestionRecordCard(
+            question = question,
+            answer = output.orEmpty(),
+            modifier = modifier,
+            failed = toolCall?.inputValidationError == true,
+        )
+        return
+    }
+
+    // Shipped ahead of upstream's own presentation, which it scopes as a follow-up slice — kept to
+    // swapping the label so reworking it stays a one-line change.
+    val intent = remember(toolCall) {
+        parseToolIntent(toolCall?.args) ?: parseToolIntent(toolCall?.function?.arguments)
+    }
+    val displayName = intent ?: toolName
+    // Once it is the card's title, leaving it in the expanded argument dump prints it twice.
+    val displayArgs = remember(toolCall, intent) {
+        if (intent == null) toolCall?.function?.arguments else argsWithoutIntent(toolCall?.function?.arguments)
     }
 
     val isImageGen = isImageGenToolCall(toolNameLower)
@@ -101,7 +136,7 @@ internal fun ToolCallDispatcher(
                 if (results.isNotEmpty()) {
                     WebSearchSourcesCard(results = results, modifier = cardModifier)
                 } else {
-                    GenericToolCallCard(toolName, toolCall?.function?.arguments, output, cardModifier)
+                    GenericToolCallCard(displayName, displayArgs, output, cardModifier, cardKey)
                 }
             }
             isCodeExecutionToolCall(toolNameLower) -> {
@@ -113,7 +148,7 @@ internal fun ToolCallDispatcher(
                 if (result != null) {
                     CodeExecutionCard(result = result, modifier = cardModifier)
                 } else {
-                    GenericToolCallCard(toolName, toolCall?.function?.arguments, output, cardModifier)
+                    GenericToolCallCard(displayName, displayArgs, output, cardModifier, cardKey)
                 }
             }
             toolNameLower.contains("memory") -> {
@@ -121,7 +156,7 @@ internal fun ToolCallDispatcher(
                 if (artifact != null) {
                     MemoryArtifactCard(artifact = artifact, modifier = cardModifier)
                 } else {
-                    GenericToolCallCard(toolName, toolCall?.function?.arguments, output, cardModifier)
+                    GenericToolCallCard(displayName, displayArgs, output, cardModifier, cardKey)
                 }
             }
             toolNameLower.contains("mcp") -> {
@@ -129,7 +164,7 @@ internal fun ToolCallDispatcher(
                 if (resources.isNotEmpty()) {
                     McpResourceCarousel(resources = resources, modifier = cardModifier)
                 } else {
-                    GenericToolCallCard(toolName, toolCall?.function?.arguments, output, cardModifier)
+                    GenericToolCallCard(displayName, displayArgs, output, cardModifier, cardKey)
                 }
             }
             isImageGen -> {
@@ -143,7 +178,7 @@ internal fun ToolCallDispatcher(
                 LogContentCard(log = logContent, modifier = cardModifier)
             }
             else -> {
-                GenericToolCallCard(toolName, toolCall?.function?.arguments, output, cardModifier)
+                GenericToolCallCard(displayName, displayArgs, output, cardModifier, cardKey)
             }
         }
 
@@ -166,8 +201,11 @@ internal fun GenericToolCallCard(
     args: String?,
     output: String?,
     modifier: Modifier = Modifier,
+    stateKey: String = "",
 ) {
-    var isExpanded by remember { mutableStateOf(false) }
+    // Saveable: this card is inside a LazyColumn item, so plain `remember` state is disposed when
+    // the message scrolls out of the viewport and an expanded call silently re-collapses.
+    var isExpanded by rememberSaveable(key = "toolcall:$stateKey") { mutableStateOf(false) }
 
     Card(
         modifier = modifier.fillMaxWidth(),

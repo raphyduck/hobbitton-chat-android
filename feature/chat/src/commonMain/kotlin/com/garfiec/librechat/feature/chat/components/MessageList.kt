@@ -48,7 +48,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.garfiec.librechat.core.common.ChatLayoutConstants
 import com.garfiec.librechat.core.model.Attachment
-import com.garfiec.librechat.core.model.FeedbackRating
+import com.garfiec.librechat.core.model.MinimalFeedback
+import com.garfiec.librechat.core.model.PendingAction
+import com.garfiec.librechat.core.model.request.ToolApprovalResolution
 import com.garfiec.librechat.core.ui.theme.isSurfaceDark
 import com.garfiec.librechat.feature.chat.components.artifact.ArtifactType
 import com.garfiec.librechat.feature.chat.resources.*
@@ -77,7 +79,14 @@ fun MessageList(
     modifier: Modifier = Modifier,
     activeToolCalls: List<ActiveToolCall> = emptyList(),
     streamingAttachments: List<Attachment> = emptyList(),
-    onFeedback: (messageId: String, rating: String?) -> Unit = { _, _ -> },
+    onFeedback: (messageId: String, feedback: MinimalFeedback?) -> Unit = { _, _ -> },
+    /**
+     * The response that just took over from the streaming bubble, from `ChatUiState`. Read from
+     * state rather than derived here from `isStreaming`: a UI-side derivation can only run in an
+     * effect, which commits AFTER the composition that first renders the finalized message — by
+     * then its activity groups have already chosen to collapse and nothing re-opens them.
+     */
+    justSettledMessageId: String? = null,
     onContinue: (messageId: String) -> Unit = {},
     onReadAloud: (messageId: String) -> Unit = {},
     onFork: (messageId: String) -> Unit = {},
@@ -117,6 +126,15 @@ fun MessageList(
     // measures the bar's actual height (status bar + chips). Defaults to 0 for callers without an
     // overlaid bar (e.g. comparison panes that sit under a separate header).
     topContentPadding: Dp = 0.dp,
+    /**
+     * The live human-review pause, or null. Rendered at the tail of the streaming section — the
+     * run is unfinished, so it belongs to the reply in progress, not after it. Only the callers
+     * that can resolve one pass it; the comparison panes leave it null.
+     */
+    pendingAction: PendingAction? = null,
+    isResolvingPendingAction: Boolean = false,
+    onSubmitToolDecisions: (List<ToolApprovalResolution>) -> Unit = {},
+    onSubmitPendingAnswer: (String) -> Unit = {},
 ) {
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
@@ -131,7 +149,9 @@ fun MessageList(
     val topContentPaddingPx = with(LocalDensity.current) { topContentPadding.toPx() }
     var lastNavigatedParentKey by remember { mutableStateOf<String?>(null) }
 
-    val streamingToolCallCount = if (isStreaming) activeToolCalls.size else 0
+    // A live `ask_user_question` pause is rendered by PendingActionCard, not as a tool card.
+    val renderedToolCalls = remember(activeToolCalls) { activeToolCalls.withoutUnansweredQuestions() }
+    val streamingToolCallCount = if (isStreaming) renderedToolCalls.size else 0
     val totalItemCount = displayMessages.size + streamingToolCallCount + if (isStreaming) 1 else 0
 
     // Track whether user has deliberately scrolled away from the bottom.
@@ -168,7 +188,12 @@ fun MessageList(
     val showScrollToBottom by remember {
         derivedStateOf {
             val lastVisibleItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-            totalItemCount > 0 && lastVisibleItem < totalItemCount - 1
+            // The LIST's own count, not the hand-computed [totalItemCount] above: that one omits
+            // the trailing office-preview and human-review-pause items, so with one of those off
+            // screen the last visible index equals it and the FAB — the only cue that the thread
+            // scrolls further — is suppressed exactly when it is needed.
+            val rendered = listState.layoutInfo.totalItemsCount
+            rendered > 0 && lastVisibleItem < rendered - 1
         }
     }
 
@@ -276,6 +301,18 @@ fun MessageList(
         if (!hasScrolledToBottom && displayMessages.isNotEmpty()) {
             listState.scrollToItem(totalItemCount - 1, scrollOffset = Int.MAX_VALUE)
             hasScrolledToBottom = true
+        }
+    }
+
+    // A run pausing for human review changes NOTHING the other scroll effects key on:
+    // displayMessages.size, streamingContent and isStreaming are all unchanged. Without this the
+    // card is appended below the viewport and the user is left looking at a live cursor on a run
+    // that will never produce another token.
+    LaunchedEffect(pendingAction?.actionId) {
+        if (pendingAction?.actionId != null) {
+            userScrolledUp = false
+            val total = listState.layoutInfo.totalItemsCount
+            if (total > 0) listState.animateScrollToItem(total - 1, scrollOffset = Int.MAX_VALUE)
         }
     }
 
@@ -412,13 +449,6 @@ fun MessageList(
                     "${chatLayoutStyle}_$role"
                 },
             ) { index, node ->
-                val feedbackRating = node.message.feedback?.rating
-                val currentFeedbackStr = when (feedbackRating) {
-                    FeedbackRating.THUMBS_UP -> "thumbsUp"
-                    FeedbackRating.THUMBS_DOWN -> "thumbsDown"
-                    null -> null
-                }
-
                 val isMatch = index in searchMatchMessageIndexSet
                 val isCurrent = currentSearchMatch != null && index == currentSearchMatch.messageIndex
                 // Which occurrence within this message is focused (-1 when this isn't the current match).
@@ -431,6 +461,8 @@ fun MessageList(
                 CompositionLocalProvider(
                     LocalImmediateMarkdown provides (index == displayMessages.lastIndex),
                     LocalSearchFocusNonce provides if (isCurrent) searchFocusRequest?.requestId ?: 0L else 0L,
+                    LocalSuppressGroupAutoCollapse provides (node.message.messageId == justSettledMessageId),
+                    LocalFeedbackEnabled provides !isStreaming,
                 ) {
                 MessageBubble(
                     message = node.message,
@@ -449,7 +481,7 @@ fun MessageList(
                     },
                     onCopy = { onCopyMessage(node.message.messageId) },
                     onFeedback = if (!node.message.isCreatedByUser) {
-                        { rating -> onFeedback(node.message.messageId, rating) }
+                        { feedback -> onFeedback(node.message.messageId, feedback) }
                     } else {
                         null
                     },
@@ -463,7 +495,7 @@ fun MessageList(
                     baseUrl = baseUrl,
                     fontSizeMultiplier = fontSizeMultiplier,
                     isReading = currentlyReadingMessageId == node.message.messageId,
-                    currentFeedback = currentFeedbackStr,
+                    currentFeedback = node.message.feedback?.rating,
                     isEditing = editingMessageId == node.message.messageId,
                     editText = if (editingMessageId == node.message.messageId) editingText else "",
                     onEditTextChange = onEditTextChange,
@@ -522,9 +554,9 @@ fun MessageList(
                     )
                 }
 
-                if (activeToolCalls.isNotEmpty()) {
+                if (renderedToolCalls.isNotEmpty()) {
                     items(
-                        items = activeToolCalls,
+                        items = renderedToolCalls,
                         key = { "tool_call_${it.id}" },
                         contentType = { "tool_call" },
                     ) { toolCall ->
@@ -552,6 +584,21 @@ fun MessageList(
                             attachments = officeAttachments,
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                             isDarkTheme = isSurfaceDark(),
+                        )
+                    }
+                }
+
+                // Human-review pause (v0.8.8): the run is waiting on the user, so the resolve
+                // controls sit at the tail of the still-unfinished reply — the continuation
+                // streams back into the bubble above.
+                if (pendingAction != null) {
+                    item(key = "pending_action_${pendingAction.actionId}") {
+                        PendingActionCard(
+                            pendingAction = pendingAction,
+                            isResolving = isResolvingPendingAction,
+                            onSubmitToolDecisions = onSubmitToolDecisions,
+                            onSubmitAnswer = onSubmitPendingAnswer,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                         )
                     }
                 }

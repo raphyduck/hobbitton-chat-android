@@ -85,11 +85,14 @@ class DrawerViewModel(
             configRepository.detectedBackendVersion,
             roleRepository.userPermissions,
         ) { tags, config, version, permissions ->
-            // Pin requires POST /api/convos/pin (v0.8.7+). Gate fail-closed on unknown
-            // version so older servers don't surface an action they'd 404 on.
-            val supportsV087 = version != null && BackendVersion.isCompatibleOrNewer(version, "0.8.7")
+            // Gate fail-closed on unknown version so older servers don't surface actions
+            // they'd 404 on. Thresholds differ: POST /api/convos/pin landed BETWEEN
+            // v0.8.7-rc1 and v0.8.7 final (upstream 743f57f63), so pin needs the final;
+            // /api/projects was already in v0.8.7-rc1.
+            val pinSupported = version != null && BackendVersion.isCompatibleOrNewer(version, "0.8.7")
+            val projectsSupported = version != null && BackendVersion.isCompatibleOrNewer(version, "0.8.7-rc1")
             val canShare = permissions.canCreateSharedLinks(config?.sharedLinksEnabled ?: false)
-            DrawerActionMenuState(tags, canShare, supportsV087, supportsV087)
+            DrawerActionMenuState(tags, canShare, pinSupported, projectsSupported)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DrawerActionMenuState())
 
     // Chat Projects (v0.8.7). Loaded lazily for the move-to-project picker and the drawer's Projects
@@ -255,11 +258,11 @@ class DrawerViewModel(
             val persisted = DrawerTab.fromString(settingsDataStore.drawerLibraryTab.first())
             _drawerLibraryTab.update { it ?: persisted }
         }
-        // Load the Chat Projects folders once the backend is known to support them (v0.8.7+).
+        // Load the Chat Projects folders once the backend is known to support them (v0.8.7-rc1+).
         // detectedBackendVersion is a StateFlow (already conflated), so no distinctUntilChanged.
         viewModelScope.launch {
             configRepository.detectedBackendVersion.collect { version ->
-                if (version != null && BackendVersion.isCompatibleOrNewer(version, "0.8.7")) {
+                if (version != null && BackendVersion.isCompatibleOrNewer(version, "0.8.7-rc1")) {
                     loadProjects()
                 }
             }

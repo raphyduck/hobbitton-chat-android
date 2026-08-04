@@ -38,6 +38,9 @@ import com.garfiec.librechat.feature.chat.resources.Res
 import com.garfiec.librechat.feature.chat.viewmodel.ActiveToolCall
 import org.jetbrains.compose.resources.stringResource
 
+// A dispatcher: each branch emits one card and returns. Wrapping it to satisfy the rule would
+// add a layout node to every streaming tool call.
+@Suppress("MultipleEmitters")
 @Composable
 fun StreamingToolCallCard(
     toolCall: ActiveToolCall,
@@ -57,6 +60,19 @@ fun StreamingToolCallCard(
             result = imageResult,
             modifier = modifier,
             showDescription = showImageDescriptions,
+        )
+        return
+    }
+
+    // An answered question renders as its Q&A record, so the exchange stays on screen for the
+    // rest of the run instead of reappearing only when the message finalizes. An unanswered one
+    // never reaches here — `withoutUnansweredQuestions` drops it while the pause card owns it.
+    if (isAskUserQuestionToolCall(toolCall.name.lowercase())) {
+        val question = remember(toolCall.input) { parseAskUserQuestion(toolCall.input) }
+        AskUserQuestionRecordCard(
+            question = question,
+            answer = toolCall.output.orEmpty(),
+            modifier = modifier,
         )
         return
     }

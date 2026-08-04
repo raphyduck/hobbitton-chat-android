@@ -17,6 +17,8 @@ import com.garfiec.librechat.core.data.repository.AuthRepository
 import com.garfiec.librechat.core.data.repository.BannerRepository
 import com.garfiec.librechat.core.data.repository.ConfigRepository
 import com.garfiec.librechat.core.data.repository.EndpointTokenRepository
+import com.garfiec.librechat.core.data.repository.ResumePinStore
+import com.garfiec.librechat.core.data.repository.ToolFavoritesRepository
 import com.garfiec.librechat.core.data.util.SessionTaskRunner
 import com.garfiec.librechat.core.model.Banner
 import com.garfiec.librechat.core.network.client.AccountReadyGate
@@ -53,6 +55,8 @@ class NavHostViewModel(
     private val serverUrlProvider: ServerUrlProvider,
     private val connectivityObserver: ConnectivityObserver,
     private val endpointTokenRepository: EndpointTokenRepository,
+    private val toolFavoritesRepository: ToolFavoritesRepository,
+    private val resumePinStore: ResumePinStore,
     private val activeAccountProvider: ActiveAccountProvider,
     private val accountRoster: AccountRoster,
     private val accountSwitcher: AccountSwitcher,
@@ -185,6 +189,13 @@ class NavHostViewModel(
                 _sidebarMode.value = SidebarMode.Conversations
                 _selectedSettingsCategory.value = null
                 endpointTokenRepository.clear()
+                // Tool favorites are process-lifetime in-memory state, and refresh() deliberately
+                // keeps the old set on any non-404 error, so without this drop a flaky incoming
+                // server would keep rendering the previous account's pins in the tool picker.
+                toolFavoritesRepository.clear()
+                // A resume pin names another account's run; keeping it would replay that
+                // account's agent/tool config into a resume on this one.
+                resumePinStore.clear()
                 // Reseed the in-memory config from the (already-flipped) server's own srv:-keyed
                 // cache — warm on switch-back — instead of clear(), which would wipe every server's
                 // disk cache.

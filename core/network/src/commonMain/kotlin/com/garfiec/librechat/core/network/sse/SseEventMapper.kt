@@ -5,10 +5,13 @@ import com.garfiec.librechat.core.logging.Diag
 import com.garfiec.librechat.core.logging.LogOrigin
 import com.garfiec.librechat.core.model.Conversation
 import com.garfiec.librechat.core.model.Message
+import com.garfiec.librechat.core.model.PendingAction
+import com.garfiec.librechat.core.model.PendingSteer
 import com.garfiec.librechat.core.model.StreamEvent
 import com.garfiec.librechat.core.model.SubagentPhase
 import com.garfiec.librechat.core.model.content.MessageContentPart
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -93,9 +96,10 @@ class SseEventMapper(private val json: Json) {
      *
      * Almost every frame yields one event. The exception is the resume `sync`
      * frame, which is a composite: a state snapshot ([StreamEvent.Sync] built from
-     * `resumeState.aggregatedContent`) followed by `pendingEvents` — raw LangGraph
-     * events that occurred after the snapshot and are delivered here exactly once
-     * (the live continuation does not replay them). The pending events are mapped
+     * `resumeState.aggregatedContent`), then the live human-review pause if the run
+     * reconnected into one (`resumeState.pendingAction`), then `pendingEvents` — raw
+     * LangGraph events that occurred after the snapshot and are delivered here exactly
+     * once (the live continuation does not replay them). The pending events are mapped
      * through the same [mapJsonObject] the live stream uses, so downstream they are
      * indistinguishable from live events. List order is significant: the snapshot
      * must be applied before the buffered deltas that build on it.
@@ -114,11 +118,11 @@ class SseEventMapper(private val json: Json) {
             // Resume sync frame: snapshot + buffered events. `pendingEvents` lives
             // at the frame top level (alongside `sync`/`resumeState`), not inside it.
             if (root["sync"]?.jsonPrimitive?.booleanOrNull == true) {
-                val sync = mapSyncEvent(root)
+                val sync = mapSyncEvents(root)
                 val pending = root["pendingEvents"]?.jsonArray.orEmpty()
                     .filterIsInstance<JsonObject>()
                     .mapNotNull(::mapJsonObject)
-                return listOfNotNull(sync) + pending
+                return sync + pending
             }
             listOfNotNull(mapJsonObject(root))
         } catch (e: Exception) {
@@ -228,6 +232,9 @@ class SseEventMapper(private val json: Json) {
             // malformed flag must not take down an otherwise-usable final event.
             aborted = (root["aborted"] as? JsonPrimitive)?.booleanOrNull == true,
             earlyAbort = (root["earlyAbort"] as? JsonPrimitive)?.booleanOrNull == true,
+            // Steers the run never injected. Claim-on-read — the server drops its copy as it
+            // writes this frame — so they must be lifted off here or the text is gone.
+            pendingSteers = parsePendingSteers(root["pendingSteers"]),
         )
     }
 
@@ -252,8 +259,19 @@ class SseEventMapper(private val json: Json) {
         )
     }
 
-    private fun mapSyncEvent(root: JsonObject): StreamEvent? {
-        val resumeState = root["resumeState"]?.jsonObject ?: return null
+    /**
+     * Expands a resume `sync` frame's `resumeState` into the events it stands for: the content
+     * snapshot, the pending action if the run reconnected into a live human-review pause, and
+     * the steers still queued for injection.
+     *
+     * All three are independent. A run can pause before emitting any content (an
+     * `ask_user_question` on the first turn), so the pending action must NOT be gated on
+     * `aggregatedContent` being present; conversely a normal reconnect carries content and no
+     * pause. Order matters where they coexist: the snapshot rebuilds the reply, then the pause
+     * marks it as awaiting the user, then the steer snapshot repopulates the chips.
+     */
+    private fun mapSyncEvents(root: JsonObject): List<StreamEvent> {
+        val resumeState = root["resumeState"]?.jsonObject ?: return emptyList()
 
         // We intentionally do NOT replay `resumeState.runSteps`. The web client
         // replays them as on_run_step events to seed its event-sourced step-index
@@ -261,21 +279,71 @@ class SseEventMapper(private val json: Json) {
         // `aggregatedContent` already carries every tool_call part (in-progress
         // with a null output, completed with its output merged in) in order — so
         // it is the authoritative snapshot. runSteps would only duplicate it.
-        val aggregatedContent = resumeState["aggregatedContent"]?.jsonArray ?: return null
-
-        val contentParts = aggregatedContent.mapNotNull { element ->
-            try {
-                json.decodeFromJsonElement(
-                    MessageContentPart.serializer(),
-                    element,
-                )
-            } catch (e: Exception) {
-                Logger.w("SSE", e) { "Failed to parse sync aggregatedContent part" }
-                null
+        val snapshot = resumeState["aggregatedContent"]?.jsonArray?.let { aggregatedContent ->
+            val contentParts = aggregatedContent.mapNotNull { element ->
+                try {
+                    json.decodeFromJsonElement(
+                        MessageContentPart.serializer(),
+                        element,
+                    )
+                } catch (e: Exception) {
+                    Logger.w("SSE", e) { "Failed to parse sync aggregatedContent part" }
+                    null
+                }
             }
+            StreamEvent.Sync(aggregatedContent = contentParts)
         }
 
-        return StreamEvent.Sync(aggregatedContent = contentParts)
+        val pendingAction = resumeState["pendingAction"]?.let(::parsePendingAction)
+
+        // Steers still waiting to be injected, as an authoritative snapshot of the server-side
+        // queue. Emitted UNCONDITIONALLY, including when the key is absent.
+        //
+        // The server OMITS the key rather than sending `[]` when its queue is empty — see
+        // `pendingSteers: pendingSteers.length > 0 ? pendingSteers : undefined` in upstream's
+        // GenerationJobManager, and the matching `resumeState.pendingSteers = … : undefined` on
+        // the resume path. So absence means "nothing queued", not "no news": reading it as
+        // `?.let { … }` emits nothing at all in the drained case. A reconnect is the only chance
+        // the client gets to drop records for steers that were injected while it was away, and
+        // skipping it there leaves them live forever, to be re-sent by a later run's end.
+        val pendingSteers = StreamEvent.PendingSteersSynced(
+            parsePendingSteers(resumeState["pendingSteers"]),
+        )
+
+        return listOfNotNull(snapshot, pendingAction, pendingSteers)
+    }
+
+    /** Decodes a `TPendingSteer[]` payload, dropping entries that carry no id to cancel by. */
+    private fun parsePendingSteers(element: JsonElement?): List<PendingSteer> {
+        val array = element as? JsonArray ?: return emptyList()
+        return array.mapNotNull { item ->
+            val steer = try {
+                json.decodeFromJsonElement(PendingSteer.serializer(), item)
+            } catch (e: Exception) {
+                Logger.w("SSE", e) { "Failed to parse pending steer" }
+                null
+            }
+            steer?.takeIf { !it.steerId.isNullOrBlank() }
+        }
+    }
+
+    /**
+     * Parses a client-safe `PendingAction` projection into its stream event. Shared by the live
+     * `on_pending_action` frame and the sync frame's `resumeState.pendingAction`, which carry the
+     * identical record — a client that was attached when the run paused and one that reconnected
+     * into the pause must reach the same state.
+     */
+    private fun parsePendingAction(element: JsonElement): StreamEvent? {
+        val pendingAction = try {
+            json.decodeFromJsonElement(PendingAction.serializer(), element)
+        } catch (e: Exception) {
+            Logger.w("SSE", e) { "Failed to parse pending action" }
+            return null
+        }
+        // An action with no id can't be resolved (the resume route 400s without one), so a
+        // card for it would be a dead end — better to leave the run rendering as streaming.
+        if (pendingAction.actionId.isNullOrBlank()) return null
+        return StreamEvent.PendingActionRequested(pendingAction)
     }
 
     // --- LangGraph events ---
@@ -330,8 +398,35 @@ class SseEventMapper(private val json: Json) {
             "title" -> mapTitleEvent(data)
             "on_token_usage" -> mapTokenUsage(data)
             "on_context_usage" -> mapContextUsage(data)
+            // v0.8.8 HITL: the run paused for tool approval / an ask-user question. `data` is the
+            // client-safe PendingAction projection — the same record the sync frame carries.
+            "on_pending_action" -> parsePendingAction(data)
+            // v0.8.8 steering: a queued steer was injected into the live run.
+            "on_steer_applied" -> mapSteerApplied(data)
             else -> null // Forward-compat: unknown agent-library events drop silently.
         }
+    }
+
+    /**
+     * Maps `on_steer_applied`. The injected text lives on the nested `part` (a `steer` content
+     * part, the same shape that is persisted into the reply), not at the top level.
+     *
+     * A frame with no `steerId` is dropped: the id is the only thing that ties this event back
+     * to the chip it retires, and an event that cannot retire one is worse than none — it would
+     * leave a pending chip up for a steer that has already gone in.
+     */
+    private fun mapSteerApplied(data: JsonObject): StreamEvent? {
+        val part = data["part"]?.jsonObject
+        val steerId = data["steerId"]?.jsonPrimitive?.contentOrNull
+            ?: part?.get("steerId")?.jsonPrimitive?.contentOrNull
+        if (steerId.isNullOrBlank()) return null
+        return StreamEvent.SteerApplied(
+            steerId = steerId,
+            index = data["index"]?.jsonPrimitive?.intOrNull,
+            text = part?.get("steer")?.jsonPrimitive?.contentOrNull,
+            responseMessageId = data["responseMessageId"]?.jsonPrimitive?.contentOrNull,
+            conversationId = data["conversationId"]?.jsonPrimitive?.contentOrNull,
+        )
     }
 
     private fun mapSummarizeComplete(

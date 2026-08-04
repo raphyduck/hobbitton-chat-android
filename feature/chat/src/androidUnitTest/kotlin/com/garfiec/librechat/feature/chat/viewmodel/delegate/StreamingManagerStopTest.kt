@@ -6,6 +6,7 @@ import com.garfiec.librechat.core.common.result.Result
 import com.garfiec.librechat.core.data.repository.ChatRepository
 import com.garfiec.librechat.core.model.Message
 import com.garfiec.librechat.core.model.StreamEvent
+import com.garfiec.librechat.core.model.response.ChatAbortResponse
 import com.garfiec.librechat.feature.chat.util.AbortFrameFixtures
 import com.garfiec.librechat.feature.chat.viewmodel.ChatStateHandle
 import com.garfiec.librechat.feature.chat.viewmodel.ChatUiState
@@ -88,6 +89,8 @@ class StreamingManagerStopTest {
             completionDelegate = completionDelegate,
             queueDelegate = queueDelegate,
             treeDelegate = treeDelegate,
+            pendingActionDelegate = mockk(relaxed = true),
+            steeringDelegate = mockk(relaxed = true),
             emitUserKeyError = {},
             reloadConversation = reloadConversation,
             restoreUnsentInput = restoreUnsentInput,
@@ -110,7 +113,7 @@ class StreamingManagerStopTest {
             // Explicit, not relaxed: a relaxed ChatRepository returns a mock that isn't a
             // Result.Success, which would send stopGeneration down the failed-abort path and
             // cancel the very stream this test is about.
-            coEvery { chatRepository.abortChat("conv-1") } returns Result.Success(Unit)
+            coEvery { chatRepository.abortChat("conv-1", any(), any()) } returns Result.Success(ChatAbortResponse())
             val events = Channel<StreamEvent>(Channel.UNLIMITED)
             val (delegate, _) = delegateWith(this)
             delegate.launchStream(events.receiveAsFlow())
@@ -122,7 +125,7 @@ class StreamingManagerStopTest {
             runCurrent()
 
             // Still live: the abort was requested but the turn has not ended yet.
-            coVerify(exactly = 1) { chatRepository.abortChat("conv-1") }
+            coVerify(exactly = 1) { chatRepository.abortChat("conv-1", any(), any()) }
             verify(exactly = 0) { completionDelegate.onFinal(any(), any(), any(), any(), any(), any(), any(), any(), any()) }
 
             // The server now ends the run over the same stream.
@@ -196,7 +199,7 @@ class StreamingManagerStopTest {
         events.send(abortedFinal())
         advanceUntilIdle()
 
-        coVerify(exactly = 0) { chatRepository.abortChat(any()) }
+        coVerify(exactly = 0) { chatRepository.abortChat(any(), any(), any()) }
         verify {
             completionDelegate.onFinal(any(), any(), any(), false, any(), any(), any(), any(), true)
         }
@@ -208,17 +211,17 @@ class StreamingManagerStopTest {
     @Test
     fun `a second stop before the final arrives does not fire a second abort`() =
         runTest(StandardTestDispatcher()) {
-            val gate = CompletableDeferred<Result<Unit>>()
-            coEvery { chatRepository.abortChat("conv-1") } coAnswers { gate.await() }
+            val gate = CompletableDeferred<Result<ChatAbortResponse>>()
+            coEvery { chatRepository.abortChat("conv-1", any(), any()) } coAnswers { gate.await() }
             val (delegate, _) = delegateWith(this)
 
             delegate.stopGeneration()
             delegate.stopGeneration() // double-tap: the stream is still live, isStreaming still true
             runCurrent()
-            gate.complete(Result.Success(Unit))
+            gate.complete(Result.Success(ChatAbortResponse()))
             advanceUntilIdle()
 
-            coVerify(exactly = 1) { chatRepository.abortChat("conv-1") }
+            coVerify(exactly = 1) { chatRepository.abortChat("conv-1", any(), any()) }
         }
 
     /**
@@ -229,7 +232,7 @@ class StreamingManagerStopTest {
      */
     @Test
     fun `a failed abort stops the stream locally without reloading`() = runTest(StandardTestDispatcher()) {
-        coEvery { chatRepository.abortChat("conv-1") } returns Result.Error(message = "Job not found")
+        coEvery { chatRepository.abortChat("conv-1", any(), any()) } returns Result.Error(message = "Job not found")
         val events = Channel<StreamEvent>(Channel.UNLIMITED)
         val (delegate, flow) = delegateWith(this)
         delegate.launchStream(events.receiveAsFlow())
@@ -253,7 +256,7 @@ class StreamingManagerStopTest {
     /** A failed abort must not leave the guard armed and deaden Stop on the next stream. */
     @Test
     fun `stop works again after a failed abort`() = runTest(StandardTestDispatcher()) {
-        coEvery { chatRepository.abortChat("conv-1") } returns Result.Error(message = "Job not found")
+        coEvery { chatRepository.abortChat("conv-1", any(), any()) } returns Result.Error(message = "Job not found")
         val (delegate, flow) = delegateWith(this)
 
         delegate.stopGeneration()
@@ -265,7 +268,7 @@ class StreamingManagerStopTest {
         delegate.stopGeneration()
         advanceUntilIdle()
 
-        coVerify(exactly = 2) { chatRepository.abortChat("conv-1") }
+        coVerify(exactly = 2) { chatRepository.abortChat("conv-1", any(), any()) }
     }
 
     /**
@@ -278,7 +281,7 @@ class StreamingManagerStopTest {
     @Test
     fun `stop before the conversation exists still posts a null-key abort`() =
         runTest(StandardTestDispatcher()) {
-            coEvery { chatRepository.abortChat(null) } returns Result.Success(Unit)
+            coEvery { chatRepository.abortChat(null, any(), any()) } returns Result.Success(ChatAbortResponse())
             val events = Channel<StreamEvent>(Channel.UNLIMITED)
             val (delegate, _) = delegateWith(
                 this,
@@ -289,7 +292,7 @@ class StreamingManagerStopTest {
             delegate.stopGeneration()
             runCurrent()
 
-            coVerify(exactly = 1) { chatRepository.abortChat(null) }
+            coVerify(exactly = 1) { chatRepository.abortChat(null, any(), any()) }
             events.close()
             advanceUntilIdle()
         }
@@ -303,7 +306,7 @@ class StreamingManagerStopTest {
     @Test
     fun `an early abort un-sends the optimistic turn and restores the draft`() =
         runTest(StandardTestDispatcher()) {
-            coEvery { chatRepository.abortChat("conv-1") } returns Result.Success(Unit)
+            coEvery { chatRepository.abortChat("conv-1", any(), any()) } returns Result.Success(ChatAbortResponse())
             val events = Channel<StreamEvent>(Channel.UNLIMITED)
             val (delegate, _) = delegateWith(this)
             delegate.beginStreaming(isEdit = false, optimisticUserMessageId = "u1")
@@ -358,7 +361,7 @@ class StreamingManagerStopTest {
         delegate.stopGeneration()
         advanceUntilIdle()
 
-        coVerify(exactly = 0) { chatRepository.abortChat(any()) }
+        coVerify(exactly = 0) { chatRepository.abortChat(any(), any(), any()) }
         verify(exactly = 0) { reloadConversation(any()) }
     }
 }

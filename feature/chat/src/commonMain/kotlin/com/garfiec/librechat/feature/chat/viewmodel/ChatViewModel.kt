@@ -11,6 +11,7 @@ import com.garfiec.librechat.core.common.identity.currentAccountId
 import com.garfiec.librechat.core.common.network.ConnectivityObserver
 import com.garfiec.librechat.core.common.result.Result
 import com.garfiec.librechat.core.common.result.getOrNull
+import com.garfiec.librechat.core.data.datastore.DuringRunAction
 import com.garfiec.librechat.core.data.datastore.LatexRenderer
 import com.garfiec.librechat.core.data.datastore.ServerDataStore
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
@@ -27,6 +28,7 @@ import com.garfiec.librechat.core.data.repository.McpRepository
 import com.garfiec.librechat.core.data.repository.MessageRepository
 import com.garfiec.librechat.core.data.repository.PresetRepository
 import com.garfiec.librechat.core.data.repository.PromptRepository
+import com.garfiec.librechat.core.data.repository.ResumePinStore
 import com.garfiec.librechat.core.data.repository.RoleRepository
 import com.garfiec.librechat.core.data.repository.ShareRepository
 import com.garfiec.librechat.core.data.repository.UserRepository
@@ -36,13 +38,16 @@ import com.garfiec.librechat.core.logging.LogOrigin
 import com.garfiec.librechat.core.model.FileObject
 import com.garfiec.librechat.core.model.FileReference
 import com.garfiec.librechat.core.model.Message
+import com.garfiec.librechat.core.model.MinimalFeedback
 import com.garfiec.librechat.core.model.Preset
 import com.garfiec.librechat.core.model.config.InterfaceConfig
 import com.garfiec.librechat.core.model.error.UserKeyError
 import com.garfiec.librechat.core.model.permissions.Permission
 import com.garfiec.librechat.core.model.permissions.PermissionType
+import com.garfiec.librechat.core.model.permissions.UserRolePermissions
 import com.garfiec.librechat.core.model.permissions.canCreateSharedLinks
 import com.garfiec.librechat.core.model.permissions.hasAccessOrPermissive
+import com.garfiec.librechat.core.model.request.ToolApprovalResolution
 import com.garfiec.librechat.core.ui.components.ModelParameters
 import com.garfiec.librechat.core.ui.media.MediaItem
 import com.garfiec.librechat.core.ui.media.MediaPreviewState
@@ -70,9 +75,12 @@ import com.garfiec.librechat.feature.chat.viewmodel.delegate.MessageQueueDelegat
 import com.garfiec.librechat.feature.chat.viewmodel.delegate.MessageTreeDelegate
 import com.garfiec.librechat.feature.chat.viewmodel.delegate.ModelSelectionDelegate
 import com.garfiec.librechat.feature.chat.viewmodel.delegate.OfficePreviewDelegate
+import com.garfiec.librechat.feature.chat.viewmodel.delegate.PendingActionDelegate
 import com.garfiec.librechat.feature.chat.viewmodel.delegate.PlatformDelegateFactory
 import com.garfiec.librechat.feature.chat.viewmodel.delegate.PresetPromptDelegate
 import com.garfiec.librechat.feature.chat.viewmodel.delegate.SendCompletionDelegate
+import com.garfiec.librechat.feature.chat.viewmodel.delegate.ShareData
+import com.garfiec.librechat.feature.chat.viewmodel.delegate.SteeringDelegate
 import com.garfiec.librechat.feature.chat.viewmodel.delegate.StreamingManagerDelegate
 import com.garfiec.librechat.feature.chat.viewmodel.delegate.SubagentTraceDelegate
 import com.garfiec.librechat.feature.chat.viewmodel.delegate.toFileReference
@@ -116,6 +124,7 @@ class ChatViewModel(
     private val chatRepository: ChatRepository,
     private val messageRepository: MessageRepository,
     private val fileRepository: FileRepository,
+    private val resumePinStore: ResumePinStore,
     private val configRepository: ConfigRepository,
     private val conversationRepository: ConversationRepository,
     private val endpointTokenRepository: EndpointTokenRepository,
@@ -228,16 +237,31 @@ class ChatViewModel(
         sendWithSpec = { spec, awaitSettle ->
             viewModelScope.launch {
                 if (awaitSettle) awaitReplySettled()
-                runWhenSendReady { doSendWithSpec(spec) }
+                // drainNext POPS before it sends, and this gate is allowed to refuse (no model
+                // selected, readiness timeout). Without putting the item back, a refusal silently
+                // destroys a queued message — including a steer that was re-homed here precisely
+                // so it could not be lost.
+                runWhenSendReady(onRefused = { requeueRefusedDrain(spec) }) {
+                    doSendWithSpec(spec)
+                }
             }
         },
         activeAccountProvider = activeAccountProvider,
         onQueuedDropped = { count -> _queuedMessagesDropped.trySend(count) },
+        markFilesUsed = { fileIds -> fileRepository.markFilesUsed(fileIds) },
+        holdRenewalSupported = { fileRepository.supportsUsageHold() },
     )
 
     // --- Delegate-owned flows exposed to the UI ---
     val attachedFiles: StateFlow<List<AttachedFile>> get() = fileDelegate.attachedFiles
     val shareLinkUrl: StateFlow<String?> get() = conversationActionsDelegate.shareLinkUrl
+
+    /** The three inputs of the feature-gate combine, named so the collector destructures readably. */
+    private data class GateInputs(
+        val role: UserRolePermissions?,
+        val iface: InterfaceConfig?,
+        val version: String?,
+    )
 
     private data class BaseChatPrefs(
         val showImageDescriptions: Boolean,
@@ -303,18 +327,25 @@ class ChatViewModel(
 
     // Bundled into one source so the uiState combine below stays within Kotlin's
     // 5-argument typed `combine` ceiling.
+    // Folded first so the display combine below stays within Kotlin's 5-argument typed ceiling.
+    private val gaugeExpanded: Flow<Boolean> = combine(
+        settingsDataStore.contextGaugeExpanded,
+        contextGaugeExpandedOverride,
+    ) { persisted, override -> override ?: persisted }
+
     private val chatDisplayPrefs: Flow<ChatDisplayPrefs> = combine(
         settingsDataStore.chatHeaderContent,
         settingsDataStore.chatHeaderAlignment,
         settingsDataStore.contextBarPlacement,
-        settingsDataStore.contextGaugeExpanded,
-        contextGaugeExpandedOverride,
-    ) { content, alignment, contextBarPlacement, persistedGaugeExpanded, overrideGaugeExpanded ->
+        gaugeExpanded,
+        settingsDataStore.duringRunAction,
+    ) { content, alignment, contextBarPlacement, gaugeExpanded, duringRunAction ->
         ChatDisplayPrefs(
             content,
             alignment,
             contextBarPlacement,
-            overrideGaugeExpanded ?: persistedGaugeExpanded,
+            gaugeExpanded,
+            duringRunAction,
         )
     }
 
@@ -334,6 +365,7 @@ class ChatViewModel(
                 chatHeaderAlignment = displayPrefs.alignment,
                 contextBarPlacement = displayPrefs.contextBarPlacement,
                 contextGaugeExpanded = displayPrefs.contextGaugeExpanded,
+                duringRunAction = displayPrefs.duringRunAction,
             ),
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, ChatUiState())
@@ -343,6 +375,38 @@ class ChatViewModel(
     val userKeyErrors: Flow<UserKeyError> = _userKeyErrors.receiveAsFlow()
 
     private var roomObserverJob: Job? = null
+
+    private val pendingActionDelegate = PendingActionDelegate(
+        handle = PendingActionHandle(stateHandle),
+        chatRepository = chatRepository,
+        requestBuilder = requestBuilder,
+        resumeFailureMessage = { message -> message ?: "Could not resume the paused response." },
+        fingerprintRejectedMessage = {
+            "This paused response was started with a different setup, so it can't be answered here."
+        },
+        restoreAnswer = ::restoreUnsentInput,
+        resumePinStore = resumePinStore,
+    )
+
+    private val steeringDelegate = SteeringDelegate(
+        handle = SteeringHandle(stateHandle),
+        chatRepository = chatRepository,
+        // Snapshots the CURRENT send config. Only used for steers the server reported (a
+        // reconnect, another device) — steers this client sent carry the spec they were
+        // composed with, so a model switch mid-run never retro-edits them.
+        buildFollowUp = ::buildSendSpec,
+        // Always the queue, never the live-send path: `runWhenSendReady` is allowed to REFUSE
+        // (no model selected, or a readiness timeout), and a degraded steer has nowhere to put
+        // the text back — its composer was cleared at send time. `enqueueSpec` self-drains the
+        // moment the run is over, so an ended run still sends immediately; a paused queue holds
+        // the item for the user's own "Send queued" instead of dropping it.
+        enqueueFollowUp = ::enqueueSpec,
+        // Deliberately NOT `enqueueSpec`: its self-drain would auto-send a parked steer on
+        // conversation open, where the run is already over. See SteeringDelegate.reclaimParked.
+        enqueueParked = queueDelegate::enqueue,
+        pauseQueue = { queueDelegate.pause() },
+        isStreaming = { _uiState.value.isStreaming },
+    )
 
     private val streamingManager = StreamingManagerDelegate(
         handle = StreamingHandle(stateHandle),
@@ -355,6 +419,8 @@ class ChatViewModel(
         completionDelegate = completionDelegate,
         queueDelegate = queueDelegate,
         treeDelegate = treeDelegate,
+        pendingActionDelegate = pendingActionDelegate,
+        steeringDelegate = steeringDelegate,
         emitUserKeyError = { _userKeyErrors.trySend(it) },
         reloadConversation = ::loadConversation,
         restoreUnsentInput = ::restoreUnsentInput,
@@ -466,16 +532,14 @@ class ChatViewModel(
             // For new chats, mark conversationModelLoaded so refilterModels
             // doesn't wait for a conversation model that will never arrive.
             modelDelegate.conversationModelLoaded = true
-            // Consume any pending share intent data (text and/or files shared from another app)
-            consumeShareIntent()
             restoreDraft(NEW_CHAT_DRAFT_KEY)
         }
 
-        // Observe share intents that arrive while this ViewModel is already active
+        // Content shared in from another app, addressed to this chat by the navigation layer.
+        // Covers both a share that launched the app (staged before this screen composed, drained
+        // on subscribe) and one arriving while this ViewModel is already on screen.
         viewModelScope.launch {
-            shareConsumer.shareAvailable.collect {
-                consumeShareIntent()
-            }
+            shareConsumer.sharesFor(initialConversationId).collect(::applyShare)
         }
 
         // Collect server-file picker results routed to this conversation's own channel
@@ -517,6 +581,34 @@ class ChatViewModel(
             }
         }
 
+        // Mid-run steering (v0.8.8). Version-gated rather than self-proving: unlike a HITL pause,
+        // which the server pushes, steering has to be OFFERED before any server has said anything
+        // about it. Date-gated on top of the version because the 0.8.8 line is untagged — a dev
+        // build still reports 0.8.7 (see BackendVersion.supportsFeature). Failing closed here
+        // just leaves the composer queueing mid-run, which every supported server handles.
+        viewModelScope.launch {
+            configRepository.detectedBackend.collect { detected ->
+                val supported = BackendVersion.supportsFeature(
+                    detected = detected,
+                    minVersion = "0.8.8-rc1",
+                    landedDate = "2026-07-14",
+                )
+                _uiState.update { it.copy(gates = it.gates.copy(steeringSupported = supported)) }
+            }
+        }
+
+        // The during-run preference is folded into `prefs` by the `uiState` combine below, but that
+        // copy exists only on the EXPOSED state. `sendDuringRun` decides from `_uiState`, which
+        // carries `ChatPrefsState()`'s default — so without this collector the send reads QUEUE no
+        // matter what the user chose, while the very same button renders itself "Steer this reply"
+        // (it takes its icon from the exposed state). Behaviour must never be decided from a slice
+        // only the edge populates.
+        viewModelScope.launch {
+            settingsDataStore.duringRunAction.collect { action ->
+                _uiState.update { it.copy(prefs = it.prefs.copy(duringRunAction = action)) }
+            }
+        }
+
         viewModelScope.launch {
             // refilterModels publishes the filtered availableModels into state; no
             // need to write the raw map first (it would only be overwritten).
@@ -525,12 +617,12 @@ class ChatViewModel(
             }
         }
 
-        // Gate the `xhigh` and `max` reasoning-effort dropdown values to v0.8.5+ servers.
+        // Gate the `xhigh` and `max` reasoning-effort dropdown values to v0.8.5-rc1+ servers.
         // Older servers reject the unknown enums at request time. See VERSION_GATES.md.
         viewModelScope.launch {
             configRepository.detectedBackendVersion.collect { version ->
                 val supported = version != null &&
-                    BackendVersion.isCompatibleOrNewer(version, "0.8.5")
+                    BackendVersion.isCompatibleOrNewer(version, "0.8.5-rc1")
                 _uiState.update { it.copy(selection = it.selection.copy(extendedEffortSupported = supported)) }
             }
         }
@@ -861,12 +953,18 @@ class ChatViewModel(
         }
     }
 
-    private fun consumeShareIntent() {
-        val shareData = shareConsumer.consume() ?: return
-        Logger.d { "consumeShareIntent: text=${shareData.text != null}, files=${shareData.fileRefs.size}" }
+    private fun applyShare(shareData: ShareData) {
+        Logger.d { "applyShare: text=${shareData.text != null}, files=${shareData.fileRefs.size}" }
 
         if (!shareData.text.isNullOrBlank()) {
-            _uiState.update { it.copy(composer = it.composer.copy(inputText = shareData.text)) }
+            // Appended, never assigned: the composer may already hold a restored draft or something
+            // half-typed, and a share is one more thing the user wants to send — not a reason to
+            // drop what is already there.
+            _uiState.update {
+                val existing = it.composer.inputText
+                val merged = if (existing.isBlank()) shareData.text else "$existing\n${shareData.text}"
+                it.copy(composer = it.composer.copy(inputText = merged))
+            }
         }
 
         if (shareData.fileRefs.isNotEmpty()) {
@@ -900,6 +998,63 @@ class ChatViewModel(
         if (_uiState.value.conversationId == null) return
         val text = _uiState.value.inputText.trim()
         withUploadGate(text) { enqueueNow(it) }
+    }
+
+    /**
+     * The composer's send while a reply is generating: routes to steering or queueing per
+     * [ChatUiState.effectiveDuringRunAction], which has already degraded the user's preference
+     * against what this server and this run actually support.
+     */
+    fun sendDuringRun() {
+        val state = _uiState.value
+        // A run paused on `ask_user_question` is waiting for exactly this text. The composer is
+        // the input the user can see — the card carries its own field but sits at the tail of the
+        // thread — so sending here must ANSWER the pause, not queue a next turn. Queueing it fails
+        // silently: the pause stays unresolved and the message arrives as a non-sequitur once the
+        // run expires.
+        when (state.duringRunSendTarget) {
+            DuringRunSendTarget.ANSWER_PAUSE -> {
+                val answer = state.inputText.trim()
+                if (answer.isEmpty()) return
+                clearComposer()
+                answerPendingQuestion(answer)
+            }
+
+            DuringRunSendTarget.STEER -> steerMessage()
+            DuringRunSendTarget.QUEUE -> queueMessage()
+        }
+    }
+
+    /**
+     * Pushes the composer's text into the *running* turn (v0.8.8 steering) instead of waiting
+     * for it to finish.
+     *
+     * Attachments send it to the queue instead: mobile steering is text-only, and silently
+     * dropping the files the user attached would be worse than delivering the message a turn
+     * later with them intact.
+     */
+    fun steerMessage() {
+        val state = _uiState.value
+        if (!state.isStreaming || !state.canSteerNow) return
+        val conversationId = state.conversationId ?: return
+        if (attachedFiles.value.isNotEmpty()) {
+            queueMessage()
+            return
+        }
+        // The steer's own fallback spec, minted now: every degradation path re-homes it as a
+        // queued follow-up, and rebuilding it then would capture whatever model, tools, and
+        // attachments the composer holds by that point rather than what was sent.
+        val spec = buildSendSpec(state.inputText.trim()) ?: return
+        clearComposer()
+        steeringDelegate.steer(conversationId, spec)
+    }
+
+    /** Withdraws a steer that has not been injected into the running reply yet. */
+    fun cancelSteer(steerId: String) = steeringDelegate.cancel(steerId)
+
+    /** Settings/composer-menu write for the default during-run action (steer vs queue). */
+    fun setDuringRunAction(action: DuringRunAction) {
+        viewModelScope.launch { settingsDataStore.setDuringRunAction(action) }
     }
 
     /**
@@ -950,8 +1105,17 @@ class ChatViewModel(
 
     private fun enqueueNow(text: String) {
         val spec = buildSendSpec(text) ?: return
-        queueDelegate.enqueue(spec)
         clearComposer()
+        enqueueSpec(spec)
+    }
+
+    /**
+     * Queues an already-built send spec. Split from [enqueueNow] because a steer that degrades
+     * arrives with its spec minted at send time and its composer long since cleared — clearing
+     * again there would wipe whatever the user has typed in the meantime.
+     */
+    private fun enqueueSpec(spec: QueuedMessage) {
+        queueDelegate.enqueue(spec)
         // If the in-flight reply already finished, no Final will arrive to drain this — kick it now.
         tryResumeDrain()
     }
@@ -1202,7 +1366,13 @@ class ChatViewModel(
                 error = null,
             )
         }
-        streamingManager.beginStreaming(isEdit = false, optimisticUserMessageId = optimisticMessage.messageId)
+        streamingManager.beginStreaming(
+            isEdit = false,
+            optimisticUserMessageId = optimisticMessage.messageId,
+            // The spec this turn actually dispatches, not the composer's current state: a
+            // human-review pause is resumed against the config the run was started with.
+            turnSpec = spec,
+        )
 
         val isAgent = spec.endpoint == EndpointConstants.AGENTS
         Logger.d {
@@ -1276,6 +1446,17 @@ class ChatViewModel(
 
     fun stopGeneration() = streamingManager.stopGeneration()
 
+    /**
+     * Resolves the paused run's tool batch. One [ToolApprovalResolution] per paused
+     * `tool_call_id` — the server rejects a partial batch — and each decision must be one the
+     * call's policy allows.
+     */
+    fun resolveToolApproval(decisions: List<ToolApprovalResolution>) =
+        pendingActionDelegate.submitToolDecisions(decisions)
+
+    /** Answers the paused run's `ask_user_question` and lets it continue. */
+    fun answerPendingQuestion(answer: String) = pendingActionDelegate.submitAnswer(answer)
+
     fun continueGeneration() {
         if (_uiState.value.isEditingQueued) return
         editingDelegate.continueGeneration()
@@ -1285,10 +1466,31 @@ class ChatViewModel(
 
     fun onResume() = streamingManager.onResume()
 
-    fun submitFeedback(messageId: String, rating: String?) {
+    /**
+     * Submits [feedback] for a message, or clears it when null.
+     *
+     * Gated on `!isStreaming` like `switchBranch` / `editMessage` / `regenerateMessage`, and for
+     * the same reason: the repository caches the result in Room, and the `loadConversation`
+     * observer would re-emit and rebuild `displayMessages` with no `streamingLeafId` — un-truncating
+     * the path so the in-flight reply renders after a stale branch instead of in its place. The
+     * write was unreachable while the body was a bare rating string (the route rejected it), so
+     * correcting the payload is what armed this.
+     *
+     * Defence in depth, not the only line: the thumbs are disabled while streaming
+     * (`LocalFeedbackEnabled`), so the user never reaches the tag sheet, picks a reason and types a
+     * comment only to have all of it dropped here. Keep both — this guard is what makes the Room
+     * write safe regardless of which affordance grows a path to it.
+     */
+    fun submitFeedback(messageId: String, feedback: MinimalFeedback?) {
         val conversationId = _uiState.value.conversationId ?: return
+        if (_uiState.value.isStreaming) return
         viewModelScope.launch {
-            messageRepository.updateFeedback(conversationId, messageId, rating)
+            val result = messageRepository.updateFeedback(conversationId, messageId, feedback)
+            // The user picked a reason and may have typed up to 1024 characters. There is no
+            // optimistic state, so a dropped submission leaves an empty thumb and no explanation.
+            if (result is Result.Error) {
+                _uiState.update { it.copy(error = result.message ?: "Could not save your feedback") }
+            }
         }
     }
 
@@ -1381,11 +1583,19 @@ class ChatViewModel(
                 configRepository.startupConfig,
                 configRepository.detectedBackendVersion,
             ) { role, config, version ->
-                Triple(role, config?.interfaceConfig, version)
-            }.distinctUntilChanged().collect { (role, iface, version) ->
-                // Context gauge needs the v0.8.7 SSE/endpoints; fail-closed on older/unknown.
+                GateInputs(role, config?.interfaceConfig, version)
+            }.distinctUntilChanged().collect { gates ->
+                val role = gates.role
+                val iface = gates.iface
+                val version = gates.version
+                // Context gauge needs the on_context_usage SSE + /api/endpoints/token-config that
+                // drive it; both ship in v0.8.7-rc1. Fail-closed on older/unknown. The later
+                // /api/endpoints/context-projection (upstream fdc7e64bb, rc1 → final) is only an
+                // optional seed — ContextProjectionDelegate drops a failed projection and leaves
+                // the gauge to the SSE, the same arrangement used on the 0.8.8 line where the
+                // projection POST is deliberately suppressed.
                 val contextGaugeSupported = version != null &&
-                    BackendVersion.isCompatibleOrNewer(version, "0.8.7")
+                    BackendVersion.isCompatibleOrNewer(version, "0.8.7-rc1")
 
                 // Effective gate = role permission AND interface flag, both fail-open
                 // (null role → permissive; absent/omitted flag → enabled).
@@ -1412,6 +1622,15 @@ class ChatViewModel(
                             presetsEnabled = (iface?.presets ?: true) && (iface?.modelSelect ?: true),
                             // Context-usage gauge (v0.8.7): interface flag AND backend support.
                             contextUsageEnabled = contextGaugeSupported && (iface?.contextUsage ?: true),
+                            // The inline memory tools WRITE, so the composer toggle needs the full
+                            // USE+CREATE+UPDATE set the backend's own memoryAvailable gate requires
+                            // — a read-only-memory role must not get a control the server would
+                            // refuse to wire up. The capability half of the gate is folded in at
+                            // read time (see ChatUiState.isMemoryToolAvailable), because the agents
+                            // endpoint config arrives on a different flow than this combine.
+                            memoryEnabled = role.hasAccessOrPermissive(PermissionType.MEMORIES, Permission.USE) &&
+                                role.hasAccessOrPermissive(PermissionType.MEMORIES, Permission.CREATE) &&
+                                role.hasAccessOrPermissive(PermissionType.MEMORIES, Permission.UPDATE),
                             // Pinned tools (v0.8.7): raw interface list; mapped/filtered by pinnedToolChips.
                             pinnedTools = iface?.defaultPinnedTools ?: emptyList(),
                         ),
@@ -1459,10 +1678,16 @@ class ChatViewModel(
      * immediately. Otherwise, awaits readiness up to 3 s and falls back to a
      * selection-aware availability message if the wait times out.
      */
-    private fun runWhenSendReady(action: () -> Unit) {
+    /** Puts a drained item back at the head after the send gate refused it. */
+    private fun requeueRefusedDrain(spec: QueuedMessage): Unit = queueDelegate.reinsert(0, spec)
+
+    private fun runWhenSendReady(action: () -> Unit) = runWhenSendReady(onRefused = {}, action = action)
+
+    private fun runWhenSendReady(onRefused: () -> Unit, action: () -> Unit) {
         val current = _uiState.value
         preflightSendBlockReason(current)?.let { reason ->
             surfaceModelSheet(reason)
+            onRefused()
             return
         }
         if (current.isSendReady) {
@@ -1474,6 +1699,7 @@ class ChatViewModel(
                 action()
             } else {
                 surfaceModelSheet(sendReadinessTimeoutReason(_uiState.value))
+                onRefused()
             }
         }
     }
@@ -1559,6 +1785,7 @@ class ChatViewModel(
                             account = it.account.copy(
                                 userName = user.name ?: user.username,
                                 userAvatarUrl = user.avatar,
+                                memoriesOptedOut = user.personalization?.memories == false,
                             ),
                         )
                     }

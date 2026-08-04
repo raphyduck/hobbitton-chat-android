@@ -293,6 +293,268 @@ GET    /api/share?cursor&pageSize&sortBy&sortDirection&search   (NO isPublic —
 - `url_context` conversation toggle (Google URL Context) — no mobile param-sheet control yet.
 - per-message `quotes[]` round-trip (selected-text quote-reply context) — mobile neither sends nor renders.
 
+### v0.8.8-line partial sync (untagged dev commit 6c97a7f4, 2026-07-23) — endpoint / shape changes
+These landed upstream on the post-v0.8.7 `dev` branch (package.json still reports 0.8.7; the
+target commit is untagged). Date-gated paths use `BackendVersion.supportsFeature`.
+```
+# Newly-discovered / revised request contracts
+POST   <generation endpoint>             + top-level `clientRequestId` (uuid) idempotency key (#14344,
+                                            landing commit for the target itself is #14411 stream-order).
+                                            Server claims it before job creation so a replayed POST dedups
+                                            to the original run instead of double-billing. Additive; mobile
+                                            mints one per send in ChatPayloadBuilder. (BUILT)
+POST   /api/auth/login                    now 403s when ALLOW_EMAIL_LOGIN=false (#14180). /api/config already
+                                            exposes `emailLoginEnabled` (default true); mobile hides the
+                                            email/password form off it and maps the 403 to a clear message.
+                                            Config-driven, no version gate, fail-open. (BUILT)
+DELETE /api/files                         reworked (#14149): agent-attached unlink 400s without a valid
+                                            `tool_resource` ∈ {execute_code, file_search, image_edit, context,
+                                            ocr}; the non-owner via-agent fallback was dropped. Mobile already
+                                            complies (owner manager sends neither agent_id nor tool_resource;
+                                            AgentFilesDelegate always routes a valid resource). (NO CHANGE — documented)
+GET    /api/memories                      now returns EVERY memory of the user, agent-partitioned ones included,
+                                            each with `agentId` (null = shared personal pool) and `agentName`
+                                            (resolved server-side, present only when the caller may VIEW that
+                                            agent). `tokenLimit`/`totalTokens` still count the shared pool only.
+PATCH  /api/memories/:key                 + optional `?agentId=` query param — SELECTS THE PARTITION. Keys are
+DELETE /api/memories/:key                   unique only *within* a partition, and the server's filter is
+                                            `{ agentId: agentId ?? null }`, so omitting the param targets the
+                                            shared pool: mutating an agent-scoped entry without it edits/deletes
+                                            a different same-named shared entry (or 404s). Mobile threads
+                                            `Memory.agentId` from the list row through repository → API. (BUILT)
+POST   /api/memories                      + optional `agentId` in the body, partitioning the new entry to an
+                                            agent. Mobile always omits it (shared pool) — no agent picker.
+
+# Added
+POST   /api/agents/chat/resume            { conversationId, actionId, + the paused turn's endpoint/model/agent
+                                            config, plus `decisions[]` (tool approval) or `answer`
+                                            (ask_user_question) }. Resumes a run paused for human-in-the-loop
+                                            review. Shares the chat router's middleware, and the server replays
+                                            the paused turn's graph config from the pending action, so a crafted
+                                            resume cannot swap the agent or tool set — it recomputes the request
+                                            fingerprint and 403s a mismatch, which is why the client pins the
+                                            turn config at pause ARRIVAL, not at decision time. The continuation
+                                            arrives on the SSE stream that is still open (a paused run never
+                                            emits `final`). Pairs with the `on_pending_action` SSE and the
+                                            `requires_action` job status. NOT version-gated: the client only
+                                            calls it in response to a server-announced pause carrying an
+                                            actionId, which is itself proof the route exists — a date gate would
+                                            instead strand real pauses on any server built past the pinned
+                                            commit (BackendCommitMap → null → gate false). See VERSION_GATES.md.
+                                            (#13942 + #14139, landed 2026-06-29 / 2026-07-08) (BUILT)
+POST   /api/agents/chat/steer             { conversationId, text, files? } → 202 { status: 'queued', steerId,
+                                            position, conversationId }. Queues a message for injection into the
+                                            run that is ALREADY generating, at its next tool boundary;
+                                            `streamId === conversationId` as everywhere else. Carries the same
+                                            PII-filter + moderation + rate-limit chain as a normal message, and
+                                            re-checks the caller against the ORIGINATING run's agent ACL (read
+                                            from job metadata, never the request body — a steer cannot swap the
+                                            agent). Server caps: 16k characters (`STEER_MAX_LENGTH`), 10 queued
+                                            per run, 10 attachments.
+                                            Rejections are ROUTINE, not errors, and the `code` — not the status —
+                                            decides the client's fallback: 404 NO_ACTIVE_RUN (send as a new turn),
+                                            409 RUN_PAUSED / 429 STEER_QUEUE_FULL / 501 STEER_UNSUPPORTED (hold
+                                            in the client queue). Mobile treats an unrecognized code and a
+                                            bodyless 404 from a pre-0.8.8 server the same way, so a wrong gate
+                                            answer degrades instead of losing the message. Mobile sends no
+                                            `files` — steering here is text-only and a during-run send carrying
+                                            attachments is routed to the follow-up queue instead.
+                                            (#14220, landedDate 2026-07-14) (BUILT)
+POST   /api/agents/chat/steer/cancel      { conversationId, steerId } → { removed }. Withdraws a still-queued
+                                            steer before injection. No moderation pass (nothing model-bound
+                                            yet). `removed: false` is a 200, not a failure: the cancel lost its
+                                            race (already injected, or the run ended) and the client defers to
+                                            the events it will receive. (#14220, landedDate 2026-07-14) (BUILT)
+
+# Removed
+POST   /api/endpoints/context-projection  REMOVED (#13953, landing commit 376370d6, 2026-06-25). The gauge is
+                                            now computed client-side / seeded from the on_context_usage SSE, so
+                                            the POST 404s on the 0.8.8 line. Mobile version-gates the call OFF
+                                            (supportsFeature minVersion 0.8.8-rc1, landedDate 2026-06-26 — one day
+                                            past the landing, because three commits merged earlier that same day
+                                            and the date gate is day-granular; see VERSION_GATES.md);
+                                            < 0.8.8 backends keep the POST path. Inverts the >= 0.8.7 enable gate. (BUILT)
+```
+
+Response envelopes on the memories routes (unchanged by this cycle, corrected here because the
+partition work above sits on them): the list route answers `{ memories, totalTokens, tokenLimit,
+charLimit, usagePercentage }`, POST answers `{ created, memory }`, PATCH `{ updated, memory }`,
+PATCH `/preferences` `{ updated, preferences: { memories } }`, DELETE `{ deleted }` — none of them
+return the bare entity. `/preferences` also READS `{ memories: boolean }`, not `{ enabled }`. Memory
+rows carry `updated_at` (snake_case) and no creation timestamp at all.
+
+**Out of the 0.8.8 sync's scope, and not version-gated.** These envelopes are identical in v0.8.4,
+v0.8.5, v0.8.6 and on the 0.8.8 line, so decoding them as bare entities was a pre-existing client
+breakage against *every* supported server, and correcting it changes the memories screen's runtime
+behavior on all of them — the list can now produce rows, edit/delete now hit the row the user picked,
+and the enable toggle now reaches the server. It rode this branch only because the agent-partition
+work (F9) sits on top of it and was otherwise unreachable — see the mandatory device-test item below.
+
+### Mandatory device-test item: memories screen on a pre-0.8.8 server
+
+Tracked apart from the 0.8.8 feature test plan because it is the only change on this branch whose
+blast radius is every supported server, and because the 0.8.8 dev server cannot verify it: the
+envelopes above are identical from v0.8.4 through the 0.8.8 line, so a pass there says nothing about
+the older servers this also changes. Walk it against a v0.8.6 or v0.8.7 server before merge:
+
+- **List** — the screen populates instead of showing the empty/failed state it showed before.
+- **Edit** — editing a row changes that row's value and the change survives a reload.
+- **Delete** — deleting a row removes that row and no other.
+- **Enable toggle** — flipping memory on/off round-trips and survives a reload (the request used to
+  send the `enabled` key, which the server rejects).
+- **Row rendering** — rows show a last-updated time (from `updated_at`); no creation time exists.
+- **Agent partitions (F9, dev server only)** — an agent-scoped row edits/deletes inside its own
+  partition and leaves a same-key shared-pool row untouched.
+
+### v0.8.8-line endpoints (built)
+```
+GET    /api/agents/:id/versions           → Agent[] version history. Requires EDIT on the agent; loaded lazily
+                                            because histories are large — /expanded now answers with a `version`
+                                            count and no `versions[]`. Mobile fetches it when the history sheet
+                                            opens, guarded on the list already being empty so pre-0.8.8 servers
+                                            (which still inline the array) pay for no second request.
+                                            (#13977, 12fea693b, landed 2026-06-26)
+GET    /api/user/settings/favorites/tools → TToolFavorite[] ({ itemType, itemId })
+PUT    /api/user/settings/favorites/tools/:itemType/:itemId  → the added { itemType, itemId }
+DELETE /api/user/settings/favorites/tools/:itemType/:itemId  → { ok: true }
+                                            itemType ∈ {builtin, tool, mcp, skill}; itemId capped at 256 chars
+                                            and 100 favorites per user, 400 otherwise. This is the real backend
+                                            that replaced the v0.8.6 "skill favorites" client stubs; mobile now
+                                            builds against it, so that backend-gap ledger entry is CLOSED.
+                                            Gate: supportsFeature("0.8.8-rc1", landedDate 2026-07-05), plus a
+                                            404 fallback that turns pinning off rather than reporting a failure.
+                                            (#13952, landedDate 2026-07-05)
+POST   /api/share/:shareId/fork           { targetMessageIndex? } → 201 with the forked conversation. Continues
+                                            a SHARED conversation as the caller's own copy — distinct from the
+                                            existing POST /api/convos/fork mobile already calls. Wired through
+                                            ShareRepository but with NO caller: mobile has no shared-link viewer
+                                            to fork from. Ungated — a pre-0.8.8 server 404s, which is the error
+                                            a future caller has to handle anyway. (#13714, landedDate 2026-06-24)
+POST   /api/files/usage                   { file_ids } → { held } (was { marked } before #14470). A RENEWABLE
+                                            BOUNDED HOLD, not a release, so uploads sitting in a client-side
+                                            queue are not reaped before they drain:
+                                            expiresAt = max(expiresAt, min(now + renewMs, createdAt +
+                                            maxLifetimeMs)) where renewMs = 24 h + checkpointer.ttl
+                                            (FILES_USAGE_BASE_HOLD_MS) and maxLifetimeMs = 24 h +
+                                            checkpointer.ttl × 8 (FILES_USAGE_QUEUED_RUN_ALLOWANCE). Widen-only,
+                                            and `expiresAt: { $exists: true }` means an already-released file
+                                            never gets a TTL back. Replay converges on a per-file ceiling
+                                            instead of pinning forever, so a client that stops touching lapses
+                                            one renewMs after its last call. No longer $inc: usage — a queue
+                                            touch is not a send, and queued-then-drained files were landing at
+                                            usage: 2. Called when a message is enqueued as a follow-up; capped
+                                            at 10 ids per call server-side (upstream QUEUE_USAGE_MAX_FILES), so
+                                            the repository chunks rather than forfeiting a whole batch. Exempt
+                                            from the upload rate limiter ONLY on the 0.8.8 line that added it —
+                                            older servers limit every POST under /api/files except /speech, so
+                                            the call is version-gated (supportsFeature 0.8.8-rc1, landedDate
+                                            2026-07-14); error code FILES_USAGE_FAILED. NOW METERED by its own
+                                            per-user limiter — FILE_USAGE_USER_MAX (default 120) per
+                                            FILE_USAGE_USER_WINDOW (default 15 min), 429 { message: "Too many
+                                            file usage requests…" } — and a breach LOGS A FILE_UPLOAD_LIMIT
+                                            VIOLATION scored by FILE_UPLOAD_VIOLATION_SCORE, so it is no longer
+                                            a free call. Still off the upload quota; trailing slash normalized
+                                            (/usage/ hits the same limiter). Web renews on a 30-min heartbeat
+                                            while anything is queued (useQueueDrain); mobile matches it —
+                                            MessageQueueDelegate.startHoldRenewal touches at enqueue, then
+                                            renews the whole queue every 30 min on the ChatViewModel scope.
+                                            Deliberately a no-op once that scope or the process is gone: the
+                                            queue is never persisted, so there is nothing left to hold. Mobile
+                                            stays on the multipart-JSON upload path — #14295 / 2026-07-21 is the
+                                            separate upload-SSE heartbeat work under F8, which is NOT adopted.
+```
+UI shipped alongside them: the unified Tools Marketplace picker in the agent editor (one catalog over
+built-in capabilities, plugin tools, MCP servers and skills, with per-item favorites), the MCP OAuth
+consent dialog, and agent contact info on agent detail.
+
+Sandbox `read_file` images (U9) needed no rendering change: the tool builds its artifact as an inline
+`data:` URI, but the agent callback runs `saveBase64Image` over every `image_url` part before emitting
+the attachment, so the client receives a stored `/images/…` path and renders it through the existing
+tool-call attachment path. `ImageUrlResolver` gained a `data:` passthrough as defence in depth only —
+it is unreachable against the pinned server and fixes nothing that was broken. If a sandbox image is
+observed not rendering, the fault is in the tool-call attachment path, not here.
+
+Deliberately NOT ported from the same upstream window, each because it needs a mobile surface that
+does not exist or is pointer-specific web polish: upstream's OrchestrationHub and StatefulSessions
+panels (agent-to-agent orchestration and sandbox session reuse), the `on_sandbox_starting` cold-boot
+indicator, the MessageNav rework (a pinned scroll-to-bottom rib and hover chevrons; mobile already has
+a scroll-to-bottom FAB), and the web touch select/drag fixes. None affects wire compatibility.
+
+Revised message / SSE shapes:
+- Message content parts add a `steer` type (`type == "steer"`, #14220) — mid-run steering. `ContentType`
+  gained `STEER` and `MessageContentPart` a nullable `steer: JsonElement?`, so a persisted message carrying
+  it deserializes instead of throwing `SerializationException` on conversation load (`ignoreUnknownKeys` does
+  NOT rescue an unknown enum value). Parsed, not yet rendered as its own bubble: the injected instruction is
+  visible through the reply it steers. (BUILT)
+- `on_steer_applied` (#14220) — a queued steer reached a tool boundary and went into the run. The injected
+  text rides the nested `part` (the `steer` content part above), not the top level, and the event races its
+  own HTTP 202: it regularly arrives naming a `steerId` the sending client has not learned yet, so a consumer
+  must RECORD applied ids rather than only remove a chip that may not exist. (BUILT)
+- `resumeState.pendingSteers` on the sync frame (#14220) — the steers still queued for injection, replayed on
+  reconnect. A full authoritative snapshot, not a delta: an EMPTY list is meaningful (chips the client is
+  still showing were drained), while an ABSENT key is not (a server with no steering says nothing). (BUILT)
+- SSE resumable-stream ordering is now preserved across turns (#14411 — the pinned target commit). Server-side
+  ordering fix on resume/reconnect; no wire-shape change, transparent to the client.
+
+Additive response fields (parse-layer only unless a row says BUILT):
+- `GET /api/agents/chat/status/:conversationId` — adds `status` (`running` | `requires_action` | terminal),
+  `pendingAction` (client-safe projection of a run paused for tool approval / `ask_user_question`;
+  `requestFingerprint` and `resumeContext` are stripped server-side, so it must never be echoed back), and
+  `unrecoveredSteers[]`. `active: true` now also covers a paused run, so it is NOT "tokens are arriving".
+  **`unrecoveredSteers` is claim-on-read**: the server clears them once returned, so a client that ignores
+  the list drops the user's queued words permanently. Only populated when the run is not active. Mobile now
+  claims them on every resume-status read and re-homes them as queued follow-ups. (BUILT)
+- `POST /api/agents/chat/abort` — adds `pendingSteers[]` (steers queued mid-run that never reached an
+  injection boundary, handed back exactly once). `aborted` (the stream id actually aborted) already existed
+  at v0.8.7 and is only newly modeled on mobile. The `final` frame carries the same `pendingSteers` list for
+  a run that ended normally, so between the two every ending has a report. Mobile consumes both and turns
+  them into queued follow-ups; a stream that dies on an error carries no report at all, and there the
+  locally-held chip text is converted instead. (BUILT)
+- `GET /api/user/terms` — adds `termsAccepted` / `termsAcceptedAt`; `POST /api/user/terms/accept` now returns
+  `{ message, termsAcceptedAt }` instead of an empty body. `GET /api/user` adds `termsAcceptedAt`.
+- `POST /api/mcp/:serverName/reinitialize` — adds `connectionDeferred`: the reinitialize was accepted but the
+  connection is being established in the background, so `success` does not mean the server is reachable.
+- Conversation + preset — add `reasoning_mode` / `reasoning_context` (Responses-API siblings of
+  `reasoning_effort`); agents add `stateful_code_sessions` (persistent code-interpreter sandbox across a run's
+  tool calls) and `memory_scope` (`"agent"` isolates memories per user+agent, `"user"`/null = shared pool).
+  Round-tripped so a mobile edit doesn't drop what was set on web; no mobile editor controls.
+- Model spec — adds `showInMenu`. The server already drops `showInMenu: false` specs from `/api/config`, so
+  mobile never receives one; a hidden spec stays resolvable by name on a conversation.
+- `GET /api/config` — adds `fileUploadSseEnabled` (`FILE_UPLOAD_SSE_ENABLED`, off by default). Detection-only:
+  mobile stays on the multipart/JSON upload path regardless.
+
+File-picker accept types (upstream `client/src/hooks/Files/useUploadOptions.ts`): the picker is filtered to
+the endpoint's `supportedMimeTypes` allowlist from `GET /api/files/config`, translated into concrete types via
+the `fullMimeTypesList` mirror in `core/model/.../PickerMimeTypes.kt` (a regex can't be handed to a native
+picker). Applied on the two surfaces whose accept set upstream derives from that allowlist — the chat composer
+attach and the files manager. The agent editor's code / knowledge / context pickers stay unrestricted on
+purpose: upstream sources their accept sets from the per-`tool_resource` lists
+(`codeInterpreterMimeTypesList`, `retrievalMimeTypesList`), not from `supportedMimeTypes`, so filtering them
+on this allowlist would be the wrong restriction.
+
+### v0.8.8-line partial sync (untagged dev commit 91adcf3f, 2026-07-29) — SSE / shape changes
+Continues the range above; `package.json` still reports 0.8.7 and the commit is still untagged.
+- `on_activity_label` (#14391) — the activity-group header over a reasoning+tool block.
+  `{ index, part: { type:'activity_label', activity_label, tool_call_ids?, counts?, status?,
+  agentId?, pending? }, responseMessageId?, conversationId? }`, where `index` is the ABSOLUTE
+  content index. **Two emissions per block**: an empty reservation at the tool-batch boundary
+  (`activity_label: ""`, `pending: true`), then the resolved label once the fast label model
+  answers. Mobile drops the live event through `SseEventMapper`'s forward-compat `else -> null`
+  and renders labels from persisted content instead — the same posture already documented for
+  `on_subagent_update`. The persisted part is what matters; see the `MessageContentPart` note.
+- `usage_type` on `on_token_usage` (#14391) — `summarization` | `subagent` | `sequential` |
+  `activity-label`. Present ONLY on non-primary buckets; absent on the turn's own model call.
+  These are separate model calls and must be **EXCLUDED** from the live context gauge and the
+  breakdown sheet — mobile's handler is last-write-wins, so a bucketed event that gets through
+  replaces the turn's Input/Output figures with the bucket's. Activity labels make that acute:
+  one usage event per tool batch, default up to 20 per run, from a cheap fast model. Modeled as
+  a plain nullable String, never an enum, so a bucket upstream adds later stays inert (non-null
+  ⇒ excluded) rather than failing the decode. (BUILT)
+- `GET /api/agents/chat/stream/:streamId` no longer waits for a subscriber before generation
+  starts (#14423), and resume subscriptions are two-phase server-side (`activate()` after the
+  sync frame). Contract-identical for the client and requires no change — recorded because it
+  is the kind of thing that would look like the cause of a future resume bug.
+
 ### Other
 ```
 GET/POST/DELETE /api/presets
@@ -328,7 +590,29 @@ GET /api/banner
 
 ### MessageContentPart
 Discriminated by `type`: `text`, `think`, `text_delta`, `tool_call`, `image_file`,
-`image_url`, `video_url`, `input_audio`, `agent_update`, `summary`, `error`.
+`image_url`, `video_url`, `input_audio`, `agent_update`, `summary`, `activity_label`,
+`steer`, `error`.
+
+`steer` (v0.8.8 line, #14220) and `activity_label` (v0.8.8 line, #14391) both PERSIST into
+saved message content, so both must be declared client-side: `ContentType` has no property
+default, so an undeclared value is not rescued by `ignoreUnknownKeys` and fails the whole
+message decode — which takes conversation load with it. The `steer` omission above was a
+documentation gap from the prior sync, not a new value. Both are now rendered as well as
+declared (see `feature/chat/CLAUDE.md`), from persisted content only — mobile drops the live
+`on_activity_label` event through the forward-compat `else -> null` branch.
+
+`activity_label` carries its label as a top-level plain string (`{"type":"activity_label",
+"activity_label":"Searched the codebase", "tool_call_ids":[…], "counts":{…}, "status":…,
+"agentId":…, "pending":…}`); mobile models the label, `pending` and `status`, and
+`tool_call_ids`/`agentId` already existed on the part. `counts` is still unmodelled. Empty
+label + `pending: true` is the reservation form, which renders as nothing.
+
+`steer` carries the user's text as a top-level plain string alongside `steerId`, `files` and a
+`createdAt` that is **epoch millis, a number** — unlike every other part's ISO-string
+`createdAt`. Mobile shares one `createdAt: String?` field across part types, so only
+`librechatJson`'s `isLenient` keeps that from throwing; dropping that flag would fail the whole
+`GET /messages` decode. `steerId` and `files` are unmodelled (steer attachments render as
+text-only).
 
 **SUMMARY part wire shape (v0.8.5+)** — context-compaction emits a content part with
 fields at the top level (not nested under a `summary` key):

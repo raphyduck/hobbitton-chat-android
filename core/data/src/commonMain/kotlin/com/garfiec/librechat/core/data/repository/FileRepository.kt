@@ -46,4 +46,18 @@ interface FileRepository {
      * last [FilePreviewResponse]. Used by the deferred office-doc preview flow.
      */
     suspend fun pollFilePreview(fileId: String): Result<FilePreviewResponse>
+
+    /**
+     * Pushes back the upload-window TTL on files that are attached to something not yet sent
+     * (v0.8.8 line). Best-effort: a server without the route, or ids it does not recognize,
+     * changes nothing — send-time marking is still the backstop.
+     */
+    suspend fun markFilesUsed(fileIds: List<String>): Result<Unit>
+
+    /**
+     * Whether this server exposes the usage-hold route. Callers that would otherwise schedule
+     * recurring work ask first: [markFilesUsed] already no-ops when the route is absent, but a
+     * heartbeat driving it would keep waking for the life of its owner to do nothing.
+     */
+    fun supportsUsageHold(): Boolean
 }

@@ -296,6 +296,27 @@ class SseEventMapperTest {
         assertThat(result.aggregatedContent[0].text).isEqualTo("Previously streamed text")
     }
 
+    /**
+     * The server omits `pendingSteers` entirely when its queue is empty rather than sending `[]`
+     * (upstream writes `pendingSteers.length > 0 ? pendingSteers : undefined`). Absence therefore
+     * means "nothing queued", not "no news" — and the reconnect is the client's only chance to
+     * drop records for steers injected while it was away. Reading the key as `?.let { … }` meant
+     * the drained case emitted nothing and those records stayed live forever.
+     */
+    @Test
+    fun `a sync frame with no pendingSteers key still emits an authoritative empty snapshot`() {
+        val event = SseEvent(
+            event = "",
+            data = """{"sync":true,"resumeState":{"aggregatedContent":[{"type":"text","text":"hi"}]}}""",
+        )
+
+        val events = mapper.mapFrame(event)
+
+        val synced = events.filterIsInstance<StreamEvent.PendingSteersSynced>()
+        assertThat(synced).hasSize(1)
+        assertThat(synced.single().pendingSteers).isEmpty()
+    }
+
     @Test
     fun `sync aggregatedContent carries in-progress and completed tool_call parts`() {
         val event = SseEvent(
@@ -324,13 +345,209 @@ class SseEventMapperTest {
                 {"event":"on_run_step_completed","data":{"result":{"id":"s","tool_call":{"id":"call_pending","output":"http://img/x.png"}}}}
             ]}""",
         )
+        // Filters the steer snapshot out: every sync frame carries one, and this test is about
+        // the snapshot-then-buffered-events ORDER, not the full event set.
         val events = mapper.mapFrame(event)
+            .filterNot { it is StreamEvent.PendingSteersSynced }
         assertThat(events).hasSize(3)
         assertThat(events[0]).isInstanceOf(StreamEvent.Sync::class.java)
         assertThat(events[1]).isInstanceOf(StreamEvent.ContentDelta::class.java)
         assertThat((events[1] as StreamEvent.ContentDelta).chunk).isEqualTo(" there")
         assertThat(events[2]).isInstanceOf(StreamEvent.ToolCallComplete::class.java)
         assertThat((events[2] as StreamEvent.ToolCallComplete).toolCallId).isEqualTo("call_pending")
+    }
+
+    // --- Human-in-the-loop pauses (v0.8.8) ---
+
+    @Test
+    fun `maps on_pending_action tool approval frame`() {
+        val event = SseEvent(
+            event = "",
+            data = """{"event":"on_pending_action","data":{"actionId":"act_1","streamId":"conv_1",
+                "payload":{"type":"tool_approval",
+                    "action_requests":[{"name":"web_search","tool_call_id":"call_1","arguments":{"query":"cats"}}],
+                    "review_configs":[{"action_name":"web_search","tool_call_id":"call_1",
+                        "allowed_decisions":["approve","reject"]}]}}}""",
+        )
+        val result = mapper.map(event) as StreamEvent.PendingActionRequested
+        assertThat(result.pendingAction.actionId).isEqualTo("act_1")
+        assertThat(result.pendingAction.isToolApproval).isTrue()
+        val payload = result.pendingAction.payload!!
+        assertThat(payload.actionRequests).hasSize(1)
+        assertThat(payload.actionRequests[0].toolCallId).isEqualTo("call_1")
+        assertThat(payload.reviewConfigs[0].allowedDecisions).containsExactly("approve", "reject")
+    }
+
+    @Test
+    fun `maps on_pending_action ask_user_question frame with options`() {
+        val event = SseEvent(
+            event = "",
+            data = """{"event":"on_pending_action","data":{"actionId":"act_2",
+                "payload":{"type":"ask_user_question","question":{"question":"Which one?",
+                    "multiSelect":true,"options":[{"label":"First","value":"a"},{"label":"Second","value":"b"}]}}}}""",
+        )
+        val result = mapper.map(event) as StreamEvent.PendingActionRequested
+        assertThat(result.pendingAction.isAskUserQuestion).isTrue()
+        val question = result.pendingAction.payload!!.question!!
+        assertThat(question.question).isEqualTo("Which one?")
+        assertThat(question.multiSelect).isTrue()
+        assertThat(question.options.map { it.value }).containsExactly("a", "b")
+    }
+
+    @Test
+    fun `drops a pending action with no actionId`() {
+        // Unresolvable: the resume route 400s without an actionId, so a card for it is a dead end.
+        val event = SseEvent(
+            event = "",
+            data = """{"event":"on_pending_action","data":{"payload":{"type":"tool_approval"}}}""",
+        )
+        assertThat(mapper.mapFrame(event)).isEmpty()
+    }
+
+    @Test
+    fun `sync frame carrying a pause emits the snapshot then the pending action`() {
+        val event = SseEvent(
+            event = "",
+            data = """{"sync":true,"resumeState":{"aggregatedContent":[{"type":"text","text":"working"}],
+                "pendingAction":{"actionId":"act_3","payload":{"type":"ask_user_question",
+                    "question":{"question":"Which one?"}}}}}""",
+        )
+        val events = mapper.mapFrame(event)
+            .filterNot { it is StreamEvent.PendingSteersSynced }
+        assertThat(events).hasSize(2)
+        assertThat(events[0]).isInstanceOf(StreamEvent.Sync::class.java)
+        assertThat(events[1]).isInstanceOf(StreamEvent.PendingActionRequested::class.java)
+    }
+
+    @Test
+    fun `sync frame with a pause but no aggregatedContent still emits the pending action`() {
+        // A run that pauses before producing any content (an ask on the first turn) has no
+        // snapshot to send — gating the pause on aggregatedContent would drop it entirely.
+        val event = SseEvent(
+            event = "",
+            data = """{"sync":true,"resumeState":{"pendingAction":{"actionId":"act_4",
+                "payload":{"type":"tool_approval","action_requests":[]}}}}""",
+        )
+        val events = mapper.mapFrame(event)
+            .filterNot { it is StreamEvent.PendingSteersSynced }
+        assertThat(events).hasSize(1)
+        assertThat((events[0] as StreamEvent.PendingActionRequested).pendingAction.actionId).isEqualTo("act_4")
+    }
+
+    // --- Token usage ---
+
+    @Test
+    fun `carries usage_type through so the delegate can exclude bucketed events`() {
+        val event = SseEvent(
+            event = "",
+            data = """{"event":"on_token_usage","data":{"input_tokens":30,"output_tokens":8,
+                "total_tokens":38,"model":"claude-haiku-4-5","usage_type":"activity-label"}}""",
+        )
+        val result = mapper.map(event) as StreamEvent.TokenUsageUpdate
+        assertThat(result.usage.usageType).isEqualTo("activity-label")
+    }
+
+    @Test
+    fun `leaves usage_type null on the turn's own model call`() {
+        val event = SseEvent(
+            event = "",
+            data = """{"event":"on_token_usage","data":{"input_tokens":4000,"output_tokens":900,
+                "model":"claude-opus-5"}}""",
+        )
+        val result = mapper.map(event) as StreamEvent.TokenUsageUpdate
+        assertThat(result.usage.usageType).isNull()
+        assertThat(result.usage.inputTokens).isEqualTo(4000)
+    }
+
+    // --- Mid-run steering (v0.8.8) ---
+
+    @Test
+    fun `maps on_steer_applied taking the injected text off the nested part`() {
+        val event = SseEvent(
+            event = "",
+            data = """{"event":"on_steer_applied","data":{"steerId":"st_1","index":3,
+                "responseMessageId":"msg_1","conversationId":"conv_1",
+                "part":{"type":"steer","steer":"be brief","steerId":"st_1"}}}""",
+        )
+        val result = mapper.map(event) as StreamEvent.SteerApplied
+        assertThat(result.steerId).isEqualTo("st_1")
+        assertThat(result.index).isEqualTo(3)
+        assertThat(result.text).isEqualTo("be brief")
+        assertThat(result.responseMessageId).isEqualTo("msg_1")
+    }
+
+    @Test
+    fun `reads the steer id off the part when the frame omits the top-level one`() {
+        val event = SseEvent(
+            event = "",
+            data = """{"event":"on_steer_applied","data":{"index":0,
+                "part":{"type":"steer","steer":"stop","steerId":"st_2"}}}""",
+        )
+        assertThat((mapper.map(event) as StreamEvent.SteerApplied).steerId).isEqualTo("st_2")
+    }
+
+    @Test
+    fun `drops an applied frame with no steer id`() {
+        // The id is the only link back to the chip this event retires; without one the event
+        // would leave a pending chip up for a steer that has already gone into the reply.
+        val event = SseEvent(
+            event = "",
+            data = """{"event":"on_steer_applied","data":{"index":1,"part":{"type":"steer","steer":"x"}}}""",
+        )
+        assertThat(mapper.mapFrame(event)).isEmpty()
+    }
+
+    @Test
+    fun `sync frame emits the still-queued steers after the snapshot`() {
+        val event = SseEvent(
+            event = "",
+            data = """{"sync":true,"resumeState":{"aggregatedContent":[{"type":"text","text":"working"}],
+                "pendingSteers":[{"steerId":"st_1","text":"be brief","createdAt":1000},
+                    {"steerId":"st_2","text":"in French"}]}}""",
+        )
+        val events = mapper.mapFrame(event)
+        assertThat(events).hasSize(2)
+        assertThat(events[0]).isInstanceOf(StreamEvent.Sync::class.java)
+        val steers = (events[1] as StreamEvent.PendingSteersSynced).pendingSteers
+        assertThat(steers.map { it.steerId }).containsExactly("st_1", "st_2").inOrder()
+        assertThat(steers[0].createdAt).isEqualTo(1000)
+    }
+
+    @Test
+    fun `sync frame with an empty steer list still emits the snapshot event`() {
+        // The server's list is authoritative on reconnect, so an empty one is how the client
+        // learns that chips it is still showing have already been drained.
+        val event = SseEvent(
+            event = "",
+            data = """{"sync":true,"resumeState":{"pendingSteers":[]}}""",
+        )
+        val events = mapper.mapFrame(event)
+        assertThat(events).hasSize(1)
+        assertThat((events[0] as StreamEvent.PendingSteersSynced).pendingSteers).isEmpty()
+    }
+
+    @Test
+    fun `final frame carries the steers the run never injected`() {
+        val event = SseEvent(
+            event = "",
+            data = """{"final":true,"conversation":{"conversationId":"conv_1"},
+                "pendingSteers":[{"steerId":"st_9","text":"never made it"}]}""",
+        )
+        val result = mapper.map(event) as StreamEvent.Final
+        assertThat(result.pendingSteers.map { it.text }).containsExactly("never made it")
+    }
+
+    @Test
+    fun `drops reported steers that carry no id`() {
+        // Claim-on-read hands these over exactly once, but one with no id can be neither
+        // cancelled nor matched to anything — keeping it would only mint an unusable chip.
+        val event = SseEvent(
+            event = "",
+            data = """{"sync":true,"resumeState":{"pendingSteers":[{"text":"orphan"},
+                {"steerId":"st_3","text":"keep me"}]}}""",
+        )
+        val steers = (mapper.mapFrame(event)[0] as StreamEvent.PendingSteersSynced).pendingSteers
+        assertThat(steers.map { it.steerId }).containsExactly("st_3")
     }
 
     @Test

@@ -266,10 +266,20 @@ actual fun ChatScreen(
                 },
                 onStop = viewModel::stopGeneration,
                 onOpenTools = { optionsController.open() },
+                // The mid-stream send button routes through the ViewModel, which resolves
+                // steer-vs-queue; `onQueue` stays the picker's explicit "add to queue".
+                onDuringRunSend = { viewModel.sendDuringRun() },
                 onQueue = { viewModel.queueMessage() },
                 canQueue = uiState.canQueueFollowUp,
                 promptSuggestions = uiState.availablePrompts,
                 onSlashCommandSelected = viewModel::handleSlashCommand,
+                onSteer = { viewModel.steerMessage() },
+                canSteer = uiState.canSteerNow,
+                duringRunAction = uiState.effectiveDuringRunAction,
+                duringRunSendTarget = uiState.duringRunSendTarget,
+                pendingSteers = uiState.pendingSteers,
+                onCancelSteer = viewModel::cancelSteer,
+                onSetDuringRunAction = viewModel::setDuringRunAction,
                 enabledTools = uiState.effectiveEnabledTools,
                 pinnedToolKeys = uiState.pinnedToolChips,
                 onToggleTool = viewModel::toggleTool,
@@ -572,6 +582,7 @@ private fun IosChatBody(
             MessageList(
                 displayMessages = singleDisplayMessages,
                 isStreaming = uiState.isStreaming,
+                justSettledMessageId = uiState.justSettledMessageId,
                 streamingContent = uiState.streamingContent,
                 activeToolCalls = uiState.activeToolCalls,
                 streamingAttachments = uiState.streamingAttachments,
@@ -610,6 +621,10 @@ private fun IosChatBody(
                 onSearchScrollHandle = viewModel::onSearchScrollHandled,
                 bottomContentPadding = bottomContentPadding,
                 topContentPadding = topContentPadding,
+                pendingAction = uiState.renderablePendingAction,
+                isResolvingPendingAction = uiState.isResolvingPendingAction,
+                onSubmitToolDecisions = viewModel::resolveToolApproval,
+                onSubmitPendingAnswer = viewModel::answerPendingQuestion,
                 modifier = Modifier.fillMaxSize(),
             )
         }

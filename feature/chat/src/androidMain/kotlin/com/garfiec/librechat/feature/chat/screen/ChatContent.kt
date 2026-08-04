@@ -184,6 +184,7 @@ private fun ChatMessageListPane(
     MessageList(
         displayMessages = displayMessages,
         isStreaming = isStreaming,
+        justSettledMessageId = uiState.justSettledMessageId,
         streamingContent = streamingContent,
         activeToolCalls = activeToolCalls,
         streamingAttachments = uiState.streamingAttachments,
@@ -222,6 +223,10 @@ private fun ChatMessageListPane(
         onSearchScrollHandle = viewModel::onSearchScrollHandled,
         bottomContentPadding = bottomContentPadding,
         topContentPadding = topContentPadding,
+        pendingAction = uiState.renderablePendingAction,
+        isResolvingPendingAction = uiState.isResolvingPendingAction,
+        onSubmitToolDecisions = viewModel::resolveToolApproval,
+        onSubmitPendingAnswer = viewModel::answerPendingQuestion,
         modifier = modifier,
     )
 }

@@ -1,11 +1,10 @@
 # feature:chat
 
 ## State Architecture (ChatUiState slices + narrowed handles)
-`ChatUiState` is decomposed into **16 `@Immutable` sub-state slices** (15 new files under
-`viewmodel/state/`, plus the pre-existing `comparisonState`), plus two top-level fields: `error`
+`ChatUiState` is decomposed into **17 `@Immutable` sub-state slices**, plus two top-level fields: `error`
 (a shared transient-banner channel) and `mediaPreview`. The slices: `conversation`, `content`
 (message tree + all streaming fields),
-`editing`, `composer`, `selection` (endpoint/model/tools/params), `queue`, `search`,
+`editing`, `composer`, `selection` (endpoint/model/tools/params), `queue`, `steer`, `search`,
 `presetPrompts`, `voice`, `favorites`, `subagents`, `comparisonState`, `gates`, `account`,
 `actions`, `prefs`.
 
@@ -103,7 +102,8 @@ Two consequences worth knowing before touching that block:
 - `ContentPartRenderer` dispatches by `ContentPart.type`:
   - `text` -> `MarkdownContent` (custom regex parser with LaTeX support)
   - `think` -> collapsible thinking block
-  - `tool_call` -> `StreamingToolCallCard` (expandable, shows args/output)
+  - `tool_call` -> `StreamingToolCallCard` (expandable, shows args/output), except `ask_user_question`
+    (see below)
   - `image_file` / `image_url` -> inline AsyncImage, tap opens `FullscreenImageViewer`
   - `error` -> red-styled error display
 - `CodeBlock` renders fenced code with syntax highlighting, language badge, and copy button (3s checkmark)
@@ -143,6 +143,97 @@ Two consequences worth knowing before touching that block:
 - `PromptsViewModel` loads prompt groups from `PromptRepository`
 - `handlePromptMention()` on ChatViewModel inserts prompt command text at `@` position
 
+## `ask_user_question`: one question, two cards (v0.8.8)
+
+A clarifying question reaches the screen twice over its life, and the two must never overlap.
+
+- **While the run is paused** it is the interactive `PendingActionCard` — the only thing that can
+  resolve it. The same question is *also* sitting in `activeToolCalls`, because the agent called a
+  tool to ask it; `withoutUnansweredQuestions()` drops it from both streaming lists so the user is
+  not asked the same thing twice, once under a spinner for a "call" that cannot finish until they
+  answer.
+- **Once answered** the same tool call renders as `AskUserQuestionRecordCard` — the durable record
+  of the exchange, collapsed to question + answer and expanding to the description and the options
+  offered, with the picked ones marked. `ToolCallDispatcher` routes the persisted part there too,
+  so history, reload and a mid-run reconnect all show the record rather than the generic card's
+  tool name over a JSON dump.
+
+Everything the record shows is already on the wire: the question, its description, options and
+`multiSelect` come from the call's own `args` (an object mid-stream, a JSON *string* once
+persisted — `parseAskUserQuestion` takes both), and the answer from its `output`. Nothing is
+gathered or stashed client-side to make it work, so a conversation opened on a second device
+renders identically.
+
+The answer is shown by option **label** only when every segment of it maps back to an option
+(`askAnswerDisplay`) — a value may legally contain the `", "` that joins a multi-select answer, so
+a partial mapping could split one value into fragments and relabel them as choices the user never
+made. Skip posts upstream's `ASK_USER_DECLINED_ANSWER` sentinel (the run must resume either way),
+which reads back as "skipped" rather than as a sentence the user typed. A call whose args failed
+schema validation carries `inputValidationError` and says so — it was never put to the user, so
+rendering it as unanswered would be a lie.
+
+## During-run send: queue vs steer (v0.8.8)
+Two different things can happen when the user sends while a reply is generating, and they are not
+interchangeable.
+- **Queue** (`MessageQueueDelegate`, `QueueState`) — the message becomes the *next turn*, drained FIFO
+  when the run ends. Works against every supported server; the long-standing mobile behaviour and the
+  default.
+- **Steer** (`SteeringDelegate`, `SteerState`) — the message goes into the reply *being written*, injected
+  at the run's next tool boundary and announced back as `on_steer_applied`. Needs a server with
+  `POST /api/agents/chat/steer` (`FeatureGatesState.steeringSupported`, a date gate — see VERSION_GATES.md).
+
+`ChatUiState.effectiveDuringRunAction` resolves the user's Settings preference against
+`canSteerNow` (existing conversation, not comparison mode, steer route present, no live HITL pause). The
+composer never makes that call itself: its send button routes to `ChatViewModel.sendDuringRun()`, and the
+picker beside it (`DuringRunSendMenu`, rendered only when both routes are open) calls `steerMessage()` /
+`queueMessage()` explicitly.
+
+**The button's face and its action must come from the same value.** `sendDuringRun()` switches on
+`ChatUiState.duringRunSendTarget`, so the button's icon/label does too (`sendButtonModeFor`, extracted from
+the composable purely so this module — which has no Compose test harness — can assert the mapping). Deriving
+the face from the *preference* instead is a bug that nothing catches: a live `ask_user_question` pause
+overrides the preference, so the button read "add to queue" over a tap that answered the question. Behaviour
+correct, label lying. `duringRunAction` in `ChatInputState` is now the picker's checkmark only.
+
+**Invariant: no steer path may lose the user's text, duplicate it, or send text the user withdrew.**
+Every rejection code, transport failure, and lost race re-homes the message into the follow-up queue —
+*always* the queue, never the live-send path, because `runWhenSendReady` is allowed to REFUSE (no model
+selected, readiness timeout) and a degraded steer has no composer left to put the text back into.
+`enqueueSpec` self-drains once the run is over, so an ended run still sends immediately. This is why the
+rejection codes are diagnostic only; there is no `SteerFallback` branch.
+
+A steer carries the `QueuedMessage` spec it *would* have become, minted at send time: rebuilding one at
+failure time would capture whatever model, tools, and attachments the composer holds seconds later.
+
+Three server reports hand back un-injected steers **claim-on-read** (the `final` frame, the abort ack,
+`/chat/status`'s `unrecoveredSteers`) — parsing one and ignoring it destroys the words. That obligation is
+**structural, not conventional**: `ChatRepository.checkStreamStatus` / `abortChat` take a required
+`claimSteers` lambda and invoke it before returning, emptying the field on the value they return, so no
+guard or early `return` at a call site can come between the read and the claim. The final frame's copy is
+claimed at the event-dispatch site, outside `handleFinal`, whose early returns would otherwise skip it.
+The same steer rides more than one report (a Stop gets the ack AND the aborted final), so re-homing is
+deduped by steer id. A stream that dies on an error carries no report, so `reclaimLocalChips()` converts
+the locally-held records instead; it deliberately does NOT run on `Finalized`, where the frame's own list
+is authoritative and converting again would double-send any steer whose applied event was missed.
+
+**`SteeringDelegate` keeps ONE record per steer** (`records: Map<id, SteerRecord>`, status
+`SENDING | PENDING | CANCELLED | APPLIED | RECLAIMED`); `SteerState.pendingSteers` is a derived view of the
+live ones. `clear()` is a **display** boundary, not a memory one — it clears the chips and KEEPS the
+records:
+- a mid-run reconnect runs `clear()` (`resumeStream` → `startStreamSession`) and the sync frame re-seeds
+  the same steers by server id; dropping the records would strand their specs and the re-homed message
+  would be rebuilt from the composer's current selection — the exact failure the specs exist to prevent;
+- an `APPLIED` record is what stops a late 202 from re-homing text already in the reply;
+- a `CANCELLED` record is what stops a stale sync frame from resurrecting a withdrawn steer;
+- a `SENDING` record's POST outlives the boundary and needs its spec to degrade.
+
+Settled records are tombstones, bounded at 32; live ones are never evicted. The map is confined to the
+handle's Main-dispatched scope — do not add a `withContext` inside the delegate, and never mutate the map
+inside a `handle.update { }` block (that is a `MutableStateFlow.update` CAS loop and may re-run).
+
+Steering is text-only on mobile: a during-run send carrying attachments is routed to the queue, where the
+existing upload/usage path already handles them.
+
 ## Chat Tools
 - Tool state tracked as `Set<String>` in `ChatUiState.enabledTools`
 - Tool toggles (web search, code interpreter, file search) and MCP servers live in the paged
@@ -173,10 +264,96 @@ Two consequences worth knowing before touching that block:
 - `AudioContentPlayerFromBytes` variant writes bytes to temp file for MediaPlayer
 - **Gotcha**: Both players must release resources on dispose — use `DisposableEffect`
 
-## Feedback Comment Dialog
-- Thumbs-down opens `FeedbackCommentDialog` before submitting; thumbs-up fires immediately
-- Comment is optional — empty string is a valid submission
-- Toggling off an existing thumbs-down (already selected) calls `onFeedback(null)` directly, skipping the dialog
+## Feedback: rating + reason tag + comment
+- **Both** thumbs open `FeedbackTagSheet` — the route validates against an object schema whose
+  `tag` is REQUIRED, so a bare rating is rejected 400 and there is no one-tap path. Tapping the
+  already-filled thumb clears instead (`onFeedback(null)` → `{}`, which the route's `feedback ==
+  null` guard reads as a clear).
+- The wire shape is `MinimalFeedback` (`{rating, tag, text?}`), deliberately a different type from
+  the read/persist model `Feedback`: neither `rating` nor `tag` carries a default, so
+  `encodeDefaults = false` cannot drop them from the body. `Feedback.rating` *does* default (to
+  `FeedbackRating.UNKNOWN`) so `coerceInputValues` absorbs a rating from a newer server — it rides
+  on `Message`, and a throw there fails the whole `GET /messages` decode.
+- `Feedback.tag` stays a raw `JsonElement`: the validated route persists a bare key string, but
+  rows written before it can hold the full tag object.
+- The Room write goes through `feedbackColumnValue` in `MessageMapper`, beside the decode that
+  reads it. The write used to store a bare rating string into a column that file round-trips as
+  `Feedback` JSON, so every read threw into a catch that returned null and the thumb emptied
+  itself on the next emission.
+- `submitFeedback` is gated on `!isStreaming` like `switchBranch`/`editMessage`/`regenerateMessage`
+  — it caches to Room, which would re-emit through the `loadConversation` observer and un-truncate
+  the streaming anchor. **The affordance is gated too** (`LocalFeedbackEnabled`, provided by
+  `MessageList`): the thumbs are *disabled* — not hidden, which would reflow the action row —
+  while streaming. Both are required. A sink-only guard sits at the end of a multi-step flow, so
+  the user would pick a reason and type a comment before anything refused; an affordance-only gate
+  would leave the Room write unprotected against the next caller. `FeedbackTagSheet` reads the same
+  local and disables Submit if a run starts while the sheet is already open (`onResume` adopting
+  another client's run, a queued message draining) — the sheet stays up and keeps the draft rather
+  than dismissing, so Submit re-enables when the run ends. Note the sibling mutations
+  (`switchBranch`, `editMessage`, `regenerateMessage`) do NOT gate their affordances — their
+  arrows and buttons stay live mid-stream and silently no-op.
+- The sheet is a `ModalBottomSheet` of radio rows, not chips or an `AlertDialog`: `FilterChip`/
+  `InputChip` hardcode `Role.Checkbox` over any caller-supplied role, and `AlertDialog`'s text slot
+  has no scroll modifier, so eleven reasons plus a comment field clip out of reach.
+
+## Activity groups, steers, and content segmentation (v0.8.8)
+`groupContentParts` (`util/ContentSegments.kt`) is ONE pure transform producing both the steer
+segmentation and the activity grouping, memoized at `MessageContentAndActions`. Two passes over the
+same list would eventually disagree about a boundary and render the user's words inside a collapsed
+tool block. It is pure because this module has no Compose test harness.
+
+- **Activity groups.** Consecutive reasoning + tool calls fold under one header, terminated by an
+  `activity_label` part. A blank label is a *reservation* — invisible, and it only moves the claim
+  boundary so a later filled label cannot reach back past it. With no label at all the block
+  re-splits into the legacy shape (reasoning standalone, runs of ≥2 tools grouped), so a server
+  without the feature renders exactly as before.
+- **Group identity is anchored to the first TOOL CALL, never the first part.** A label absorbs the
+  block's leading `THINK` when its text lands, so `parts[0]` flips at the instant the block becomes
+  a group; keying on it remounts the group and drops the user's expansion.
+- **Auto-collapse is latched once per group id**, and suppressed entirely on the message that just
+  took over from the streaming bubble — the live tool cards vanish in that same swap, and folding
+  the same calls in the same frame drops the reply's height by the whole stack.
+  **The suppressed message is named by the ViewModel, not derived in the UI**
+  (`MessagesState.justSettledMessageId` → `MessageList` → `LocalSuppressGroupAutoCollapse`).
+  `finalizeChatDisplay` writes it in the SAME atomic update that swaps the message in, so the flag
+  is already true the first time the finalized message composes. Both UI-side derivations fail:
+  a `LaunchedEffect` on `isStreaming` commits *after* the composition that registered it, so the
+  groups have already collapsed and nothing re-opens them; deriving during composition instead
+  marks the last message of every *opened* conversation as freshly settled and keeps its groups
+  open forever. Only a finalize writes it, which is what makes it a transition.
+  **It is deliberately NOT cleared at the turn boundary.** A drain of a non-empty queue re-enters
+  `beginStreaming` inline in the *same* Main dispatch as the finalize — nothing on that path
+  suspends, because `awaitReplySettled`'s predicate is already true and `viewModelScope.launch`
+  on an already-Main dispatcher runs inline — so a clear there lands before Compose ever sees the
+  flag. Persisting is safe because the value is a message id: it can only re-match the one message
+  it named, and the next finalize overwrites it. `ActivityGroup` latches the suppressed decision
+  as well as the collapsing one, so a group cannot simply fold later when the flag moves on.
+  A live comparison never reaches `finalizeChatDisplay` (it rebuilds from a background reload), so
+  `SendCompletionDelegate` calls `markSettled` on that branch.
+  Guarded by `JustSettledMessageTest` (single-emission, mount trap, overwrite-without-clear) plus
+  `ChatViewModelDuringRunSendTest`'s drain case, which is the only place the inline-drain
+  interleaving is visible. Each assertion was verified to FAIL on the corresponding broken version
+  — three earlier attempts at this mechanism compiled and passed every gate while doing nothing.
+- **Steers.** A `steer` part renders as a user turn where the words entered the run, and each
+  segment resuming after one restates attribution. Attribution follows the agent that had taken
+  over when the steer landed; a handoff AT the resume point keeps the pre-handoff author so the
+  marker announces the transition itself. Only the id is on the wire for a handed-off agent, so it
+  renders under a neutral badge rather than the previous agent's avatar.
+- **Per-part collapse state is keyed and saveable** (`stateKey`, threaded through
+  `ContentPartRenderer`). It was positional `remember`: grouping shifts children under a wrapper,
+  which migrates an expanded thinking block to whichever part now occupies its slot, and lazy-item
+  disposal dropped it on scroll.
+- Steer text and rendered activity labels are counted by `SearchMatchEnumeration`, so in-conversation
+  search can reach them and a collapsed group holding the focused match opens.
+
+## Tool intent labels (v0.8.8)
+A tool card's title is the model's own `intent` string when present, else the raw tool name.
+**Accepted only when it is the FIRST key of the args object** — the opt-in (capability +
+per-tool `describe_intent`) is entirely server-side and unobservable here, so a plain
+"is there an `intent` string" test would retitle a user's MCP tool that legitimately takes a
+parameter by that name. Upstream injects it at position zero, and that ordering is the only part
+of the contract this side can check. Lifted labels are stripped from the expanded args dump.
+Shipped ahead of upstream's own presentation, which scopes rendering as a follow-up.
 
 ## Message Timestamps
 - `MessageTimestamp` shows relative/absolute time, toggled on tap

@@ -1,5 +1,6 @@
 package com.garfiec.librechat.core.data.repository
 
+import com.garfiec.librechat.core.common.DetectedBackend
 import com.garfiec.librechat.core.common.result.Result
 import com.garfiec.librechat.core.model.EndpointConfig
 import com.garfiec.librechat.core.model.config.StartupConfig
@@ -12,7 +13,11 @@ import kotlinx.coroutines.flow.StateFlow
 data class VersionCheckResult(
     /** The version detected on the backend, or null if it could not be determined. */
     val backendVersion: String?,
-    /** The version this app was built for. */
+    /**
+     * The version this app was built for, as a plain release line for display. Build metadata is
+     * stripped, so a partial-sync target (`0.8.7+dev.6c97a7f4`) is published as `0.8.7`; the full
+     * pinned string stays in `BackendVersion.SUPPORTED_BACKEND_VERSION` and the Diag record.
+     */
     val supportedVersion: String,
     /** Whether the versions are compatible (same major.minor). */
     val isCompatible: Boolean,
@@ -33,6 +38,16 @@ interface ConfigRepository {
      * when adding new gates.
      */
     val detectedBackendVersion: StateFlow<String?>
+
+    /**
+     * The full resolved identity of the detected backend — version plus build classification
+     * and build-commit date. Same lifecycle as [detectedBackendVersion] (which stays as the
+     * plain-version convenience view). Consult
+     * [com.garfiec.librechat.core.common.BackendVersion.supportsFeature] for gates that must
+     * also recognize servers built from untagged upstream dev commits (whose reported version
+     * understates their features).
+     */
+    val detectedBackend: StateFlow<DetectedBackend?>
 
     suspend fun validateServerUrl(url: String): Result<StartupConfig>
 

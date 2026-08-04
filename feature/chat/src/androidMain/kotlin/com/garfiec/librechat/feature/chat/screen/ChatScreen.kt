@@ -1,5 +1,6 @@
 package com.garfiec.librechat.feature.chat.screen
 
+import android.annotation.SuppressLint
 import android.content.ClipboardManager
 import android.content.Context
 import androidx.activity.compose.BackHandler
@@ -67,6 +68,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.garfiec.librechat.core.data.datastore.ChatFontSize
 import com.garfiec.librechat.core.data.datastore.LatexRenderer
+import com.garfiec.librechat.core.model.response.pickerMimeTypes
 import com.garfiec.librechat.core.ui.components.LowProfileDragHandle
 import com.garfiec.librechat.feature.chat.components.ChatFloatingTopBar
 import com.garfiec.librechat.feature.chat.components.ChatInput
@@ -99,6 +101,11 @@ private class PullUpGesture {
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
+// The Scaffold's content padding is deliberately unused: the thread draws under both bars (the
+// floating top bar applies its own statusBarsPadding, the composer its own nav-bar padding) and the
+// list reserves its insets from the measured bar heights instead. contentWindowInsets is still set
+// so the snackbar clears the navigation bar.
+@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
 actual fun ChatScreen(
     modifier: Modifier,
@@ -185,7 +192,16 @@ actual fun ChatScreen(
     // One launcher set, registered here and shared by both the composer "+" sheet (ChatInput) and
     // the pull-up sheet: a launcher stays usable from descendant compositions while the one that
     // registered it (this screen) is alive, so a second registration would be redundant.
-    val attachmentActions = rememberChatAttachmentActions(viewModel::onFilesSelected)
+    // Narrow the file picker to what this endpoint's `supportedMimeTypes` allows (web parity:
+    // useUploadOptions). Recomputed only when the config or endpoint changes — the translation
+    // compiles the server's regexes.
+    val filePickerMimeTypes = remember(uiState.fileUploadConfig, uiState.selectedEndpoint) {
+        uiState.fileUploadConfig?.pickerMimeTypes(uiState.selectedEndpoint).orEmpty()
+    }
+    val attachmentActions = rememberChatAttachmentActions(
+        onFilesSelected = viewModel::onFilesSelected,
+        filePickerMimeTypes = filePickerMimeTypes,
+    )
 
     ChatScreenEffects(
         uiState = uiState,
@@ -461,6 +477,15 @@ actual fun ChatScreen(
                 },
                 onStop = viewModel::stopGeneration,
                 onOpenTools = { optionsController.open() },
+                // The mid-stream send button: the ViewModel resolves steer-vs-queue from the
+                // user's preference and what this run can actually take, so the composer never
+                // has to. `onQueue` stays the picker's explicit "add to queue".
+                onDuringRunSend = {
+                    viewModel.sendDuringRun()
+                    if (dismissKeyboardOnSend) {
+                        keyboardController?.hide()
+                    }
+                },
                 onQueue = {
                     viewModel.queueMessage()
                     if (dismissKeyboardOnSend) {
@@ -468,6 +493,20 @@ actual fun ChatScreen(
                     }
                 },
                 canQueue = uiState.canQueueFollowUp,
+                // Explicit "steer this one", from the during-run picker or the send button when
+                // steering is the standing default.
+                onSteer = {
+                    viewModel.steerMessage()
+                    if (dismissKeyboardOnSend) {
+                        keyboardController?.hide()
+                    }
+                },
+                canSteer = uiState.canSteerNow,
+                duringRunAction = uiState.effectiveDuringRunAction,
+                duringRunSendTarget = uiState.duringRunSendTarget,
+                pendingSteers = uiState.pendingSteers,
+                onCancelSteer = viewModel::cancelSteer,
+                onSetDuringRunAction = viewModel::setDuringRunAction,
                 attachedFiles = attachedFiles,
                 onRemoveFile = viewModel::removeFile,
                 promptSuggestions = uiState.availablePrompts,
@@ -632,6 +671,7 @@ actual fun ChatScreen(
                         urlContextEnabled = uiState.urlContextProviderGate,
                         runCodeEnabled = uiState.runCodeEnabled,
                         fileSearchEnabled = uiState.fileSearchEnabled,
+                        memoryEnabled = uiState.isMemoryToolAvailable,
                         mcpServersEnabled = uiState.mcpServersEnabled,
                         gates = uiState.chatInputGates,
                         contextUsage = uiState.contextUsage,

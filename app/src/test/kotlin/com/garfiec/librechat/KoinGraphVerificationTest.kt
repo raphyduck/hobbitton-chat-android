@@ -32,6 +32,7 @@ import com.garfiec.librechat.core.data.repository.PermissionsRepository
 import com.garfiec.librechat.core.data.repository.PresetRepository
 import com.garfiec.librechat.core.data.repository.ProjectRepository
 import com.garfiec.librechat.core.data.repository.PromptRepository
+import com.garfiec.librechat.core.data.repository.ResumePinStore
 import com.garfiec.librechat.core.data.repository.RoleRepository
 import com.garfiec.librechat.core.data.repository.SearchRepository
 import com.garfiec.librechat.core.data.repository.ServerRepository
@@ -39,6 +40,7 @@ import com.garfiec.librechat.core.data.repository.ShareRepository
 import com.garfiec.librechat.core.data.repository.SkillsRepository
 import com.garfiec.librechat.core.data.repository.SpeechRepository
 import com.garfiec.librechat.core.data.repository.TagRepository
+import com.garfiec.librechat.core.data.repository.ToolFavoritesRepository
 import com.garfiec.librechat.core.data.repository.UserRepository
 import com.garfiec.librechat.core.data.util.PermissionGate
 import com.garfiec.librechat.core.data.util.SessionTask
@@ -179,6 +181,7 @@ class KoinGraphVerificationTest {
             MessageRepository::class,
             PermissionsRepository::class,
             PresetRepository::class,
+            ResumePinStore::class,
             ProjectRepository::class,
             PromptRepository::class,
             RoleRepository::class,
@@ -187,6 +190,7 @@ class KoinGraphVerificationTest {
             SkillsRepository::class,
             SpeechRepository::class,
             TagRepository::class,
+            ToolFavoritesRepository::class,
             UserRepository::class,
             PermissionGate::class,
             SessionTask::class,

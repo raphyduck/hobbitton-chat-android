@@ -7,11 +7,13 @@ import com.garfiec.librechat.core.data.datastore.ChatFontSize
 import com.garfiec.librechat.core.data.datastore.ChatHeaderAlignment
 import com.garfiec.librechat.core.data.datastore.ChatHeaderContent
 import com.garfiec.librechat.core.data.datastore.ContextBarPlacement
+import com.garfiec.librechat.core.data.datastore.DuringRunAction
 import com.garfiec.librechat.core.data.datastore.StarredModelsDisplay
 import com.garfiec.librechat.core.model.Agent
 import com.garfiec.librechat.core.model.Attachment
 import com.garfiec.librechat.core.model.EndpointConfig
 import com.garfiec.librechat.core.model.Message
+import com.garfiec.librechat.core.model.PendingAction
 import com.garfiec.librechat.core.model.endpoint.KeyState
 import com.garfiec.librechat.core.model.response.FileUploadConfig
 import com.garfiec.librechat.core.model.usage.ContextUsage
@@ -28,6 +30,7 @@ data class ChatUiState(
     // ── Extracted sub-state slices. Flat compat accessors below delegate to these so the
     //    ~250 UI read sites keep compiling; delegates write only their own slice. ──
     val queue: QueueState = QueueState(),
+    val steer: SteerState = SteerState(),
     val search: ChatSearchState = ChatSearchState(),
     val favorites: FavoritesState = FavoritesState(),
     val subagents: SubagentState = SubagentState(),
@@ -56,6 +59,7 @@ data class ChatUiState(
     //    Each delegates to its owning slice; writes go through the slice, not these. ──
     val messageQueue: List<QueuedMessage> get() = queue.messageQueue
     val isQueuePaused: Boolean get() = queue.isQueuePaused
+    val pendingSteers: List<PendingSteerChip> get() = steer.pendingSteers
     val isSearchOpen: Boolean get() = search.isSearchOpen
     val searchQuery: String get() = search.searchQuery
     val searchMatchIndices: List<SearchMatch> get() = search.searchMatchIndices
@@ -104,6 +108,7 @@ data class ChatUiState(
     val chatHeaderContent: ChatHeaderContent get() = prefs.chatHeaderContent
     val chatHeaderAlignment: ChatHeaderAlignment get() = prefs.chatHeaderAlignment
     val contextBarPlacement: ContextBarPlacement get() = prefs.contextBarPlacement
+    val duringRunAction: DuringRunAction get() = prefs.duringRunAction
     val contextGaugeExpanded: Boolean get() = prefs.contextGaugeExpanded
     val promptsEnabled: Boolean get() = gates.promptsEnabled
     val promptsCreateEnabled: Boolean get() = gates.promptsCreateEnabled
@@ -126,6 +131,7 @@ data class ChatUiState(
     val displayMessages: List<MessageNode> get() = content.displayMessages
     val pendingResumeUserMessage: Message? get() = content.pendingResumeUserMessage
     val activeBranches: Map<String, Int> get() = content.activeBranches
+    val justSettledMessageId: String? get() = content.justSettledMessageId
     val isStreaming: Boolean get() = content.isStreaming
     val streamingContent: String get() = content.streamingContent
     val activeToolCalls: List<ActiveToolCall> get() = content.activeToolCalls
@@ -135,6 +141,9 @@ data class ChatUiState(
     val messagesLoadFailed: Boolean get() = content.messagesLoadFailed
     val contextUsage: ContextUsage? get() = content.contextUsage
     val tokenUsage: TokenUsage? get() = content.tokenUsage
+    val pendingAction: PendingAction? get() = content.pendingAction
+    val isResolvingPendingAction: Boolean get() = content.isResolvingPendingAction
+    val memoryEnabled: Boolean get() = gates.memoryEnabled
     val conversationId: String? get() = conversation.conversationId
     val conversationTitle: String? get() = conversation.conversationTitle
     val isTemporaryChat: Boolean get() = conversation.isTemporaryChat
@@ -211,6 +220,7 @@ data class ChatUiState(
                     ToolConstants.FILE_SEARCH -> ToolConstants.FILE_SEARCH.takeIf { fileSearchEnabled }
                     ToolConstants.EXECUTE_CODE, ToolConstants.CODE_INTERPRETER ->
                         ToolConstants.CODE_INTERPRETER.takeIf { isCodeInterpreterAvailable && runCodeEnabled }
+                    ToolConstants.MEMORY -> ToolConstants.MEMORY.takeIf { isMemoryToolAvailable }
                     else -> null
                 }
             }.distinct()
@@ -233,6 +243,77 @@ data class ChatUiState(
      */
     val canQueueFollowUp: Boolean
         get() = conversationId != null && !comparisonState.isEnabled
+
+    /**
+     * Whether a message typed right now could be steered into the running turn (v0.8.8).
+     *
+     * Requires everything queueing requires, plus a server with the steer route
+     * ([FeatureGatesState.steeringSupported]) and a run that is actually reachable. A run parked
+     * on a human-review pause is not: the steer route answers `RUN_PAUSED` for it, so offering
+     * steer there would only spend a round-trip to land in the queue anyway.
+     *
+     * This is availability, not preference — [effectiveDuringRunAction] applies the user's
+     * choice on top, and the composer's during-run menu reads this to decide whether steering
+     * can be picked per send.
+     */
+    val canSteerNow: Boolean
+        get() = canQueueFollowUp && gates.steeringSupported && pendingAction == null
+
+    /**
+     * What the composer's send control will actually do mid-run: the user's preference, degraded
+     * to [DuringRunAction.QUEUE] whenever steering is unavailable.
+     *
+     * Degradation is silent by design. Queueing is the behaviour mobile has always had and it
+     * works against every server, so a preference that cannot be honoured costs the user
+     * nothing — whereas a control that announced "steer" and then failed would.
+     */
+    val effectiveDuringRunAction: DuringRunAction
+        get() = if (canSteerNow) duringRunAction else DuringRunAction.QUEUE
+
+    /**
+     * What the composer's send control does while a reply is generating.
+     *
+     * [DuringRunSendTarget.ANSWER_PAUSE] takes precedence over the user's steer/queue preference:
+     * a run parked on `ask_user_question` is waiting for exactly this text, and the composer is
+     * the input the user can actually see — the pause card carries its own field but sits at the
+     * tail of the thread. Treating that send as an ordinary queued follow-up left the pause
+     * unresolved and delivered the answer as a non-sequitur after the run expired.
+     *
+     * Tool-approval pauses are excluded: they take decisions, not prose, so free text there is a
+     * genuine follow-up.
+     */
+    val duringRunSendTarget: DuringRunSendTarget
+        get() {
+            val pause = renderablePendingAction
+            if (pause != null && pause.isAskUserQuestion && !isResolvingPendingAction) {
+                return DuringRunSendTarget.ANSWER_PAUSE
+            }
+            return when (effectiveDuringRunAction) {
+                DuringRunAction.STEER -> DuringRunSendTarget.STEER
+                DuringRunAction.QUEUE -> DuringRunSendTarget.QUEUE
+            }
+        }
+
+    /**
+     * The pause to render resolve controls for, or null.
+     *
+     * Deliberately NOT version-gated. The pause is self-proving: it can only be here because the
+     * server pushed `on_pending_action` or reported it on `/chat/status`, which is proof that
+     * server has the HITL plumbing and the resume route. A version/date gate here would instead
+     * fail closed on the exact population that emits these — a server built from an upstream
+     * commit newer than the pinned one resolves to a null `DetectedBackend`, and hiding the card
+     * then leaves the user staring at a live cursor on a run that will never produce another
+     * token, with Stop as the only way out.
+     *
+     * Only two things are required: an [PendingAction.actionId] to resolve against (the delegate
+     * cannot post a resume without one) and a payload type the card can render — an unknown
+     * future type is dropped rather than shown as an empty card, leaving the run to expire
+     * server-side, the same outcome as before HITL existed.
+     */
+    val renderablePendingAction: PendingAction?
+        get() = pendingAction?.takeIf {
+            !it.actionId.isNullOrBlank() && (it.isToolApproval || it.isAskUserQuestion)
+        }
 
     /** Number of queued messages a Stop/error pause is holding (0 = none / not paused). Drives
      *  the "Send queued" banner above the composer. */
@@ -257,6 +338,20 @@ data class ChatUiState(
             showEphemeralTools = showEphemeralTools,
             fileUploadEnabled = fileUploadEnabled,
         )
+
+    /**
+     * Whether the composer's memory toggle should be offered: the role/opt-out half from
+     * [FeatureGatesState.memoryEnabled], AND the agents endpoint advertising the `memory`
+     * capability.
+     *
+     * Unlike [isCodeInterpreterAvailable] this fails CLOSED on a config that hasn't arrived: the
+     * capability is off by default server-side, so assuming it would flash a toggle that mostly
+     * shouldn't be there and, worse, let a send carry `ephemeralAgent.memory` the server drops.
+     */
+    val isMemoryToolAvailable: Boolean
+        get() = memoryEnabled &&
+            !account.memoriesOptedOut &&
+            endpointConfigs[EndpointConstants.AGENTS]?.capabilities?.contains(ToolConstants.MEMORY) == true
 
     /**
      * Whether code interpreter (execute_code) is available on this server.
@@ -289,4 +384,16 @@ data class ChatUiState(
     val isSendReady: Boolean
         get() = availableModels.isNotEmpty() &&
             (selectedEndpoint != EndpointConstants.AGENTS || agentsEnabled)
+}
+
+/** Where the composer's send routes while a reply is generating. See [ChatUiState.duringRunSendTarget]. */
+enum class DuringRunSendTarget {
+    /** Resolve the live `ask_user_question` pause with the composer's text. */
+    ANSWER_PAUSE,
+
+    /** Inject into the running turn (v0.8.8 steering). */
+    STEER,
+
+    /** Hold as a follow-up for after the run. */
+    QUEUE,
 }

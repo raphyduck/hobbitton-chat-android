@@ -4,10 +4,18 @@ import com.garfiec.librechat.core.common.network.ConnectivityObserver
 import com.garfiec.librechat.core.common.result.Result
 import com.garfiec.librechat.core.common.result.safeApiCall
 import com.garfiec.librechat.core.model.FileReference
+import com.garfiec.librechat.core.model.PendingSteer
 import com.garfiec.librechat.core.model.StreamEvent
 import com.garfiec.librechat.core.model.request.AddedConversation
+import com.garfiec.librechat.core.model.request.ChatResumeRequest
 import com.garfiec.librechat.core.model.request.EphemeralAgent
+import com.garfiec.librechat.core.model.request.SteerCancelRequest
+import com.garfiec.librechat.core.model.request.SteerRequest
+import com.garfiec.librechat.core.model.response.ChatAbortResponse
+import com.garfiec.librechat.core.model.response.ChatResumeResponse
 import com.garfiec.librechat.core.model.response.ChatStatusResponse
+import com.garfiec.librechat.core.model.response.SteerCancelResponse
+import com.garfiec.librechat.core.model.response.SteerResponse
 import com.garfiec.librechat.core.network.api.ChatApi
 import com.garfiec.librechat.core.network.sse.SseClient
 import kotlinx.coroutines.CoroutineDispatcher
@@ -88,12 +96,42 @@ class ChatRepositoryImpl(
         emitAll(sseClient.connect(streamUrl, connectivityFlow = connectivityObserver.isConnected))
     }.flowOn(dispatcher)
 
-    override suspend fun abortChat(streamId: String?, isTemporary: Boolean): Result<Unit> = safeApiCall {
-        chatApi.abortChat(streamId, isTemporary)
+    override suspend fun abortChat(
+        streamId: String?,
+        isTemporary: Boolean,
+        claimSteers: (List<PendingSteer>) -> Unit,
+    ): Result<ChatAbortResponse> =
+        when (val result = safeApiCall { chatApi.abortChat(streamId, isTemporary) }) {
+            // Claimed here, not at the call site: the server dropped its copy writing this ack.
+            is Result.Success -> {
+                claimSteers(result.data.pendingSteers)
+                Result.Success(result.data.copy(pendingSteers = emptyList()))
+            }
+
+            else -> result
+        }
+
+    override suspend fun resumeChat(request: ChatResumeRequest): Result<ChatResumeResponse> = safeApiCall {
+        chatApi.resumeChat(request)
     }
 
-    override suspend fun checkStreamStatus(conversationId: String): ChatStatusResponse {
-        return chatApi.getChatStatus(conversationId)
+    override suspend fun steerChat(request: SteerRequest): Result<SteerResponse> = safeApiCall {
+        chatApi.steerChat(request)
+    }
+
+    override suspend fun cancelSteer(request: SteerCancelRequest): Result<SteerCancelResponse> = safeApiCall {
+        chatApi.cancelSteer(request)
+    }
+
+    override suspend fun checkStreamStatus(
+        conversationId: String,
+        claimSteers: (List<PendingSteer>) -> Unit,
+    ): ChatStatusResponse {
+        val status = chatApi.getChatStatus(conversationId)
+        // Before returning, so no staleness guard at the call site can sit between the read and
+        // the claim. The server already deleted its copy answering this request.
+        claimSteers(status.unrecoveredSteers)
+        return status.copy(unrecoveredSteers = emptyList())
     }
 
     override fun resumeStream(conversationId: String): Flow<StreamEvent> = flow {

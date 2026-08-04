@@ -43,6 +43,7 @@ import kotlinx.serialization.json.Json
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
+import com.garfiec.librechat.core.data.repository.ResumePinStore
 
 /**
  * Regression guard for the context-gauge init-order crash (agents endpoint).
@@ -104,6 +105,10 @@ class ChatViewModelContextProjectionInitTest {
         // Enable the context gauge: interface flag defaults true, backend gate needs >= 0.8.7.
         every { configRepository.startupConfig } returns MutableStateFlow(null)
         every { configRepository.detectedBackendVersion } returns MutableStateFlow("0.8.7")
+        // The feature-gate combine also reads the richer identity (HITL date gates). A relaxed
+        // mock returns a StateFlow that never emits, which would stall the whole combine — and
+        // with it the context-gauge flag this test depends on.
+        every { configRepository.detectedBackend } returns MutableStateFlow(null)
         every { roleRepository.userPermissions } returns MutableStateFlow(null)
 
         // Collection-typed flows read by init-time delegates (model refilter, favorites): relaxed
@@ -125,7 +130,7 @@ class ChatViewModelContextProjectionInitTest {
         // so a relaxed mock throws KotlinNothingValueException. Feed real never-emitting flows.
         // (All unrelated to the gauge path under test.)
         every { keyRepository.keyInvalidations } returns MutableSharedFlow()
-        every { platformDelegateFactory.createShareConsumer().shareAvailable } returns MutableSharedFlow()
+        every { platformDelegateFactory.createShareConsumer().sharesFor(any()) } returns emptyFlow()
 
         // On the agents branch `resolveProjectionModel` falls through the (empty) `resolvedAgentModels`
         // cache to the agent-detail fetch; a benign Error keeps the path deterministic and network-free.
@@ -185,6 +190,7 @@ class ChatViewModelContextProjectionInitTest {
             chatRepository = chatRepository,
             messageRepository = messageRepository,
             fileRepository = fileRepository,
+            resumePinStore = ResumePinStore(),
             configRepository = configRepository,
             conversationRepository = conversationRepository,
             endpointTokenRepository = endpointTokenRepository,

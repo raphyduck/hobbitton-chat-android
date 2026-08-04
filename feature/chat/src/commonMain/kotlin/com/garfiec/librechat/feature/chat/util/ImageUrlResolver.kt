@@ -61,6 +61,13 @@ private fun resolveImageUrl(
     if (filepath != null) {
         return when {
             filepath.startsWith("http") -> filepath
+            // Defence in depth, not a live path: tools that build an image artifact do hand back
+            // `data:image/png;base64,…` inline, but the agent callback runs `saveBase64Image` over
+            // every `image_url` part before the attachment is emitted, so what reaches the client
+            // is a stored `/images/…` path. Kept because a data URI is already complete and the
+            // relative-path case below would glue a server origin in front of it; upstream's own
+            // `Image.tsx` carries the same guard.
+            filepath.startsWith(DATA_URI_PREFIX) -> filepath
             filepath.startsWith("/images/") && baseUrl.isNotBlank() -> "$baseUrl$filepath"
             includeBareSlash && filepath.startsWith("/") && baseUrl.isNotBlank() -> "$baseUrl$filepath"
             baseUrl.isNotBlank() -> "$baseUrl$relativePathPrefix$filepath"
@@ -72,3 +79,6 @@ private fun resolveImageUrl(
     }
     return null
 }
+
+/** Inline-bytes scheme. Such a reference is already complete and must never be joined to a host. */
+private const val DATA_URI_PREFIX = "data:"

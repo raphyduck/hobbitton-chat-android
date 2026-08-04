@@ -37,6 +37,27 @@ data class FeatureGatesState(
      * Fails closed on older/unknown servers (the gauge has no data source there).
      */
     val contextUsageEnabled: Boolean = false,
+    /**
+     * Composer memory toggle. = MEMORIES USE+CREATE+UPDATE (the write set the inline
+     * `set_memory`/`delete_memory` tools need) AND the agents endpoint's `memory` capability
+     * AND the user not having opted out via `personalization.memories`. Mirrors web's
+     * `useHasMemoryAccess` + `useAgentCapabilities().memoryEnabled` + opt-out check.
+     */
+    val memoryEnabled: Boolean = false,
+    /**
+     * Mid-run steering (v0.8.8): whether `POST /api/agents/chat/steer` exists on this server.
+     *
+     * Fails closed, and unlike the HITL pause this one *can* fail closed safely. A pause is
+     * self-proving — the server pushed it, and hiding the card would strand the run — whereas
+     * steering must be offered before any server has said anything about it. Closed here means
+     * the composer keeps queueing mid-run, which is what mobile did before steering existed and
+     * works against every supported server.
+     *
+     * Consequence of the date-gate's coverage window: a server built from an upstream commit
+     * newer than the app's pin resolves to a null `DetectedBackend`, so steering hides there
+     * until the next sync. Documented in VERSION_GATES.md.
+     */
+    val steeringSupported: Boolean = false,
 )
 
 /**

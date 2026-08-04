@@ -14,10 +14,12 @@ import com.garfiec.librechat.core.model.Attachment
 import com.garfiec.librechat.core.model.StreamEvent
 import com.garfiec.librechat.core.model.error.UserKeyError
 import com.garfiec.librechat.core.model.error.parseUserKeyError
+import com.garfiec.librechat.core.model.response.ChatStatusResponse
 import com.garfiec.librechat.feature.chat.components.artifact.ArtifactType
 import com.garfiec.librechat.feature.chat.util.applyAbortContract
 import com.garfiec.librechat.feature.chat.viewmodel.ActiveToolCall
 import com.garfiec.librechat.feature.chat.viewmodel.ChatScreenState
+import com.garfiec.librechat.feature.chat.viewmodel.QueuedMessage
 import com.garfiec.librechat.feature.chat.viewmodel.RetryInfo
 import com.garfiec.librechat.feature.chat.viewmodel.StreamingHandle
 import kotlinx.coroutines.CancellationException
@@ -48,6 +50,8 @@ class StreamingManagerDelegate(
     private val completionDelegate: SendCompletionDelegate,
     private val queueDelegate: MessageQueueDelegate,
     private val treeDelegate: MessageTreeDelegate,
+    private val pendingActionDelegate: PendingActionDelegate,
+    private val steeringDelegate: SteeringDelegate,
     /** Emits a typed user-provided-key error for one-shot UI surfacing (snackbar + CTA). */
     private val emitUserKeyError: (UserKeyError) -> Unit,
     /** Reloads the conversation from the server (VM-owned Room observer). */
@@ -177,14 +181,40 @@ class StreamingManagerDelegate(
     private var currentTurnCreated = false
 
     /**
+     * The send spec the live run was dispatched with, kept so a reconnect can re-pin the config a
+     * human-review pause must be resumed against (a resume's own session boundary drops the pin,
+     * and a pause routinely outlives a background/foreground cycle). Null for turns that had no
+     * spec — edit / regenerate / continue — and for a run this client only reconnected to, where
+     * the live selection is the best available guess. Dropped when the run ends.
+     */
+    private var currentTurnSpec: QueuedMessage? = null
+
+    /**
      * Resets the streaming-internal session state (buffer, edit flag, traces) and starts the
      * throttled updater. Does NOT touch UI state — callers that already mutate UI state
      * for their send (e.g. the optimistic-insert path) use this; [prepareForStreaming] wraps
      * it with the standard streaming-field reset.
+     *
+     * [turnSpec] is the send spec this turn is dispatching, and must be the same one handed to
+     * `startChat`: a human-review pause is resumed against the config the run was STARTED with,
+     * and by the time the pause frame arrives the composer may hold a different model or tool
+     * set (a drained queue item never matched it to begin with). Null for edit / regenerate /
+     * continue, which build their request from the live selection at this same moment.
      */
-    fun beginStreaming(isEdit: Boolean, optimisticUserMessageId: String? = null) {
+    fun beginStreaming(
+        isEdit: Boolean,
+        optimisticUserMessageId: String? = null,
+        turnSpec: QueuedMessage? = null,
+    ) {
         isEditOrRegenerate = isEdit
+        // A new turn: settle anything the previous one stranded before its records can render
+        // against this run. Deliberately not called from resumeStream — that re-enters the SAME
+        // turn and its records must survive for the sync frame to rejoin them.
+        steeringDelegate.onTurnBoundary()
         startStreamSession()
+        currentTurnSpec = turnSpec
+        // After startStreamSession: its pendingActionDelegate.clear() drops the pin.
+        pendingActionDelegate.onTurnStarted(turnSpec)
         currentTurnOptimisticUserMessageId = optimisticUserMessageId
         // Capture the origin account at stream start so a post-switch finalize attributes to it.
         streamOriginAccountId = activeAccountProvider.currentAccountId()
@@ -233,6 +263,10 @@ class StreamingManagerDelegate(
     fun reset() {
         streamJob?.cancel()
         streamJob = null
+        currentTurnSpec = null
+        // Hard reset (conversation switch): the previous turn's steer records must not follow the
+        // ViewModel into an unrelated conversation.
+        steeringDelegate.onTurnBoundary()
         startStreamSession()
         stopStreamingUpdater()
         streamingBuffer.clear()
@@ -248,6 +282,14 @@ class StreamingManagerDelegate(
         abortWatchdogJob?.cancel()
         abortWatchdogJob = null
         abortRequested = false
+        // A pause belongs to the session that announced it. Clearing here keeps a stale card off
+        // the new stream; a reconnect into a still-live pause gets it back from the sync frame's
+        // `resumeState.pendingAction` (and the status read, which runs after this).
+        pendingActionDelegate.clear()
+        // Same reasoning for the steer chips: they describe one run's injection queue. A
+        // reconnect into a still-live run gets them back from the sync frame's
+        // `resumeState.pendingSteers`, which is authoritative.
+        steeringDelegate.clear()
         // A resumed stream re-enters without beginStreaming's assignment; never let a previous
         // turn's optimistic id leak into it (the un-send would remove the wrong message).
         currentTurnOptimisticUserMessageId = null
@@ -289,7 +331,12 @@ class StreamingManagerDelegate(
                 streamingBuffer.append(event.chunk)
                 streamingBufferDirty = true
             }
-            is StreamEvent.Final -> handleFinal(event)
+            is StreamEvent.Final -> {
+                // Claim-on-read: the server dropped its copy writing this frame. Claimed here,
+                // outside handleFinal, so none of its early returns can skip it.
+                steeringDelegate.reclaim(event.pendingSteers)
+                handleFinal(event)
+            }
             is StreamEvent.Error -> {
                 endStream(StreamEndReason.StreamError(event.message, event.isNetworkError))
             }
@@ -409,6 +456,24 @@ class StreamingManagerDelegate(
                 // persisted to the final message as a SUMMARY content part and rendered
                 // there; nothing extra to do during streaming.
             }
+            is StreamEvent.PendingActionRequested -> {
+                // The run stopped and is waiting on the user. Deliberately no state change to
+                // isStreaming: the stream is still open and still ours, so tearing down here
+                // would orphan the run server-side (it stays paused until it expires) and drop
+                // the continuation when the user does decide. The chat surface distinguishes
+                // "waiting on you" from "waiting on the model" via `pendingAction`, not
+                // `isStreaming`.
+                pendingActionDelegate.onPendingAction(event.pendingAction)
+            }
+            is StreamEvent.SteerApplied -> {
+                // The steer is now a content part of the reply being streamed, so its chip has
+                // done its job. The text itself needs no handling here: it arrives through the
+                // normal content path like everything else the run writes.
+                steeringDelegate.onSteerApplied(event.steerId)
+            }
+            is StreamEvent.PendingSteersSynced -> {
+                steeringDelegate.onPendingSteersSynced(event.pendingSteers)
+            }
             is StreamEvent.SubagentUpdate -> subagentTraceDelegate.onUpdate(event)
             is StreamEvent.TitleUpdate -> handleTitleUpdate(event)
             is StreamEvent.ContextUsageUpdate -> {
@@ -418,7 +483,17 @@ class StreamingManagerDelegate(
             is StreamEvent.TokenUsageUpdate -> {
                 // Per-call provider usage; the gauge denominator comes from the context
                 // snapshot, but the breakdown sheet shows Input/Output from this. In-memory only.
-                handle.update { content = content.copy(tokenUsage = event.usage) }
+                //
+                // A non-null `usageType` marks a non-primary bucket — a summary pass, an
+                // isolated subagent run, a hidden sequential-agent call, or an activity-label
+                // header. Those are separate model calls, so letting one through would overwrite
+                // the turn's own figures: this handler is last-write-wins. Activity labels make
+                // that acute, emitting one usage event per tool batch (default up to 20 per run)
+                // from a cheap fast model, so the sheet would end up showing the label model's
+                // counts rather than the turn's.
+                if (event.usage.usageType == null) {
+                    handle.update { content = content.copy(tokenUsage = event.usage) }
+                }
             }
         }
     }
@@ -448,6 +523,10 @@ class StreamingManagerDelegate(
                 content = content.copy(retryInfo = null)
             }
         }
+        // The conversation now has an id to key the resume pin by. A brand-new chat had none at
+        // turn start, and it is precisely that chat which hands off to a different ViewModel
+        // before its first human-review pause arrives.
+        pendingActionDelegate.onConversationIdResolved(event.conversationId)
         completionDelegate.onConversationCreated(event.conversationId, isNewConversation(), streamOriginAccountId)
     }
 
@@ -460,6 +539,8 @@ class StreamingManagerDelegate(
         // the event rather than off local stop state, so an abort issued from another client on
         // the same conversation is treated identically.
         val aborted = rawEvent.aborted
+        // Note: the frame's `pendingSteers` were already claimed by the caller, outside this
+        // function, so the early returns below cannot skip the hand-over.
         // Flush the tail of the buffer before it is read below; endStream repeats this
         // idempotently at the end.
         stopStreamingUpdater()
@@ -629,6 +710,9 @@ class StreamingManagerDelegate(
                 // SECURITY: temp-chat data-at-rest guard — without this the partial the abort
                 // route persists gets no expiry. See ChatAbortRequest.isTemporary.
                 isTemporary = handle.state.isTemporaryChat,
+                // The ack hands back the steers the stopped run never injected — the only report
+                // for this ending. Claimed inside the call so it cannot be skipped.
+                claimSteers = steeringDelegate::reclaim,
             )
             if (abortResult is Result.Error) {
                 Logger.w(abortResult.exception) { "Failed to abort chat: ${abortResult.message}" }
@@ -679,6 +763,23 @@ class StreamingManagerDelegate(
         abortWatchdogJob?.cancel()
         abortWatchdogJob = null
         abortRequested = false
+        // The run is over: its spec must not be re-pinned onto a later reconnect that finds some
+        // other run (started elsewhere) still active on this conversation.
+        currentTurnSpec = null
+        // Whatever ended the run usually made any human-review pause unresolvable (the job is
+        // gone, so a resume can only 409) — with ONE exception: a network StreamError says
+        // nothing about the server-side run, which stays parked on its pause until it expires.
+        // Clearing there would discard a pause that is still perfectly resolvable, along with
+        // whatever the user had typed into it, and attemptNetworkRecovery re-attaches moments
+        // later to find the same pause waiting.
+        val keepPause = reason is StreamEndReason.StreamError && reason.isNetwork
+        if (!keepPause) pendingActionDelegate.clear()
+        // Steers the ended run never injected. A `Finalized` frame reports them authoritatively
+        // and handleFinal has already re-homed them; every other ending carries no report at all,
+        // so the text held locally is re-homed here or it is lost. Converting on Finalized too
+        // would double-send any steer whose applied event this client happened to miss.
+        if (reason !is StreamEndReason.Finalized) steeringDelegate.reclaimLocalChips()
+        steeringDelegate.clear()
         when (reason) {
             is StreamEndReason.Finalized -> {
                 stopStreamingUpdater()
@@ -813,7 +914,7 @@ class StreamingManagerDelegate(
         val session = streamSession
         scope.launch {
             try {
-                val status = chatRepository.checkStreamStatus(conversationId)
+                val status = chatRepository.checkStreamStatus(conversationId, steeringDelegate::reclaimParked)
                 // A concurrent resume advanced the session (or it ended) while we were suspended:
                 // bail rather than redundantly restart or wipe the now-current stream.
                 if (isResumeStale(session)) return@launch
@@ -822,6 +923,7 @@ class StreamingManagerDelegate(
                 if (status.active) {
                     handle.update { content = content.copy(isStreaming = true) }
                     resumeStream(conversationId)
+                    applyStatusPendingAction(status)
                 } else {
                     // Server confirms the job is gone: safe to wipe and reload (past the persist race).
                     endStream(StreamEndReason.ResumeExpired, session)
@@ -842,6 +944,22 @@ class StreamingManagerDelegate(
     private fun isResumeStale(session: Int) = streamSession != session || isSessionEnded()
 
     /**
+     * Paints a human-review pause reported by `/chat/status` (v0.8.8: `active` is true while a
+     * run is paused, so every resume path above can land on one).
+     *
+     * Without this the reconnect renders a live streaming cursor for however long it takes the
+     * resumed stream's sync frame to arrive — on a run that is not producing anything and never
+     * will until the user decides. The sync frame carries the same record and is authoritative;
+     * this only closes the gap, so it must run AFTER [resumeStream] (whose session reset clears
+     * the pause) and is harmlessly idempotent when the frame then repeats it.
+     */
+    private fun applyStatusPendingAction(status: ChatStatusResponse) {
+        val pendingAction = status.pendingAction ?: return
+        if (pendingAction.actionId.isNullOrBlank()) return
+        pendingActionDelegate.onPendingAction(pendingAction)
+    }
+
+    /**
      * Shared resume logic: clears the buffer, starts the updater, and launches
      * stream collection. Caller is responsible for setting any UI state fields
      * (e.g. isStreaming, error) before calling this.
@@ -851,12 +969,21 @@ class StreamingManagerDelegate(
         // (you can only resume your own conversation), so its writes attribute to that account.
         streamOriginAccountId = activeAccountProvider.currentAccountId()
         startStreamSession()
+        // Same run, new session: restore the pin the session boundary just dropped, so a pause
+        // that survives a reconnect still resumes against the config the run was started with.
+        pendingActionDelegate.onTurnStarted(currentTurnSpec)
         streamingBuffer.clear()
         streamingBufferDirty = false
         startStreamingUpdater()
         streamJob?.cancel()
+        val session = streamSession
         streamJob = scope.launch {
             collectStreamSafely(chatRepository.resumeStream(conversationId))
+            // A resumed stream can complete with NEITHER Final NOR Error — a clean SSE EOF, or a
+            // 404 on the stream GET when the job was cleaned up between the status read and the
+            // subscribe. endStream never runs on those, so without this the run's steer records
+            // and any pause stay live forever, and the cursor never stops.
+            if (!isResumeStale(session)) endStream(StreamEndReason.ResumeExpired, session)
         }
     }
 
@@ -867,7 +994,7 @@ class StreamingManagerDelegate(
         val session = streamSession
         scope.launch {
             try {
-                val status = chatRepository.checkStreamStatus(conversationId)
+                val status = chatRepository.checkStreamStatus(conversationId, steeringDelegate::reclaimParked)
                 if (isResumeStale(session) || abortRequested) return@launch
                 if (status.active) {
                     handle.update {
@@ -877,6 +1004,7 @@ class StreamingManagerDelegate(
                         )
                     }
                     resumeStream(conversationId)
+                    applyStatusPendingAction(status)
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -927,7 +1055,7 @@ class StreamingManagerDelegate(
 
         scope.launch {
             try {
-                val status = chatRepository.checkStreamStatus(conversationId)
+                val status = chatRepository.checkStreamStatus(conversationId, steeringDelegate::reclaimParked)
                 if (status.active) {
                     handle.update {
                         content = content.copy(
@@ -937,6 +1065,7 @@ class StreamingManagerDelegate(
                         error = null
                     }
                     resumeStream(conversationId)
+                    applyStatusPendingAction(status)
                 } else {
                     // Stream expired while offline — reload conversation from server
                     handle.update {
