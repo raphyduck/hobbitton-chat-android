@@ -9,8 +9,8 @@
 | Xcode | 15+ | Required for iOS SDK, simulators, and `xcodebuild` CLI. IDE not needed. |
 | Apple Silicon Mac | | Intel Macs not supported (no `iosSimulatorX64` target) |
 | iOS Deployment Target | 16.0+ | |
-| Gradle | 9.4.1 (via wrapper) | |
-| Kotlin | 2.3.20 | |
+| Gradle | 9.5.1 (via wrapper) | |
+| Kotlin | 2.4.10 | |
 
 ## IDE Setup
 
