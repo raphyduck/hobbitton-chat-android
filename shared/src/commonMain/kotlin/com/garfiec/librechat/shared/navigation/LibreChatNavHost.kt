@@ -48,6 +48,7 @@ import com.garfiec.librechat.core.ui.theme.AppLocale
 import com.garfiec.librechat.feature.agents.navigation.AgentMarketplace
 import com.garfiec.librechat.feature.agents.navigation.agentsEntries
 import com.garfiec.librechat.feature.auth.navigation.AddAccountServerUrl
+import com.garfiec.librechat.feature.auth.navigation.ServerUrl
 import com.garfiec.librechat.feature.auth.navigation.authEntries
 import com.garfiec.librechat.feature.auth.navigation.isAddAccountFlowRoute
 import com.garfiec.librechat.feature.chat.navigation.Chat
@@ -73,6 +74,9 @@ import com.garfiec.librechat.feature.skills.navigation.skillsEntries
 import com.garfiec.librechat.shared.resources.Res
 import com.garfiec.librechat.shared.resources.dismiss
 import com.garfiec.librechat.shared.resources.dont_warn_again
+import com.garfiec.librechat.shared.resources.session_expired_message
+import com.garfiec.librechat.shared.resources.session_expired_message_named
+import com.garfiec.librechat.shared.resources.session_expired_title
 import com.garfiec.librechat.shared.resources.version_mismatch_message
 import com.garfiec.librechat.shared.resources.version_mismatch_title
 import kotlinx.coroutines.Dispatchers
@@ -106,8 +110,15 @@ fun LibreChatNavHost(
 ) {
     val isLoggedIn by navHostViewModel.isLoggedIn.collectAsStateWithLifecycle()
 
-    // Stable start key — auth redirect handled via LaunchedEffect below.
-    val backStack = rememberNavBackStack(navigationSavedStateConfig, NewChat())
+    // Start key comes from the synchronous logged-in seed, not a fixed NewChat. Starting logged-in
+    // and redirecting away composes the chat shell for real and then plays NavDisplay's transition
+    // animation over it — a third of a second of "signed in" before the auth screen, on every
+    // logged-out cold start. This reads the same seed the redirect below does, which leaves that
+    // redirect a backstop for the deep-link path rather than the thing that picks the screen.
+    val backStack = rememberNavBackStack(
+        navigationSavedStateConfig,
+        if (navHostViewModel.isLoggedIn.value) NewChat() else ServerUrl,
+    )
     val navigator = remember(backStack) { Navigator(backStack) }
 
     // Redirect to auth if not logged in — once per saved-state lifecycle, NOT on every recreation.
@@ -236,7 +247,46 @@ fun LibreChatNavHost(
                 onDismissPermanently = navHostViewModel::dismissVersionWarningPermanently,
             )
         }
+
+        // Rendered here rather than inside the auth screens: it sits above NavDisplay and so survives
+        // the back-stack reset that routed the user to auth in the first place.
+        val sessionExpiredNotice by navHostViewModel.sessionExpiredNotice.collectAsStateWithLifecycle()
+        sessionExpiredNotice?.let { accountLabel ->
+            SessionExpiredDialog(
+                accountLabel = accountLabel,
+                onDismiss = navHostViewModel::dismissSessionExpiredNotice,
+            )
+        }
     }
+}
+
+/** Reports an unannounced sign-out. [accountLabel] is blank when the account can't be named. */
+@Composable
+private fun SessionExpiredDialog(accountLabel: String, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = stringResource(Res.string.session_expired_title),
+                style = MaterialTheme.typography.headlineSmall,
+            )
+        },
+        text = {
+            Text(
+                text = if (accountLabel.isBlank()) {
+                    stringResource(Res.string.session_expired_message)
+                } else {
+                    stringResource(Res.string.session_expired_message_named, accountLabel)
+                },
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(Res.string.dismiss))
+            }
+        },
+    )
 }
 
 @Composable

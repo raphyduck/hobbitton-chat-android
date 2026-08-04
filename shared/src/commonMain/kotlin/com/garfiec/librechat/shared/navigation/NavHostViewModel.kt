@@ -23,6 +23,7 @@ import com.garfiec.librechat.core.data.util.SessionTaskRunner
 import com.garfiec.librechat.core.model.Banner
 import com.garfiec.librechat.core.network.client.AccountReadyGate
 import com.garfiec.librechat.core.network.client.ServerUrlProvider
+import com.garfiec.librechat.core.network.client.SessionEndReason
 import com.garfiec.librechat.core.network.client.TokenManager
 import com.garfiec.librechat.feature.conversations.drawer.AccountUiModel
 import kotlinx.coroutines.CancellationException
@@ -82,7 +83,17 @@ class NavHostViewModel(
     val banners: StateFlow<List<Banner>> = bannerStateHolder.banners
     val dismissedBannerIds: StateFlow<Set<String>> = bannerStateHolder.dismissedBannerIds
 
-    val sessionExpired: SharedFlow<Unit> = tokenManager.sessionExpiredFlow
+    val sessionExpired: SharedFlow<SessionEndReason> = tokenManager.sessionExpiredFlow
+
+    /** The account label to report an unannounced sign-out for, or null when there is nothing to
+     *  report. Set only for [SessionEndReason.EXPIRED] — see [SessionEndReason]. Empty string means
+     *  "expired, but the account could not be named". */
+    private val _sessionExpiredNotice = MutableStateFlow<String?>(null)
+    val sessionExpiredNotice: StateFlow<String?> = _sessionExpiredNotice.asStateFlow()
+
+    fun dismissSessionExpiredNotice() {
+        _sessionExpiredNotice.value = null
+    }
 
     // The live identity for the NavHost's account hygiene (Coil cache clear + back-stack reset on
     // an account flip). Exposed as STATE rather than a transition flow so the UI can persist the
@@ -179,6 +190,21 @@ class NavHostViewModel(
             }
         }
         bannerStateHolder.fetchBanners()
+        // A dead session has to lower the flag, not just navigate: the 401 path produces no
+        // [AccountTransition.Ended], so without this the flag stays true for the rest of the process
+        // and the first-frame routing after an Activity recreation still believes the user is signed in.
+        viewModelScope.launch {
+            tokenManager.sessionExpiredFlow.collect { reason ->
+                val wasLoggedIn = _isLoggedIn.value
+                _isLoggedIn.value = false
+                // Only announce an expiry to someone the app believed was signed in. A logged-out cold
+                // start still fires requests (banners, the drawer); each 401s with no token to refresh
+                // and settles as expired, so dropping [wasLoggedIn] puts the dialog on every launch.
+                if (reason == SessionEndReason.EXPIRED && wasLoggedIn) {
+                    _sessionExpiredNotice.value = expiredAccountLabel().orEmpty()
+                }
+            }
+        }
         // The active account changed underneath this Activity-scoped VM (switch / add-completion /
         // remove → Switched; remove-last → Ended; plain logout also lands here as Ended, where the
         // clears below just repeat logout()'s — idempotent). This is the nav/session half of the
@@ -256,6 +282,15 @@ class NavHostViewModel(
             Logger.w(e) { "Account restore failed on cold start; will retry on reconnect" }
             false
         }
+
+    /** The display label of the account whose session just ended, or null when it can't be named —
+     *  a legacy pre-tenancy session, or one whose roster entry has already gone. */
+    private suspend fun expiredAccountLabel(): String? {
+        val activeId = (activeAccountProvider.state.value as? AccountState.Resolved)?.id?.value ?: return null
+        return accountRoster.entriesFlow().firstOrNull()
+            ?.firstOrNull { it.accountId == activeId }
+            ?.displayLabel
+    }
 
     private fun retryAccountRestoreOnReconnect() {
         viewModelScope.launch {
