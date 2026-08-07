@@ -42,6 +42,7 @@ import com.garfiec.librechat.core.model.MinimalFeedback
 import com.garfiec.librechat.core.model.Preset
 import com.garfiec.librechat.core.model.config.InterfaceConfig
 import com.garfiec.librechat.core.model.error.UserKeyError
+import com.garfiec.librechat.core.model.media.resolveFileReferenceUrl
 import com.garfiec.librechat.core.model.permissions.Permission
 import com.garfiec.librechat.core.model.permissions.PermissionType
 import com.garfiec.librechat.core.model.permissions.UserRolePermissions
@@ -61,7 +62,6 @@ import com.garfiec.librechat.feature.chat.util.buildActiveMessagePath
 import com.garfiec.librechat.feature.chat.util.extractBranchMedia
 import com.garfiec.librechat.feature.chat.util.hasParallelParts
 import com.garfiec.librechat.feature.chat.util.isImageType
-import com.garfiec.librechat.feature.chat.util.resolveFileReferenceUrl
 import com.garfiec.librechat.feature.chat.util.stabilizeMessageInstances
 import com.garfiec.librechat.feature.chat.util.visionUnreadableImageNames
 import com.garfiec.librechat.feature.chat.viewmodel.delegate.ComparisonModeDelegate
@@ -1548,7 +1548,9 @@ class ChatViewModel(
         if (_uiState.value.isRefreshingMessages) return
         _uiState.update { it.copy(content = it.content.copy(isRefreshingMessages = true)) }
         viewModelScope.launch {
-            messageRepository.refreshMessages(conversationId)
+            // Foreground pull-to-refresh: the user is looking at this conversation now, so entry is
+            // land time and the live account is the right one to attribute to.
+            messageRepository.refreshMessages(conversationId, originAccount = null)
             loadConversation(conversationId)
             _uiState.update { it.copy(content = it.content.copy(isRefreshingMessages = false)) }
         }

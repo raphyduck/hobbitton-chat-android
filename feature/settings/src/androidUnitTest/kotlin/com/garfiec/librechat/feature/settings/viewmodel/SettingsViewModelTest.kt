@@ -9,6 +9,7 @@ import com.garfiec.librechat.core.data.datastore.ServerDataStore
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.datastore.ThemeDataStore
 import com.garfiec.librechat.core.data.datastore.ThemeMode
+import com.garfiec.librechat.core.data.prefetch.AttachmentWarmer
 import com.garfiec.librechat.core.data.repository.AuthRepository
 import com.garfiec.librechat.core.data.repository.BalanceRepository
 import com.garfiec.librechat.core.data.repository.ConfigRepository
@@ -110,6 +111,11 @@ class SettingsViewModelTest {
         every { settingsDataStore.sttLanguage } returns MutableStateFlow("")
         every { settingsDataStore.sttOnDevice } returns MutableStateFlow(true)
         every { settingsDataStore.sttEndOfSpeech } returns MutableStateFlow(false)
+        // The preferences state is one combine chain, so a source that never emits stalls all of it —
+        // an unstubbed flow here shows up as an unrelated setting silently keeping its default.
+        every { settingsDataStore.prefetchEnabled } returns MutableStateFlow(false)
+        every { settingsDataStore.prefetchAttachmentsEnabled } returns MutableStateFlow(false)
+        every { settingsDataStore.prefetchOnMeteredEnabled } returns MutableStateFlow(false)
         every { settingsDataStore.chatLayoutStyle } returns MutableStateFlow(ChatLayoutConstants.THREAD)
         every { settingsDataStore.showAvatars } returns MutableStateFlow(true)
         every { settingsDataStore.showBubbles } returns MutableStateFlow(false)
@@ -161,6 +167,10 @@ class SettingsViewModelTest {
             override val versionName = "0.1.0"
             override val versionCode = 1L
             override val gitSha = "testsha0"
+        },
+        attachmentWarmer = object : AttachmentWarmer {
+            override val isSupported = true
+            override suspend fun warm(url: String) = Unit
         },
         ioDispatcher = testDispatcher,
     )
