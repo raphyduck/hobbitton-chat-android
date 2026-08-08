@@ -61,7 +61,7 @@ enum class PrefetchCondition(
     val gatesManualRun: Boolean,
 ) {
     ENABLED(gatesManualRun = true),
-    FOREGROUND(gatesManualRun = true),
+    APP_AVAILABLE(gatesManualRun = true),
     NETWORK(gatesManualRun = true),
     POWER(gatesManualRun = true),
     IDLE(gatesManualRun = true),
@@ -109,7 +109,7 @@ class PrefetchActivityViewModel(
             // off: the route is serializable and restores from a saved back stack, and without this
             // row every condition then reads green while the one unmet condition is the one absent.
             PrefetchConditionRow(PrefetchCondition.ENABLED, conditions.enabled),
-            PrefetchConditionRow(PrefetchCondition.FOREGROUND, conditions.foreground),
+            PrefetchConditionRow(PrefetchCondition.APP_AVAILABLE, conditions.appAvailable),
             PrefetchConditionRow(
                 PrefetchCondition.NETWORK,
                 conditions.networkAllowed,

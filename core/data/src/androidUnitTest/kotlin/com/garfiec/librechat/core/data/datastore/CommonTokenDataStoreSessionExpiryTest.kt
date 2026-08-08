@@ -212,4 +212,45 @@ class CommonTokenDataStoreSessionExpiryTest {
         assertThat(emissions).isEqualTo(2)
         job.cancel()
     }
+
+    /**
+     * The one-shot latch guards against a cold-start storm replaying the logout navigation a dozen
+     * times. It must not be burnt by an emission nobody received: this flow has replay 0, so a report
+     * made while no navigation host is composed is discarded, and latching on it would consume the
+     * report the next request needs. Background prefetching makes that an ordinary case rather than a
+     * theoretical one.
+     */
+    @Test
+    fun `an expiry discovered with no subscriber leaves the signal armed`() = runTest {
+        val store = FakeStore(lazy { throw AssertionError("no refresh expected") })
+
+        // Nobody listening — the report is dropped, and the latch must survive it.
+        store.emitSessionExpired(null)
+
+        var emissions = 0
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) {
+            store.sessionExpiredFlow.collect { emissions++ }
+        }
+
+        store.emitSessionExpired(null)
+
+        assertThat(emissions).isEqualTo(1)
+        job.cancel()
+    }
+
+    /** The storm guard still holds once someone is actually listening. */
+    @Test
+    fun `repeated expiries with a subscriber report once`() = runTest {
+        val store = FakeStore(lazy { throw AssertionError("no refresh expected") })
+
+        var emissions = 0
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) {
+            store.sessionExpiredFlow.collect { emissions++ }
+        }
+
+        repeat(3) { store.emitSessionExpired(null) }
+
+        assertThat(emissions).isEqualTo(1)
+        job.cancel()
+    }
 }

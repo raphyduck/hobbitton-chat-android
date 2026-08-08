@@ -5,6 +5,7 @@ import android.content.Context
 import com.garfiec.librechat.core.common.AppInfo
 import com.garfiec.librechat.core.common.conversation.OpenConversationRegistry
 import com.garfiec.librechat.core.common.identity.ActiveAccountProvider
+import com.garfiec.librechat.core.common.lifecycle.DeferredWorkWindow
 import com.garfiec.librechat.core.common.lifecycle.ForegroundSignal
 import com.garfiec.librechat.core.common.network.ConnectivityObserver
 import com.garfiec.librechat.core.common.network.NetworkConditionObserver
@@ -128,6 +129,7 @@ class KoinGraphVerificationTest {
             NetworkConditionObserver::class,
             PowerStateObserver::class,
             ForegroundSignal::class,
+            DeferredWorkWindow::class,
             OpenConversationRegistry::class,
             RequestActivityTracker::class,
             ActiveAccountProvider::class,

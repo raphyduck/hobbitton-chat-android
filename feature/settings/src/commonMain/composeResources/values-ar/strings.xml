@@ -101,7 +101,7 @@
     <string name="prefetch_status_paused_busy">Paused — app is busy</string>
     <string name="prefetch_status_paused_background">Paused — app is in the background</string>
     <string name="prefetch_conditions_header">Conditions</string>
-    <string name="prefetch_condition_foreground">App in foreground</string>
+    <string name="prefetch_condition_app_available">App ready</string>
     <string name="prefetch_condition_network">Network</string>
     <string name="prefetch_condition_network_met">Connection allowed</string>
     <string name="prefetch_condition_network_unmet">On mobile data</string>

@@ -2,6 +2,7 @@ package com.garfiec.librechat.core.data.prefetch
 
 import com.garfiec.librechat.core.common.conversation.OpenConversationRegistry
 import com.garfiec.librechat.core.common.identity.AccountId
+import com.garfiec.librechat.core.common.lifecycle.ForegroundSignal
 import com.garfiec.librechat.core.common.network.PrefetchMarker
 import com.garfiec.librechat.core.common.result.ApiException
 import com.garfiec.librechat.core.common.result.Result
@@ -63,6 +64,7 @@ class PrefetchEngine(
     private val attachmentWarmer: AttachmentWarmer,
     private val settingsDataStore: SettingsDataStore,
     private val serverUrlProvider: ServerUrlProvider,
+    private val foregroundSignal: ForegroundSignal,
     private val ioDispatcher: CoroutineDispatcher,
     // Test seams; keep them defaulted rather than injected. Supplying them from the module would
     // need `Function0` whitelisted in the graph verification, which would then stop catching
@@ -405,13 +407,29 @@ class PrefetchEngine(
     }
 
     /**
-     * Wait proportionally to how long the last request took, so the prefetcher's share of the server
-     * shrinks as the server slows down. Clamped at both ends: a fast local server should not be
-     * hammered, and one request that burns the full 30s timeout should not stall the pass for two
-     * and a half minutes.
+     * How long to wait before the next request, which depends entirely on whether anyone is looking.
+     *
+     * **On screen**, wait proportionally to how long the last request took, so the prefetcher's share
+     * of the server shrinks as the server slows down. Clamped at both ends: a fast local server
+     * should not be hammered, and one request that burns the full 30s timeout should not stall the
+     * pass for two and a half minutes.
+     *
+     * **Off screen**, hold a flat minimum instead. The proportional gap exists to keep the
+     * prefetcher out of the user's way, and with no foreground work to yield to it only makes a pass
+     * long enough to outlive the window it was given — at the deepest setting, minutes rather than
+     * tens of seconds. The cost is real and accepted: a struggling server no longer sheds this load
+     * automatically, in exactly the situation where nobody is watching to notice. The pass stays
+     * strictly one request at a time, which is what bounds it.
+     *
+     * Read live rather than fixed per pass, so returning to the app restores the polite gap
+     * immediately instead of at the next pass.
      */
     private fun paceAfter(elapsed: Duration): Duration =
-        (elapsed * PACE_FACTOR).coerceIn(MIN_PACE, MAX_PACE)
+        if (foregroundSignal.isForeground.value) {
+            (elapsed * PACE_FACTOR).coerceIn(MIN_PACE, MAX_PACE)
+        } else {
+            MIN_PACE
+        }
 
     private sealed interface StepOutcome {
         data object Ok : StepOutcome
@@ -423,13 +441,16 @@ class PrefetchEngine(
         const val PACE_FACTOR = 5
         const val MAX_CONSECUTIVE_FAILURES = 3
 
+        /** Also the whole gap when the app is off screen — see [paceAfter]. */
+        const val MIN_PACE_MILLIS = 250L
+
         private const val HTTP_TOO_MANY_REQUESTS = 429
         private const val PRUNE_CHUNK = 400
 
         /** Ceiling per conversation. A single thread of screenshots must not become the whole pass. */
         private const val MAX_ATTACHMENTS_PER_CONVERSATION = 20
         private const val DATA_URI_PREFIX = "data:"
-        private val MIN_PACE = 250.milliseconds
+        private val MIN_PACE = MIN_PACE_MILLIS.milliseconds
         private val MAX_PACE = 30.seconds
         private val DEFAULT_RATE_LIMIT_BACKOFF = 60.seconds
         private val PRUNE_AGE = 90.days

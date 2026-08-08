@@ -49,7 +49,7 @@ data class PrefetchStatus(
         val Empty = PrefetchStatus(
             conditions = PrefetchConditions(
                 enabled = false,
-                foreground = false,
+                appAvailable = false,
                 networkAllowed = false,
                 powerAvailable = false,
                 appIdle = false,

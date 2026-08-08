@@ -32,7 +32,7 @@ class PrefetchActivityUiStateTest {
         assertThat(state(PrefetchCondition.NETWORK).canWarmNow).isFalse()
         assertThat(state(PrefetchCondition.POWER).canWarmNow).isFalse()
         assertThat(state(PrefetchCondition.IDLE).canWarmNow).isFalse()
-        assertThat(state(PrefetchCondition.FOREGROUND).canWarmNow).isFalse()
+        assertThat(state(PrefetchCondition.APP_AVAILABLE).canWarmNow).isFalse()
     }
 
     /**

@@ -1,5 +1,6 @@
 package com.garfiec.librechat.core.data.prefetch
 
+import com.garfiec.librechat.core.common.lifecycle.DeferredWorkWindow
 import com.garfiec.librechat.core.common.lifecycle.ForegroundSignal
 import com.garfiec.librechat.core.common.network.ConnectivityObserver
 import com.garfiec.librechat.core.common.network.NetworkConditionObserver
@@ -24,7 +25,8 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class PrefetchGateTest {
 
-    private val foreground = MutableStateFlow(true)
+    private val uiStarted = MutableStateFlow(true)
+    private val backgroundRunActive = MutableStateFlow(false)
     private val enabled = MutableStateFlow(true)
     private val unmetered = MutableStateFlow(true)
     private val allowMetered = MutableStateFlow(false)
@@ -47,10 +49,18 @@ class PrefetchGateTest {
         val power = object : PowerStateObserver {
             override val isPowerConstrained: Flow<Boolean> = powerConstrained
         }
-        val signal = ForegroundSignal().apply { set(foreground.value) }
+        // Built on the Android binding (background runs supported), so the window latches on
+        // markUiStarted rather than tracking the foreground signal underneath it.
+        val window = DeferredWorkWindow(
+            foregroundSignal = ForegroundSignal(),
+            backgroundRunsSupported = true,
+        ).apply {
+            if (uiStarted.value) markUiStarted()
+            if (backgroundRunActive.value) beginBackgroundRun()
+        }
 
         return PrefetchGate(
-            foregroundSignal = signal,
+            deferredWorkWindow = window,
             settingsDataStore = settings,
             networkConditionObserver = network,
             connectivityObserver = connectivity,
@@ -144,7 +154,7 @@ class PrefetchGateTest {
     @Test
     fun `each unmet condition is reported independently`() = runTest {
         enabled.value = false
-        foreground.value = false
+        uiStarted.value = false
         unmetered.value = false
         powerConstrained.value = true
         tracker.begin()
@@ -152,9 +162,43 @@ class PrefetchGateTest {
         val conditions = gate().conditions().first()
 
         assertThat(conditions.enabled).isFalse()
-        assertThat(conditions.foreground).isFalse()
+        assertThat(conditions.appAvailable).isFalse()
         assertThat(conditions.networkAllowed).isFalse()
         assertThat(conditions.powerAvailable).isFalse()
         assertThat(conditions.appIdle).isFalse()
+    }
+
+    /**
+     * The scheduled-job case, and the one that fails silently if it regresses. A process the job
+     * spawned never composes, so nothing marks the UI started; without the background run opening
+     * the window, the job would wake the process, find the gate shut, and exit reporting success.
+     */
+    @Test
+    fun `a background run opens the gate in a process whose UI never started`() = runTest {
+        uiStarted.value = false
+
+        assertThat(gate().conditions().first().appAvailable).isFalse()
+
+        backgroundRunActive.value = true
+
+        assertThat(gate().conditions().first().appAvailable).isTrue()
+        assertThat(gate().isOpen().first()).isTrue()
+    }
+
+    /** Backgrounding must not stop a pass: that is the whole point of latching rather than tracking. */
+    @Test
+    fun `the window stays open once the UI has started`() = runTest {
+        val window = DeferredWorkWindow(
+            foregroundSignal = ForegroundSignal().apply { set(true) },
+            backgroundRunsSupported = true,
+        )
+        window.markUiStarted()
+
+        assertThat(window.isOpen.first()).isTrue()
+
+        window.beginBackgroundRun()
+        window.endBackgroundRun()
+
+        assertThat(window.isOpen.first()).isTrue()
     }
 }

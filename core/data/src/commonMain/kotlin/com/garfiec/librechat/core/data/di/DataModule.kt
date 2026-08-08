@@ -286,7 +286,7 @@ val dataModule = module {
     singleOf(::PrefetchPolicy)
     single {
         PrefetchGate(
-            foregroundSignal = get(),
+            deferredWorkWindow = get(),
             settingsDataStore = get(),
             networkConditionObserver = get(),
             connectivityObserver = get(),
@@ -308,6 +308,7 @@ val dataModule = module {
             attachmentWarmer = get(),
             settingsDataStore = get(),
             serverUrlProvider = get(),
+            foregroundSignal = get(),
             ioDispatcher = get(KoinQualifiers.IO),
         )
     }

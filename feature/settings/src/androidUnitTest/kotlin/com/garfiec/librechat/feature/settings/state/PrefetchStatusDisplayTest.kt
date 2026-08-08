@@ -119,7 +119,7 @@ class PrefetchStatusDisplayTest {
     fun `pause reasons are reported in the order the user can act on them`() {
         val everythingUnmet = PrefetchConditions(
             enabled = true,
-            foreground = false,
+            appAvailable = false,
             networkAllowed = false,
             powerAvailable = false,
             appIdle = false,
@@ -132,7 +132,7 @@ class PrefetchStatusDisplayTest {
         assertThat(everythingUnmet.copy(networkAllowed = true, powerAvailable = true).pauseReason())
             .isEqualTo(PrefetchPauseReason.BACKGROUND)
         assertThat(
-            everythingUnmet.copy(networkAllowed = true, powerAvailable = true, foreground = true)
+            everythingUnmet.copy(networkAllowed = true, powerAvailable = true, appAvailable = true)
                 .pauseReason(),
         ).isEqualTo(PrefetchPauseReason.BUSY)
     }
@@ -157,7 +157,7 @@ class PrefetchStatusDisplayTest {
     private companion object {
         val allMet = PrefetchConditions(
             enabled = true,
-            foreground = true,
+            appAvailable = true,
             networkAllowed = true,
             powerAvailable = true,
             appIdle = true,

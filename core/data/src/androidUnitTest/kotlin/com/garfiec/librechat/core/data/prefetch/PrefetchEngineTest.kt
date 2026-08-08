@@ -2,6 +2,7 @@ package com.garfiec.librechat.core.data.prefetch
 
 import com.garfiec.librechat.core.common.conversation.OpenConversationRegistry
 import com.garfiec.librechat.core.common.identity.AccountId
+import com.garfiec.librechat.core.common.lifecycle.ForegroundSignal
 import com.garfiec.librechat.core.common.network.isPrefetch
 import com.garfiec.librechat.core.common.result.ApiException
 import com.garfiec.librechat.core.common.result.Result
@@ -61,6 +62,10 @@ class PrefetchEngineTest {
         override fun getBaseUrl(): String = "https://chat.example.com"
     }
 
+    // Foreground by default: pacing differs between the two, so every test that isn't about pacing
+    // should exercise the polite gap the user actually sees.
+    private val foregroundSignal = ForegroundSignal().apply { set(true) }
+
     @Before
     fun setup() {
         coEvery { conversationRepository.loadNextPage(any(), any(), any(), any(), any(), any()) } returns
@@ -89,6 +94,7 @@ class PrefetchEngineTest {
         attachmentWarmer = attachmentWarmer,
         settingsDataStore = settingsDataStore,
         serverUrlProvider = serverUrlProvider,
+        foregroundSignal = foregroundSignal,
         ioDispatcher = UnconfinedTestDispatcher(testScheduler),
         // The scheduler's own time source, so elapsedNow() follows virtual time.
         timeSource = testScheduler.timeSource,
@@ -126,6 +132,52 @@ class PrefetchEngineTest {
     }
 
     /**
+     * Off screen the proportional gap is what would make a pass outlive the window it was given, so
+     * it collapses to the floor. This is the difference between a scheduled run warming the whole
+     * configured depth and warming a fraction of it.
+     */
+    @Test
+    fun `pacing holds only the floor when the app is off screen`() = runTest {
+        foregroundSignal.set(false)
+        stubRecent("a", "b")
+        val callTimes = mutableListOf<Long>()
+        coEvery { messageRepository.refreshMessages(any(), any()) } coAnswers {
+            callTimes += currentTime
+            delay(REQUEST_MILLIS)
+            Result.Success(emptyList<Message>())
+        }
+
+        engine().run(account)
+
+        assertThat(callTimes).hasSize(2)
+        assertThat(callTimes[1] - callTimes[0]).isEqualTo(REQUEST_MILLIS + PrefetchEngine.MIN_PACE_MILLIS)
+    }
+
+    /**
+     * Read live, not captured once per pass: someone who opens the app mid-pass is competing with it
+     * for the connection from that moment, not from the next one.
+     */
+    @Test
+    fun `returning to the foreground restores the polite gap within the same pass`() = runTest {
+        foregroundSignal.set(false)
+        stubRecent("a", "b", "c")
+        val callTimes = mutableListOf<Long>()
+        coEvery { messageRepository.refreshMessages(any(), any()) } coAnswers {
+            callTimes += currentTime
+            // The user comes back while the first request is in flight.
+            if (callTimes.size == 1) foregroundSignal.set(true)
+            delay(REQUEST_MILLIS)
+            Result.Success(emptyList<Message>())
+        }
+
+        engine().run(account)
+
+        assertThat(callTimes).hasSize(3)
+        assertThat(callTimes[1] - callTimes[0])
+            .isEqualTo(REQUEST_MILLIS + REQUEST_MILLIS * PrefetchEngine.PACE_FACTOR)
+    }
+
+    /**
      * The engine calls the ordinary repositories, so the exemption has to be applied by the engine
      * itself. Without it the first request counts as user activity, closes the gate that permits the
      * pass, and the prefetcher deadlocks against itself — silently.
@@ -150,6 +202,7 @@ class PrefetchEngineTest {
             attachmentWarmer = attachmentWarmer,
             settingsDataStore = settingsDataStore,
             serverUrlProvider = serverUrlProvider,
+        foregroundSignal = foregroundSignal,
             ioDispatcher = UnconfinedTestDispatcher(testScheduler),
             timeSource = testScheduler.timeSource,
             nowMillis = { currentTime },

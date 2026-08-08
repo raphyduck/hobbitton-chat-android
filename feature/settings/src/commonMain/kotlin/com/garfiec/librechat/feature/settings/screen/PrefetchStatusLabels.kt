@@ -4,7 +4,7 @@ import androidx.compose.runtime.Composable
 import com.garfiec.librechat.feature.settings.resources.Res
 import com.garfiec.librechat.feature.settings.resources.prefetch_condition_enabled
 import com.garfiec.librechat.feature.settings.resources.prefetch_condition_enabled_unmet
-import com.garfiec.librechat.feature.settings.resources.prefetch_condition_foreground
+import com.garfiec.librechat.feature.settings.resources.prefetch_condition_app_available
 import com.garfiec.librechat.feature.settings.resources.prefetch_condition_idle
 import com.garfiec.librechat.feature.settings.resources.prefetch_condition_idle_met
 import com.garfiec.librechat.feature.settings.resources.prefetch_condition_idle_unmet
@@ -63,7 +63,7 @@ fun PrefetchDisplayStatus.label(): String = when (this) {
 fun PrefetchCondition.label(): String = stringResource(
     when (this) {
         PrefetchCondition.ENABLED -> Res.string.prefetch_condition_enabled
-        PrefetchCondition.FOREGROUND -> Res.string.prefetch_condition_foreground
+        PrefetchCondition.APP_AVAILABLE -> Res.string.prefetch_condition_app_available
         PrefetchCondition.NETWORK -> Res.string.prefetch_condition_network
         PrefetchCondition.POWER -> Res.string.prefetch_condition_power
         PrefetchCondition.IDLE -> Res.string.prefetch_condition_idle
@@ -72,12 +72,13 @@ fun PrefetchCondition.label(): String = stringResource(
 )
 
 /**
- * The detail line beside a condition. Foreground has none: it is the one condition that is
- * necessarily met while the screen showing it is on top, so any wording would be filler.
+ * The detail line beside a condition. App-readiness has none: it is the one condition necessarily
+ * met while the screen showing it is on top, so any wording would be filler. That stays true now
+ * that the condition also covers background runs — those only ever *add* a reason for it to pass.
  */
 @Composable
 fun PrefetchConditionRow.detail(): String? = when (condition) {
-    PrefetchCondition.FOREGROUND -> null
+    PrefetchCondition.APP_AVAILABLE -> null
     PrefetchCondition.ENABLED ->
         if (met) null else stringResource(Res.string.prefetch_condition_enabled_unmet)
     // Offline is reported even when the row is otherwise met: with the metered override on, the

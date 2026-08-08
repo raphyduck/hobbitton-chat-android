@@ -4,6 +4,7 @@ import com.garfiec.librechat.core.common.conversation.OpenConversationRegistry
 import com.garfiec.librechat.core.common.identity.AccountId
 import com.garfiec.librechat.core.common.identity.Session
 import com.garfiec.librechat.core.common.identity.SessionManager
+import com.garfiec.librechat.core.common.lifecycle.ForegroundSignal
 import com.garfiec.librechat.core.common.result.Result
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.db.dao.ConversationDao
@@ -94,6 +95,7 @@ class PrefetchControllerTest {
                 serverUrlProvider = object : ServerUrlProvider {
                     override fun getBaseUrl(): String = "https://chat.example.com"
                 },
+                foregroundSignal = ForegroundSignal().apply { set(true) },
                 ioDispatcher = UnconfinedTestDispatcher(testScheduler),
                 timeSource = testScheduler.timeSource,
                 nowMillis = { 0L },
