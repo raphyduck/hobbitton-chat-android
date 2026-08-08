@@ -140,11 +140,27 @@ class PrefetchEngine(
      * server.
      */
     fun resetForManualRun(accountId: AccountId) {
+        resetBreaker(accountId)
+        ancillaryWarmed.remove(accountId.value)
+    }
+
+    /**
+     * Clears only the breaker, for a scheduled run.
+     *
+     * The breaker is permanent for the life of the process once tripped, which in a long-lived
+     * process would make every later scheduled run return instantly having done nothing — a server
+     * that was briefly unreachable one evening would stay "down" until the app was killed. Hours
+     * later is a genuinely new attempt, so it gets one.
+     *
+     * Deliberately not [resetForManualRun]: clearing the reference-data mark as well would re-fetch
+     * endpoints, models and agents on every scheduled pass, which for an account with nothing stale
+     * is the entire cost of the pass.
+     */
+    fun resetBreaker(accountId: AccountId) {
         if (trippedForAccountId == accountId.value) {
             trippedForAccountId = null
             publish(accountId, PrefetchRunState.Idle)
         }
-        ancillaryWarmed.remove(accountId.value)
     }
 
     /**

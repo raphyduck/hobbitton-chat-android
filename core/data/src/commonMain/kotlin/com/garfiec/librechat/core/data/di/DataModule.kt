@@ -13,6 +13,7 @@ import com.garfiec.librechat.core.data.datastore.ServerDataStore
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.datastore.ThemeDataStore
 import com.garfiec.librechat.core.data.db.LibreChatDatabase
+import com.garfiec.librechat.core.data.prefetch.PrefetchBackgroundRunner
 import com.garfiec.librechat.core.data.prefetch.PrefetchController
 import com.garfiec.librechat.core.data.prefetch.PrefetchEngine
 import com.garfiec.librechat.core.data.prefetch.PrefetchGate
@@ -321,6 +322,15 @@ val dataModule = module {
             gate = get(),
             engine = get(),
             appScope = get<CoroutineScope>(KoinQualifiers.ApplicationScope),
+        )
+    }
+    single {
+        PrefetchBackgroundRunner(
+            sessionManager = get(),
+            controller = get(),
+            engine = get(),
+            deferredWorkWindow = get(),
+            settingsDataStore = get(),
         )
     }
     single {
