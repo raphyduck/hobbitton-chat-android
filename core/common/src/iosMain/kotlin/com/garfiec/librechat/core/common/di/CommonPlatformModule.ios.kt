@@ -2,6 +2,7 @@ package com.garfiec.librechat.core.common.di
 
 import com.garfiec.librechat.core.common.AppInfo
 import com.garfiec.librechat.core.common.IosAppInfo
+import com.garfiec.librechat.core.common.lifecycle.BackgroundWorkSupport
 import com.garfiec.librechat.core.common.lifecycle.DeferredWorkWindow
 import com.garfiec.librechat.core.common.network.ConnectivityObserver
 import com.garfiec.librechat.core.common.network.IosConnectivityObserver
@@ -20,5 +21,6 @@ actual val commonPlatformModule: Module = module {
     // False until the BGTaskScheduler work lands: iOS suspends a backgrounded process, so a latched
     // window would start a pass and then freeze it mid-request with nothing to finish or cancel it.
     // Falling back to the foreground signal keeps today's behaviour exactly.
-    single { DeferredWorkWindow(foregroundSignal = get(), backgroundRunsSupported = false) }
+    single { BackgroundWorkSupport.UNSUPPORTED }
+    single { DeferredWorkWindow(foregroundSignal = get(), support = get()) }
 }

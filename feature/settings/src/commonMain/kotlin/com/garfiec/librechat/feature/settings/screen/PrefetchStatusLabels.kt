@@ -3,9 +3,9 @@ package com.garfiec.librechat.feature.settings.screen
 import androidx.compose.runtime.Composable
 import com.garfiec.librechat.core.data.prefetch.PrefetchRunOutcome
 import com.garfiec.librechat.feature.settings.resources.Res
+import com.garfiec.librechat.feature.settings.resources.prefetch_condition_app_available
 import com.garfiec.librechat.feature.settings.resources.prefetch_condition_enabled
 import com.garfiec.librechat.feature.settings.resources.prefetch_condition_enabled_unmet
-import com.garfiec.librechat.feature.settings.resources.prefetch_condition_app_available
 import com.garfiec.librechat.feature.settings.resources.prefetch_condition_idle
 import com.garfiec.librechat.feature.settings.resources.prefetch_condition_idle_met
 import com.garfiec.librechat.feature.settings.resources.prefetch_condition_idle_unmet

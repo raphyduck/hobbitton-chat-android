@@ -1,5 +1,6 @@
 package com.garfiec.librechat.core.data.prefetch
 
+import com.garfiec.librechat.core.common.lifecycle.BackgroundWorkSupport
 import com.garfiec.librechat.core.common.lifecycle.DeferredWorkWindow
 import com.garfiec.librechat.core.common.lifecycle.ForegroundSignal
 import com.garfiec.librechat.core.common.network.ConnectivityObserver
@@ -53,7 +54,7 @@ class PrefetchGateTest {
         // markUiStarted rather than tracking the foreground signal underneath it.
         val window = DeferredWorkWindow(
             foregroundSignal = ForegroundSignal(),
-            backgroundRunsSupported = true,
+            support = BackgroundWorkSupport.SUPPORTED,
         ).apply {
             if (uiStarted.value) markUiStarted()
             if (backgroundRunActive.value) beginBackgroundRun()
@@ -190,7 +191,7 @@ class PrefetchGateTest {
     fun `the window stays open once the UI has started`() = runTest {
         val window = DeferredWorkWindow(
             foregroundSignal = ForegroundSignal().apply { set(true) },
-            backgroundRunsSupported = true,
+            support = BackgroundWorkSupport.SUPPORTED,
         )
         window.markUiStarted()
 

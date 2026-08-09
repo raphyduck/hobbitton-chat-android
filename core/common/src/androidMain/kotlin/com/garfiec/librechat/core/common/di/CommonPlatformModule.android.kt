@@ -2,6 +2,7 @@ package com.garfiec.librechat.core.common.di
 
 import com.garfiec.librechat.core.common.AndroidAppInfo
 import com.garfiec.librechat.core.common.AppInfo
+import com.garfiec.librechat.core.common.lifecycle.BackgroundWorkSupport
 import com.garfiec.librechat.core.common.lifecycle.DeferredWorkWindow
 import com.garfiec.librechat.core.common.network.AndroidConnectivityObserver
 import com.garfiec.librechat.core.common.network.AndroidNetworkConditionObserver
@@ -20,5 +21,6 @@ actual val commonPlatformModule: Module = module {
     single<AppInfo> { AndroidAppInfo(androidContext()) }
     // WorkManager can run a pass with no UI, so the window latches on first composition rather than
     // tracking the foreground.
-    single { DeferredWorkWindow(foregroundSignal = get(), backgroundRunsSupported = true) }
+    single { BackgroundWorkSupport.SUPPORTED }
+    single { DeferredWorkWindow(foregroundSignal = get(), support = get()) }
 }

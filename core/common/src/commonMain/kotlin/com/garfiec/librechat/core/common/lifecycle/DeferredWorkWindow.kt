@@ -23,14 +23,25 @@ import kotlinx.coroutines.flow.update
  * the process, do nothing, and exit reporting success — silently, because a shut window is
  * indistinguishable from a busy one at the far end.
  *
- * [backgroundRunsSupported] is false on platforms that have no way to keep a suspended process
- * running, where the latch would let work start and then be frozen mid-request with nothing to
- * finish or cancel it. Those platforms fall back to the live foreground signal, which is exactly the
- * behaviour that predates this class.
+ * [BackgroundWorkSupport.UNSUPPORTED] platforms fall back to the live foreground signal, which is
+ * exactly the behaviour that predates this class. Typed rather than a bare `Boolean` so the Koin
+ * graph verifier can resolve it — a primitive constructor parameter is unresolvable, and
+ * allowlisting `Boolean` would blind the check to every genuinely missing one in this module.
  */
+enum class BackgroundWorkSupport {
+    /** The platform can run work in a process with no UI — Android, via WorkManager. */
+    SUPPORTED,
+
+    /**
+     * The platform suspends a backgrounded process, so latching the window would start work and
+     * then freeze it mid-request with nothing to finish or cancel it.
+     */
+    UNSUPPORTED,
+}
+
 class DeferredWorkWindow(
     foregroundSignal: ForegroundSignal,
-    private val backgroundRunsSupported: Boolean,
+    support: BackgroundWorkSupport,
 ) {
 
     private val uiStarted = MutableStateFlow(false)
