@@ -18,6 +18,7 @@ import com.garfiec.librechat.core.data.prefetch.PrefetchController
 import com.garfiec.librechat.core.data.prefetch.PrefetchEngine
 import com.garfiec.librechat.core.data.prefetch.PrefetchGate
 import com.garfiec.librechat.core.data.prefetch.PrefetchPolicy
+import com.garfiec.librechat.core.data.prefetch.PrefetchScheduleCoordinator
 import com.garfiec.librechat.core.data.prefetch.PrefetchStatusReporter
 import com.garfiec.librechat.core.data.repository.AccountClaimReconciler
 import com.garfiec.librechat.core.data.repository.AccountDataPurger
@@ -321,6 +322,16 @@ val dataModule = module {
             sessionManager = get(),
             gate = get(),
             engine = get(),
+            appScope = get<CoroutineScope>(KoinQualifiers.ApplicationScope),
+        )
+    }
+    // Eager for the same reason as PrefetchController: its whole job is a collector, so a lazy
+    // binding nobody resolves would never register or cancel anything.
+    single(createdAtStart = true) {
+        PrefetchScheduleCoordinator(
+            settingsDataStore = get(),
+            sessionManager = get(),
+            scheduler = get(),
             appScope = get<CoroutineScope>(KoinQualifiers.ApplicationScope),
         )
     }

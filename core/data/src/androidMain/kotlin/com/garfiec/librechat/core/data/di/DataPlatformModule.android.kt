@@ -12,6 +12,8 @@ import com.garfiec.librechat.core.data.db.migration.MIGRATION_3_4
 import com.garfiec.librechat.core.data.db.migration.MIGRATION_4_5
 import com.garfiec.librechat.core.data.prefetch.AttachmentWarmer
 import com.garfiec.librechat.core.data.prefetch.CoilAttachmentWarmer
+import com.garfiec.librechat.core.data.prefetch.PrefetchScheduler
+import com.garfiec.librechat.core.data.prefetch.WorkManagerPrefetchScheduler
 import com.garfiec.librechat.core.data.repository.AndroidSwitchCacheCleaner
 import com.garfiec.librechat.core.data.repository.CommonSessionCacheCleaner
 import com.garfiec.librechat.core.data.repository.SessionCacheCleaner
@@ -34,6 +36,7 @@ actual val dataPlatformModule: Module = module {
     // Bound per platform rather than defaulted in dataModule: Koin starts with allowOverride(false),
     // so a common default plus a platform override would throw at launch.
     single<AttachmentWarmer> { CoilAttachmentWarmer(androidContext()) }
+    single<PrefetchScheduler> { WorkManagerPrefetchScheduler(androidContext()) }
 
     // --- Database ---
     single {

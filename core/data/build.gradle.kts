@@ -35,6 +35,9 @@ kotlin {
             // Prefetching attachments warms the singleton image loader's disk cache, which only the
             // Android side configures. iOS binds a no-op and needs no image dependency at all.
             implementation(libs.coil3.core)
+            // Scheduled background warming. Android-only: iOS binds a no-op scheduler because
+            // BGTaskScheduler registration has to happen in the app target at launch.
+            implementation(libs.work.runtime)
         }
         named("androidUnitTest").dependencies {
             implementation(libs.koin.test)
@@ -46,6 +49,7 @@ kotlin {
             implementation(libs.room.testing)
             implementation(libs.truth)
             implementation(libs.coroutines.test)
+            implementation(libs.work.testing)
         }
         named("androidInstrumentedTest").dependencies {
             implementation(libs.room.testing)
