@@ -27,9 +27,10 @@ class PrefetchPolicy {
      * The subset of [eligible] that actually needs fetching, in the order to fetch it.
      *
      * Freshness is decided by the server's `updatedAt` against the watermark from the last warm, so
-     * an unchanged conversation is never re-fetched — which is why this feature needs no TTL, and why
-     * a pass over an unchanged account issues no message requests at all. The list refresh that feeds
-     * it still runs.
+     * an unchanged conversation is never re-fetched — which is why message freshness needs no TTL,
+     * and why a pass over an unchanged account issues no message requests at all. The list refresh
+     * that feeds it still runs, unless a pass in the last few minutes already completed one; that
+     * skip is the sole time-based rule here and it does not reach this comparison.
      *
      * The open conversation is excluded unconditionally. Warming it would replace the rows behind
      * the screen the user is reading, and no ordering or timing makes that acceptable.

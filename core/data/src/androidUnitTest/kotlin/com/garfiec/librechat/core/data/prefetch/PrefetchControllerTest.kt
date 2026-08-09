@@ -68,6 +68,9 @@ class PrefetchControllerTest {
         coEvery { agentRepository.getAgents(any()) } returns Result.Success(emptyList())
         every { settingsDataStore.prefetchAttachmentsEnabled } returns flowOf(false)
         every { settingsDataStore.prefetchDepth } returns flowOf(PrefetchDepth.DEFAULT)
+        // See PrefetchEngineTest: a relaxed mock answers 0L, which against virtual time reads as a
+        // list refresh that just happened and skips the stage these tests count calls on.
+        coEvery { settingsDataStore.prefetchListRefreshedAt(any()) } returns null
         every { attachmentWarmer.isSupported } returns false
 
         var firstCall = true

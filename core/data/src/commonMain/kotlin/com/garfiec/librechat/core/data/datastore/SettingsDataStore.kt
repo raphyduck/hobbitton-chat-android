@@ -471,6 +471,20 @@ class SettingsDataStore(
 
     private fun usageKey(accountId: String) = accountScopedKey(accountId, MODEL_USAGE)
 
+    private fun listRefreshKey(accountId: String) =
+        accountScopedKey(accountId, PREFETCH_LIST_REFRESHED_AT)
+
+    /**
+     * When the prefetcher last paged the whole conversation list for [accountId], or null if it
+     * never has. Account-scoped, so the prefix purge sweeps it on logout with everything else.
+     */
+    suspend fun prefetchListRefreshedAt(accountId: String): Long? =
+        dataStore.data.first()[listRefreshKey(accountId)]?.toLongOrNull()
+
+    suspend fun recordPrefetchListRefreshed(accountId: String, atMillis: Long) {
+        dataStore.edit { prefs -> prefs[listRefreshKey(accountId)] = atMillis.toString() }
+    }
+
     /**
      * Records one "used" tick for [endpoint]/[model] — called once per message sent, the true
      * usage signal (a passively auto-restored model that's never chatted with must not climb the
@@ -740,6 +754,7 @@ class SettingsDataStore(
         private const val LAST_USED_ENDPOINT = "last_used_endpoint"
         private const val LAST_USED_MODEL = "last_used_model"
         private const val MODEL_USAGE = "model_usage"
+        private const val PREFETCH_LIST_REFRESHED_AT = "prefetch_list_refreshed_at"
         private const val MAX_USAGE_ENTRIES = 50
         private const val USAGE_KEY_SEPARATOR = '\u0000'
         private val KEY_DISMISS_KEYBOARD_ON_SEND = booleanPreferencesKey("dismiss_keyboard_on_send")

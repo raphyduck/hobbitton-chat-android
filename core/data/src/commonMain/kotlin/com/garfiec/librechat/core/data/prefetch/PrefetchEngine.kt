@@ -33,7 +33,9 @@ import kotlinx.coroutines.withContext
 import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
 
@@ -46,7 +48,9 @@ import kotlin.time.TimeSource
  * 1. **Refresh the conversation list.** Freshness is decided by comparing each conversation's
  *    `updatedAt` against the watermark from its last warm — and that `updatedAt` is read from Room.
  *    Without syncing the list first the engine compares watermarks against the same stale timestamps
- *    it wrote them from, concludes nothing has changed, and never warms anything again.
+ *    it wrote them from, concludes nothing has changed, and never warms anything again. Skipped when
+ *    a previous pass finished paging the list within the last few minutes — the one time-based rule
+ *    in this feature, and it covers this stage only.
  * 2. **Warm messages** for whatever that reveals as stale.
  * 3. **Warm ancillary reference data** — endpoints, models, agents — once per account per process.
  * 4. **Prune** message rows for conversations that have aged out of the warm set.
@@ -80,6 +84,9 @@ class PrefetchEngine(
      */
     private var trippedForAccountId: String? = null
 
+    /** When the breaker tripped, so [BREAKER_COOLDOWN] can expire it rather than it lasting forever. */
+    private var breakerTrippedAtMillis: Long? = null
+
     /** Accounts whose slow-moving reference data has been warmed once this process. */
     private val ancillaryWarmed = mutableSetOf<String>()
 
@@ -95,7 +102,7 @@ class PrefetchEngine(
     }
 
     suspend fun run(accountId: AccountId) {
-        if (trippedForAccountId == accountId.value) {
+        if (breakerHolds(accountId)) {
             publish(accountId, PrefetchRunState.Stopped)
             return
         }
@@ -130,18 +137,41 @@ class PrefetchEngine(
     }
 
     /**
+     * Whether the breaker still stops this account, expiring it once [BREAKER_COOLDOWN] has passed.
+     *
+     * Without the cooldown a trip is permanent for the life of the process. That was tolerable while
+     * passes only ran on screen — the user was there to press "Warm now". Now that a pass can run
+     * unattended, a network outage at 3am would leave prefetching dead all of the next day in a
+     * process Android never got round to killing, with every condition on the readout green.
+     */
+    private fun breakerHolds(accountId: AccountId): Boolean {
+        if (trippedForAccountId != accountId.value) return false
+        val trippedAt = breakerTrippedAtMillis ?: return true
+        if (nowMillis() - trippedAt < BREAKER_COOLDOWN.inWholeMilliseconds) return true
+        Diag.d("Prefetch") { "breaker cooled off; allowing another attempt" }
+        clearBreaker()
+        return false
+    }
+
+    private fun clearBreaker() {
+        trippedForAccountId = null
+        breakerTrippedAtMillis = null
+    }
+
+    /**
      * Clears everything that would make the next pass a no-op, so a manual run is a genuine retry.
      *
-     * Two pieces of state survive a pass and both are otherwise permanent for the life of the
-     * process: the breaker, which makes a briefly-unreachable server indistinguishable from one that
-     * is down for good, and the once-per-process reference-data mark. Clearing only the first leaves
-     * "Warm now" unable to recover the very thing it advertises. Reached only from the manual run, so
-     * a retry is always a deliberate user action rather than an automatic loop against a failing
-     * server.
+     * Three pieces of state survive a pass, and all are otherwise durable: the breaker, which makes a
+     * briefly-unreachable server indistinguishable from one that is down for good; the once-per-process
+     * reference-data mark; and the recorded list refresh, which would otherwise let the manual run skip
+     * the very stage that discovers new conversations. Clearing only some of them leaves "Warm now"
+     * unable to recover the thing it advertises. Reached only from the manual run, so a retry is
+     * always a deliberate user action rather than an automatic loop against a failing server.
      */
-    fun resetForManualRun(accountId: AccountId) {
+    suspend fun resetForManualRun(accountId: AccountId) {
         resetBreaker(accountId)
         ancillaryWarmed.remove(accountId.value)
+        settingsDataStore.clearPrefetchListRefreshed(accountId.value)
     }
 
     /**
@@ -158,7 +188,7 @@ class PrefetchEngine(
      */
     fun resetBreaker(accountId: AccountId) {
         if (trippedForAccountId == accountId.value) {
-            trippedForAccountId = null
+            clearBreaker()
             publish(accountId, PrefetchRunState.Idle)
         }
     }
@@ -172,13 +202,42 @@ class PrefetchEngine(
 
         private var consecutiveFailures = 0
 
+        /** When this pass last found itself off screen, or null while the app is visible. */
+        private var offScreenSince: kotlin.time.TimeMark? = null
+
+        /**
+         * Whether the pass has been running unattended for longer than [OFF_SCREEN_BUDGET].
+         *
+         * A pass started by the gate's rising edge carries no budget of its own — only the scheduled
+         * path passes one — and since the window latches, leaving the app no longer stops it. Without
+         * this bound a pass begun on screen keeps going at the off-screen pacing floor for as long as
+         * the work lasts, which at the deepest depth with attachments on is hundreds of requests at
+         * four a second, against a server nobody is watching. Resets whenever the user comes back, so
+         * an attended pass is never cut short.
+         */
+        fun outstayedWelcome(): Boolean {
+            if (foregroundSignal.isForeground.value) {
+                offScreenSince = null
+                return false
+            }
+            val since = offScreenSince ?: timeSource.markNow().also { offScreenSince = it }
+            if (since.elapsedNow() < OFF_SCREEN_BUDGET) return false
+            Diag.d("Prefetch") { "off-screen budget spent; ending the pass" }
+            return true
+        }
+
         /** Returns false when the pass should stop because the breaker tripped. */
         suspend fun warmConversationList(depth: Int): Boolean {
+            if (listRefreshedRecently()) {
+                Diag.d("Prefetch") { "conversation list refreshed recently; skipping" }
+                return true
+            }
             publish(accountId, PrefetchRunState.RefreshingList)
             val pages = policy.listPagesFor(depth)
             var cursor: String? = null
             var page = 0
             do {
+                if (outstayedWelcome()) return true
                 val start = timeSource.markNow()
                 val result = conversationRepository.loadNextPage(cursor = cursor)
                 val elapsed = start.elapsedNow()
@@ -201,7 +260,30 @@ class PrefetchEngine(
                 page++
                 delay(paceAfter(elapsed))
             } while (cursor != null && page < pages)
+
+            // Only here — every early exit above left the list partly paged, and recording those
+            // would let the skip suppress the refresh that was never finished.
+            settingsDataStore.recordPrefetchListRefreshed(accountId.value, nowMillis())
             return true
+        }
+
+        /**
+         * Whether the list was fully paged recently enough to reuse.
+         *
+         * The prefetcher is edge-triggered and passes are short, so at the deepest settings a user
+         * who idles in bursts can re-pay an eight-page prologue every time and never reach the
+         * message stage. This is scoped to the list stage only: message freshness is still decided
+         * by watermark-versus-`updatedAt` with no TTL anywhere near it.
+         *
+         * The cost is bounded and worth naming: a conversation created on another device inside the
+         * window is invisible to selection until it expires.
+         */
+        private suspend fun listRefreshedRecently(): Boolean {
+            val last = settingsDataStore.prefetchListRefreshedAt(accountId.value) ?: return false
+            val age = nowMillis() - last
+            // A clock that moved backwards (timezone change, NTP correction) reads as a huge or
+            // negative age; refresh rather than trust it.
+            return age in 0 until LIST_REFRESH_TTL.inWholeMilliseconds
         }
 
         suspend fun eligible(depth: Int): List<PrefetchCandidate> = withContext(ioDispatcher) {
@@ -228,6 +310,7 @@ class PrefetchEngine(
             ) { "warming messages" }
 
             work.forEachIndexed { index, candidate ->
+                if (outstayedWelcome()) return true
                 publish(
                     accountId,
                     PrefetchRunState.WarmingMessages(completed = index, total = work.size),
@@ -389,6 +472,7 @@ class PrefetchEngine(
             // Give up for this account rather than working through the whole list against a server
             // that is plainly not answering.
             trippedForAccountId = accountId.value
+            breakerTrippedAtMillis = nowMillis()
             Diag.w("Prefetch") { "prefetch stopped after $MAX_CONSECUTIVE_FAILURES consecutive failures" }
             return true
         }
@@ -470,5 +554,15 @@ class PrefetchEngine(
         private val MAX_PACE = 30.seconds
         private val DEFAULT_RATE_LIMIT_BACKOFF = 60.seconds
         private val PRUNE_AGE = 90.days
+        private val LIST_REFRESH_TTL = 5.minutes
+
+        /** How long a tripped breaker holds before the engine is willing to try again. */
+        private val BREAKER_COOLDOWN = 1.hours
+
+        /**
+         * How long a pass may continue after the app leaves the screen. Generous enough to finish
+         * ordinary work, short enough that an unattended pass cannot run for the life of the process.
+         */
+        private val OFF_SCREEN_BUDGET = 2.minutes
     }
 }

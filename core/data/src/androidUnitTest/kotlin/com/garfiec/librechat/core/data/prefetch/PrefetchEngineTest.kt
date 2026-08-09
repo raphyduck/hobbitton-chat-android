@@ -34,6 +34,7 @@ import kotlinx.coroutines.test.currentTime
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
+import kotlin.time.Duration.Companion.hours
 import kotlin.coroutines.coroutineContext
 
 /**
@@ -79,6 +80,10 @@ class PrefetchEngineTest {
         every { settingsDataStore.prefetchAttachmentsEnabled } returns flowOf(false)
         every { settingsDataStore.prefetchDepth } returns flowOf(PrefetchDepth.DEFAULT)
         every { attachmentWarmer.isSupported } returns false
+        // Explicitly "never refreshed". A relaxed mock answers 0L here, not null, and against
+        // runTest's clock — which starts at 0 — that reads as "refreshed this instant" and silently
+        // skips the list stage in every test that isn't about the skip.
+        coEvery { settingsDataStore.prefetchListRefreshedAt(any()) } returns null
     }
 
     private fun TestScope.engine() = PrefetchEngine(
@@ -113,6 +118,61 @@ class PrefetchEngineTest {
             retryAfterSeconds = retryAfterSeconds,
         ),
     )
+
+    /**
+     * The prologue is what a short pass spends itself on. At the deepest setting it is eight pages,
+     * and a user who idles in bursts would re-pay it every time and never reach the message stage.
+     */
+    @Test
+    fun `a list refresh completed moments ago is not repeated`() = runTest {
+        coEvery { settingsDataStore.prefetchListRefreshedAt(any()) } returns currentTime
+        stubRecent("a")
+        coEvery { messageRepository.refreshMessages(any(), any()) } returns Result.Success(emptyList())
+
+        engine().run(account)
+
+        coVerify(exactly = 0) { conversationRepository.loadNextPage(any(), any(), any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `an old list refresh is repeated`() = runTest {
+        coEvery { settingsDataStore.prefetchListRefreshedAt(any()) } returns
+            currentTime - 1.hours.inWholeMilliseconds
+        stubRecent("a")
+        coEvery { messageRepository.refreshMessages(any(), any()) } returns Result.Success(emptyList())
+
+        engine().run(account)
+
+        coVerify(atLeast = 1) { conversationRepository.loadNextPage(any(), any(), any(), any(), any(), any()) }
+    }
+
+    /**
+     * Recording a partial run would let the skip suppress the very refresh that never finished,
+     * leaving selection reading timestamps the list stage never brought up to date.
+     */
+    @Test
+    fun `a list refresh cut short is not recorded`() = runTest {
+        coEvery { settingsDataStore.prefetchListRefreshedAt(any()) } returns null
+        coEvery { conversationRepository.loadNextPage(any(), any(), any(), any(), any(), any()) } returns
+            Result.Error(exception = ApiException(statusCode = 500, message = "boom"))
+        stubRecent("a")
+        coEvery { messageRepository.refreshMessages(any(), any()) } returns Result.Success(emptyList())
+
+        engine().run(account)
+
+        coVerify(exactly = 0) { settingsDataStore.recordPrefetchListRefreshed(any(), any()) }
+    }
+
+    @Test
+    fun `a completed list refresh is recorded`() = runTest {
+        coEvery { settingsDataStore.prefetchListRefreshedAt(any()) } returns null
+        stubRecent("a")
+        coEvery { messageRepository.refreshMessages(any(), any()) } returns Result.Success(emptyList())
+
+        engine().run(account)
+
+        coVerify(exactly = 1) { settingsDataStore.recordPrefetchListRefreshed(account.value, any()) }
+    }
 
     @Test
     fun `pacing waits five times the observed latency between requests`() = runTest {
