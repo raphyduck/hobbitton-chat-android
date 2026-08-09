@@ -49,6 +49,7 @@ import com.garfiec.librechat.feature.settings.resources.prefetch_row_never_warme
 import com.garfiec.librechat.feature.settings.resources.prefetch_row_pinned
 import com.garfiec.librechat.feature.settings.resources.prefetch_summary_last_run
 import com.garfiec.librechat.feature.settings.resources.prefetch_summary_last_run_never
+import com.garfiec.librechat.feature.settings.resources.prefetch_summary_scheduled_run
 import com.garfiec.librechat.feature.settings.resources.prefetch_summary_status
 import com.garfiec.librechat.feature.settings.resources.prefetch_summary_warmed
 import com.garfiec.librechat.feature.settings.resources.prefetch_summary_warmed_value
@@ -65,9 +66,10 @@ import org.koin.compose.viewmodel.koinViewModel
  * The detail behind the prefetch summary in Data settings: why prefetching is or is not running,
  * what it has cached, and what it still intends to fetch.
  *
- * Every figure is derived live from the watermark table and the gate — nothing is recorded for this
- * screen's benefit — so it cannot report a pass that did not happen, and equally cannot show any
- * history beyond what the watermarks still hold.
+ * Every figure but one is derived live from the watermark table and the gate, so it cannot report a
+ * pass that did not happen, and equally cannot show any history beyond what the watermarks still
+ * hold. The exception is the background-run row, which is persisted because a scheduled pass leaves
+ * no other trace — and which is therefore the one row here that is a report rather than derived.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -116,6 +118,22 @@ fun PrefetchActivityScreen(onNavigateBack: () -> Unit, modifier: Modifier = Modi
                             uiState.eligibleCount,
                         ),
                     )
+                    // Absent, not "Never", where the platform schedules nothing — the row would
+                    // otherwise read as a broken feature rather than an unbuilt one.
+                    if (uiState.scheduledRunsSupported) {
+                        val ranAt = uiState.lastScheduledRunAt?.relativeLabel(timeReference)
+                        // The outcome is what makes this row able to explain a cold cache; without it
+                        // a run that exited on an unmet constraint reads the same as a full warm.
+                        val outcome = uiState.lastScheduledRunOutcome?.label()
+                        DetailRow(
+                            stringResource(Res.string.prefetch_summary_scheduled_run),
+                            when {
+                                ranAt == null -> stringResource(Res.string.prefetch_summary_last_run_never)
+                                outcome == null -> ranAt
+                                else -> "$ranAt · $outcome"
+                            },
+                        )
+                    }
                 }
             }
 

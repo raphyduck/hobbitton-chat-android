@@ -70,7 +70,7 @@
     <string name="section_mcp_servers">Серверы MCP</string>
     <string name="section_prefetch">Background prefetch</string>
     <string name="prefetch_enabled">Prefetch conversations</string>
-    <string name="prefetch_enabled_desc">Load recent and pinned conversations in the background so they open instantly. Runs only while the app is idle.</string>
+    <string name="prefetch_enabled_desc">Load recent and pinned conversations ahead of time so they open instantly. Runs while the app is idle, and periodically while charging.</string>
     <string name="prefetch_on_metered">Use mobile data</string>
     <string name="prefetch_on_metered_desc">Allow prefetching on metered connections. Off by default to avoid unexpected data usage.</string>
     <string name="prefetch_depth">Depth</string>
@@ -83,6 +83,13 @@
     <string name="prefetch_summary_status">Status</string>
     <string name="prefetch_summary_last_run">Last run</string>
     <string name="prefetch_summary_last_run_never">Never</string>
+    <string name="prefetch_summary_scheduled_run">Last background run</string>
+    <string name="prefetch_run_outcome_disabled">prefetch was off</string>
+    <string name="prefetch_run_outcome_no_session">not signed in</string>
+    <string name="prefetch_run_outcome_constraints">conditions not met</string>
+    <string name="prefetch_run_outcome_budget">ran out of time</string>
+    <string name="prefetch_run_outcome_stopped">server not answering</string>
+    <string name="prefetch_run_outcome_interrupted">interrupted</string>
     <string name="prefetch_summary_warmed">Warmed</string>
     <string name="prefetch_summary_warmed_value">%1$d of %2$d</string>
     <string name="prefetch_status_off">Off</string>

@@ -330,7 +330,7 @@ val dataModule = module {
     single(createdAtStart = true) {
         PrefetchScheduleCoordinator(
             settingsDataStore = get(),
-            sessionManager = get(),
+            activeAccountProvider = get(),
             scheduler = get(),
             appScope = get<CoroutineScope>(KoinQualifiers.ApplicationScope),
         )
@@ -355,6 +355,7 @@ val dataModule = module {
             openConversationRegistry = get(),
             activeAccountProvider = get(),
             settingsDataStore = get(),
+            scheduler = get(),
         )
     }
 

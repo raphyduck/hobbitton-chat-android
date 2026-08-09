@@ -4,7 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.garfiec.librechat.core.data.prefetch.PrefetchController
 import com.garfiec.librechat.core.data.prefetch.PrefetchConversationStatus
+import com.garfiec.librechat.core.data.prefetch.PrefetchRunOutcome
 import com.garfiec.librechat.core.data.prefetch.PrefetchRunState
+import com.garfiec.librechat.core.data.prefetch.PrefetchRunOutcome
 import com.garfiec.librechat.core.data.prefetch.PrefetchStatus
 import com.garfiec.librechat.core.data.prefetch.PrefetchStatusReporter
 import com.garfiec.librechat.feature.settings.state.PrefetchDisplayStatus
@@ -25,6 +27,10 @@ data class PrefetchActivityUiState(
     val warmedCount: Int = 0,
     val eligibleCount: Int = 0,
     val lastWarmedAt: Long? = null,
+    /** False on platforms with no scheduler, which hides the row rather than showing "Never". */
+    val scheduledRunsSupported: Boolean = false,
+    val lastScheduledRunAt: Long? = null,
+    val lastScheduledRunOutcome: PrefetchRunOutcome? = null,
     val cachedMessageCount: Int = 0,
     val warmed: List<PrefetchConversationStatus> = emptyList(),
     val pending: List<PrefetchConversationStatus> = emptyList(),
@@ -101,6 +107,9 @@ class PrefetchActivityViewModel(
         warmedCount = warmedCount,
         eligibleCount = eligibleCount,
         lastWarmedAt = lastWarmedAt,
+        scheduledRunsSupported = scheduledRunsSupported,
+        lastScheduledRunAt = lastScheduledRun?.atMillis,
+        lastScheduledRunOutcome = lastScheduledRun?.outcome,
         cachedMessageCount = figures.messages,
         warmed = warmed,
         pending = pending,

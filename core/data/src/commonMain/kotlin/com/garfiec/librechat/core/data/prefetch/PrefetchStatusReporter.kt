@@ -43,6 +43,13 @@ data class PrefetchStatus(
     val lastWarmedAt: Long?,
     val warmed: List<PrefetchConversationStatus>,
     val pending: List<PrefetchConversationStatus>,
+    /**
+     * Whether this platform schedules passes at all. False hides the scheduled-run row rather than
+     * showing one that could only ever read "Never" — see [PrefetchScheduler.isSupported].
+     */
+    val scheduledRunsSupported: Boolean = false,
+    /** The last scheduled run, or null when none has happened yet. */
+    val lastScheduledRun: ScheduledRunRecord? = null,
 ) {
     companion object {
         /** What the readout shows while no account is resolved — logged out, or still warming. */
@@ -69,11 +76,16 @@ data class PrefetchStatus(
  * Assembles the prefetch status readout from the state that already exists — the gate's conditions,
  * the engine's in-flight state, and the watermark table.
  *
- * Nothing here is recorded for the readout's benefit: no counters, no history, no schema. That
- * bounds what it can report (there is no "passes run today", because nothing counts passes) and in
- * exchange it cannot drift from the truth, since every figure is computed from the same rows the
+ * Almost nothing here is recorded for the readout's benefit: no counters, no history, no schema.
+ * That bounds what it can report (there is no "passes run today", because nothing counts passes) and
+ * in exchange it cannot drift from the truth, since every figure is computed from the same rows the
  * engine acts on. Selection reuses [PrefetchPolicy] rather than restating its rules, so what the
  * screen calls pending is by construction what the engine would fetch next.
+ *
+ * The one exception is [PrefetchStatus.lastScheduledRun], and it is an exception because a scheduled
+ * run leaves no other trace: a run that found the gate shut moves no watermark, and by the time
+ * anyone looks the process that ran it is gone. It is therefore also the one figure on this screen
+ * that *can* drift from what happened — treat it as a report, not as derived truth.
  */
 class PrefetchStatusReporter(
     private val gate: PrefetchGate,
@@ -85,6 +97,7 @@ class PrefetchStatusReporter(
     private val openConversationRegistry: OpenConversationRegistry,
     private val activeAccountProvider: ActiveAccountProvider,
     private val settingsDataStore: SettingsDataStore,
+    private val scheduler: PrefetchScheduler,
 ) {
 
     fun status(): Flow<PrefetchStatus> = combine(
@@ -92,8 +105,11 @@ class PrefetchStatusReporter(
         engine.runState,
         warmSet(),
         activeAccountProvider.state,
-    ) { conditions, runState, warmSet, account ->
+        settingsDataStore.lastScheduledRun,
+    ) { conditions, runState, warmSet, account, lastScheduledRun ->
         warmSet.copy(
+            scheduledRunsSupported = scheduler.isSupported,
+            lastScheduledRun = lastScheduledRun,
             conditions = conditions,
             // Resolved against the active account, because the engine is a singleton and its
             // Stopped verdict persists: an unresolved read would report the account whose server

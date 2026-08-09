@@ -10,7 +10,10 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import com.garfiec.librechat.core.common.identity.AccountState
 import com.garfiec.librechat.core.common.identity.ActiveAccountProvider
 import com.garfiec.librechat.core.common.identity.currentAccountId
+import com.garfiec.librechat.core.common.identity.flatMapAccountOrEmpty
 import com.garfiec.librechat.core.data.prefetch.PrefetchDepth
+import com.garfiec.librechat.core.data.prefetch.PrefetchRunOutcome
+import com.garfiec.librechat.core.data.prefetch.ScheduledRunRecord
 import com.garfiec.librechat.core.model.ModelRef
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
@@ -485,6 +488,49 @@ class SettingsDataStore(
         dataStore.edit { prefs -> prefs[listRefreshKey(accountId)] = atMillis.toString() }
     }
 
+    /** Forgets the recorded refresh, so the next pass pages the list rather than reusing it. */
+    suspend fun clearPrefetchListRefreshed(accountId: String) {
+        dataStore.edit { prefs -> prefs.remove(listRefreshKey(accountId)) }
+    }
+
+    private fun scheduledRunKey(accountId: String) =
+        accountScopedKey(accountId, PREFETCH_LAST_SCHEDULED_RUN)
+
+    /**
+     * The last scheduled prefetch for the active account, and how it ended.
+     *
+     * Account-scoped, because what a run did is account-specific and every other figure on the
+     * readout is resolved against the active account — a device-level record would show one
+     * account's overnight warm on another account's screen. Emits null rather than nothing while
+     * identity is warming: this feeds a `combine` that would otherwise hold the entire readout blank
+     * until an account resolved.
+     *
+     * Stored as one string so adding a field cannot silently change the shape of an existing
+     * install's value: an entry that does not parse reads as "no run recorded", which is honest.
+     */
+    val lastScheduledRun: Flow<ScheduledRunRecord?> =
+        activeAccountProvider.flatMapAccountOrEmpty<ScheduledRunRecord?>(null) { id ->
+            dataStore.data.map { prefs -> prefs[scheduledRunKey(id.value)]?.let(::decodeScheduledRun) }
+        }
+
+    /** No-ops without an account: a run that never resolved one has nothing to attribute the record to. */
+    suspend fun recordScheduledRun(accountId: String?, record: ScheduledRunRecord) {
+        if (accountId == null) return
+        dataStore.edit { prefs ->
+            prefs[scheduledRunKey(accountId)] = "${record.atMillis}|${record.outcome.name}"
+        }
+    }
+
+    private fun decodeScheduledRun(raw: String): ScheduledRunRecord? {
+        val (millis, outcome) = raw.split('|', limit = 2).takeIf { it.size == 2 } ?: return null
+        return ScheduledRunRecord(
+            atMillis = millis.toLongOrNull() ?: return null,
+            // An outcome this build does not know about (a downgrade) is not worth failing over,
+            // but it must not be guessed at either.
+            outcome = PrefetchRunOutcome.entries.firstOrNull { it.name == outcome } ?: return null,
+        )
+    }
+
     /**
      * Records one "used" tick for [endpoint]/[model] — called once per message sent, the true
      * usage signal (a passively auto-restored model that's never chatted with must not climb the
@@ -755,6 +801,7 @@ class SettingsDataStore(
         private const val LAST_USED_MODEL = "last_used_model"
         private const val MODEL_USAGE = "model_usage"
         private const val PREFETCH_LIST_REFRESHED_AT = "prefetch_list_refreshed_at"
+        private const val PREFETCH_LAST_SCHEDULED_RUN = "prefetch_last_scheduled_run"
         private const val MAX_USAGE_ENTRIES = 50
         private const val USAGE_KEY_SEPARATOR = '\u0000'
         private val KEY_DISMISS_KEYBOARD_ON_SEND = booleanPreferencesKey("dismiss_keyboard_on_send")
