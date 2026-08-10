@@ -35,11 +35,10 @@ class PrefetchScheduleCoordinator(
     /**
      * Emits nothing until identity actually resolves.
      *
-     * Read from [ActiveAccountProvider] rather than the session, because a null session means both
-     * "still warming" and "signed out" and those must not act alike here. Treating the boot value as
-     * signed out made every process start cancel the periodic work first — deleting the pending job
-     * so its interval restarted, and, in a process the job itself woke, stopping the running worker
-     * before it could warm anything.
+     * Must read [ActiveAccountProvider], not the session: a null session means both "still warming"
+     * and "signed out", and treating the boot value as signed out cancels the periodic work at every
+     * process start — restarting its interval, and in a process the job itself woke, stopping the
+     * running worker before it warms anything.
      */
     private val signedIn = activeAccountProvider.state
         .mapNotNull { state -> (state as? AccountState.Resolved)?.let { it.id != null } }

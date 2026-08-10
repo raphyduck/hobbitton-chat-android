@@ -82,10 +82,8 @@ data class PrefetchStatus(
  * engine acts on. Selection reuses [PrefetchPolicy] rather than restating its rules, so what the
  * screen calls pending is by construction what the engine would fetch next.
  *
- * The one exception is [PrefetchStatus.lastScheduledRun], and it is an exception because a scheduled
- * run leaves no other trace: a run that found the gate shut moves no watermark, and by the time
- * anyone looks the process that ran it is gone. It is therefore also the one figure on this screen
- * that *can* drift from what happened — treat it as a report, not as derived truth.
+ * The one exception is [PrefetchStatus.lastScheduledRun], persisted because a scheduled run leaves no
+ * other trace — and therefore the one figure here that *can* drift: a report, not derived truth.
  */
 class PrefetchStatusReporter(
     private val gate: PrefetchGate,

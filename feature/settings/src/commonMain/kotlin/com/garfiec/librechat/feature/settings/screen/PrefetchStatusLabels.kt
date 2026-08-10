@@ -80,8 +80,7 @@ fun PrefetchCondition.label(): String = stringResource(
 
 /**
  * The detail line beside a condition. App-readiness has none: it is the one condition necessarily
- * met while the screen showing it is on top, so any wording would be filler. That stays true now
- * that the condition also covers background runs — those only ever *add* a reason for it to pass.
+ * met while the screen showing it is on top, so any wording would be filler.
  */
 @Composable
 fun PrefetchConditionRow.detail(): String? = when (condition) {

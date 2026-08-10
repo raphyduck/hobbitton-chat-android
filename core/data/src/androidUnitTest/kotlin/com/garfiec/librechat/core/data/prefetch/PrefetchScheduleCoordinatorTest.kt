@@ -23,8 +23,7 @@ import kotlin.test.assertEquals
  * Every assertion here is about a *decision*, not about the resulting job: the scheduler's own
  * `KEEP` makes a redundant registration invisible in WorkManager's tables, so "did the coordinator
  * act" cannot be read back off the job afterwards. Recording the calls is the only way to tell a
- * coordinator that decided to keep the job from one that never ran at all — a distinction that cost
- * a device-testing session to learn.
+ * coordinator that decided to keep the job from one that never ran at all.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class PrefetchScheduleCoordinatorTest {
@@ -115,9 +114,9 @@ class PrefetchScheduleCoordinatorTest {
         }
 
     /**
-     * The reason this reads identity rather than the session: a null session means both "still
-     * warming" and "signed out", and treating the boot value as signed out made every process start
-     * cancel the pending job — including, in a process the job itself woke, the run in progress.
+     * Why the coordinator reads identity rather than the session: a null session means both "still
+     * warming" and "signed out", and treating the boot value as signed out cancels the pending job at
+     * every process start — including, in a process the job itself woke, the run in progress.
      */
     @Test
     fun `a warming identity decides nothing either way`() =

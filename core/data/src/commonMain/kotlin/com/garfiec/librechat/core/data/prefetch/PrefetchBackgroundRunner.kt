@@ -16,14 +16,7 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 
-/**
- * The last scheduled run, as the readout presents it.
- *
- * Account-scoped, because what a run did belongs to the account it warmed: every other figure on the
- * readout is resolved against the active account, and a device-level record would show one account's
- * overnight warm on another account's screen. Scoping it also means the prefix purge sweeps it on
- * logout along with everything else that account owned.
- */
+/** The last scheduled run, as the readout presents it. Account-scoped — see [SettingsDataStore.lastScheduledRun]. */
 data class ScheduledRunRecord(val atMillis: Long, val outcome: PrefetchRunOutcome)
 
 /** How a scheduled run ended, for the readout and for the platform job's own logging. */
@@ -41,10 +34,8 @@ enum class PrefetchRunOutcome {
     COMPLETED,
 
     /**
-     * A pass was still going when the budget ran out.
-     *
-     * In a process the scheduler woke, closing the window ends it — nothing else holds the gate open
-     * there. It continues only where the UI has started, i.e. ordinary process-tail warming.
+     * A pass was still going when the budget ran out. In a process the scheduler woke, closing the
+     * window ends it; where the UI has started it continues as ordinary process-tail warming.
      */
     BUDGET_EXPIRED,
 
@@ -79,25 +70,21 @@ class PrefetchBackgroundRunner(
 ) {
 
     suspend fun runOnce(budget: Duration): PrefetchRunOutcome {
-        // Seeded with INTERRUPTED so a run the platform stops still records something. WorkManager
-        // drops the worker the moment a constraint is lost — the user picking the phone up ends
-        // device-idle — and a cancelled call never produces a return value, so recording off the
-        // result would leave the readout showing an older run as the most recent one.
+        // Seeded so a run the platform cancels still records something: WorkManager drops the worker
+        // the moment a constraint is lost, and a cancelled call never produces a return value.
         var outcome = PrefetchRunOutcome.INTERRUPTED
         try {
             outcome = runPass(budget)
             return outcome
         } finally {
-            // Recorded whatever happened, including the outcomes where nothing was warmed. A run that
-            // found the gate shut is the case a user most needs to see, and it is invisible everywhere
-            // else — no watermark moves, and by the time they look the process is long gone.
+            // Record every outcome, including the ones that warmed nothing — those are invisible
+            // everywhere else, since no watermark moves and the process is gone by the time anyone looks.
             withContext(NonCancellable) {
                 settingsDataStore.recordScheduledRun(recordedAccountId, ScheduledRunRecord(nowMillis(), outcome))
             }
         }
     }
 
-    /** The account the run belonged to, captured once the session resolves. */
     private var recordedAccountId: String? = null
 
     private suspend fun runPass(budget: Duration): PrefetchRunOutcome {
@@ -130,13 +117,6 @@ class PrefetchBackgroundRunner(
         }
     }
 
-    /**
-     * Waits briefly for a pass to be under way.
-     *
-     * A pass that started and finished inside this grace reads as "never started", so the caller asks
-     * for another one. That is wasteful only in appearance: the second pass finds the conversation
-     * list already refreshed and nothing stale, which is the cheapest thing this engine does.
-     */
     /**
      * Waits briefly for a pass to be under way, or for one to have completed while we were not
      * looking — [PrefetchController.passInProgress] conflates, so a short pass can begin and end

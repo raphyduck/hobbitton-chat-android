@@ -122,8 +122,6 @@ fun PrefetchActivityScreen(onNavigateBack: () -> Unit, modifier: Modifier = Modi
                     // otherwise read as a broken feature rather than an unbuilt one.
                     if (uiState.scheduledRunsSupported) {
                         val ranAt = uiState.lastScheduledRunAt?.relativeLabel(timeReference)
-                        // The outcome is what makes this row able to explain a cold cache; without it
-                        // a run that exited on an unmet constraint reads the same as a full warm.
                         val outcome = uiState.lastScheduledRunOutcome?.label()
                         DetailRow(
                             stringResource(Res.string.prefetch_summary_scheduled_run),

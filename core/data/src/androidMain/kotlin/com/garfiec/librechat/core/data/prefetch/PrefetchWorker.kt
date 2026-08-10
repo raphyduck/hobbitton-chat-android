@@ -27,11 +27,10 @@ class PrefetchWorker(
         val outcome = runner.runOnce(BUDGET)
         Diag.d("Prefetch", attrs = mapOf("outcome" to outcome.name)) { "worker finished" }
 
-        // Always success, never retry. `setRequiresDeviceIdle` suppresses WorkManager's backoff, so
-        // a retry would not be rescheduled on a ladder — it would simply wait for the next period,
-        // which is what returning success does anyway, without the failure showing up in job
-        // diagnostics as though something were wrong. Nothing here is lost by waiting: watermarks
-        // make a partial pass resumable, and an unmet constraint is not an error.
+        // Always success, never retry. `setRequiresDeviceIdle` suppresses WorkManager's backoff, so a
+        // retry would just wait for the next period — which success already does, without the job
+        // reading as failed in diagnostics. Nothing is lost by waiting: watermarks make a partial
+        // pass resumable, and an unmet constraint is not an error.
         return Result.success()
     }
 

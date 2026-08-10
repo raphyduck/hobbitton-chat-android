@@ -139,9 +139,8 @@ class PrefetchEngine(
     /**
      * Whether the breaker still stops this account, expiring it once [BREAKER_COOLDOWN] has passed.
      *
-     * Without the cooldown a trip is permanent for the life of the process. That was tolerable while
-     * passes only ran on screen — the user was there to press "Warm now". Now that a pass can run
-     * unattended, a network outage at 3am would leave prefetching dead all of the next day in a
+     * The cooldown is load-bearing now that passes run unattended: without it a trip is permanent for
+     * the life of the process, so a night-time outage leaves prefetching dead all the next day in a
      * process Android never got round to killing, with every condition on the readout green.
      */
     private fun breakerHolds(accountId: AccountId): Boolean {
@@ -175,12 +174,8 @@ class PrefetchEngine(
     }
 
     /**
-     * Clears only the breaker, for a scheduled run.
-     *
-     * The breaker is permanent for the life of the process once tripped, which in a long-lived
-     * process would make every later scheduled run return instantly having done nothing — a server
-     * that was briefly unreachable one evening would stay "down" until the app was killed. Hours
-     * later is a genuinely new attempt, so it gets one.
+     * Clears only the breaker, for a scheduled run — without this a long-lived process makes every
+     * later scheduled run return instantly having done nothing.
      *
      * Deliberately not [resetForManualRun]: clearing the reference-data mark as well would re-fetch
      * endpoints, models and agents on every scheduled pass, which for an account with nothing stale
@@ -209,11 +204,10 @@ class PrefetchEngine(
          * Whether the pass has been running unattended for longer than [OFF_SCREEN_BUDGET].
          *
          * A pass started by the gate's rising edge carries no budget of its own — only the scheduled
-         * path passes one — and since the window latches, leaving the app no longer stops it. Without
-         * this bound a pass begun on screen keeps going at the off-screen pacing floor for as long as
-         * the work lasts, which at the deepest depth with attachments on is hundreds of requests at
-         * four a second, against a server nobody is watching. Resets whenever the user comes back, so
-         * an attended pass is never cut short.
+         * path passes one — and since the window latches, leaving the app no longer stops it. This is
+         * the only bound on such a pass, which at the deepest depth with attachments on is hundreds
+         * of requests at four a second against a server nobody is watching. Resets whenever the user
+         * comes back, so an attended pass is never cut short.
          */
         fun outstayedWelcome(): Boolean {
             if (foregroundSignal.isForeground.value) {
@@ -516,10 +510,8 @@ class PrefetchEngine(
      *
      * **Off screen**, hold a flat minimum instead. The proportional gap exists to keep the
      * prefetcher out of the user's way, and with no foreground work to yield to it only makes a pass
-     * long enough to outlive the window it was given — at the deepest setting, minutes rather than
-     * tens of seconds. The cost is real and accepted: a struggling server no longer sheds this load
-     * automatically, in exactly the situation where nobody is watching to notice. The pass stays
-     * strictly one request at a time, which is what bounds it.
+     * long enough to outlive the window it was given. What bounds an off-screen pass instead is that
+     * it stays strictly one request at a time, plus [OFF_SCREEN_BUDGET].
      *
      * Read live rather than fixed per pass, so returning to the app restores the polite gap
      * immediately instead of at the next pass.

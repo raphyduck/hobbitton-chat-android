@@ -18,9 +18,8 @@ actual val commonPlatformModule: Module = module {
     single<NetworkConditionObserver> { IosNetworkConditionObserver() }
     single<PowerStateObserver> { IosPowerStateObserver() }
     single<AppInfo> { IosAppInfo() }
-    // False until the BGTaskScheduler work lands: iOS suspends a backgrounded process, so a latched
-    // window would start a pass and then freeze it mid-request with nothing to finish or cancel it.
-    // Falling back to the foreground signal keeps today's behaviour exactly.
+    // Until BGTaskScheduler lands: iOS suspends a backgrounded process, so a latched window would
+    // start a pass and then freeze it mid-request with nothing to finish or cancel it.
     single { BackgroundWorkSupport.UNSUPPORTED }
     single { DeferredWorkWindow(foregroundSignal = get(), support = get()) }
 }

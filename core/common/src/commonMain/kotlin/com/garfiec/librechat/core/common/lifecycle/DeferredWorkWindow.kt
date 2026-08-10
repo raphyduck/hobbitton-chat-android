@@ -23,10 +23,9 @@ import kotlinx.coroutines.flow.update
  * the process, do nothing, and exit reporting success — silently, because a shut window is
  * indistinguishable from a busy one at the far end.
  *
- * [BackgroundWorkSupport.UNSUPPORTED] platforms fall back to the live foreground signal, which is
- * exactly the behaviour that predates this class. Typed rather than a bare `Boolean` so the Koin
- * graph verifier can resolve it — a primitive constructor parameter is unresolvable, and
- * allowlisting `Boolean` would blind the check to every genuinely missing one in this module.
+ * [BackgroundWorkSupport.UNSUPPORTED] platforms fall back to the live foreground signal. Keep this
+ * an enum, not a `Boolean`: the Koin graph verifier cannot resolve a primitive constructor
+ * parameter, and allowlisting `Boolean` would blind it to every genuinely missing one in this module.
  */
 enum class BackgroundWorkSupport {
     /** The platform can run work in a process with no UI — Android, via WorkManager. */
@@ -47,11 +46,8 @@ class DeferredWorkWindow(
     private val uiStarted = MutableStateFlow(false)
     private val backgroundRuns = MutableStateFlow(0)
 
-    /**
-     * The two sources are OR-ed, and which one stands for "the app is available" is fixed at
-     * construction — so only that one is collected. Combining all three and ignoring the unused
-     * input would subscribe to a signal whose every change re-evaluates a term it cannot affect.
-     */
+    // Which source stands for "the app is available" is fixed at construction, so only that one is
+    // collected — subscribing to the other would re-evaluate the combine on changes it cannot affect.
     private val appAvailable: Flow<Boolean> = when (support) {
         BackgroundWorkSupport.SUPPORTED -> uiStarted
         BackgroundWorkSupport.UNSUPPORTED -> foregroundSignal.isForeground
