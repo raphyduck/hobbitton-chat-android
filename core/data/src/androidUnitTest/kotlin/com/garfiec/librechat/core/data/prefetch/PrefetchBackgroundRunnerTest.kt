@@ -24,8 +24,11 @@ import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
+import kotlin.time.AbstractLongTimeSource
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.DurationUnit
+import kotlin.time.TimeSource
 
 /**
  * The runner's whole job is to wait on someone else's pass without starting a second one, and every
@@ -51,7 +54,7 @@ class PrefetchBackgroundRunnerTest {
         support = BackgroundWorkSupport.SUPPORTED,
     )
 
-    private fun TestScope.runner(): PrefetchBackgroundRunner {
+    private fun TestScope.runner(hasSession: Boolean = true): PrefetchBackgroundRunner {
         every { controller.passInProgress } returns passInProgress
         // A relaxed mock hands back an Object for this, which blows up on the Int read.
         every { controller.completedPasses } returns completedPasses
@@ -63,7 +66,7 @@ class PrefetchBackgroundRunnerTest {
         val session = mockk<Session>()
         every { session.accountId } returns account
         val sessionManager = mockk<SessionManager>()
-        every { sessionManager.current } returns MutableStateFlow(session)
+        every { sessionManager.current } returns MutableStateFlow(session.takeIf { hasSession })
 
         return PrefetchBackgroundRunner(
             sessionManager = sessionManager,
@@ -72,10 +75,18 @@ class PrefetchBackgroundRunnerTest {
             deferredWorkWindow = window,
             settingsDataStore = settingsDataStore,
             nowMillis = { currentTimeMillis() },
+            // Must read the same clock the timeouts do: on the default monotonic source the budget
+            // runs on wall time while every wait runs on virtual time, so no budget assertion holds.
+            timeSource = virtualTimeSource(),
         )
     }
 
     private fun TestScope.currentTimeMillis(): Long = testScheduler.currentTime
+
+    private fun TestScope.virtualTimeSource(): TimeSource =
+        object : AbstractLongTimeSource(DurationUnit.MILLISECONDS) {
+            override fun read(): Long = testScheduler.currentTime
+        }
 
     @Test
     fun `prefetching switched off is reported without touching the controller`() = runTest {
@@ -173,8 +184,41 @@ class PrefetchBackgroundRunnerTest {
         assertThat(window.isOpen.first()).isFalse()
     }
 
+    /**
+     * An iOS refresh task's whole allowance is ~30 seconds and the start graces alone are 10 of them,
+     * so a budget armed only once a pass begins overruns by 3x — a kill, not a truncation.
+     */
+    @Test
+    fun `a budget shorter than the start handshake still bounds the run`() = runTest {
+        val runner = runner()
+        val startedAt = testScheduler.currentTime
+
+        val result = async { runner.runOnce(SHORT_BUDGET) }
+        advanceUntilIdle()
+
+        assertThat(result.await()).isEqualTo(PrefetchRunOutcome.CONSTRAINTS_UNMET)
+        assertThat(testScheduler.currentTime - startedAt)
+            .isAtMost(SHORT_BUDGET.inWholeMilliseconds)
+    }
+
+    @Test
+    fun `waiting for a session cannot outlast the budget`() = runTest {
+        val runner = runner(hasSession = false)
+        val startedAt = testScheduler.currentTime
+
+        val result = async { runner.runOnce(SHORT_BUDGET) }
+        advanceUntilIdle()
+
+        assertThat(result.await()).isEqualTo(PrefetchRunOutcome.NO_SESSION)
+        assertThat(testScheduler.currentTime - startedAt)
+            .isAtMost(SHORT_BUDGET.inWholeMilliseconds)
+    }
+
     private companion object {
         val BUDGET = 2.minutes
+
+        /** Shorter than SESSION_WAIT and than either start grace, so both have to be clamped. */
+        val SHORT_BUDGET = 3.seconds
     }
 
     /**

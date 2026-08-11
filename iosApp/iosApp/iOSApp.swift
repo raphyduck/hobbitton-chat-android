@@ -21,10 +21,11 @@ struct iOSApp: App {
                 .ignoresSafeArea()
         }
         .onChange(of: scenePhase) { phase in
-            // Refresh the most-used-model quick actions as the app leaves the foreground, so a
-            // long-press on the app icon reflects the latest usage.
             if phase == .background {
+                // Refresh the most-used-model quick actions as the app leaves the foreground, so a
+                // long-press on the app icon reflects the latest usage.
                 ModelQuickActions.refresh()
+                PrefetchBackgroundTasks.holdIfPassRunning()
             }
         }
     }
@@ -32,6 +33,17 @@ struct iOSApp: App {
 
 /// Supplies a scene delegate; that's the object iOS delivers quick-action taps to.
 final class AppDelegate: NSObject, UIApplicationDelegate {
+    func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
+    ) -> Bool {
+        // Here rather than in the scene delegate: a launch triggered by a background task connects no
+        // scene at all, so `willConnectTo` never fires and the feature would run once and then have
+        // nothing left to re-register it.
+        PrefetchBackgroundTasks.register()
+        return true
+    }
+
     func application(
         _ application: UIApplication,
         configurationForConnecting connectingSceneSession: UISceneSession,

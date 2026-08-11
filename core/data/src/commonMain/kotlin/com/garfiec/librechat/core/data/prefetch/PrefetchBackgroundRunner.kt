@@ -90,22 +90,25 @@ class PrefetchBackgroundRunner(
     private suspend fun runPass(budget: Duration): PrefetchRunOutcome {
         if (!settingsDataStore.prefetchEnabled.first()) return PrefetchRunOutcome.DISABLED
 
+        // One deadline for the whole call, armed before any waiting: not one per attempt (the retry
+        // below would re-arm the full budget), and covering the handshake, which can spend
+        // SESSION_WAIT plus two PASS_START_GRACEs — the whole allowance of an iOS refresh task.
+        val deadline = timeSource.markNow() + budget
         deferredWorkWindow.beginBackgroundRun()
         try {
-            val session = withTimeoutOrNull(SESSION_WAIT) {
+            val session = withTimeoutOrNull(deadline.remainingCappedTo(SESSION_WAIT)) {
                 sessionManager.current.filterNotNull().first()
             } ?: return PrefetchRunOutcome.NO_SESSION
 
             val accountId = session.accountId.value
             recordedAccountId = accountId
             // The window opening is itself a trigger, so only ask when nothing started on its own.
-            if (!awaitPassStart() && !requestAndAwaitStart()) return PrefetchRunOutcome.CONSTRAINTS_UNMET
+            if (!awaitPassStart(deadline) && !requestAndAwaitStart(deadline)) {
+                return PrefetchRunOutcome.CONSTRAINTS_UNMET
+            }
 
-            // One deadline for the whole call, not one per attempt: the retry below would otherwise
-            // re-arm the full budget and let a run take twice what the caller allowed for it.
-            val deadline = timeSource.markNow() + budget
             var outcome = awaitPassEnd(deadline, accountId)
-            if (outcome == PrefetchRunOutcome.STOPPED && requestAndAwaitStart()) {
+            if (outcome == PrefetchRunOutcome.STOPPED && requestAndAwaitStart(deadline)) {
                 // One retry with the breaker cleared. Beyond that the server really is not answering,
                 // and the next scheduled run is hours away — a better time to try than now.
                 outcome = awaitPassEnd(deadline, accountId)
@@ -122,19 +125,26 @@ class PrefetchBackgroundRunner(
      * looking — [PrefetchController.passInProgress] conflates, so a short pass can begin and end
      * between two reads of it and would otherwise be reported as never having started.
      */
-    private suspend fun awaitPassStart(): Boolean {
+    private suspend fun awaitPassStart(deadline: TimeMark): Boolean {
         val before = controller.completedPasses.value
-        return withTimeoutOrNull(PASS_START_GRACE) {
+        return withTimeoutOrNull(deadline.remainingCappedTo(PASS_START_GRACE)) {
             combine(controller.passInProgress, controller.completedPasses) { running, completed ->
                 running || completed != before
             }.first { it }
         } != null
     }
 
-    private suspend fun requestAndAwaitStart(): Boolean {
+    private suspend fun requestAndAwaitStart(deadline: TimeMark): Boolean {
         controller.requestScheduledRun()
-        return awaitPassStart()
+        return awaitPassStart(deadline)
     }
+
+    /**
+     * How long is left, never more than [cap] and never negative — a negative timeout makes
+     * `withTimeoutOrNull` fail instantly, indistinguishably from the condition genuinely not being met.
+     */
+    private fun TimeMark.remainingCappedTo(cap: Duration): Duration =
+        minOf(cap, -elapsedNow()).coerceAtLeast(Duration.ZERO)
 
     private suspend fun awaitPassEnd(deadline: TimeMark, accountId: String): PrefetchRunOutcome {
         val remaining = -deadline.elapsedNow()
