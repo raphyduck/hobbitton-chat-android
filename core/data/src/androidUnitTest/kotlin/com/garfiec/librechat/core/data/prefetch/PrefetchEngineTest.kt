@@ -2,6 +2,7 @@ package com.garfiec.librechat.core.data.prefetch
 
 import com.garfiec.librechat.core.common.conversation.OpenConversationRegistry
 import com.garfiec.librechat.core.common.identity.AccountId
+import com.garfiec.librechat.core.common.lifecycle.ForegroundSignal
 import com.garfiec.librechat.core.common.network.isPrefetch
 import com.garfiec.librechat.core.common.result.ApiException
 import com.garfiec.librechat.core.common.result.Result
@@ -33,6 +34,7 @@ import kotlinx.coroutines.test.currentTime
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
+import kotlin.time.Duration.Companion.hours
 import kotlin.coroutines.coroutineContext
 
 /**
@@ -61,6 +63,10 @@ class PrefetchEngineTest {
         override fun getBaseUrl(): String = "https://chat.example.com"
     }
 
+    // Foreground by default: pacing differs between the two, so every test that isn't about pacing
+    // should exercise the polite gap the user actually sees.
+    private val foregroundSignal = ForegroundSignal().apply { set(true) }
+
     @Before
     fun setup() {
         coEvery { conversationRepository.loadNextPage(any(), any(), any(), any(), any(), any()) } returns
@@ -74,6 +80,10 @@ class PrefetchEngineTest {
         every { settingsDataStore.prefetchAttachmentsEnabled } returns flowOf(false)
         every { settingsDataStore.prefetchDepth } returns flowOf(PrefetchDepth.DEFAULT)
         every { attachmentWarmer.isSupported } returns false
+        // Explicitly "never refreshed". A relaxed mock answers 0L here, not null, and against
+        // runTest's clock — which starts at 0 — that reads as "refreshed this instant" and silently
+        // skips the list stage in every test that isn't about the skip.
+        coEvery { settingsDataStore.prefetchListRefreshedAt(any()) } returns null
     }
 
     private fun TestScope.engine() = PrefetchEngine(
@@ -89,6 +99,7 @@ class PrefetchEngineTest {
         attachmentWarmer = attachmentWarmer,
         settingsDataStore = settingsDataStore,
         serverUrlProvider = serverUrlProvider,
+        foregroundSignal = foregroundSignal,
         ioDispatcher = UnconfinedTestDispatcher(testScheduler),
         // The scheduler's own time source, so elapsedNow() follows virtual time.
         timeSource = testScheduler.timeSource,
@@ -108,6 +119,61 @@ class PrefetchEngineTest {
         ),
     )
 
+    /**
+     * The prologue is what a short pass spends itself on. At the deepest setting it is eight pages,
+     * and a user who idles in bursts would re-pay it every time and never reach the message stage.
+     */
+    @Test
+    fun `a list refresh completed moments ago is not repeated`() = runTest {
+        coEvery { settingsDataStore.prefetchListRefreshedAt(any()) } returns currentTime
+        stubRecent("a")
+        coEvery { messageRepository.refreshMessages(any(), any()) } returns Result.Success(emptyList())
+
+        engine().run(account)
+
+        coVerify(exactly = 0) { conversationRepository.loadNextPage(any(), any(), any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `an old list refresh is repeated`() = runTest {
+        coEvery { settingsDataStore.prefetchListRefreshedAt(any()) } returns
+            currentTime - 1.hours.inWholeMilliseconds
+        stubRecent("a")
+        coEvery { messageRepository.refreshMessages(any(), any()) } returns Result.Success(emptyList())
+
+        engine().run(account)
+
+        coVerify(atLeast = 1) { conversationRepository.loadNextPage(any(), any(), any(), any(), any(), any()) }
+    }
+
+    /**
+     * Recording a partial run would let the skip suppress the very refresh that never finished,
+     * leaving selection reading timestamps the list stage never brought up to date.
+     */
+    @Test
+    fun `a list refresh cut short is not recorded`() = runTest {
+        coEvery { settingsDataStore.prefetchListRefreshedAt(any()) } returns null
+        coEvery { conversationRepository.loadNextPage(any(), any(), any(), any(), any(), any()) } returns
+            Result.Error(exception = ApiException(statusCode = 500, message = "boom"))
+        stubRecent("a")
+        coEvery { messageRepository.refreshMessages(any(), any()) } returns Result.Success(emptyList())
+
+        engine().run(account)
+
+        coVerify(exactly = 0) { settingsDataStore.recordPrefetchListRefreshed(any(), any()) }
+    }
+
+    @Test
+    fun `a completed list refresh is recorded`() = runTest {
+        coEvery { settingsDataStore.prefetchListRefreshedAt(any()) } returns null
+        stubRecent("a")
+        coEvery { messageRepository.refreshMessages(any(), any()) } returns Result.Success(emptyList())
+
+        engine().run(account)
+
+        coVerify(exactly = 1) { settingsDataStore.recordPrefetchListRefreshed(account.value, any()) }
+    }
+
     @Test
     fun `pacing waits five times the observed latency between requests`() = runTest {
         stubRecent("a", "b")
@@ -121,6 +187,52 @@ class PrefetchEngineTest {
         engine().run(account)
 
         assertThat(callTimes).hasSize(2)
+        assertThat(callTimes[1] - callTimes[0])
+            .isEqualTo(REQUEST_MILLIS + REQUEST_MILLIS * PrefetchEngine.PACE_FACTOR)
+    }
+
+    /**
+     * Off screen the proportional gap is what would make a pass outlive the window it was given, so
+     * it collapses to the floor. This is the difference between a scheduled run warming the whole
+     * configured depth and warming a fraction of it.
+     */
+    @Test
+    fun `pacing holds only the floor when the app is off screen`() = runTest {
+        foregroundSignal.set(false)
+        stubRecent("a", "b")
+        val callTimes = mutableListOf<Long>()
+        coEvery { messageRepository.refreshMessages(any(), any()) } coAnswers {
+            callTimes += currentTime
+            delay(REQUEST_MILLIS)
+            Result.Success(emptyList<Message>())
+        }
+
+        engine().run(account)
+
+        assertThat(callTimes).hasSize(2)
+        assertThat(callTimes[1] - callTimes[0]).isEqualTo(REQUEST_MILLIS + PrefetchEngine.MIN_PACE_MILLIS)
+    }
+
+    /**
+     * Read live, not captured once per pass: someone who opens the app mid-pass is competing with it
+     * for the connection from that moment, not from the next one.
+     */
+    @Test
+    fun `returning to the foreground restores the polite gap within the same pass`() = runTest {
+        foregroundSignal.set(false)
+        stubRecent("a", "b", "c")
+        val callTimes = mutableListOf<Long>()
+        coEvery { messageRepository.refreshMessages(any(), any()) } coAnswers {
+            callTimes += currentTime
+            // The user comes back while the first request is in flight.
+            if (callTimes.size == 1) foregroundSignal.set(true)
+            delay(REQUEST_MILLIS)
+            Result.Success(emptyList<Message>())
+        }
+
+        engine().run(account)
+
+        assertThat(callTimes).hasSize(3)
         assertThat(callTimes[1] - callTimes[0])
             .isEqualTo(REQUEST_MILLIS + REQUEST_MILLIS * PrefetchEngine.PACE_FACTOR)
     }
@@ -150,6 +262,7 @@ class PrefetchEngineTest {
             attachmentWarmer = attachmentWarmer,
             settingsDataStore = settingsDataStore,
             serverUrlProvider = serverUrlProvider,
+        foregroundSignal = foregroundSignal,
             ioDispatcher = UnconfinedTestDispatcher(testScheduler),
             timeSource = testScheduler.timeSource,
             nowMillis = { currentTime },

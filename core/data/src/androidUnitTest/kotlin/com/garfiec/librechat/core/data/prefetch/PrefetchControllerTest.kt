@@ -4,6 +4,7 @@ import com.garfiec.librechat.core.common.conversation.OpenConversationRegistry
 import com.garfiec.librechat.core.common.identity.AccountId
 import com.garfiec.librechat.core.common.identity.Session
 import com.garfiec.librechat.core.common.identity.SessionManager
+import com.garfiec.librechat.core.common.lifecycle.ForegroundSignal
 import com.garfiec.librechat.core.common.result.Result
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.db.dao.ConversationDao
@@ -67,6 +68,9 @@ class PrefetchControllerTest {
         coEvery { agentRepository.getAgents(any()) } returns Result.Success(emptyList())
         every { settingsDataStore.prefetchAttachmentsEnabled } returns flowOf(false)
         every { settingsDataStore.prefetchDepth } returns flowOf(PrefetchDepth.DEFAULT)
+        // See PrefetchEngineTest: a relaxed mock answers 0L, which against virtual time reads as a
+        // list refresh that just happened and skips the stage these tests count calls on.
+        coEvery { settingsDataStore.prefetchListRefreshedAt(any()) } returns null
         every { attachmentWarmer.isSupported } returns false
 
         var firstCall = true
@@ -94,6 +98,7 @@ class PrefetchControllerTest {
                 serverUrlProvider = object : ServerUrlProvider {
                     override fun getBaseUrl(): String = "https://chat.example.com"
                 },
+                foregroundSignal = ForegroundSignal().apply { set(true) },
                 ioDispatcher = UnconfinedTestDispatcher(testScheduler),
                 timeSource = testScheduler.timeSource,
                 nowMillis = { 0L },

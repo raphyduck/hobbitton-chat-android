@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.garfiec.librechat.core.data.prefetch.PrefetchController
 import com.garfiec.librechat.core.data.prefetch.PrefetchConversationStatus
+import com.garfiec.librechat.core.data.prefetch.PrefetchRunOutcome
 import com.garfiec.librechat.core.data.prefetch.PrefetchRunState
 import com.garfiec.librechat.core.data.prefetch.PrefetchStatus
 import com.garfiec.librechat.core.data.prefetch.PrefetchStatusReporter
@@ -25,6 +26,10 @@ data class PrefetchActivityUiState(
     val warmedCount: Int = 0,
     val eligibleCount: Int = 0,
     val lastWarmedAt: Long? = null,
+    /** False on platforms with no scheduler, which hides the row rather than showing "Never". */
+    val scheduledRunsSupported: Boolean = false,
+    val lastScheduledRunAt: Long? = null,
+    val lastScheduledRunOutcome: PrefetchRunOutcome? = null,
     val cachedMessageCount: Int = 0,
     val warmed: List<PrefetchConversationStatus> = emptyList(),
     val pending: List<PrefetchConversationStatus> = emptyList(),
@@ -61,7 +66,7 @@ enum class PrefetchCondition(
     val gatesManualRun: Boolean,
 ) {
     ENABLED(gatesManualRun = true),
-    FOREGROUND(gatesManualRun = true),
+    APP_AVAILABLE(gatesManualRun = true),
     NETWORK(gatesManualRun = true),
     POWER(gatesManualRun = true),
     IDLE(gatesManualRun = true),
@@ -101,6 +106,9 @@ class PrefetchActivityViewModel(
         warmedCount = warmedCount,
         eligibleCount = eligibleCount,
         lastWarmedAt = lastWarmedAt,
+        scheduledRunsSupported = scheduledRunsSupported,
+        lastScheduledRunAt = lastScheduledRun?.atMillis,
+        lastScheduledRunOutcome = lastScheduledRun?.outcome,
         cachedMessageCount = figures.messages,
         warmed = warmed,
         pending = pending,
@@ -109,7 +117,7 @@ class PrefetchActivityViewModel(
             // off: the route is serializable and restores from a saved back stack, and without this
             // row every condition then reads green while the one unmet condition is the one absent.
             PrefetchConditionRow(PrefetchCondition.ENABLED, conditions.enabled),
-            PrefetchConditionRow(PrefetchCondition.FOREGROUND, conditions.foreground),
+            PrefetchConditionRow(PrefetchCondition.APP_AVAILABLE, conditions.appAvailable),
             PrefetchConditionRow(
                 PrefetchCondition.NETWORK,
                 conditions.networkAllowed,

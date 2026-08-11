@@ -47,6 +47,7 @@ import coil3.SingletonImageLoader
 import coil3.compose.LocalPlatformContext
 import com.garfiec.librechat.core.common.conversation.OpenConversationRegistry
 import com.garfiec.librechat.core.common.identity.AccountState
+import com.garfiec.librechat.core.common.lifecycle.DeferredWorkWindow
 import com.garfiec.librechat.core.common.lifecycle.ForegroundSignal
 import com.garfiec.librechat.core.logging.Diag
 import com.garfiec.librechat.core.ui.components.BannerDisplay
@@ -119,11 +120,17 @@ fun LibreChatNavHost(
     // Publish foreground state for deferred background work. onDispose reports background because a
     // host leaving composition is the app going away as far as any consumer is concerned.
     val foregroundSignal = koinInject<ForegroundSignal>()
+    val deferredWorkWindow = koinInject<DeferredWorkWindow>()
     val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner, foregroundSignal) {
+    DisposableEffect(lifecycleOwner, foregroundSignal, deferredWorkWindow) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_START -> foregroundSignal.set(true)
+                Lifecycle.Event.ON_START -> {
+                    foregroundSignal.set(true)
+                    // Latches, so this is only ever the first ON_START that matters. It is what
+                    // lets deferred work outlive the foreground, and what keeps it off cold start.
+                    deferredWorkWindow.markUiStarted()
+                }
                 Lifecycle.Event.ON_STOP -> foregroundSignal.set(false)
                 else -> Unit
             }

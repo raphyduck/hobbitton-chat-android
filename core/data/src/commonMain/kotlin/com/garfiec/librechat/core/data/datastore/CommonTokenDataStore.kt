@@ -593,6 +593,14 @@ abstract class CommonTokenDataStore(
         // A racing double-emit is possible (plain @Volatile, no CAS) and deliberately tolerated: the
         // navigator's own guard absorbs it.
         if (sessionExpiryReported) return
+        // Latch on DELIVERY, not on the attempt. This flow has replay 0, so an emission with no
+        // subscriber is discarded — and burning the one-shot on it would consume the report the next
+        // request needs, stranding the user in a logged-out shell. Unattended emitters (background
+        // prefetch runs in processes where no navigation host is composed) make that an ordinary case.
+        if (_sessionExpired.subscriptionCount.value == 0) {
+            Diag.d("Auth") { "session expiry discovered with no subscriber - leaving the signal armed" }
+            return
+        }
         sessionExpiryReported = true
         _sessionExpired.tryEmit(reason)
     }

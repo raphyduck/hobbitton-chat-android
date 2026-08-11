@@ -13,10 +13,12 @@ import com.garfiec.librechat.core.data.datastore.ServerDataStore
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.datastore.ThemeDataStore
 import com.garfiec.librechat.core.data.db.LibreChatDatabase
+import com.garfiec.librechat.core.data.prefetch.PrefetchBackgroundRunner
 import com.garfiec.librechat.core.data.prefetch.PrefetchController
 import com.garfiec.librechat.core.data.prefetch.PrefetchEngine
 import com.garfiec.librechat.core.data.prefetch.PrefetchGate
 import com.garfiec.librechat.core.data.prefetch.PrefetchPolicy
+import com.garfiec.librechat.core.data.prefetch.PrefetchScheduleCoordinator
 import com.garfiec.librechat.core.data.prefetch.PrefetchStatusReporter
 import com.garfiec.librechat.core.data.repository.AccountClaimReconciler
 import com.garfiec.librechat.core.data.repository.AccountDataPurger
@@ -286,7 +288,7 @@ val dataModule = module {
     singleOf(::PrefetchPolicy)
     single {
         PrefetchGate(
-            foregroundSignal = get(),
+            deferredWorkWindow = get(),
             settingsDataStore = get(),
             networkConditionObserver = get(),
             connectivityObserver = get(),
@@ -308,6 +310,7 @@ val dataModule = module {
             attachmentWarmer = get(),
             settingsDataStore = get(),
             serverUrlProvider = get(),
+            foregroundSignal = get(),
             ioDispatcher = get(KoinQualifiers.IO),
         )
     }
@@ -322,6 +325,25 @@ val dataModule = module {
             appScope = get<CoroutineScope>(KoinQualifiers.ApplicationScope),
         )
     }
+    // Eager for the same reason as PrefetchController: its whole job is a collector, so a lazy
+    // binding nobody resolves would never register or cancel anything.
+    single(createdAtStart = true) {
+        PrefetchScheduleCoordinator(
+            settingsDataStore = get(),
+            activeAccountProvider = get(),
+            scheduler = get(),
+            appScope = get<CoroutineScope>(KoinQualifiers.ApplicationScope),
+        )
+    }
+    single {
+        PrefetchBackgroundRunner(
+            sessionManager = get(),
+            controller = get(),
+            engine = get(),
+            deferredWorkWindow = get(),
+            settingsDataStore = get(),
+        )
+    }
     single {
         PrefetchStatusReporter(
             gate = get(),
@@ -333,6 +355,7 @@ val dataModule = module {
             openConversationRegistry = get(),
             activeAccountProvider = get(),
             settingsDataStore = get(),
+            scheduler = get(),
         )
     }
 

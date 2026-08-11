@@ -1,6 +1,6 @@
 package com.garfiec.librechat.core.data.prefetch
 
-import com.garfiec.librechat.core.common.lifecycle.ForegroundSignal
+import com.garfiec.librechat.core.common.lifecycle.DeferredWorkWindow
 import com.garfiec.librechat.core.common.network.ConnectivityObserver
 import com.garfiec.librechat.core.common.network.NetworkConditionObserver
 import com.garfiec.librechat.core.common.network.RequestActivityTracker
@@ -20,7 +20,12 @@ import kotlinx.coroutines.flow.map
  */
 data class PrefetchConditions(
     val enabled: Boolean,
-    val foreground: Boolean,
+    /**
+     * Whether the app is in a state that permits deferred work — see [DeferredWorkWindow], which
+     * answers "the UI has started, or a background run is under way" on platforms that can keep a
+     * backgrounded process alive, and plain "on screen" on those that cannot.
+     */
+    val appAvailable: Boolean,
     val networkAllowed: Boolean,
     val powerAvailable: Boolean,
     val appIdle: Boolean,
@@ -34,7 +39,7 @@ data class PrefetchConditions(
      */
     val connected: Boolean,
 ) {
-    val isOpen: Boolean get() = enabled && foreground && networkAllowed && powerAvailable && appIdle
+    val isOpen: Boolean get() = enabled && appAvailable && networkAllowed && powerAvailable && appIdle
 }
 
 /**
@@ -44,7 +49,7 @@ data class PrefetchConditions(
  * conditions of its own to check and `PrefetchController` needs no per-condition teardown.
  */
 class PrefetchGate(
-    private val foregroundSignal: ForegroundSignal,
+    private val deferredWorkWindow: DeferredWorkWindow,
     private val settingsDataStore: SettingsDataStore,
     private val networkConditionObserver: NetworkConditionObserver,
     private val connectivityObserver: ConnectivityObserver,
@@ -69,17 +74,17 @@ class PrefetchGate(
     }
 
     fun conditions(): Flow<PrefetchConditions> = combine(
-        foregroundSignal.isForeground,
+        deferredWorkWindow.isOpen,
         settingsDataStore.prefetchEnabled,
         network,
         powerStateObserver.isPowerConstrained.map { !it },
         // No debounce and no quiet-period timer: the rule is "not while a request is in flight", not
         // "not near one". Adding a settle delay here would also delay resuming after every tap.
         requestActivityTracker.userInFlight.map { it == 0 },
-    ) { foreground, enabled, networkState, powerOk, idle ->
+    ) { appAvailable, enabled, networkState, powerOk, idle ->
         PrefetchConditions(
             enabled = enabled,
-            foreground = foreground,
+            appAvailable = appAvailable,
             networkAllowed = networkState.allowed,
             powerAvailable = powerOk,
             appIdle = idle,

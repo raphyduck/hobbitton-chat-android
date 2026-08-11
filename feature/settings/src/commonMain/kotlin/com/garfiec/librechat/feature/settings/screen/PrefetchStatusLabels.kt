@@ -1,10 +1,11 @@
 package com.garfiec.librechat.feature.settings.screen
 
 import androidx.compose.runtime.Composable
+import com.garfiec.librechat.core.data.prefetch.PrefetchRunOutcome
 import com.garfiec.librechat.feature.settings.resources.Res
+import com.garfiec.librechat.feature.settings.resources.prefetch_condition_app_available
 import com.garfiec.librechat.feature.settings.resources.prefetch_condition_enabled
 import com.garfiec.librechat.feature.settings.resources.prefetch_condition_enabled_unmet
-import com.garfiec.librechat.feature.settings.resources.prefetch_condition_foreground
 import com.garfiec.librechat.feature.settings.resources.prefetch_condition_idle
 import com.garfiec.librechat.feature.settings.resources.prefetch_condition_idle_met
 import com.garfiec.librechat.feature.settings.resources.prefetch_condition_idle_unmet
@@ -18,6 +19,12 @@ import com.garfiec.librechat.feature.settings.resources.prefetch_condition_power
 import com.garfiec.librechat.feature.settings.resources.prefetch_condition_server
 import com.garfiec.librechat.feature.settings.resources.prefetch_condition_server_met
 import com.garfiec.librechat.feature.settings.resources.prefetch_condition_server_unmet
+import com.garfiec.librechat.feature.settings.resources.prefetch_run_outcome_budget
+import com.garfiec.librechat.feature.settings.resources.prefetch_run_outcome_constraints
+import com.garfiec.librechat.feature.settings.resources.prefetch_run_outcome_disabled
+import com.garfiec.librechat.feature.settings.resources.prefetch_run_outcome_interrupted
+import com.garfiec.librechat.feature.settings.resources.prefetch_run_outcome_no_session
+import com.garfiec.librechat.feature.settings.resources.prefetch_run_outcome_stopped
 import com.garfiec.librechat.feature.settings.resources.prefetch_status_off
 import com.garfiec.librechat.feature.settings.resources.prefetch_status_paused_background
 import com.garfiec.librechat.feature.settings.resources.prefetch_status_paused_busy
@@ -63,7 +70,7 @@ fun PrefetchDisplayStatus.label(): String = when (this) {
 fun PrefetchCondition.label(): String = stringResource(
     when (this) {
         PrefetchCondition.ENABLED -> Res.string.prefetch_condition_enabled
-        PrefetchCondition.FOREGROUND -> Res.string.prefetch_condition_foreground
+        PrefetchCondition.APP_AVAILABLE -> Res.string.prefetch_condition_app_available
         PrefetchCondition.NETWORK -> Res.string.prefetch_condition_network
         PrefetchCondition.POWER -> Res.string.prefetch_condition_power
         PrefetchCondition.IDLE -> Res.string.prefetch_condition_idle
@@ -72,12 +79,12 @@ fun PrefetchCondition.label(): String = stringResource(
 )
 
 /**
- * The detail line beside a condition. Foreground has none: it is the one condition that is
- * necessarily met while the screen showing it is on top, so any wording would be filler.
+ * The detail line beside a condition. App-readiness has none: it is the one condition necessarily
+ * met while the screen showing it is on top, so any wording would be filler.
  */
 @Composable
 fun PrefetchConditionRow.detail(): String? = when (condition) {
-    PrefetchCondition.FOREGROUND -> null
+    PrefetchCondition.APP_AVAILABLE -> null
     PrefetchCondition.ENABLED ->
         if (met) null else stringResource(Res.string.prefetch_condition_enabled_unmet)
     // Offline is reported even when the row is otherwise met: with the metered override on, the
@@ -97,4 +104,21 @@ fun PrefetchConditionRow.detail(): String? = when (condition) {
     PrefetchCondition.SERVER -> stringResource(
         if (met) Res.string.prefetch_condition_server_met else Res.string.prefetch_condition_server_unmet,
     )
+}
+
+/**
+ * How a scheduled run ended, shown beside its timestamp.
+ *
+ * Null for a completed run: "Last background run: 7 hours ago" already says everything there, and a
+ * suffix on the ordinary case would train the eye to skip the ones that matter.
+ */
+@Composable
+fun PrefetchRunOutcome.label(): String? = when (this) {
+    PrefetchRunOutcome.COMPLETED -> null
+    PrefetchRunOutcome.DISABLED -> stringResource(Res.string.prefetch_run_outcome_disabled)
+    PrefetchRunOutcome.NO_SESSION -> stringResource(Res.string.prefetch_run_outcome_no_session)
+    PrefetchRunOutcome.CONSTRAINTS_UNMET -> stringResource(Res.string.prefetch_run_outcome_constraints)
+    PrefetchRunOutcome.BUDGET_EXPIRED -> stringResource(Res.string.prefetch_run_outcome_budget)
+    PrefetchRunOutcome.STOPPED -> stringResource(Res.string.prefetch_run_outcome_stopped)
+    PrefetchRunOutcome.INTERRUPTED -> stringResource(Res.string.prefetch_run_outcome_interrupted)
 }

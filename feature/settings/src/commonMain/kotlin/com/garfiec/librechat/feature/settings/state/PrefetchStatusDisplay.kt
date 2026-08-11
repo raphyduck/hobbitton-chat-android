@@ -98,7 +98,7 @@ fun PrefetchConditions.pauseReason(): PrefetchPauseReason? = when {
     !connected -> PrefetchPauseReason.OFFLINE
     !networkAllowed -> PrefetchPauseReason.NETWORK
     !powerAvailable -> PrefetchPauseReason.POWER
-    !foreground -> PrefetchPauseReason.BACKGROUND
+    !appAvailable -> PrefetchPauseReason.BACKGROUND
     !appIdle -> PrefetchPauseReason.BUSY
     else -> null
 }
