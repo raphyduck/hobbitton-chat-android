@@ -89,6 +89,9 @@ data class Attachment(
     val expiresAt: Long? = null,
     val width: Int? = null,
     val height: Int? = null,
+    /** File size; null means the server did not report it, which is not the same as zero — a
+     *  zero-byte file is an empty placeholder and sorts last (see `attachmentSalience`). */
+    val bytes: Long? = null,
     /** Deferred office-doc preview lifecycle (v0.8.6): `pending` while the server
      *  extracts HTML, `ready` once [text]/[textFormat] are set, `failed` on error.
      *  Null for ordinary attachments (treated as already-ready). */

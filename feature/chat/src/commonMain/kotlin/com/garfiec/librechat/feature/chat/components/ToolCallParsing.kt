@@ -306,15 +306,20 @@ internal fun parseImageGenResult(
     }
 
     val outputStr = toolCall.output ?: toolCall.function?.output
-    var imageUrl: String? = null
 
     val toolCallId = toolCall.id
-    if (toolCallId != null) {
-        val attachment = attachments.firstOrNull { it.toolCallId == toolCallId }
-        imageUrl = resolveAttachmentUrl(attachment, baseUrl)
+    val attachmentUrls = if (toolCallId != null) {
+        attachments.filter { it.toolCallId == toolCallId }
+            .mapNotNull { resolveAttachmentUrl(it, baseUrl) }
+            .distinct()
+    } else {
+        emptyList()
     }
 
-    if (imageUrl == null && !outputStr.isNullOrBlank()) {
+    // Legacy output shape: reachable only when the call produced no attachments, and it can
+    // describe at most one image.
+    var imageUrl: String? = null
+    if (attachmentUrls.isEmpty() && !outputStr.isNullOrBlank()) {
         try {
             val outputObj = toolCallJson.parseToJsonElement(outputStr).jsonObject
             imageUrl = outputObj["url"]?.jsonPrimitive?.contentOrNull
@@ -345,10 +350,11 @@ internal fun parseImageGenResult(
         }
     }
 
+    val imageUrls = attachmentUrls.ifEmpty { listOfNotNull(imageUrl) }
     return ImageGenResult(
-        imageUrl = imageUrl,
+        imageUrls = imageUrls,
         prompt = prompt,
-        isGenerating = outputStr.isNullOrBlank() && imageUrl == null,
+        isGenerating = outputStr.isNullOrBlank() && imageUrls.isEmpty(),
     )
 }
 
@@ -367,12 +373,13 @@ internal fun parseStreamingImageGenResult(
     attachments: List<Attachment>,
 ): ImageGenResult {
     val (prompt, quality) = parseImageGenArgs(toolCall.input)
-    val attachment = attachments.firstOrNull { it.toolCallId == toolCall.id }
-    val imageUrl = resolveAttachmentUrl(attachment, baseUrl)
+    val imageUrls = attachments.filter { it.toolCallId == toolCall.id }
+        .mapNotNull { resolveAttachmentUrl(it, baseUrl) }
+        .distinct()
     return ImageGenResult(
-        imageUrl = imageUrl,
+        imageUrls = imageUrls,
         prompt = prompt,
-        isGenerating = imageUrl == null,
+        isGenerating = imageUrls.isEmpty(),
         quality = quality,
     )
 }
