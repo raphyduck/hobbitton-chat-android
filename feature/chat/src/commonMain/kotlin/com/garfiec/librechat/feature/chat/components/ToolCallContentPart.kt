@@ -40,6 +40,7 @@ import com.garfiec.librechat.core.model.Attachment
 import com.garfiec.librechat.core.model.content.MessageContentPart
 import com.garfiec.librechat.feature.chat.resources.*
 import com.garfiec.librechat.feature.chat.resources.Res
+import com.garfiec.librechat.feature.chat.util.outputToolCallIds
 import org.jetbrains.compose.resources.stringResource
 
 // ─── ToolCallDispatcher ─────────────────────────────────────────────
@@ -70,23 +71,39 @@ internal fun ToolCallDispatcher(
     // Subagent tool_call → collapsible trace card (v0.8.6). Live progress comes
     // from LocalSubagentProgress (keyed by the parent tool_call id); persisted
     // `subagentContent` (reload) takes precedence inside the card. Depth-1:
-    // nested parts pass allowSubagentCard=false so this never recurses. Nested parts
-    // render their own attachments, so this branch keeps its pass-through return.
-    // hideAttachments is deliberately NOT forwarded: a group only collects the ids of its OWN
-    // parts, so a subagent's nested calls are never hoisted and suppressing them here would
-    // render them nowhere.
+    // nested parts pass allowSubagentCard=false so this never recurses.
+    //
+    // The card's nested parts are drawn with hideAttachments, so the whole subtree's files — the
+    // subagent's own and its nested calls' — hoist out to here instead. Both ends move together;
+    // see [outputToolCallIds].
     if (allowSubagentCard && toolNameLower == ToolConstants.SUBAGENT) {
         val toolCallId = toolCall?.id
         val liveTrace = toolCallId?.let { LocalSubagentProgress.current[it] }
-        SubagentTraceCard(
-            persistedParts = toolCall?.subagentContent,
-            liveTrace = liveTrace,
-            modifier = modifier,
-            baseUrl = baseUrl,
-            attachments = attachments,
-            showImageDescriptions = showImageDescriptions,
-            stateKey = cardKey,
-        )
+        val tracedParts = subagentTraceParts(toolCall?.subagentContent, liveTrace)
+        Column(modifier = modifier) {
+            SubagentTraceCard(
+                persistedParts = toolCall?.subagentContent,
+                liveTrace = liveTrace,
+                modifier = Modifier.fillMaxWidth(),
+                baseUrl = baseUrl,
+                attachments = attachments,
+                showImageDescriptions = showImageDescriptions,
+                stateKey = cardKey,
+            )
+            if (!hideAttachments) {
+                val hoisted = remember(attachments, toolCallId, tracedParts) {
+                    collectGroupAttachments(
+                        attachments,
+                        listOfNotNull(toolCallId?.takeIf { it.isNotEmpty() }) + outputToolCallIds(tracedParts),
+                    )
+                }
+                ToolAttachmentBuckets(
+                    buckets = hoisted,
+                    baseUrl = baseUrl,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+            }
+        }
         return
     }
 
