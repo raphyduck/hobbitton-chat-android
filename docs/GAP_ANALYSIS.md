@@ -12,40 +12,39 @@ Ce qui suit compare trois surfaces serveur au client tel qu'il est aujourd'hui
 
 ---
 
-## 0. Le blocage à traiter en premier
+## 0. Le blocage — tranché et levé le 20 août
 
-**L'application ne peut plus se connecter au serveur.**
+**L'application ne pouvait plus se connecter.** La phase 4 avait mis Authelia
+devant `chat.hobbitton.at` en `two_factor`, et Authelia intercepte **toutes**
+les requêtes de l'hôte, `/api/*` comprise. Or le client s'authentifie par
+`POST /api/auth/login` puis porte un JWT LibreChat : ni navigateur, ni cookie
+de session, rien dans sa pile réseau pour franchir un formulaire.
 
-La phase 4 a mis Authelia devant `chat.hobbitton.at` en politique `two_factor`.
-Authelia intercepte **toutes** les requêtes de l'hôte, `/api/*` comprise, et
-répond `302` vers le portail à qui n'a pas de cookie de session. Or le client
-Android s'authentifie par `POST /api/auth/login` et porte ensuite un JWT
-LibreChat : il n'a pas de navigateur, pas de cookie Authelia, et rien dans son
-pile réseau ne sait franchir un formulaire de connexion.
+**Décision prise : `/api/*` est exempté d'Authelia** (`DECISIONS.md` du dépôt
+serveur, D-024). Cette surface n'est pas anonyme — elle exige un mot de passe
+et un second facteur, gérés par LibreChat, que le client sait présenter.
 
-Vérifié : `curl https://chat.hobbitton.at/` → `302 → auth.hobbitton.at`.
+Mesuré après application :
 
-Ce n'est pas un défaut de la phase 4 — c'est la conséquence attendue d'avoir
-mis une porte devant un hôte dont un client machine dépend. Mais **aucun écran
-de la phase 5 ne sert à rien tant que ce n'est pas tranché**, et c'est le genre
-de chose qu'on découvre au premier lancement sur téléphone si on ne l'écrit
-pas ici.
+| Requête | Résultat |
+|---|---|
+| `GET /` | `302` → portail — le SSO tient |
+| `GET /api/config` | `200` — l'exemption tient |
+| `GET /api/user` | `401` sans jeton — exempté ≠ ouvert |
+| `POST /api/auth/login` | réponse identique à celle de LibreChat en direct |
 
-Trois options, à arbitrer avant d'écrire une ligne d'UI :
+**Ce que cette décision laisse à faire, et qui appartient à cette phase.** Le
+second facteur de l'application **n'est pas celui d'Authelia** : c'est celui de
+LibreChat, et il **n'est pas encore activé**. Tant qu'il ne l'est pas,
+l'application n'exige qu'un mot de passe, et « SSO + 2FA partout » (§9.6) ne
+tient que sur le web.
 
-| | Ce que ça donne | Ce que ça coûte |
-|---|---|---|
-| **A. Exempter `/api/*` d'Authelia** | Le client retrouve son parcours actuel : login LibreChat, JWT, 2FA applicative (LibreChat a la sienne — `api/auth/2fa/*` est déjà implémenté côté client) | La surface API n'est plus derrière le SSO. Le brief dit « SSO + 2FA partout » ; on s'appuierait sur le fait que `/api` porte **déjà** une authentification et un second facteur, mais ce n'est pas *le même* SSO |
-| **B. Session Authelia dans l'app** | Une WebView pour la connexion, puis le cookie est réinjecté dans le client Ktor | Deux authentifications empilées pour l'utilisateur (Authelia *puis* LibreChat), un cookie à faire vivre hors du navigateur, et une WebView à maintenir. C'est la solution la plus fidèle au brief et la plus lourde |
-| **C. Un hôte dédié aux clients** | `app.hobbitton.at` sert le même LibreChat sans `forward_auth` | Une deuxième porte d'entrée à surveiller, et la tentation permanente de l'utiliser pour tout le reste |
-
-**Recommandation : A**, parce que `/api` n'est pas une surface anonyme — elle
-exige déjà un mot de passe et un second facteur, gérés par LibreChat, que le
-client sait faire. La règle Authelia deviendrait : `two_factor` sur l'hôte,
-`bypass` sur `/api/*`. C'est un choix à consigner dans `DECISIONS.md` du dépôt
-serveur, pas ici.
-
----
+Le client implémente déjà tout le nécessaire — `api/auth/2fa/enable`,
+`/confirm`, `/verify`, `/disable`, plus les codes de secours. Il s'agit donc
+d'activer, pas de construire. À faire **avant** de considérer le critère
+d'acceptation n°6 comme atteint, et de préférence avant le premier lancement sur
+téléphone : une application qui se connecte avec un simple mot de passe prend
+vite l'habitude de le faire.
 
 ## 1. Ce que le client sait déjà faire — le chat
 
@@ -159,15 +158,17 @@ Trois trous réels, découverts en faisant cet inventaire :
 
 ## 6. Ordre proposé
 
-1. **Trancher le §0** (Authelia et `/api`). Rien ne sert sans cela.
-2. Générer le client Kotlin (`make clients` côté serveur) et le versionner.
-3. Côté serveur : lancement ponctuel avec plafonds, et route de livrables (§5).
-4. `applicationId` + clé de signature + CI. Tôt, pour la raison donnée au §4.
-5. Onglet Tasks, puis onglet Code. Chats n'est pas touché.
+1. ~~Trancher le §0~~ — fait.
+2. **Activer le second facteur LibreChat** (§0). C'est ce qui rend l'exemption
+   défendable ; sans lui, elle est un trou.
+3. Générer le client Kotlin (`make clients` côté serveur) et le versionner.
+4. Côté serveur : lancement ponctuel avec plafonds, et route de livrables (§5).
+5. `applicationId` + clé de signature + CI. Tôt, pour la raison donnée au §4.
+6. Onglet Tasks, puis onglet Code. Chats n'est pas touché.
 
 ## 7. Décisions en attente
 
-- **D-A** — Authelia devant `/api` : option A, B ou C du §0.
+- ~~**D-A** — Authelia devant `/api`~~ → tranché le 20 août, option A (D-024).
 - **D-B** — l'application parle-t-elle au planificateur (plafonds garantis) ou
   au moteur (plus direct, plafonds contournés) ?
 - **D-C** — qui sert les livrables, et sous quelle authentification ?
