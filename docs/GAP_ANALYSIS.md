@@ -1,6 +1,6 @@
-# Analyse d'écart — avant l'onglet Tasks et l'onglet Code
+# Analyse d'écart — avant l'onglet Tasks
 
-**Date :** 20 août 2026 · **Phase 5 du brief** (`hobbitton-chat-server/docs/BRIEF.md`)
+**Date :** 20 août 2026 · **Phase 5 du brief, v9** (`hobbitton-chat-server/docs/BRIEF.md`)
 
 Le brief impose ce document **avant toute UI** : « `docs/GAP_ANALYSIS.md` avant
 toute UI (endpoints memory/projects/skills vs client) ». L'idée est simple —
@@ -9,6 +9,10 @@ avant de dessiner des écrans qui supposeraient l'un ou l'autre.
 
 Ce qui suit compare trois surfaces serveur au client tel qu'il est aujourd'hui
 (`e87a8d5`, v2026.08.2).
+
+**Mis à jour pour le brief v9** (20 août) : Code et Tasks fusionnent en un seul
+onglet, et l'application parle directement à l'API OpenCode. Les §2, §5 et §6 en
+tiennent compte.
 
 ---
 
@@ -71,42 +75,44 @@ il n'y a pas, et il n'a pas à y avoir, d'écran « mémoire » dans l'applicati
 
 ---
 
-## 2. Onglet Tasks — tout est à faire
+## 2. L'onglet Tasks — tout est à faire
 
-Le brief : « création : description + profil + cases connecteurs + ponctuelle ou
-cron ; stream de progression ; livrables téléchargeables ; pause/reprise ».
+Le brief v9 : un seul onglet pour ce qui était Tasks **et** Code. Une mission =
+objectif + profil + connecteurs cochés + mode d'exécution, `autonome`
+(ponctuelle ou cron) ou `interactif` (flux suivi, approbations). Liste unifiée,
+et une vue de détail qui s'adapte au livrable.
 
 **Côté client : rien.** Aucun module `feature/tasks`, aucun client du moteur
 Agent, aucune référence à OpenCode. Vérifié par recherche sur l'ensemble des
 sources.
 
-**Côté serveur : tout existe et tourne.** Ce qu'il faut consommer :
+**Côté serveur : tout existe et tourne.** Ce qu'il faut consommer, en direct
+sur l'API de sessions — pas de façade (D-026) :
 
-| Besoin de l'écran | Ce que le serveur offre | Où |
-|---|---|---|
-| liste des profils | `GET /agent` | moteur Agent, port 4096 |
-| créer une mission ponctuelle | `POST /session` puis `POST /session/{id}/prompt_async` | moteur Agent |
-| cases à cocher des connecteurs | règles `{permission, pattern, action}` passées à la création de session | moteur Agent |
-| plafonds durée / jetons | **n'existent pas dans le moteur** — ils sont tenus par `scheduler/moteur.py` côté serveur | à exposer, voir §5 |
-| suivi de progression | `GET /session/{id}/message`, `GET /session/status` | moteur Agent |
-| mission récurrente (cron) | outils MCP `planifier`, `lister`, `prochaines`, `historique`, `lancer`, `activer`, `desactiver`, `supprimer` | planificateur, port 8090 |
-| pause / reprise | `desactiver` / `activer` | planificateur |
-| livrables | espace de travail du moteur (`agent_workspaces`) — **aucune route de téléchargement** | à créer, voir §5 |
+| Besoin de l'écran | Route du moteur Agent |
+|---|---|
+| liste des profils | `GET /agent` |
+| créer une mission | `POST /session` puis `POST /session/{id}/prompt_async` |
+| connecteurs cochés | règles `{permission, pattern, action}` à la création de session |
+| suivi, mode autonome | `GET /session/{id}/message`, `GET /session/status` |
+| flux, mode interactif | `GET /session/{id}/event` (SSE) |
+| approbations | `POST /session/{id}/permissions/{permissionID}` |
+| diff | `GET /session/{id}/diff`, `POST /session/{id}/revert` |
+| livrables | l'API de sessions elle-même (D-027) |
+| récurrentes : créer, suspendre, reprendre, historique | outils MCP du planificateur, port 8090 |
 
----
+**Un point d'appui inattendu :** le client possède déjà un **parseur SSE maison**
+sur `ByteReadChannel` (`core/network/.../sse/`), écrit pour le chat LibreChat et
+éprouvé sur iOS comme sur Android. Le flux d'événements du moteur est du SSE :
+c'est un point d'appui, pas un chantier neuf.
 
-## 3. Onglet Code — tout est à faire
+⚠️ **Deux préalables serveur avant la première mission lancée depuis le
+téléphone :**
 
-Le brief : « sessions, stream, diff, approbations ».
-
-Le moteur expose ce qu'il faut : `/session/{id}/diff`, `/session/{id}/revert`,
-`/session/{id}/permissions/{permissionID}` pour les approbations,
-`/session/{id}/event` pour le flux. Le client, lui, n'a rien.
-
-Bonne nouvelle : le client possède **déjà un parseur SSE maison** sur
-`ByteReadChannel` (`core/network/.../sse/`), écrit pour le chat LibreChat et
-éprouvé sur iOS comme sur Android. Le flux d'événements du moteur Agent est du
-SSE lui aussi : c'est un point d'appui, pas un chantier neuf.
+1. **`agent.hobbitton.at` n'est pas exposé.** Le moteur n'écoute que sur
+   `127.0.0.1:4096` ; sa règle Authelia est écrite mais inactive (D-020).
+   L'ouvrir est un geste de la phase 5, pas un acquis.
+2. **Le timeout de mission n'a plus de point d'application.** Voir §5.
 
 ---
 
@@ -133,26 +139,28 @@ les doigts d'une main.
 
 ## 5. Ce qui manque côté serveur, et que la phase 5 ne peut pas inventer
 
-Trois trous réels, découverts en faisant cet inventaire :
+1. **Le timeout de mission n'a plus de point d'application.** Le brief marque
+   NON NÉGOCIABLE « timeout et budget tokens par mission » (§4.3). Le budget est
+   désormais couvert par les clés virtuelles LiteLLM, par lesquelles **tout**
+   appel modèle transite — y compris celui d'une session créée en `curl`. Le
+   timeout, non : le profil d'agent OpenCode borne le nombre d'itérations
+   (`steps`), pas la durée, et un pas peut durer longtemps. La seule horloge
+   réelle était celle du scheduler — celle qui a effectivement avorté la mission
+   du 20 août — et elle sort du chemin critique en v9. À trancher avant la
+   première mission (D-026 en donne trois pistes).
 
-1. **Les plafonds de mission ne sont pas dans le moteur.** Le brief marque
-   NON NÉGOCIABLE « timeout et budget tokens par mission » (§4.3). Aujourd'hui
-   ils sont tenus par `services/scheduler/scheduler/moteur.py`, qui surveille et
-   avorte. Une application qui parlerait **directement** au moteur Agent
-   contournerait donc les deux plafonds. → **L'application doit passer par le
-   planificateur, pas par le moteur**, ou le serveur doit exposer un lancement
-   ponctuel qui applique les plafonds.
+2. **Les clés virtuelles exigent PostgreSQL.** La gateway tourne aujourd'hui en
+   mode « config seule » (D-007). L'ajout était prévu pour ce moment précis :
+   un overlay Compose, zéro code.
 
-2. **Aucune route pour récupérer un livrable.** Les missions produisent des
-   fichiers dans le volume `agent_workspaces` ; rien ne les sert. « Livrables
-   téléchargeables » demande une route, avec la question de l'authentification
-   qui va avec.
+3. **`agent.hobbitton.at` reste interne.** Rien de l'onglet Tasks ne fonctionne
+   depuis un téléphone tant que le moteur n'est pas publié derrière Authelia.
 
-3. **Le client Kotlin généré n'existe pas.** `scripts/generate-clients.sh` est
-   écrit (phase 2) mais n'a jamais tourné — le moteur ne démarrait pas avant
-   hier. Il produit `clients/kotlin/` depuis l'OpenAPI ; c'est le premier geste
-   de la phase, avant toute UI, et il donne du même coup la liste exacte des
-   routes plutôt que celle, approximative, de ce document.
+4. **Le client Kotlin généré n'existe pas.** `scripts/generate-clients.sh` est
+   écrit (phase 2) mais n'a jamais tourné — le moteur ne démarrait pas avant le
+   19 août. Il produit `clients/kotlin/` depuis l'OpenAPI ; c'est le premier
+   geste de la phase, et il donne la liste exacte des routes plutôt que celle,
+   approximative, de ce document.
 
 ---
 
@@ -162,16 +170,18 @@ Trois trous réels, découverts en faisant cet inventaire :
 2. **Activer le second facteur LibreChat** (§0). C'est ce qui rend l'exemption
    défendable ; sans lui, elle est un trou.
 3. Générer le client Kotlin (`make clients` côté serveur) et le versionner.
-4. Côté serveur : lancement ponctuel avec plafonds, et route de livrables (§5).
+4. Côté serveur : PostgreSQL + clés virtuelles, trancher le timeout, publier
+   `agent.hobbitton.at` (§5).
 5. `applicationId` + clé de signature + CI. Tôt, pour la raison donnée au §4.
-6. Onglet Tasks, puis onglet Code. Chats n'est pas touché.
+6. L'onglet Tasks. Chats n'est pas touché.
 
 ## 7. Décisions en attente
 
-- ~~**D-A** — Authelia devant `/api`~~ → tranché le 20 août, option A (D-024).
-- **D-B** — l'application parle-t-elle au planificateur (plafonds garantis) ou
-  au moteur (plus direct, plafonds contournés) ?
-- **D-C** — qui sert les livrables, et sous quelle authentification ?
+- ~~**D-A** — Authelia devant `/api`~~ → tranché, option A (D-024).
+- ~~**D-B** — planificateur ou moteur ?~~ → tranché : **le moteur, en direct**
+  (D-026). Le garde-fou ne devient pas obligatoire en rendant obligatoire le
+  composant qui le porte : il se déplace là où rien ne passe à côté.
+- ~~**D-C** — qui sert les livrables ?~~ → tranché : l'API de sessions (D-027).
 
-Ces trois-là appartiennent au dépôt serveur : elles iront dans son
-`docs/DECISIONS.md`, pas ici.
+**Reste ouvert, et bloquant :** le timeout de mission (§5.1). C'est le seul
+point du §4.3 marqué NON NÉGOCIABLE qui n'a plus d'endroit où s'appliquer.
