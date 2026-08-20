@@ -6,10 +6,16 @@ plugins {
 }
 
 android {
+    // Namespace stays upstream's: it names Kotlin classes (BuildConfig, R, and the
+    // MainActivity that :feature:chat references by string), not the installed app.
+    // The installed identity is applicationId below.
     namespace = "com.garfiec.librechat"
 
     defaultConfig {
-        applicationId = "com.garfiec.librechat"
+        // Install identity of this deployment. Changing it on a fleet that already
+        // has the app publishes a *different* application: existing installs don't
+        // update, they coexist. Fixed from here on.
+        applicationId = "at.hobbitton.chat"
     }
 
     buildTypes {

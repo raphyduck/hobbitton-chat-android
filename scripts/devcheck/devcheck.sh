@@ -11,7 +11,7 @@
 set -euo pipefail
 
 # run-as only works on a debuggable build, so these checks target the .debug install.
-PKG="${DEVCHECK_PKG:-com.garfiec.librechat.debug}"
+PKG="${DEVCHECK_PKG:-at.hobbitton.chat.debug}"
 # Spelled out in full: the applicationId is suffixed but the code namespace is not, so a relative
 # `$PKG/.MainActivity` resolves to a class that does not exist.
 ACTIVITY=com.garfiec.librechat.MainActivity
