@@ -77,6 +77,10 @@ il n'y a pas, et il n'a pas à y avoir, d'écran « mémoire » dans l'applicati
 
 ## 2. L'onglet Tasks — tout est à faire
 
+> **Instantané du 20 août.** Ce paragraphe décrit l'état d'avant l'écran, et il
+> est laissé tel quel : c'est ce que le brief demandait d'établir *avant* toute
+> UI. Pour ce qui a été livré depuis, et ce qui manque encore, voir le §8.
+
 Le brief v9 : un seul onglet pour ce qui était Tasks **et** Code. Une mission =
 objectif + profil + connecteurs cochés + mode d'exécution, `autonome`
 (ponctuelle ou cron) ou `interactif` (flux suivi, approbations). Liste unifiée,
