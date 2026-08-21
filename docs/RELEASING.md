@@ -82,6 +82,27 @@ Releases must be signed with **one permanent key**. If the key ever changes, eve
 user's update fails with a signature conflict and recovery requires uninstall + reinstall
 (full data loss). There is no key reset for direct/sideloaded distribution.
 
+> ### hobbitton fork — the key already exists. Do not generate a new one.
+>
+> | | |
+> |---|---|
+> | keystore | `hobbitton-release.jks` — PKCS12, RSA 4096, SHA384withRSA |
+> | alias | `hobbitton` |
+> | validity | 21 Aug 2026 → 6 Jan 2054 |
+> | SHA-256 | `0A:6D:AF:66:F7:D1:3D:43:21:A5:F0:0D:9E:F9:1B:9F:E5:93:C8:1B:F6:2C:F0:50:3D:90:E1:35:F7:DB:19:30` |
+> | where it lives | Bitwarden, *Clé de signature Android — at.hobbitton.chat (IRRÉCUPÉRABLE)* — file attached, passwords in the note |
+>
+> It signs `applicationId at.hobbitton.chat`. The steps below describe how it was created and how
+> to wire it into CI; follow step 2 onwards. **Step 1 is history, not an instruction** — running it
+> again produces a *different* key, and a different key is a different app to Android: every phone
+> that already has the build would refuse the update.
+>
+> Verify a downloaded APK really came from this key:
+>
+> ```bash
+> apksigner verify --print-certs app-release.apk   # compare with the SHA-256 above
+> ```
+
 1. **Generate the keystore** (do this once, keep it forever):
 
    ```bash

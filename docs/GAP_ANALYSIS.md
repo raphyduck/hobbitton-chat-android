@@ -118,12 +118,12 @@ téléphone :**
 
 ## 4. Identité, signature, distribution
 
-| | État | À faire |
+| | État au 21/08 | Reste |
 |---|---|---|
-| `applicationId` | `com.garfiec.librechat` | → `at.hobbitton.chat` |
-| clé de signature | seule la `debug.keystore` du dépôt | créer une clé dédiée, **la déposer dans Bitwarden** |
-| CI release | `.github/workflows/release.yml` décode déjà un keystore depuis les secrets | adapter au nouveau keystore |
-| Obtainium | — | dépend d'une release GitHub signée, donc du point précédent |
+| `applicationId` | **`at.hobbitton.chat`** | — |
+| clé de signature | **créée** : PKCS12, RSA 4096, alias `hobbitton`, valide jusqu'en 2054 ; empreinte et mots de passe dans Bitwarden | joindre le `.jks` à la fiche Bitwarden |
+| CI release | `.github/workflows/release.yml` décode déjà un keystore depuis les secrets ; **aucune exécution à ce jour** | renseigner les 4 secrets `SIGNING_*` |
+| Obtainium | — | dépend d'une première release signée |
 
 ⚠️ Le brief est explicite et mérite d'être répété : **clé perdue = plus aucune
 mise à jour installable** sur les téléphones qui ont déjà l'application. Ce
