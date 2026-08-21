@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tasks_title">Tâches</string>
+    <string name="tasks_empty">Aucune mission pour l\'instant</string>
+    <string name="tasks_empty_hint">Une mission, c\'est un objectif confié à un profil, avec les connecteurs que vous cochez et rien de plus.</string>
+    <string name="tasks_new">Nouvelle mission</string>
+    <string name="tasks_retry">Réessayer</string>
+    <string name="tasks_stop">Arrêter</string>
+    <string name="tasks_not_configured">Le moteur n\'est pas encore configuré</string>
+    <string name="tasks_not_configured_hint">Renseignez son adresse et ses identifiants dans les réglages, puis revenez.</string>
+    <string name="tasks_state_running">En cours</string>
+    <string name="tasks_state_succeeded">Terminée · %1$s jetons</string>
+    <string name="tasks_state_failed">Échec</string>
+    <string name="tasks_state_idle">Non lancée</string>
+    <string name="tasks_objective">Objectif</string>
+    <string name="tasks_profile">Profil</string>
+    <string name="tasks_connectors">Connecteurs</string>
+    <string name="tasks_mode_autonomous">Autonome</string>
+    <string name="tasks_mode_interactive">Interactif</string>
+    <string name="tasks_mode_hint_autonomous">Tourne seule. L\'accès shell est refusé : personne n\'est là pour répondre à une approbation.</string>
+    <string name="tasks_mode_hint_interactive">Vous la suivez et répondez à ses approbations.</string>
+    <string name="tasks_launch">Lancer</string>
+    <string name="tasks_cancel">Annuler</string>
+</resources>
