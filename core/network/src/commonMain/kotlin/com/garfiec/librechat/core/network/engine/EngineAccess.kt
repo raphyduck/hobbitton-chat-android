@@ -51,3 +51,16 @@ interface EngineTokenStore {
     suspend fun write(tokens: EngineTokens)
     suspend fun clear()
 }
+
+/**
+ * The engine's Basic password, kept out of ordinary preferences.
+ *
+ * Separate from [EngineTokenStore] because the two have different lifetimes: the password is what
+ * the person configured and survives every logout, the tokens are a session and must not. One store
+ * for both would make « forget my session » either too destructive or too timid.
+ */
+interface EnginePasswordStore {
+    suspend fun read(): String?
+    suspend fun write(password: String)
+    suspend fun clear()
+}

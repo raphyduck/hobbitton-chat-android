@@ -35,6 +35,8 @@ fun LibreChatNavHost(
     val resolution = remember(deepLinkUri) { deepLinkUri?.let { DeepLinks.resolve(it.toDeepLinkUri()) } }
 
     SharedLibreChatNavHost(
+        // Android starts `engineModule`; iOS does not (D-034).
+        tasksAvailable = true,
         modifier = modifier,
         appLocaleTag = appLocaleTag,
         // Cold-start deep links are set before setContent, so this is true on the first composition

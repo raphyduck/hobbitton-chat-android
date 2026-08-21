@@ -12,10 +12,12 @@ import coil3.network.ktor3.KtorNetworkFetcherFactory
 import coil3.request.crossfade
 import coil3.svg.SvgDecoder
 import com.garfiec.librechat.core.common.AppInfo
+import com.garfiec.librechat.core.data.di.engineModule
 import com.garfiec.librechat.core.logging.PersistentLogWriter
 import com.garfiec.librechat.core.logging.PlatformInfo
 import com.garfiec.librechat.core.logging.logStartupHeader
 import com.garfiec.librechat.core.logging.startMainThreadWatchdog
+import com.garfiec.librechat.feature.tasks.di.tasksModule
 import com.garfiec.librechat.shared.di.sharedKoinModules
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.CoroutineExceptionHandler
@@ -38,7 +40,11 @@ class LibreChatApplication : Application(), SingletonImageLoader.Factory {
                 }
                 androidContext(this@LibreChatApplication)
                 allowOverride(false)
-                modules(sharedKoinModules)
+                // `engineModule` is Android-only on purpose (D-034): the engine's secrets need a
+                // secure store, and on iOS that is raw Keychain code that cannot be compiled or run
+                // outside CI's macOS runner. It therefore joins here rather than in
+                // `sharedKoinModules`, which both platforms start from.
+                modules(sharedKoinModules + engineModule + tasksModule)
             }
         } catch (e: Exception) {
             Logger.e(e) { "Koin initialization failed" }

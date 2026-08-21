@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tasks_title">Tasks</string>
+    <string name="tasks_empty">No mission yet</string>
+    <string name="tasks_empty_hint">A mission is an objective handed to a profile, with the connectors you tick and nothing more.</string>
+    <string name="tasks_new">New mission</string>
+    <string name="tasks_retry">Retry</string>
+    <string name="tasks_stop">Stop</string>
+    <string name="tasks_not_configured">The engine is not set up yet</string>
+    <string name="tasks_not_configured_hint">Add its address and credentials in Settings, then come back.</string>
+    <string name="tasks_state_running">Running</string>
+    <string name="tasks_state_succeeded">Done · %1$s tokens</string>
+    <string name="tasks_state_failed">Failed</string>
+    <string name="tasks_state_idle">Not started</string>
+    <string name="tasks_objective">Objective</string>
+    <string name="tasks_profile">Profile</string>
+    <string name="tasks_connectors">Connectors</string>
+    <string name="tasks_mode_autonomous">Autonomous</string>
+    <string name="tasks_mode_interactive">Interactive</string>
+    <string name="tasks_mode_hint_autonomous">Runs on its own. Shell access is refused: nobody is there to answer an approval.</string>
+    <string name="tasks_mode_hint_interactive">You follow it and answer its approvals.</string>
+    <string name="tasks_launch">Launch</string>
+    <string name="tasks_cancel">Cancel</string>
+</resources>

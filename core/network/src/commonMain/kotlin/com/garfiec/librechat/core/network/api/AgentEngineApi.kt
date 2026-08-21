@@ -18,9 +18,9 @@ import io.ktor.http.path
 /**
  * The Agent engine, spoken to **directly** — no façade in front of it (server-side D-026).
  *
- * Eight routes out of the engine's 162. The full generated client lives server-side under
+ * Nine routes out of the engine's 162. The full generated client lives server-side under
  * `clients/kotlin`, regenerated from the engine's own OpenAPI on every upgrade so that a breaking
- * change shows up as a reviewable diff; carrying its 2 000 files into a KMP app to call eight
+ * change shows up as a reviewable diff; carrying its 2 000 files into a KMP app to call nine
  * routes would cost far more than it explains. This class is written against that contract.
  *
  * It takes its own [HttpClient] — qualifier `KoinQualifiers.Engine` — because the engine is a
@@ -32,6 +32,14 @@ import io.ktor.http.path
 class AgentEngineApi(
     private val client: HttpClient,
 ) {
+
+    /**
+     * Every session the engine knows about, newest last. This is the list the tab is built from:
+     * the engine is the source of truth for missions, and nothing is cached locally — a mission
+     * that exists only on a phone is a mission nobody can supervise.
+     */
+    suspend fun sessions(): List<EngineSession> =
+        client.get { url { path("session") } }.body()
 
     /** The profiles the engine is configured with — `cerveau`, `work-compta`… */
     suspend fun profiles(): List<EngineAgentProfile> =

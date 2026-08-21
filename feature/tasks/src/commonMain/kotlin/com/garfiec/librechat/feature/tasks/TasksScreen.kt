@@ -1,0 +1,201 @@
+package com.garfiec.librechat.feature.tasks
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.garfiec.librechat.core.data.engine.Mission
+import com.garfiec.librechat.core.model.engine.MissionState
+import com.garfiec.librechat.feature.tasks.resources.Res
+import com.garfiec.librechat.feature.tasks.resources.tasks_empty
+import com.garfiec.librechat.feature.tasks.resources.tasks_empty_hint
+import com.garfiec.librechat.feature.tasks.resources.tasks_new
+import com.garfiec.librechat.feature.tasks.resources.tasks_not_configured
+import com.garfiec.librechat.feature.tasks.resources.tasks_not_configured_hint
+import com.garfiec.librechat.feature.tasks.resources.tasks_retry
+import com.garfiec.librechat.feature.tasks.resources.tasks_state_failed
+import com.garfiec.librechat.feature.tasks.resources.tasks_state_idle
+import com.garfiec.librechat.feature.tasks.resources.tasks_state_running
+import com.garfiec.librechat.feature.tasks.resources.tasks_state_succeeded
+import com.garfiec.librechat.feature.tasks.resources.tasks_stop
+import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.viewmodel.koinViewModel
+
+/**
+ * The Tasks tab: every mission the engine knows about, and what each one is doing.
+ *
+ * One list, not two. The brief's v9 merged « Tasks » and « Code » because the split was about how a
+ * mission is watched, not about what it is — a mission is an objective handed to a profile, and
+ * whether a human follows it live is one of its attributes.
+ */
+@Composable
+fun TasksScreen(
+    modifier: Modifier = Modifier,
+    viewModel: TasksViewModel = koinViewModel(),
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    var composing by remember { mutableStateOf(false) }
+
+    Scaffold(
+        modifier = modifier.fillMaxSize(),
+        floatingActionButton = {
+            if (state.engineConfigured) {
+                ExtendedFloatingActionButton(
+                    onClick = { composing = true },
+                    text = { Text(stringResource(Res.string.tasks_new)) },
+                    icon = {},
+                )
+            }
+        },
+    ) { padding ->
+        when {
+            // « Not set up » is not « broken ». Offering a retry here would send someone to check
+            // their network over a settings form they have never filled in.
+            !state.engineConfigured -> Explanation(
+                title = stringResource(Res.string.tasks_not_configured),
+                hint = stringResource(Res.string.tasks_not_configured_hint),
+                modifier = Modifier.padding(padding),
+            )
+
+            state.loading && state.missions.isEmpty() ->
+                Column(
+                    modifier = Modifier.fillMaxSize().padding(padding),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) { CircularProgressIndicator() }
+
+            state.error != null && state.missions.isEmpty() -> Explanation(
+                title = state.error.orEmpty(),
+                hint = null,
+                action = stringResource(Res.string.tasks_retry) to viewModel::refresh,
+                modifier = Modifier.padding(padding),
+            )
+
+            state.missions.isEmpty() -> Explanation(
+                title = stringResource(Res.string.tasks_empty),
+                hint = stringResource(Res.string.tasks_empty_hint),
+                modifier = Modifier.padding(padding),
+            )
+
+            else -> LazyColumn(
+                modifier = Modifier.fillMaxSize().padding(padding),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                items(state.missions, key = { it.sessionId }) { mission ->
+                    MissionRow(mission = mission, onStop = { viewModel.abort(mission.sessionId) })
+                }
+            }
+        }
+    }
+
+    if (composing) {
+        NewMissionSheet(
+            profiles = state.profiles,
+            onDismiss = { composing = false },
+            onLaunch = { profile, objective, connectors, autonomous ->
+                composing = false
+                viewModel.launch(profile, objective, connectors, autonomous)
+            },
+        )
+    }
+}
+
+@Composable
+private fun MissionRow(mission: Mission, onStop: () -> Unit) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(mission.title, style = MaterialTheme.typography.titleMedium)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                MissionChip(mission.state)
+                if (mission.state is MissionState.Running) {
+                    TextButton(onClick = onStop) { Text(stringResource(Res.string.tasks_stop)) }
+                }
+            }
+            // A failure says why, in the row, without asking anyone to open anything. The reason is
+            // the engine's own — flattened, because it arrives as JSON nested three deep.
+            (mission.state as? MissionState.Failed)?.let { failed ->
+                Text(
+                    failed.reason,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MissionChip(state: MissionState) {
+    val (label, colour) = when (state) {
+        is MissionState.Running ->
+            stringResource(Res.string.tasks_state_running) to MaterialTheme.colorScheme.primary
+        is MissionState.Succeeded ->
+            stringResource(Res.string.tasks_state_succeeded, state.tokens.toString()) to
+                MaterialTheme.colorScheme.secondary
+        is MissionState.Failed ->
+            stringResource(Res.string.tasks_state_failed) to MaterialTheme.colorScheme.error
+        MissionState.Idle ->
+            stringResource(Res.string.tasks_state_idle) to MaterialTheme.colorScheme.outline
+    }
+    AssistChip(
+        onClick = {},
+        label = { Text(label) },
+        colors = AssistChipDefaults.assistChipColors(labelColor = colour),
+    )
+}
+
+@Composable
+private fun Explanation(
+    title: String,
+    hint: String?,
+    modifier: Modifier = Modifier,
+    action: Pair<String, () -> Unit>? = null,
+) {
+    Column(
+        modifier = modifier.fillMaxSize().padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text(title, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
+        if (hint != null) {
+            Text(
+                hint,
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+        }
+        action?.let { (label, onClick) ->
+            TextButton(onClick = onClick, modifier = Modifier.padding(top = 16.dp)) { Text(label) }
+        }
+    }
+}

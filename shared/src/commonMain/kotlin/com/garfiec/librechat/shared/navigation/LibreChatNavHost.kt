@@ -76,6 +76,8 @@ import com.garfiec.librechat.feature.settings.navigation.memoriesEntry
 import com.garfiec.librechat.feature.settings.navigation.settingsEntries
 import com.garfiec.librechat.feature.skills.navigation.SkillsList
 import com.garfiec.librechat.feature.skills.navigation.skillsEntries
+import com.garfiec.librechat.feature.tasks.navigation.TasksList
+import com.garfiec.librechat.feature.tasks.navigation.tasksEntries
 import com.garfiec.librechat.shared.resources.Res
 import com.garfiec.librechat.shared.resources.dismiss
 import com.garfiec.librechat.shared.resources.dont_warn_again
@@ -109,6 +111,12 @@ fun LibreChatNavHost(
     modifier: Modifier = Modifier,
     appLocaleTag: String? = null,
     hasPendingDeepLink: Boolean = false,
+    /**
+     * Whether the Agent engine's graph is started on this platform. False on iOS today (D-034):
+     * the engine's secrets need a secure store that has not been written for Keychain yet, so the
+     * Tasks row is absent there rather than present and fatal at the tap.
+     */
+    tasksAvailable: Boolean = false,
     navHostViewModel: NavHostViewModel = koinViewModel(),
     drawerViewModel: DrawerViewModel = koinViewModel(),
     content: (@Composable (Navigator, NavHostViewModel, Modifier) -> Unit)? = null,
@@ -267,6 +275,7 @@ fun LibreChatNavHost(
             content(navigator, navHostViewModel, modifier)
         } else {
             PhoneLayout(
+                tasksAvailable = tasksAvailable,
                 navigator = navigator,
                 modifier = modifier,
             )
@@ -363,6 +372,8 @@ private fun VersionMismatchDialog(
 fun PhoneLayout(
     navigator: Navigator,
     modifier: Modifier = Modifier,
+    /** See [LibreChatNavHost]: false hides the Tasks row on platforms without the engine graph. */
+    tasksAvailable: Boolean = false,
     navHostViewModel: NavHostViewModel = koinViewModel(),
 ) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
@@ -420,6 +431,17 @@ fun PhoneLayout(
                     onSkillsClick = {
                         scope.launch { drawerState.close() }
                         navigator.navigate(SkillsList)
+                    },
+                    // Null on any platform where the engine's graph is not started, which today
+                    // means iOS (D-034). The row then does not exist, rather than existing and
+                    // crashing at the tap.
+                    onTasksClick = if (tasksAvailable) {
+                        {
+                            scope.launch { drawerState.close() }
+                            navigator.navigate(TasksList)
+                        }
+                    } else {
+                        null
                     },
                     onOpenProjectsIndex = {
                         scope.launch { drawerState.close() }
@@ -545,6 +567,7 @@ fun MainNavDisplay(
                     navigator.navigateToTopLevel(NewChat(agentId))
                 },
             )
+            tasksEntries()
             skillsEntries(
                 onNavigate = { navigator.navigate(it) },
                 onBack = { navigator.goBack() },

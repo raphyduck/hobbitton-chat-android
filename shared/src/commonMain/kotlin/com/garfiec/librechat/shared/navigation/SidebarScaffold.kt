@@ -29,6 +29,8 @@ fun SidebarScaffold(
     onAgentsClick: () -> Unit,
     onFilesClick: () -> Unit,
     onSkillsClick: () -> Unit,
+    /** Null hides the Tasks row: the engine's graph is Android-only for now (D-034). */
+    onTasksClick: (() -> Unit)?,
     modifier: Modifier = Modifier,
     onOpenProjectsIndex: () -> Unit = {},
     onSwitchAccount: (String) -> Unit = {},
@@ -78,6 +80,7 @@ fun SidebarScaffold(
                     onAgentsClick = onAgentsClick,
                     onFilesClick = onFilesClick,
                     onSkillsClick = onSkillsClick,
+                    onTasksClick = onTasksClick,
                     accounts = accounts,
                     onOpenProjectsIndex = onOpenProjectsIndex,
                     onSwitchAccount = onSwitchAccount,

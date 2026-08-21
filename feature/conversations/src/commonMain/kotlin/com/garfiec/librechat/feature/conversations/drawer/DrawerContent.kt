@@ -42,6 +42,7 @@ import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
@@ -128,6 +129,7 @@ import com.garfiec.librechat.feature.conversations.resources.settings
 import com.garfiec.librechat.feature.conversations.resources.show_less
 import com.garfiec.librechat.feature.conversations.resources.show_more
 import com.garfiec.librechat.feature.conversations.resources.skills
+import com.garfiec.librechat.feature.conversations.resources.tasks
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -165,6 +167,12 @@ fun DrawerContent(
     onAgentsClick: () -> Unit,
     onFilesClick: () -> Unit,
     onSkillsClick: () -> Unit,
+    /**
+     * Null hides the Tasks row entirely. The engine's graph is Android-only for now (D-034), and a
+     * row that navigates to a screen whose dependencies nothing provides is worse than no row: it
+     * crashes at the tap, on the platform where it was never wired.
+     */
+    onTasksClick: (() -> Unit)?,
     accounts: List<AccountUiModel>,
     modifier: Modifier = Modifier,
     onOpenProjectsIndex: () -> Unit = {},
@@ -250,6 +258,7 @@ fun DrawerContent(
         onAgentsClick = onAgentsClick,
         onFilesClick = onFilesClick,
         onSkillsClick = onSkillsClick,
+        onTasksClick = onTasksClick,
         onToggleFavorite = { data -> viewModel.toggleFavorite(data.conversationId, data.tags) },
         onRefresh = viewModel::refreshConversations,
         onLoadMore = viewModel::loadMoreConversations,
@@ -314,6 +323,7 @@ fun DrawerContent(
     onAgentsClick: () -> Unit,
     onFilesClick: () -> Unit,
     onSkillsClick: () -> Unit,
+    onTasksClick: (() -> Unit)?,
     modifier: Modifier = Modifier,
     // Slot below the footer links (Files, Agents, …) — the stateful wrapper puts the Settings row
     // and the account avatar here, at the bottom of the drawer.
@@ -808,6 +818,13 @@ fun DrawerContent(
                 label = stringResource(Res.string.files),
                 onClick = onFilesClick,
             )
+            onTasksClick?.let { onClick ->
+                DrawerFooterItem(
+                    icon = Icons.Default.PlayArrow,
+                    label = stringResource(Res.string.tasks),
+                    onClick = onClick,
+                )
+            }
 
             footerContent?.invoke()
 
