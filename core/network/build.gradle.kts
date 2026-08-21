@@ -28,6 +28,8 @@ kotlin {
             implementation(libs.ktor.client.logging)
             implementation(libs.kotlinx.serialization.json)
             implementation(libs.kermit)
+            // SHA-256 and base64url in commonMain, for PKCE (RFC 7636).
+            implementation(libs.okio)
         }
         androidMain.dependencies {
             implementation(libs.ktor.client.okhttp)
