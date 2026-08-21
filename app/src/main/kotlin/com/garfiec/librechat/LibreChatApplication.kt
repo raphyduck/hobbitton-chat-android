@@ -11,8 +11,8 @@ import coil3.memory.MemoryCache
 import coil3.network.ktor3.KtorNetworkFetcherFactory
 import coil3.request.crossfade
 import coil3.svg.SvgDecoder
-import com.garfiec.librechat.core.data.di.engineModule
 import com.garfiec.librechat.core.common.AppInfo
+import com.garfiec.librechat.core.data.di.engineModule
 import com.garfiec.librechat.core.logging.PersistentLogWriter
 import com.garfiec.librechat.core.logging.PlatformInfo
 import com.garfiec.librechat.core.logging.logStartupHeader
