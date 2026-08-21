@@ -38,6 +38,7 @@ kotlin {
             implementation(project(":feature:agents"))
             implementation(project(":feature:files"))
             implementation(project(":feature:skills"))
+            implementation(project(":feature:tasks"))
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.content.negotiation)
             implementation(libs.ktor.serialization.kotlinx.json)

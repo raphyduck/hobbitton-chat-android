@@ -17,6 +17,7 @@ import com.garfiec.librechat.core.logging.PersistentLogWriter
 import com.garfiec.librechat.core.logging.PlatformInfo
 import com.garfiec.librechat.core.logging.logStartupHeader
 import com.garfiec.librechat.core.logging.startMainThreadWatchdog
+import com.garfiec.librechat.feature.tasks.di.tasksModule
 import com.garfiec.librechat.shared.di.sharedKoinModules
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.CoroutineExceptionHandler
@@ -43,7 +44,7 @@ class LibreChatApplication : Application(), SingletonImageLoader.Factory {
                 // secure store, and on iOS that is raw Keychain code that cannot be compiled or run
                 // outside CI's macOS runner. It therefore joins here rather than in
                 // `sharedKoinModules`, which both platforms start from.
-                modules(sharedKoinModules + engineModule)
+                modules(sharedKoinModules + engineModule + tasksModule)
             }
         } catch (e: Exception) {
             Logger.e(e) { "Koin initialization failed" }

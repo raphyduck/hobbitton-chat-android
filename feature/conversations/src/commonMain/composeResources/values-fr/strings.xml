@@ -78,4 +78,5 @@
     <string name="search_conversations_placeholder">Rechercher des conversations…</string>
     <string name="settings">Paramètres</string>
     <string name="skills">Compétences</string>
+    <string name="tasks">Tâches</string>
 </resources>

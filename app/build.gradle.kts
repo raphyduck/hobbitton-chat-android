@@ -55,6 +55,7 @@ dependencies {
     implementation(project(":feature:agents"))
     implementation(project(":feature:files"))
     implementation(project(":feature:skills"))
+    implementation(project(":feature:tasks"))
 
     implementation(libs.activity.compose)
     implementation(libs.navigation3.ui.kmp)
