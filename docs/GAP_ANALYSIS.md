@@ -167,13 +167,19 @@ les doigts d'une main.
 ## 6. Ordre proposé
 
 1. ~~Trancher le §0~~ — fait.
-2. **Activer le second facteur LibreChat** (§0). C'est ce qui rend l'exemption
-   défendable ; sans lui, elle est un trou.
-3. Générer le client Kotlin (`make clients` côté serveur) et le versionner.
-4. Côté serveur : PostgreSQL + clés virtuelles, trancher le timeout, publier
-   `agent.hobbitton.at` (§5).
-5. `applicationId` + clé de signature + CI. Tôt, pour la raison donnée au §4.
-6. L'onglet Tasks. Chats n'est pas touché.
+2. ~~**Activer le second facteur LibreChat** (§0)~~ — fait le 21 août, et
+   vérifié depuis l'extérieur : `POST /api/auth/login` rend `twoFAPending`.
+3. ~~Générer le client Kotlin (`make clients` côté serveur) et le versionner~~ —
+   fait : `clients/kotlin`, 162 routes. L'application n'en embarque rien et
+   écrit ses neuf routes à la main (D-033).
+4. ~~Côté serveur : PostgreSQL + clés virtuelles, trancher le timeout, publier
+   `agent.hobbitton.at`~~ — fait (§8).
+5. ~~`applicationId` + clé de signature~~ — faits. **CI de release : pas
+   encore** — les quatre secrets `SIGNING_*` manquent, donc aucune release
+   signée, donc pas d'Obtainium.
+6. ~~L'onglet Tasks~~ — livré en PR #10 pour les missions ponctuelles et
+   interactives. Chats n'a pas été touché. Restent les récurrentes et la vue de
+   détail (§8).
 
 ## 7. Décisions en attente
 
@@ -183,5 +189,38 @@ les doigts d'une main.
   composant qui le porte : il se déplace là où rien ne passe à côté.
 - ~~**D-C** — qui sert les livrables ?~~ → tranché : l'API de sessions (D-027).
 
-**Reste ouvert, et bloquant :** le timeout de mission (§5.1). C'est le seul
-point du §4.3 marqué NON NÉGOCIABLE qui n'a plus d'endroit où s'appliquer.
+~~**Reste ouvert, et bloquant :** le timeout de mission (§5.1).~~ → tranché :
+un **chien de garde** dans le planificateur (D-028), faute d'une borne de durée
+dans le moteur — `steps` compte des itérations, pas des secondes. Vérifié en
+abattant une vraie session à 7 s pour un plafond de 5 s. Le budget, lui, est
+descendu sur les clés virtuelles LiteLLM (D-029), par lesquelles **tout** appel
+modèle transite.
+
+---
+
+## 8. Où en est cet écart au 21 août
+
+Ce document a été écrit avant l'UI, comme le brief l'exige. Voici ce qu'il
+reste une fois l'onglet livré — les quatre manques serveur du §5 d'abord :
+
+| §5 | État au 21 août |
+|---|---|
+| 1. timeout sans point d'application | **levé** — chien de garde (D-028), mesuré |
+| 2. clés virtuelles → PostgreSQL | **levé** — overlay `keys.yml`, deux clés (D-029), dépense et 429 `budget_exceeded` mesurés |
+| 3. `agent.hobbitton.at` interne | **levé** — publié derrière Authelia. Le jeton voyage en `Proxy-Authorization`, en-tête *hop-by-hop* que **Caddy supprimait** : ré-injecté par label, mesuré (D-031) |
+| 4. client Kotlin inexistant | **levé** — `clients/kotlin`, régénéré à chaque montée de version du moteur |
+
+Et ce que l'onglet ne fait pas encore :
+
+1. **Les missions récurrentes.** Le brief en fait l'un des deux modes autonomes
+   (§6, phase 5). Elles passent par les outils MCP du planificateur, **qui n'est
+   pas publié** : le port 8090 n'est joignable que depuis le serveur. Tant que
+   c'est le cas, une récurrente se crée depuis le serveur, pas depuis le
+   téléphone.
+2. **La vue de détail.** Le brief la veut adaptée au livrable : visionneuse de
+   diff et approbations quand la sortie est un dépôt, fichiers téléchargeables
+   sinon. Les routes sont écrites (`GET /session/{id}/diff`,
+   `POST /session/{id}/permissions/{id}`) et non appelées ; la liste montre
+   l'état et la raison d'échec, pas le contenu.
+3. **La distribution.** `release.yml` sait déjà décoder un keystore depuis les
+   secrets ; il n'a jamais tourné. Voir §4.
