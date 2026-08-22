@@ -80,6 +80,16 @@ class EngineSettingsStore(
         if (password != null) passwords.write(password)
     }
 
+    /**
+     * Whether a password is already stored — **without handing it back**.
+     *
+     * The settings form needs to know this to tell « leave the saved one alone » from « none has
+     * ever been set », and those two need different behaviour on an empty field. Reading the
+     * password itself to answer would put a secret on screen and in the view model's state for no
+     * reason; a boolean answers the question.
+     */
+    suspend fun hasPassword(): Boolean = !passwords.read().isNullOrBlank()
+
     suspend fun forget() {
         dataStore.edit { prefs ->
             prefs.remove(KEY_BASE_URL)

@@ -1,6 +1,7 @@
 package com.garfiec.librechat.feature.tasks.di
 
 import com.garfiec.librechat.core.data.engine.EngineMissionRepository
+import com.garfiec.librechat.feature.tasks.EngineSettingsViewModel
 import com.garfiec.librechat.feature.tasks.TasksViewModel
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
@@ -14,4 +15,5 @@ import org.koin.dsl.module
 val tasksModule = module {
     single { EngineMissionRepository(api = get()) }
     viewModelOf(::TasksViewModel)
+    viewModelOf(::EngineSettingsViewModel)
 }

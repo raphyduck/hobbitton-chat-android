@@ -8,15 +8,21 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -36,11 +42,14 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_new
 import com.garfiec.librechat.feature.tasks.resources.tasks_not_configured
 import com.garfiec.librechat.feature.tasks.resources.tasks_not_configured_hint
 import com.garfiec.librechat.feature.tasks.resources.tasks_retry
+import com.garfiec.librechat.feature.tasks.resources.tasks_settings_open
+import com.garfiec.librechat.feature.tasks.resources.tasks_settings_title
 import com.garfiec.librechat.feature.tasks.resources.tasks_state_failed
 import com.garfiec.librechat.feature.tasks.resources.tasks_state_idle
 import com.garfiec.librechat.feature.tasks.resources.tasks_state_running
 import com.garfiec.librechat.feature.tasks.resources.tasks_state_succeeded
 import com.garfiec.librechat.feature.tasks.resources.tasks_stop
+import com.garfiec.librechat.feature.tasks.resources.tasks_title
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -51,6 +60,7 @@ import org.koin.compose.viewmodel.koinViewModel
  * mission is watched, not about what it is — a mission is an objective handed to a profile, and
  * whether a human follows it live is one of its attributes.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TasksScreen(
     modifier: Modifier = Modifier,
@@ -58,9 +68,26 @@ fun TasksScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var composing by remember { mutableStateOf(false) }
+    var configuring by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(Res.string.tasks_title)) },
+                actions = {
+                    // Reachable whether or not the engine is set up: changing a password or moving
+                    // to another host must not require first getting into the « not configured »
+                    // state, which is exactly when someone can no longer get there.
+                    IconButton(onClick = { configuring = true }) {
+                        Icon(
+                            Icons.Default.Settings,
+                            contentDescription = stringResource(Res.string.tasks_settings_title),
+                        )
+                    }
+                },
+            )
+        },
         floatingActionButton = {
             if (state.engineConfigured) {
                 ExtendedFloatingActionButton(
@@ -77,6 +104,7 @@ fun TasksScreen(
             !state.engineConfigured -> Explanation(
                 title = stringResource(Res.string.tasks_not_configured),
                 hint = stringResource(Res.string.tasks_not_configured_hint),
+                action = stringResource(Res.string.tasks_settings_open) to { configuring = true },
                 modifier = Modifier.padding(padding),
             )
 
@@ -110,6 +138,19 @@ fun TasksScreen(
                 }
             }
         }
+    }
+
+    if (configuring) {
+        EngineSettingsSheet(
+            onDismiss = { configuring = false },
+            onSave = {
+                configuring = false
+                // The tab decided « not configured » from a store that has just changed; without
+                // this it keeps that verdict until the screen is left and re-entered, which reads
+                // as the form having done nothing.
+                viewModel.refresh()
+            },
+        )
     }
 
     if (composing) {
