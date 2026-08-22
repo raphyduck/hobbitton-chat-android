@@ -38,4 +38,15 @@
     <string name="tasks_settings_client_id">Identifiant de client</string>
     <string name="tasks_settings_save">Enregistrer</string>
     <string name="tasks_settings_forget">Oublier</string>
+    <string name="tasks_error_authentication">La connexion au moteur a échoué</string>
+    <string name="tasks_error_authentication_hint">C\'est le portail qui a répondu, pas le moteur : la session a expiré, ou les réglages pointent ailleurs. Vérifiez-les puis réessayez.</string>
+    <string name="tasks_error_permission">Ce compte n\'est pas autorisé sur le moteur</string>
+    <string name="tasks_error_permission_hint">L\'authentification a fonctionné ; le moteur a refusé la demande. Réessayer n\'y changera rien.</string>
+    <string name="tasks_error_not_found">L\'adresse répond, mais ce n\'est pas le moteur</string>
+    <string name="tasks_error_not_found_hint">Quelque chose écoute à cette adresse et ne connaît pas ces routes. Vérifiez l\'URL du moteur.</string>
+    <string name="tasks_error_unreachable">Le moteur n\'a pas répondu</string>
+    <string name="tasks_error_unreachable_hint">Pas de réseau, mauvaise adresse, ou service arrêté.</string>
+    <string name="tasks_error_server">Le moteur a répondu par une erreur</string>
+    <string name="tasks_error_server_hint">La faute est de son côté. Ses journaux en disent plus que cet écran.</string>
+    <string name="tasks_error_unknown">L\'appel au moteur a échoué</string>
 </resources>

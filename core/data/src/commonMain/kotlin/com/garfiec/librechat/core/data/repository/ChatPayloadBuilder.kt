@@ -1,6 +1,7 @@
 package com.garfiec.librechat.core.data.repository
 
 import com.garfiec.librechat.core.model.FileReference
+import com.garfiec.librechat.core.model.chat.ChatProfile
 import com.garfiec.librechat.core.model.request.AddedConversation
 import com.garfiec.librechat.core.model.request.ChatRequest
 import com.garfiec.librechat.core.model.request.EphemeralAgent
@@ -70,6 +71,35 @@ object ChatPayloadBuilder {
             // Minted here (once per send) and encoded once by `toBody`, so it stays byte-stable
             // across any transport-level retry of the same POST. Additive; ignored if unclaimed.
             clientRequestId = Uuid.random().toString(),
+        )
+    }
+
+    /**
+     * Folds the global profile into a request that is about to be sent.
+     *
+     * Applied at the single funnel every send goes through rather than at each call site: the Tasks
+     * row that shipped invisible because one caller omitted one argument is a recent enough lesson.
+     *
+     * Two rules, both deliberate:
+     *
+     * - **The caller wins.** A request that already carries instructions or MCP servers keeps them;
+     *   the profile only fills what is empty, and its servers are added to — never replace — the
+     *   ones asked for. A profile that could silently drop a per-message choice would be worse than
+     *   no profile.
+     * - **Agents are left alone.** A real agent (`agentId`) carries its own instructions and tools,
+     *   chosen when it was built. Layering a global prompt on top would put two systems of
+     *   instruction in the same run, and the loser would be whichever the server reads second.
+     */
+    fun withProfile(request: ChatRequest, profile: ChatProfile): ChatRequest {
+        if (profile.isEmpty || request.agentId != null) return request
+
+        val servers = (request.ephemeralAgent?.mcp.orEmpty() + profile.mcpServers).distinct()
+        return request.copy(
+            promptPrefix = request.promptPrefix ?: profile.instructions.ifBlank { null },
+            ephemeralAgent = when {
+                servers.isEmpty() -> request.ephemeralAgent
+                else -> (request.ephemeralAgent ?: EphemeralAgent()).copy(mcp = servers)
+            },
         )
     }
 

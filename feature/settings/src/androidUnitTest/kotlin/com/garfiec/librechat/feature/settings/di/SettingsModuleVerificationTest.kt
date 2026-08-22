@@ -3,6 +3,7 @@ package com.garfiec.librechat.feature.settings.di
 import android.app.Application
 import android.content.Context
 import com.garfiec.librechat.core.common.AppInfo
+import com.garfiec.librechat.core.data.datastore.ChatProfileStore
 import com.garfiec.librechat.core.data.datastore.ServerDataStore
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.datastore.ThemeDataStore
@@ -60,6 +61,7 @@ class SettingsModuleVerificationTest {
                 ServerDataStore::class,
                 ServerRepository::class,
                 SettingsDataStore::class,
+                ChatProfileStore::class,
                 ContentReader::class,
                 AttachmentWarmer::class,
                 PrefetchStatusReporter::class,

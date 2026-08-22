@@ -3,6 +3,7 @@ package com.garfiec.librechat.core.data.repository
 import com.garfiec.librechat.core.common.network.ConnectivityObserver
 import com.garfiec.librechat.core.common.result.Result
 import com.garfiec.librechat.core.common.result.safeApiCall
+import com.garfiec.librechat.core.data.datastore.ChatProfileStore
 import com.garfiec.librechat.core.model.FileReference
 import com.garfiec.librechat.core.model.PendingSteer
 import com.garfiec.librechat.core.model.StreamEvent
@@ -33,6 +34,7 @@ class ChatRepositoryImpl(
     private val connectivityObserver: ConnectivityObserver,
     private val dispatcher: CoroutineDispatcher,
     private val json: Json,
+    private val chatProfileStore: ChatProfileStore,
 ) : ChatRepository {
 
     override fun startChat(
@@ -80,7 +82,7 @@ class ChatRepositoryImpl(
             addedConvo = addedConvo,
             ephemeralAgent = ephemeralAgent,
             isTemporary = isTemporary,
-        )
+        ).let { ChatPayloadBuilder.withProfile(it, chatProfileStore.current()) }
         val startResponse = chatApi.startChat(endpoint, ChatPayloadBuilder.toBody(json, request, modelParams))
         val streamId = startResponse.conversationId
 

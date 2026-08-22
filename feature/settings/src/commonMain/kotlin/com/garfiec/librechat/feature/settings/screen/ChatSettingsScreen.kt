@@ -109,6 +109,18 @@ fun ChatSettingsContent(
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
         ) {
+            // The global profile comes first: it is what every conversation starts with, and the
+            // only place MCP servers become reachable from a phone at all.
+            item(key = "profile_header") {
+                SectionHeader(stringResource(Res.string.profile_section))
+            }
+            item(key = "profile_section") {
+                ChatProfileSection()
+            }
+            item(key = "profile_divider") {
+                HorizontalDivider()
+            }
+
             // Chat Preferences section
             item(key = "chat_header") {
                 SectionHeader(stringResource(Res.string.section_chat_preferences))
