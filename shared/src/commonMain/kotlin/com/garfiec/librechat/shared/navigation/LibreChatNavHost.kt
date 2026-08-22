@@ -371,9 +371,17 @@ private fun VersionMismatchDialog(
 @Composable
 fun PhoneLayout(
     navigator: Navigator,
+    /**
+     * See [LibreChatNavHost]: false hides the Tasks row on platforms without the engine graph.
+     *
+     * **Required on purpose — no default.** A default of false made this omissible, and it was
+     * omitted at the one call site that needed true: Android supplies its own `content` lambda, so
+     * the value it hands the host reaches nothing and its own call is what decides. The row shipped
+     * hidden on phones and visible on tablets, with nothing failing anywhere. Now a new layout
+     * cannot forget it without failing to compile.
+     */
+    tasksAvailable: Boolean,
     modifier: Modifier = Modifier,
-    /** See [LibreChatNavHost]: false hides the Tasks row on platforms without the engine graph. */
-    tasksAvailable: Boolean = false,
     navHostViewModel: NavHostViewModel = koinViewModel(),
 ) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)

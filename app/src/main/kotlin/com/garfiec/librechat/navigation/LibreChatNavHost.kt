@@ -112,6 +112,11 @@ fun LibreChatNavHost(
             )
         } else {
             PhoneLayout(
+                // Passed HERE and not only to the shared host: supplying a `content` lambda means
+                // the host's own PhoneLayout branch is never taken, so its `tasksAvailable` reaches
+                // nothing. That is how the row shipped hidden on phones in v2026.08.3 while the
+                // tablet layout, which wires `onTasksClick` itself, showed it.
+                tasksAvailable = true,
                 navigator = navigator,
                 modifier = mod,
             )
