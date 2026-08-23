@@ -12,12 +12,17 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /** The fields the form can complain about, so the messages stay in string resources. */
-enum class EngineSettingsField { BASE_URL, ISSUER_URL, USERNAME, PASSWORD }
+enum class EngineSettingsField { BASE_URL, ISSUER_URL, SCHEDULER_URL, USERNAME, PASSWORD }
 
 data class EngineSettingsUiState(
     val loading: Boolean = true,
     val baseUrl: String = "",
     val issuerUrl: String = "",
+    /**
+     * Optional, and blank is a valid answer: the engine works without a scheduler, and the tab
+     * simply has no recurring missions to show. It is validated only when it is filled in.
+     */
+    val schedulerUrl: String = "",
     val clientId: String = "",
     val username: String = "",
     /** A password is already stored. Its value is never read into this state. */
@@ -59,6 +64,7 @@ class EngineSettingsViewModel(
                 loading = false,
                 baseUrl = settings.baseUrl.first(),
                 issuerUrl = settings.issuerUrl.first(),
+                schedulerUrl = settings.schedulerUrl.first(),
                 clientId = settings.clientId.first(),
                 username = settings.username.first(),
                 passwordStored = settings.hasPassword(),
@@ -69,6 +75,9 @@ class EngineSettingsViewModel(
     fun onBaseUrl(value: String) = edit(EngineSettingsField.BASE_URL) { it.copy(baseUrl = value) }
 
     fun onIssuerUrl(value: String) = edit(EngineSettingsField.ISSUER_URL) { it.copy(issuerUrl = value) }
+
+    fun onSchedulerUrl(value: String) =
+        edit(EngineSettingsField.SCHEDULER_URL) { it.copy(schedulerUrl = value) }
 
     fun onClientId(value: String) = edit(null) { it.copy(clientId = value) }
 
@@ -91,6 +100,7 @@ class EngineSettingsViewModel(
             username = current.username,
             typedPassword = current.password,
             passwordStored = current.passwordStored,
+            schedulerUrl = current.schedulerUrl,
         )
         if (problems.isNotEmpty()) {
             _state.update { it.copy(invalid = problems) }
@@ -106,6 +116,7 @@ class EngineSettingsViewModel(
                     // Blank means « leave the stored one alone ». Sending "" would wipe a working
                     // password every time someone edits the URL and saves without retyping it.
                     password = current.password.ifBlank { null },
+                    schedulerUrl = current.schedulerUrl,
                 )
             }
                 .onSuccess { _state.update { it.copy(saved = true, passwordStored = true, password = "") } }
@@ -148,9 +159,15 @@ internal fun validateEngineSettings(
     username: String,
     typedPassword: String,
     passwordStored: Boolean,
+    // Last, and defaulted: the callers that predate the scheduler pass five arguments by position,
+    // and slipping a sixth into the middle would compile at the definition and break at each of
+    // them — which is exactly what happened when it went in after `issuerUrl`.
+    schedulerUrl: String = "",
 ): Set<EngineSettingsField> = buildSet {
     if (!baseUrl.isHttpUrl()) add(EngineSettingsField.BASE_URL)
     if (!issuerUrl.isHttpUrl()) add(EngineSettingsField.ISSUER_URL)
+    // Only when filled in: an empty scheduler URL is « I do not have one », not a mistake.
+    if (schedulerUrl.isNotBlank() && !schedulerUrl.isHttpUrl()) add(EngineSettingsField.SCHEDULER_URL)
     if (username.isBlank()) add(EngineSettingsField.USERNAME)
     if (typedPassword.isBlank() && !passwordStored) add(EngineSettingsField.PASSWORD)
 }

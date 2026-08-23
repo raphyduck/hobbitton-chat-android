@@ -49,4 +49,19 @@
     <string name="tasks_error_server">Le moteur a répondu par une erreur</string>
     <string name="tasks_error_server_hint">La faute est de son côté. Ses journaux en disent plus que cet écran.</string>
     <string name="tasks_error_unknown">L\'appel au moteur a échoué</string>
+    <string name="tasks_scheduled_header">Missions programmées</string>
+    <string name="tasks_scheduled_none">Aucun planificateur configuré</string>
+    <string name="tasks_scheduled_none_hint">Ajoutez son adresse dans les réglages pour voir les missions qui tournent toutes seules.</string>
+    <string name="tasks_scheduled_run">Lancer</string>
+    <string name="tasks_scheduled_disable">Suspendre</string>
+    <string name="tasks_scheduled_enable">Réactiver</string>
+    <string name="tasks_scheduled_suspended">Suspendue</string>
+    <string name="tasks_scheduled_next">Prochaine %1$s</string>
+    <string name="tasks_scheduled_never">Jamais lancée</string>
+    <string name="tasks_scheduled_last_ok">Dernier passage %1$s · %2$s jetons</string>
+    <string name="tasks_scheduled_last_failed">Dernier passage en échec : %1$s</string>
+    <string name="tasks_scheduled_tools">%1$d outils par tour</string>
+    <string name="tasks_sessions_header">Sessions</string>
+    <string name="tasks_settings_scheduler_url">Adresse du planificateur</string>
+    <string name="tasks_settings_scheduler_url_hint">https://sched.example.com — facultatif ; sans elle, les missions récurrentes restent invisibles.</string>
 </resources>

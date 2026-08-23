@@ -1,0 +1,111 @@
+package com.garfiec.librechat.core.network.api
+
+import com.garfiec.librechat.core.model.scheduler.SchedulerState
+import com.garfiec.librechat.core.network.engine.EngineHttpException
+import io.ktor.client.HttpClient
+import io.ktor.client.request.accept
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
+import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.bodyAsText
+import io.ktor.client.statement.request
+import io.ktor.http.ContentType
+import io.ktor.http.isSuccess
+import io.ktor.http.path
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonObject
+
+/**
+ * The scheduler, spoken to in **MCP** — because that is the only language it speaks.
+ *
+ * The scheduler is a connector, not a REST service: the same tools serve claude.ai, LibreChat and
+ * this app, and giving it a second HTTP surface for one client would mean two ways to change a
+ * schedule and two chances to make them disagree. MCP over plain HTTP is a JSON-RPC POST; there is
+ * no library needed for that, and none is worth carrying into a phone for four calls.
+ *
+ * Two details of that protocol, both measured server-side rather than guessed:
+ *
+ * - the server runs `stateless_http`, so there is **no `Mcp-Session-Id` to obtain or carry** — a
+ *   bridge in front of it would drop the header anyway, which is exactly what broke the brain's
+ *   connector on 20 August;
+ * - a response may come back as JSON *or* as a `text/event-stream` frame depending on what the
+ *   edge negotiates, hence [singleFrame]. Accepting only JSON works until the day it doesn't.
+ */
+class SchedulerApi(
+    private val client: HttpClient,
+    private val json: Json,
+) {
+
+    /** Every mission, its next due time and its last run — one call, because a screen wants it at once. */
+    suspend fun state(): SchedulerState = json.decodeFromString(callTool("etat", null))
+
+    /**
+     * Starts a mission now. Returns the scheduler's own sentence, which is the useful thing to
+     * show: it names the session, or says why it refused — « la mission tourne déjà », most often.
+     */
+    suspend fun run(name: String): String = callTool("lancer", buildJsonObject { put("nom", name) })
+
+    suspend fun enable(name: String): String =
+        callTool("activer", buildJsonObject { put("nom", name) })
+
+    suspend fun disable(name: String): String =
+        callTool("desactiver", buildJsonObject { put("nom", name) })
+
+    private suspend fun callTool(tool: String, arguments: JsonObject?): String {
+        val envelope = buildJsonObject {
+            put("jsonrpc", "2.0")
+            put("id", 1)
+            put("method", "tools/call")
+            putJsonObject("params") {
+                put("name", tool)
+                put("arguments", arguments ?: JsonObject(emptyMap()))
+            }
+        }
+        val response = client.post {
+            url { path("mcp") }
+            // Both, in this order: the server picks, and refusing the stream outright earns a 406.
+            accept(ContentType.Application.Json)
+            accept(ContentType.Text.EventStream)
+            setBody(envelope)
+        }
+        return response.text(tool)
+    }
+
+    private suspend fun HttpResponse.text(tool: String): String {
+        if (!status.isSuccess()) {
+            throw EngineHttpException(status.value, request.url.toString(), bodyAsText())
+        }
+        val payload = json.parseToJsonElement(singleFrame(bodyAsText())).jsonObject
+
+        // A JSON-RPC error is a 200 with an `error` member. Reading `result` first would throw a
+        // « missing key » that names nothing, on a response that says precisely what went wrong.
+        payload["error"]?.let { error ->
+            val message = error.jsonObject["message"]?.jsonPrimitive?.content ?: error.toString()
+            throw EngineHttpException(status.value, request.url.toString(), "$tool: $message")
+        }
+
+        return payload.getValue("result").jsonObject.getValue("content").jsonArray
+            .joinToString("") { it.jsonObject["text"]?.jsonPrimitive?.content.orEmpty() }
+    }
+
+    private companion object {
+        /**
+         * The payload of an event-stream answer, or the body unchanged when it is plain JSON.
+         *
+         * One frame is all this protocol sends for a tool call, so the first `data:` line is the
+         * answer; anything else in the stream is framing.
+         */
+        fun singleFrame(body: String): String =
+            if ("data: " in body) {
+                body.lineSequence().first { it.startsWith("data: ") }.removePrefix("data: ")
+            } else {
+                body
+            }
+    }
+}

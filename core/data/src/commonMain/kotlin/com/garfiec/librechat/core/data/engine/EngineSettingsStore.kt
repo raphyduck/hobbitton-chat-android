@@ -33,6 +33,15 @@ class EngineSettingsStore(
     val username: Flow<String> = dataStore.data.map { it[KEY_USERNAME] ?: DEFAULT_USERNAME }
 
     /**
+     * Where the scheduler lives, e.g. `https://sched.hobbitton.at`. Blank is a normal state: the
+     * engine works without it, and the Tasks tab simply shows no recurring missions.
+     *
+     * Not derived from the engine's URL, for the same reason the engine's is not derived from the
+     * chat's: `agent.` → `sched.` is true of one deployment and invisible when it stops being.
+     */
+    val schedulerUrl: Flow<String> = dataStore.data.map { it[KEY_SCHEDULER_URL].orEmpty() }
+
+    /**
      * The last value [access] produced, readable without suspending.
      *
      * Ktor's `defaultRequest` block is not a coroutine, so the base URL has to be available
@@ -58,6 +67,7 @@ class EngineSettingsStore(
             clientId = prefs[KEY_CLIENT_ID] ?: DEFAULT_CLIENT_ID,
             username = prefs[KEY_USERNAME] ?: DEFAULT_USERNAME,
             password = passwords.read().orEmpty(),
+            schedulerUrl = prefs[KEY_SCHEDULER_URL].orEmpty().trimEnd('/'),
         )
         return candidate.takeIf { it.isConfigured }.also { cached = it }
     }
@@ -68,12 +78,14 @@ class EngineSettingsStore(
         clientId: String = DEFAULT_CLIENT_ID,
         username: String = DEFAULT_USERNAME,
         password: String?,
+        schedulerUrl: String = "",
     ) {
         dataStore.edit { prefs ->
             prefs[KEY_BASE_URL] = baseUrl.trim().trimEnd('/')
             prefs[KEY_ISSUER_URL] = issuerUrl.trim().trimEnd('/')
             prefs[KEY_CLIENT_ID] = clientId.trim()
             prefs[KEY_USERNAME] = username.trim()
+            prefs[KEY_SCHEDULER_URL] = schedulerUrl.trim().trimEnd('/')
         }
         // Null means « leave it as it is » — the settings screen shows the password masked and does
         // not read it back, so submitting the form untouched must not wipe it.
@@ -96,6 +108,7 @@ class EngineSettingsStore(
             prefs.remove(KEY_ISSUER_URL)
             prefs.remove(KEY_CLIENT_ID)
             prefs.remove(KEY_USERNAME)
+            prefs.remove(KEY_SCHEDULER_URL)
         }
         passwords.clear()
     }
@@ -105,6 +118,7 @@ class EngineSettingsStore(
         val KEY_ISSUER_URL = stringPreferencesKey("engine_issuer_url")
         val KEY_CLIENT_ID = stringPreferencesKey("engine_client_id")
         val KEY_USERNAME = stringPreferencesKey("engine_username")
+        val KEY_SCHEDULER_URL = stringPreferencesKey("scheduler_base_url")
 
         /** What Authelia is configured with server-side; overridable for another deployment. */
         const val DEFAULT_CLIENT_ID = "hobbitton-chat-android"

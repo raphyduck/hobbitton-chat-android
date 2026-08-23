@@ -18,7 +18,10 @@ class EngineSettingsValidationTest {
         username: String = "opencode",
         typedPassword: String = "secret",
         passwordStored: Boolean = false,
-    ) = validateEngineSettings(baseUrl, issuerUrl, username, typedPassword, passwordStored)
+        schedulerUrl: String = "",
+    ) = validateEngineSettings(
+        baseUrl, issuerUrl, username, typedPassword, passwordStored, schedulerUrl,
+    )
 
     @Test
     fun `a complete form is accepted`() {
@@ -71,9 +74,29 @@ class EngineSettingsValidationTest {
     }
 
     @Test
+    fun `an empty scheduler address is accepted`() {
+        // Not having a scheduler is a normal state: the engine works without one, and the tab
+        // simply shows no recurring missions. Refusing a blank field here would force everyone
+        // to invent an address for a service they may not run.
+        assertTrue(validate(schedulerUrl = "").isEmpty())
+    }
+
+    @Test
+    fun `a scheduler address without a scheme is refused`() {
+        // Optional does not mean unchecked: once it is filled in, it has to be reachable.
+        assertEquals(
+            setOf(EngineSettingsField.SCHEDULER_URL),
+            validate(schedulerUrl = "sched.example.com"),
+        )
+    }
+
+    @Test
     fun `every problem is reported at once`() {
         // One field at a time would send someone through four save-and-fix rounds.
-        val problems = validate(baseUrl = "", issuerUrl = "", username = "", typedPassword = "")
+        val problems = validate(
+            baseUrl = "", issuerUrl = "", username = "", typedPassword = "",
+            schedulerUrl = "sched.example.com",
+        )
 
         assertEquals(EngineSettingsField.entries.toSet(), problems)
     }

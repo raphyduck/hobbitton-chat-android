@@ -48,6 +48,8 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_settings_password_kep
 import com.garfiec.librechat.feature.tasks.resources.tasks_settings_password_required
 import com.garfiec.librechat.feature.tasks.resources.tasks_settings_reveal
 import com.garfiec.librechat.feature.tasks.resources.tasks_settings_save
+import com.garfiec.librechat.feature.tasks.resources.tasks_settings_scheduler_url
+import com.garfiec.librechat.feature.tasks.resources.tasks_settings_scheduler_url_hint
 import com.garfiec.librechat.feature.tasks.resources.tasks_settings_title
 import com.garfiec.librechat.feature.tasks.resources.tasks_settings_username
 import com.garfiec.librechat.feature.tasks.resources.tasks_settings_username_required
@@ -106,6 +108,17 @@ fun EngineSettingsSheet(
                 label = stringResource(Res.string.tasks_settings_issuer_url),
                 hint = stringResource(Res.string.tasks_settings_issuer_url_hint),
                 invalid = EngineSettingsField.ISSUER_URL in state.invalid,
+                invalidMessage = stringResource(Res.string.tasks_settings_invalid_url),
+            )
+
+            // Optional, and last of the three addresses: someone who has no scheduler must not
+            // meet a required-looking field before the credentials that actually gate the tab.
+            UrlField(
+                value = state.schedulerUrl,
+                onValueChange = viewModel::onSchedulerUrl,
+                label = stringResource(Res.string.tasks_settings_scheduler_url),
+                hint = stringResource(Res.string.tasks_settings_scheduler_url_hint),
+                invalid = EngineSettingsField.SCHEDULER_URL in state.invalid,
                 invalidMessage = stringResource(Res.string.tasks_settings_invalid_url),
             )
 

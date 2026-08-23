@@ -13,9 +13,19 @@ data class EngineAccess(
     /** The engine's own Basic credentials. Independent of the portal's. */
     val username: String,
     val password: String,
+    /**
+     * Base URL of the scheduler, e.g. `https://sched.hobbitton.at`. Blank when it has not been
+     * set — and blank is a normal state, not a broken one: the engine works without it, and the
+     * Tasks tab simply has no recurring missions to show.
+     */
+    val schedulerUrl: String = "",
 ) {
     val isConfigured: Boolean
         get() = baseUrl.isNotBlank() && username.isNotBlank() && password.isNotBlank()
+
+    /** Whether the scheduler is reachable — separate from [isConfigured], and optional. */
+    val hasScheduler: Boolean
+        get() = schedulerUrl.isNotBlank()
 }
 
 /**

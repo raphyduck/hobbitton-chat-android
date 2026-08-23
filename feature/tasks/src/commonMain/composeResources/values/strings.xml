@@ -49,4 +49,19 @@
     <string name="tasks_error_server">The engine answered with an error</string>
     <string name="tasks_error_server_hint">The fault is on its side. Its own logs say more than this screen can.</string>
     <string name="tasks_error_unknown">The engine call failed</string>
+    <string name="tasks_scheduled_header">Scheduled missions</string>
+    <string name="tasks_scheduled_none">No scheduler set up</string>
+    <string name="tasks_scheduled_none_hint">Add its address in Settings to see the missions that run on their own.</string>
+    <string name="tasks_scheduled_run">Run now</string>
+    <string name="tasks_scheduled_disable">Suspend</string>
+    <string name="tasks_scheduled_enable">Resume</string>
+    <string name="tasks_scheduled_suspended">Suspended</string>
+    <string name="tasks_scheduled_next">Next %1$s</string>
+    <string name="tasks_scheduled_never">Never run</string>
+    <string name="tasks_scheduled_last_ok">Last run %1$s · %2$s tokens</string>
+    <string name="tasks_scheduled_last_failed">Last run failed: %1$s</string>
+    <string name="tasks_scheduled_tools">%1$d tools per turn</string>
+    <string name="tasks_sessions_header">Sessions</string>
+    <string name="tasks_settings_scheduler_url">Scheduler address</string>
+    <string name="tasks_settings_scheduler_url_hint">https://sched.example.com — optional; without it the recurring missions stay invisible.</string>
 </resources>

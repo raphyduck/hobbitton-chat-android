@@ -7,7 +7,9 @@ import com.garfiec.librechat.core.data.engine.EngineMissionRepository
 import com.garfiec.librechat.core.data.engine.EngineSettingsStore
 import com.garfiec.librechat.core.data.engine.Mission
 import com.garfiec.librechat.core.data.engine.engineFailureKind
+import com.garfiec.librechat.core.data.scheduler.SchedulerRepository
 import com.garfiec.librechat.core.model.engine.EngineFailureKind
+import com.garfiec.librechat.core.model.scheduler.ScheduledMission
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -26,6 +28,13 @@ data class TasksUiState(
     val engineConfigured: Boolean = true,
     val loading: Boolean = false,
     val missions: List<Mission> = emptyList(),
+    /**
+     * The recurring missions, from the scheduler — a different service from the engine, and the
+     * only place that knows a mission runs every night. Empty when no scheduler is configured,
+     * which is a normal state and not an error.
+     */
+    val scheduled: List<ScheduledMission> = emptyList(),
+    val schedulerConfigured: Boolean = false,
     val profiles: List<String> = emptyList(),
     /** Why the last call failed, or null. The screen turns it into a sentence and an offer. */
     val error: EngineFailureKind? = null,
@@ -33,6 +42,7 @@ data class TasksUiState(
 
 class TasksViewModel(
     private val repository: EngineMissionRepository,
+    private val scheduler: SchedulerRepository,
     private val settings: EngineSettingsStore,
 ) : ViewModel() {
 
@@ -52,6 +62,7 @@ class TasksViewModel(
                 return@launch
             }
             _state.update { it.copy(engineConfigured = true, loading = true, error = null) }
+            refreshScheduled()
             runCatching { repository.missions() to repository.profiles() }
                 .onSuccess { (missions, profiles) ->
                     _state.update {
@@ -68,6 +79,42 @@ class TasksViewModel(
                     Logger.w(failure, tag = "Tasks") { "Could not read the engine's missions" }
                     _state.update { it.copy(loading = false, error = failure.engineFailureKind()) }
                 }
+        }
+    }
+
+    /**
+     * The scheduler in its own request, and its failures kept off the engine's error banner.
+     *
+     * The two services are independent: a scheduler that is down must not empty the sessions list,
+     * and an engine that is down must not hide tonight's schedule. Collapsing them into one
+     * `runCatching` would make either outage look like both.
+     */
+    private suspend fun refreshScheduled() {
+        runCatching { scheduler.isConfigured() to scheduler.missions() }
+            .onSuccess { (configured, missions) ->
+                _state.update { it.copy(schedulerConfigured = configured, scheduled = missions) }
+            }
+            .onFailure { failure ->
+                Logger.w(failure, tag = "Tasks") { "Could not read the scheduler" }
+                _state.update { it.copy(scheduled = emptyList()) }
+            }
+    }
+
+    /** Starts a scheduled mission now, without waiting for its cron. */
+    fun runScheduled(name: String) {
+        viewModelScope.launch {
+            runCatching { scheduler.run(name) }
+                .onFailure { failure -> Logger.w(failure, tag = "Tasks") { "Could not start $name" } }
+            refresh()
+        }
+    }
+
+    /** Suspends a mission, or puts it back — its history survives either way. */
+    fun setScheduledEnabled(name: String, enabled: Boolean) {
+        viewModelScope.launch {
+            runCatching { scheduler.setEnabled(name, enabled) }
+                .onFailure { failure -> Logger.w(failure, tag = "Tasks") { "Could not toggle $name" } }
+            refresh()
         }
     }
 
