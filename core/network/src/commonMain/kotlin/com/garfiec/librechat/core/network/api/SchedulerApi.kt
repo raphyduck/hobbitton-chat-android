@@ -1,6 +1,7 @@
 package com.garfiec.librechat.core.network.api
 
 import com.garfiec.librechat.core.model.scheduler.Consumption
+import com.garfiec.librechat.core.model.scheduler.ProviderHealth
 import com.garfiec.librechat.core.model.scheduler.SchedulerState
 import com.garfiec.librechat.core.network.engine.EngineHttpException
 import io.ktor.client.HttpClient
@@ -55,24 +56,41 @@ class SchedulerApi(
      * declares is re-sent to the model on every turn, and a second one would be paid for on every
      * mission that never calls it.
      */
-    suspend fun consumption(days: Int = 7): Consumption {
-        val payload = callTool("consommation", buildJsonObject {
+    suspend fun consumption(days: Int = 7): Consumption = decode(
+        callTool("consommation", buildJsonObject {
             put("jours", days)
             put("json_brut", true)
-        })
-        // A gateway the scheduler could not reach answers `{"erreur": "…"}` rather than a report.
-        // Decoding that as a Consumption would raise a serialization error naming a missing key,
-        // on an answer that says exactly what went wrong — so the cause is read out and raised
-        // the same way a JSON-RPC error is.
+        }),
+        "consommation",
+    )
+
+    /**
+     * Reads a tool's JSON answer, raising the scheduler's own words when it reports a failure.
+     *
+     * A gateway the scheduler could not reach answers `{"erreur": "…"}` rather than a report.
+     * Decoding that into the expected type would raise a serialization error naming a missing key,
+     * on an answer that says exactly what went wrong — so the cause is read out and raised the
+     * same way a JSON-RPC error is. Shared by both gateway-backed tools: duplicating it would be
+     * two places to forget the same thing.
+     */
+    private inline fun <reified T> decode(payload: String, tool: String): T {
         json.parseToJsonElement(payload).jsonObject["erreur"]?.let { reason ->
-            throw EngineHttpException(
-                200,
-                "consommation",
-                reason.jsonPrimitive.content,
-            )
+            throw EngineHttpException(200, tool, reason.jsonPrimitive.content)
         }
         return json.decodeFromString(payload)
     }
+
+    /**
+     * Which providers answer right now.
+     *
+     * **This performs a real call to every model in the catalogue.** Measured server-side on
+     * 23/08/2026: 1.4 to 2.6 seconds and about $0.0015 for the ten of them. It is a verification,
+     * not a refresh — callers must bind it to an explicit action, never to a screen appearing.
+     */
+    suspend fun providers(): ProviderHealth = decode(
+        callTool("fournisseurs", buildJsonObject { put("json_brut", true) }),
+        "fournisseurs",
+    )
 
     /**
      * Starts a mission now. Returns the scheduler's own sentence, which is the useful thing to

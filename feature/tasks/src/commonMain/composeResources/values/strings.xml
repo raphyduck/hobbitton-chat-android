@@ -72,4 +72,12 @@
     <string name="tasks_spend_calls">%1$d calls</string>
     <string name="tasks_spend_cache_saved">Prefix cache saved %1$s</string>
     <string name="tasks_spend_unpriced_note">No price does not mean free: the gateway counted the tokens but has no price for these models.</string>
+    <string name="tasks_providers_header">Providers</string>
+    <string name="tasks_providers_check">Test the providers</string>
+    <string name="tasks_providers_checking">Calling each model…</string>
+    <string name="tasks_providers_unknown">Unknown until tested. The test calls every model for real: a few tenths of a cent, and two to three seconds.</string>
+    <string name="tasks_providers_all_ok">All %1$d providers answer.</string>
+    <string name="tasks_providers_failing">%1$d provider(s) do not answer.</string>
+    <string name="tasks_providers_none">The gateway declared no model. That is not « all is well » — the catalogue is empty.</string>
+    <string name="tasks_providers_failed">The check itself failed: %1$s</string>
 </resources>
