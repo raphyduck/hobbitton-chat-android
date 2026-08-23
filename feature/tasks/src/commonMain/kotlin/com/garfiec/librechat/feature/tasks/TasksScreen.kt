@@ -36,6 +36,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.garfiec.librechat.core.data.engine.Mission
 import com.garfiec.librechat.core.model.engine.EngineFailureKind
 import com.garfiec.librechat.core.model.engine.MissionState
+import com.garfiec.librechat.core.model.scheduler.ScheduledMission
 import com.garfiec.librechat.feature.tasks.resources.Res
 import com.garfiec.librechat.feature.tasks.resources.tasks_empty
 import com.garfiec.librechat.feature.tasks.resources.tasks_empty_hint
@@ -54,6 +55,17 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_new
 import com.garfiec.librechat.feature.tasks.resources.tasks_not_configured
 import com.garfiec.librechat.feature.tasks.resources.tasks_not_configured_hint
 import com.garfiec.librechat.feature.tasks.resources.tasks_retry
+import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_disable
+import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_enable
+import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_header
+import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_last_failed
+import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_last_ok
+import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_never
+import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_next
+import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_run
+import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_suspended
+import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_tools
+import com.garfiec.librechat.feature.tasks.resources.tasks_sessions_header
 import com.garfiec.librechat.feature.tasks.resources.tasks_settings_open
 import com.garfiec.librechat.feature.tasks.resources.tasks_settings_title
 import com.garfiec.librechat.feature.tasks.resources.tasks_state_failed
@@ -145,7 +157,10 @@ fun TasksScreen(
                 modifier = Modifier.padding(padding),
             )
 
-            state.missions.isEmpty() -> Explanation(
+            // « No session yet » is not « nothing to show »: the nine missions that run every
+            // night are still there, and hiding them behind an empty sessions list was exactly
+            // what made all of that work invisible from a phone.
+            state.missions.isEmpty() && state.scheduled.isEmpty() -> Explanation(
                 title = stringResource(Res.string.tasks_empty),
                 hint = stringResource(Res.string.tasks_empty_hint),
                 modifier = Modifier.padding(padding),
@@ -156,8 +171,29 @@ fun TasksScreen(
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                items(state.missions, key = { it.sessionId }) { mission ->
-                    MissionRow(mission = mission, onStop = { viewModel.abort(mission.sessionId) })
+                // The schedule leads: what runs tonight without anyone watching is what someone
+                // opens this tab to check. Sessions are the record of what already happened.
+                if (state.scheduled.isNotEmpty()) {
+                    item(key = "scheduled-header") {
+                        SectionHeader(stringResource(Res.string.tasks_scheduled_header))
+                    }
+                    items(state.scheduled, key = { "scheduled-" + it.name }) { mission ->
+                        ScheduledMissionRow(
+                            mission = mission,
+                            onRun = { viewModel.runScheduled(mission.name) },
+                            onToggle = {
+                                viewModel.setScheduledEnabled(mission.name, !mission.enabled)
+                            },
+                        )
+                    }
+                }
+                if (state.missions.isNotEmpty()) {
+                    item(key = "sessions-header") {
+                        SectionHeader(stringResource(Res.string.tasks_sessions_header))
+                    }
+                    items(state.missions, key = { it.sessionId }) { mission ->
+                        MissionRow(mission = mission, onStop = { viewModel.abort(mission.sessionId) })
+                    }
                 }
             }
         }
@@ -184,6 +220,132 @@ fun TasksScreen(
                 composing = false
                 viewModel.launch(profile, objective, connectors, autonomous)
             },
+        )
+    }
+}
+
+@Composable
+private fun SectionHeader(label: String) {
+    Text(
+        label,
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
+    )
+}
+
+/**
+ * One recurring mission: when it next runs, how its last run went, and the two things worth doing
+ * to it from a phone — start it now, or suspend it.
+ *
+ * The tool count is shown next to the budget rather than hidden in settings: it is that number,
+ * multiplied by the turns, that decides whether a mission fits its budget (server-side D-040), and
+ * seeing it is what makes an expensive mission obvious before the bill does.
+ */
+@Composable
+private fun ScheduledMissionRow(
+    mission: ScheduledMission,
+    onRun: () -> Unit,
+    onToggle: () -> Unit,
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(mission.name, style = MaterialTheme.typography.titleMedium)
+
+            Text(
+                listOfNotNull(
+                    mission.profile,
+                    mission.cron ?: mission.runAt,
+                    stringResource(Res.string.tasks_scheduled_tools, mission.declaredTools),
+                ).joinToString(" · "),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            when {
+                mission.running ->
+                    Text(
+                        stringResource(Res.string.tasks_state_running),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+
+                !mission.enabled ->
+                    Text(
+                        stringResource(Res.string.tasks_scheduled_suspended),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.outline,
+                    )
+
+                mission.nextRun != null ->
+                    Text(
+                        stringResource(Res.string.tasks_scheduled_next, mission.nextRun!!),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+            }
+
+            LastRunLine(mission)
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                // A mission already running is not started twice: the scheduler refuses it anyway
+                // (server-side D-041), and offering the button would make that refusal look like a
+                // bug rather than a rule.
+                TextButton(onClick = onRun, enabled = !mission.running) {
+                    Text(stringResource(Res.string.tasks_scheduled_run))
+                }
+                TextButton(onClick = onToggle) {
+                    Text(
+                        stringResource(
+                            if (mission.enabled) {
+                                Res.string.tasks_scheduled_disable
+                            } else {
+                                Res.string.tasks_scheduled_enable
+                            },
+                        ),
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * How the last run went, in one line.
+ *
+ * `succeeded` is null *while the mission runs*, and that third state is why this is not a boolean:
+ * showing a red failure on a mission that is working would be worse than showing nothing.
+ */
+@Composable
+private fun LastRunLine(mission: ScheduledMission) {
+    val last = mission.lastRun
+    when {
+        last == null -> Text(
+            stringResource(Res.string.tasks_scheduled_never),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.outline,
+        )
+
+        last.succeeded == false -> Text(
+            stringResource(
+                Res.string.tasks_scheduled_last_failed,
+                last.stopReason.orEmpty(),
+            ),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.error,
+        )
+
+        last.succeeded == true -> Text(
+            stringResource(
+                Res.string.tasks_scheduled_last_ok,
+                last.startedAt.orEmpty(),
+                (last.tokens ?: 0).toString(),
+            ),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }

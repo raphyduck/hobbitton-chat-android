@@ -4,7 +4,9 @@ import com.garfiec.librechat.core.common.di.KoinQualifiers
 import com.garfiec.librechat.core.data.engine.EngineSecureStore
 import com.garfiec.librechat.core.data.engine.EngineSessionManager
 import com.garfiec.librechat.core.data.engine.EngineSettingsStore
+import com.garfiec.librechat.core.data.scheduler.SchedulerRepository
 import com.garfiec.librechat.core.network.api.AgentEngineApi
+import com.garfiec.librechat.core.network.api.SchedulerApi
 import com.garfiec.librechat.core.network.engine.EngineAuthPlugin
 import com.garfiec.librechat.core.network.engine.EnginePasswordStore
 import com.garfiec.librechat.core.network.engine.EngineTokenStore
@@ -87,6 +89,47 @@ val engineModule: Module = module {
     }
 
     single { AgentEngineApi(get(KoinQualifiers.Engine)) }
+
+    /**
+     * A **third** client, for the scheduler.
+     *
+     * Same portal, another host, and only one of the engine's two credentials applies: the
+     * scheduler has no Basic of its own — Authelia is all that guards it. It reuses
+     * [EngineAuthPlugin] because the bearer, its renewal and the portal-redirect detection are
+     * exactly the same problem; what changes is the base URL and the fact that the Basic it also
+     * sends is ignored downstream rather than required.
+     *
+     * Built even when no scheduler URL is set: the client is harmless without one, and the
+     * repository asks the settings before it calls anything.
+     */
+    single(KoinQualifiers.Scheduler) {
+        val settings = get<EngineSettingsStore>()
+        val sessions = get<EngineSessionManager>()
+        HttpClient(get<HttpClientEngineFactory<*>>()) {
+            install(ContentNegotiation) { json(get<Json>()) }
+            install(EngineAuthPlugin) {
+                access = { settings.access() }
+                bearer = { sessions.bearer() }
+                renew = { sessions.renew() }
+            }
+            install(HttpTimeout) {
+                connectTimeoutMillis = 10_000
+                // `lancer` no longer blocks for the length of a mission — it answers as soon as the
+                // session exists (server-side D-041) — so thirty seconds is generous.
+                requestTimeoutMillis = 30_000
+            }
+            defaultRequest {
+                settings.cachedAccess()?.schedulerUrl
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let { url.takeFrom(it) }
+                contentType(ContentType.Application.Json)
+            }
+        }
+    }
+
+    single { SchedulerApi(client = get(KoinQualifiers.Scheduler), json = get()) }
+
+    single { SchedulerRepository(api = get(), settings = get()) }
 
     /**
      * The OAuth client talks to the **portal**, not the engine, and carries none of the engine's
