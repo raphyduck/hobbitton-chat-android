@@ -185,6 +185,10 @@ class SettingsViewModel(
                 _uiState.update {
                     it.copy(
                         allowAccountDeletion = config?.allowAccountDeletion ?: true,
+                        // Absent ou config non chargée → false. Voir le commentaire du champ :
+                        // ici le défaut prudent est de MASQUER, à l'inverse de la suppression de
+                        // compte juste au-dessus, où le défaut prudent est d'autoriser.
+                        balanceEnabled = config?.balance?.enabled == true,
                         buildInfo = config?.buildInfo,
                         serverVersion = version,
                     )
