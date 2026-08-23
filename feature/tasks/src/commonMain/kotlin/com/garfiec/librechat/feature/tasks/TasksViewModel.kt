@@ -6,6 +6,8 @@ import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.data.engine.EngineMissionRepository
 import com.garfiec.librechat.core.data.engine.EngineSettingsStore
 import com.garfiec.librechat.core.data.engine.Mission
+import com.garfiec.librechat.core.data.engine.engineFailureKind
+import com.garfiec.librechat.core.model.engine.EngineFailureKind
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -25,7 +27,8 @@ data class TasksUiState(
     val loading: Boolean = false,
     val missions: List<Mission> = emptyList(),
     val profiles: List<String> = emptyList(),
-    val error: String? = null,
+    /** Why the last call failed, or null. The screen turns it into a sentence and an offer. */
+    val error: EngineFailureKind? = null,
 )
 
 class TasksViewModel(
@@ -63,7 +66,7 @@ class TasksViewModel(
                 }
                 .onFailure { failure ->
                     Logger.w(failure, tag = "Tasks") { "Could not read the engine's missions" }
-                    _state.update { it.copy(loading = false, error = failure.readable()) }
+                    _state.update { it.copy(loading = false, error = failure.engineFailureKind()) }
                 }
         }
     }
@@ -75,7 +78,7 @@ class TasksViewModel(
                 .onSuccess { refresh() }
                 .onFailure { failure ->
                     Logger.w(failure, tag = "Tasks") { "Could not start the mission" }
-                    _state.update { it.copy(loading = false, error = failure.readable()) }
+                    _state.update { it.copy(loading = false, error = failure.engineFailureKind()) }
                 }
         }
     }
@@ -88,9 +91,3 @@ class TasksViewModel(
         }
     }
 }
-
-/**
- * Something a person can act on. A raw exception's `toString()` is a class name and a stack, which
- * tells the reader nothing about whether to retry, log in again, or fix a setting.
- */
-private fun Throwable.readable(): String = message?.takeIf { it.isNotBlank() } ?: "Le moteur n'a pas répondu"

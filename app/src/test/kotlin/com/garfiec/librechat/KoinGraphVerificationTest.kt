@@ -12,6 +12,7 @@ import com.garfiec.librechat.core.common.network.NetworkConditionObserver
 import com.garfiec.librechat.core.common.network.RequestActivityTracker
 import com.garfiec.librechat.core.common.power.PowerStateObserver
 import com.garfiec.librechat.core.data.datastore.AccountRoster
+import com.garfiec.librechat.core.data.datastore.ChatProfileStore
 import com.garfiec.librechat.core.data.datastore.ConfigCacheDataStore
 import com.garfiec.librechat.core.data.datastore.ServerDataStore
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
@@ -176,6 +177,8 @@ class KoinGraphVerificationTest {
             AccountRoster::class,
             AccountSwitcher::class,
             SettingsDataStore::class,
+            // Defined in dataModule; settingsModule is verified on its own, so it has to be named.
+            ChatProfileStore::class,
             ThemeDataStore::class,
             AgentRepository::class,
             AgentToolsRepository::class,

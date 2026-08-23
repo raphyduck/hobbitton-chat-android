@@ -34,10 +34,22 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.garfiec.librechat.core.data.engine.Mission
+import com.garfiec.librechat.core.model.engine.EngineFailureKind
 import com.garfiec.librechat.core.model.engine.MissionState
 import com.garfiec.librechat.feature.tasks.resources.Res
 import com.garfiec.librechat.feature.tasks.resources.tasks_empty
 import com.garfiec.librechat.feature.tasks.resources.tasks_empty_hint
+import com.garfiec.librechat.feature.tasks.resources.tasks_error_authentication
+import com.garfiec.librechat.feature.tasks.resources.tasks_error_authentication_hint
+import com.garfiec.librechat.feature.tasks.resources.tasks_error_not_found
+import com.garfiec.librechat.feature.tasks.resources.tasks_error_not_found_hint
+import com.garfiec.librechat.feature.tasks.resources.tasks_error_permission
+import com.garfiec.librechat.feature.tasks.resources.tasks_error_permission_hint
+import com.garfiec.librechat.feature.tasks.resources.tasks_error_server
+import com.garfiec.librechat.feature.tasks.resources.tasks_error_server_hint
+import com.garfiec.librechat.feature.tasks.resources.tasks_error_unknown
+import com.garfiec.librechat.feature.tasks.resources.tasks_error_unreachable
+import com.garfiec.librechat.feature.tasks.resources.tasks_error_unreachable_hint
 import com.garfiec.librechat.feature.tasks.resources.tasks_new
 import com.garfiec.librechat.feature.tasks.resources.tasks_not_configured
 import com.garfiec.librechat.feature.tasks.resources.tasks_not_configured_hint
@@ -69,6 +81,9 @@ fun TasksScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     var composing by remember { mutableStateOf(false) }
     var configuring by remember { mutableStateOf(false) }
+    // Read once into a local: `state` is a delegated property, so the branch below cannot smart-cast
+    // through it.
+    val failure = state.error
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -115,10 +130,18 @@ fun TasksScreen(
                     verticalArrangement = Arrangement.Center,
                 ) { CircularProgressIndicator() }
 
-            state.error != null && state.missions.isEmpty() -> Explanation(
-                title = state.error.orEmpty(),
-                hint = null,
-                action = stringResource(Res.string.tasks_retry) to viewModel::refresh,
+            failure != null && state.missions.isEmpty() -> Explanation(
+                title = stringResource(failure.title()),
+                hint = failure.hint()?.let { stringResource(it) },
+                // The offer follows the cause. « Retry » in front of an expired session is a button
+                // that cannot work, and it is the one someone will press five times before
+                // suspecting their settings.
+                action = when (failure) {
+                    EngineFailureKind.AUTHENTICATION, EngineFailureKind.NOT_FOUND ->
+                        stringResource(Res.string.tasks_settings_open) to { configuring = true }
+                    EngineFailureKind.PERMISSION -> null
+                    else -> stringResource(Res.string.tasks_retry) to viewModel::refresh
+                },
                 modifier = Modifier.padding(padding),
             )
 
@@ -239,4 +262,23 @@ private fun Explanation(
             TextButton(onClick = onClick, modifier = Modifier.padding(top = 16.dp)) { Text(label) }
         }
     }
+}
+
+/** The sentence shown for a failure. One per cause, because the remedies differ. */
+private fun EngineFailureKind.title() = when (this) {
+    EngineFailureKind.AUTHENTICATION -> Res.string.tasks_error_authentication
+    EngineFailureKind.PERMISSION -> Res.string.tasks_error_permission
+    EngineFailureKind.NOT_FOUND -> Res.string.tasks_error_not_found
+    EngineFailureKind.UNREACHABLE -> Res.string.tasks_error_unreachable
+    EngineFailureKind.SERVER -> Res.string.tasks_error_server
+    EngineFailureKind.UNKNOWN -> Res.string.tasks_error_unknown
+}
+
+private fun EngineFailureKind.hint() = when (this) {
+    EngineFailureKind.AUTHENTICATION -> Res.string.tasks_error_authentication_hint
+    EngineFailureKind.PERMISSION -> Res.string.tasks_error_permission_hint
+    EngineFailureKind.NOT_FOUND -> Res.string.tasks_error_not_found_hint
+    EngineFailureKind.UNREACHABLE -> Res.string.tasks_error_unreachable_hint
+    EngineFailureKind.SERVER -> Res.string.tasks_error_server_hint
+    EngineFailureKind.UNKNOWN -> null
 }

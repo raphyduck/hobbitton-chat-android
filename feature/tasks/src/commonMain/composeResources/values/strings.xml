@@ -38,4 +38,15 @@
     <string name="tasks_settings_client_id">Client id</string>
     <string name="tasks_settings_save">Save</string>
     <string name="tasks_settings_forget">Forget</string>
+    <string name="tasks_error_authentication">Sign-in to the engine failed</string>
+    <string name="tasks_error_authentication_hint">The portal answered instead of the engine: the session has expired, or the settings point somewhere else. Check them and try again.</string>
+    <string name="tasks_error_permission">This account is not allowed on the engine</string>
+    <string name="tasks_error_permission_hint">Authentication worked; the engine refused the request. Retrying will not change that.</string>
+    <string name="tasks_error_not_found">The address answers, but not the engine</string>
+    <string name="tasks_error_not_found_hint">Something is listening at that address and does not know these routes. Check the engine URL.</string>
+    <string name="tasks_error_unreachable">The engine did not answer</string>
+    <string name="tasks_error_unreachable_hint">No network, wrong host, or the service is down.</string>
+    <string name="tasks_error_server">The engine answered with an error</string>
+    <string name="tasks_error_server_hint">The fault is on its side. Its own logs say more than this screen can.</string>
+    <string name="tasks_error_unknown">The engine call failed</string>
 </resources>

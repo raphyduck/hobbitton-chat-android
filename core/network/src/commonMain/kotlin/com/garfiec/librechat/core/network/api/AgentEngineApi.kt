@@ -7,12 +7,16 @@ import com.garfiec.librechat.core.model.engine.EnginePermissionReply
 import com.garfiec.librechat.core.model.engine.EnginePromptRequest
 import com.garfiec.librechat.core.model.engine.EngineSession
 import com.garfiec.librechat.core.model.engine.EngineSessionStatus
+import com.garfiec.librechat.core.network.engine.EngineHttpException
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
+import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.request
 import io.ktor.http.encodeURLPathPart
+import io.ktor.http.isSuccess
 import io.ktor.http.path
 
 /**
@@ -39,17 +43,17 @@ class AgentEngineApi(
      * that exists only on a phone is a mission nobody can supervise.
      */
     suspend fun sessions(): List<EngineSession> =
-        client.get { url { path("session") } }.body()
+        client.get { url { path("session") } }.decoded()
 
     /** The profiles the engine is configured with — `cerveau`, `work-compta`… */
     suspend fun profiles(): List<EngineAgentProfile> =
-        client.get { url { path("agent") } }.body()
+        client.get { url { path("agent") } }.decoded()
 
     suspend fun createSession(request: CreateEngineSessionRequest): EngineSession =
         client.post {
             url { path("session") }
             setBody(request)
-        }.body()
+        }.decoded()
 
     /**
      * Hands the objective over and returns at once. Watching what happens next is [status] and
@@ -59,7 +63,7 @@ class AgentEngineApi(
         client.post {
             url { path("session/${sessionId.encodeURLPathPart()}/prompt_async") }
             setBody(request)
-        }
+        }.orThrow()
     }
 
     /**
@@ -69,16 +73,16 @@ class AgentEngineApi(
      * with [messages] and look at `info.error`.
      */
     suspend fun status(): Map<String, EngineSessionStatus> =
-        client.get { url { path("session/status") } }.body()
+        client.get { url { path("session/status") } }.decoded()
 
     suspend fun messages(sessionId: String): List<EngineMessage> =
         client.get {
             url { path("session/${sessionId.encodeURLPathPart()}/message") }
-        }.body()
+        }.decoded()
 
     /** Stops a running session. The engine expects **no body**; sending one is a 400. */
     suspend fun abort(sessionId: String) {
-        client.post { url { path("session/${sessionId.encodeURLPathPart()}/abort") } }
+        client.post { url { path("session/${sessionId.encodeURLPathPart()}/abort") } }.orThrow()
     }
 
     /** Interactive mode: answer a permission the engine is waiting on. */
@@ -95,12 +99,34 @@ class AgentEngineApi(
                 )
             }
             setBody(reply)
-        }
+        }.orThrow()
     }
 
     /** The working-tree changes a coding mission produced, as a unified diff. */
     suspend fun diff(sessionId: String): String =
         client.get {
             url { path("session/${sessionId.encodeURLPathPart()}/diff") }
-        }.body()
+        }.decoded()
+
+    /**
+     * Reads the body only once the status says there is one worth reading.
+     *
+     * Without this a 401 from the portal — HTML, not JSON — reaches the deserializer and surfaces as
+     * `NoTransformationFoundException`, which names a Kotlin type instead of the status code that
+     * explains everything. Seen on 22 August, on this exact route.
+     */
+    private suspend inline fun <reified T> HttpResponse.decoded(): T {
+        orThrow()
+        return body()
+    }
+
+    private fun HttpResponse.orThrow() {
+        if (!status.isSuccess()) {
+            throw EngineHttpException(
+                status = status.value,
+                method = request.method.value,
+                path = request.url.encodedPath,
+            )
+        }
+    }
 }

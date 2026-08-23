@@ -33,6 +33,9 @@ class ChatRepositoryClaimOnReadTest {
         connectivityObserver = connectivityObserver,
         dispatcher = UnconfinedTestDispatcher(),
         json = Json,
+        // Relaxed: these tests exercise the steer-claiming reads, which never build a send payload
+        // and so never consult the profile.
+        chatProfileStore = mockk(relaxed = true),
     )
 
     private val parked = listOf(

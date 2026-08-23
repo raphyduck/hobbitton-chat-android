@@ -2,6 +2,7 @@ package com.garfiec.librechat.feature.settings.di
 
 import com.garfiec.librechat.core.common.di.KoinQualifiers
 import com.garfiec.librechat.feature.settings.viewmodel.ApiKeysViewModel
+import com.garfiec.librechat.feature.settings.viewmodel.ChatProfileViewModel
 import com.garfiec.librechat.feature.settings.viewmodel.FavoritesViewModel
 import com.garfiec.librechat.feature.settings.viewmodel.McpViewModel
 import com.garfiec.librechat.feature.settings.viewmodel.MemoriesViewModel
@@ -21,6 +22,8 @@ expect val settingsPlatformModule: Module
 
 val settingsModule = module {
     includes(settingsPlatformModule)
+
+    viewModelOf(::ChatProfileViewModel)
 
     // Explicit block (not viewModelOf) so the IO dispatcher can be resolved by
     // qualifier — constructor-DSL resolves CoroutineDispatcher by type only.

@@ -7,6 +7,7 @@ import com.garfiec.librechat.core.common.identity.SessionManager
 import com.garfiec.librechat.core.data.datastore.AccountRegistry
 import com.garfiec.librechat.core.data.datastore.AccountRoster
 import com.garfiec.librechat.core.data.datastore.AccountScopedPrefsPurger
+import com.garfiec.librechat.core.data.datastore.ChatProfileStore
 import com.garfiec.librechat.core.data.datastore.ConfigCacheDataStore
 import com.garfiec.librechat.core.data.datastore.RoleCacheDataStore
 import com.garfiec.librechat.core.data.datastore.ServerDataStore
@@ -370,6 +371,13 @@ val dataModule = module {
         )
     }
 
+    single {
+        ChatProfileStore(
+            dataStore = get(),
+            activeAccountProvider = get(),
+        )
+    }
+
     single<ChatRepository> {
         ChatRepositoryImpl(
             chatApi = get(),
@@ -377,6 +385,7 @@ val dataModule = module {
             connectivityObserver = get(),
             dispatcher = get(KoinQualifiers.Default),
             json = get(),
+            chatProfileStore = get(),
         )
     }
 
