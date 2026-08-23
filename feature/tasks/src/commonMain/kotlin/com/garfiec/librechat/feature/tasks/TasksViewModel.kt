@@ -9,6 +9,7 @@ import com.garfiec.librechat.core.data.engine.Mission
 import com.garfiec.librechat.core.data.engine.engineFailureKind
 import com.garfiec.librechat.core.data.scheduler.SchedulerRepository
 import com.garfiec.librechat.core.model.engine.EngineFailureKind
+import com.garfiec.librechat.core.model.scheduler.Consumption
 import com.garfiec.librechat.core.model.scheduler.ScheduledMission
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -35,6 +36,13 @@ data class TasksUiState(
      */
     val scheduled: List<ScheduledMission> = emptyList(),
     val schedulerConfigured: Boolean = false,
+    /**
+     * What the platform spent, by model, over the last week. Null while unknown — either the
+     * scheduler is not configured, or its own gateway did not answer. Null is rendered as nothing
+     * at all rather than as zero: a « 0,00 $ » on a screen about money is a claim, and one that
+     * would be false here.
+     */
+    val consumption: Consumption? = null,
     val profiles: List<String> = emptyList(),
     /** Why the last call failed, or null. The screen turns it into a sentence and an offer. */
     val error: EngineFailureKind? = null,
@@ -98,6 +106,23 @@ class TasksViewModel(
                 Logger.w(failure, tag = "Tasks") { "Could not read the scheduler" }
                 _state.update { it.copy(scheduled = emptyList()) }
             }
+        refreshConsumption()
+    }
+
+    /**
+     * The week's spend, in its own request again — same reasoning one level down.
+     *
+     * This one reaches further than the others: the scheduler asks the gateway, which may be down
+     * while the scheduler is perfectly fine. A failure here must therefore not empty the mission
+     * list, so it clears only its own field and says nothing on the banner.
+     */
+    private suspend fun refreshConsumption() {
+        runCatching { scheduler.consumption(days = CONSUMPTION_DAYS) }
+            .onSuccess { report -> _state.update { it.copy(consumption = report) } }
+            .onFailure { failure ->
+                Logger.w(failure, tag = "Tasks") { "Could not read the week's spend" }
+                _state.update { it.copy(consumption = null) }
+            }
     }
 
     /** Starts a scheduled mission now, without waiting for its cron. */
@@ -128,6 +153,11 @@ class TasksViewModel(
                     _state.update { it.copy(loading = false, error = failure.engineFailureKind()) }
                 }
         }
+    }
+
+    private companion object {
+        /** A week: long enough to see a trend, short enough that today still stands out. */
+        const val CONSUMPTION_DAYS = 7
     }
 
     fun abort(sessionId: String) {

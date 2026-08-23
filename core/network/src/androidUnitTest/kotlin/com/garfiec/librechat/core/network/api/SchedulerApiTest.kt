@@ -139,6 +139,82 @@ class SchedulerApiTest {
         assertThat(failure.message).contains("mission introuvable")
     }
 
+    /**
+     * The three states of a spend line, which must never be confusable: a real amount, a real
+     * amount too small to print, and no price at all. The wire carries the difference as
+     * `depense: null` against a number — never as a zero.
+     */
+    @Test
+    fun `an unpriced model arrives as null and not as zero`() = runTest {
+        val payload = """
+            {"jours":[{"jour":"2026-08-23","depense":13.0373135,"jetons":7749493,
+            "complet":false,"modeles":[]}],
+            "modeles":[{"modele":"anthropic/claude-sonnet-5","jetons":7748977,
+            "jetons_entree":7452847,"jetons_sortie":296130,"jetons_cache":3719970,
+            "depense":13.0373135,"tarife":true,"appels":173,"echecs":0},
+            {"modele":"openai/deepseek-chat","jetons":516,"jetons_entree":295,
+            "jetons_sortie":221,"jetons_cache":0,"depense":null,"tarife":false,
+            "appels":5,"echecs":0}],
+            "depense_totale":13.0373135,"jetons_totaux":7749493,
+            "modeles_non_tarifes":["openai/deepseek-chat"],"economie_du_cache":6.6959}
+        """.trimIndent().replace("\n", "")
+        val api = api(MockEngine {
+            respond(
+                content = envelope(payload),
+                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+            )
+        })
+
+        val report = api.consumption(days = 7)
+
+        assertThat(report.isComplete).isFalse()
+        assertThat(report.cacheSavings).isEqualTo(6.6959)
+        val byModel = report.models.associateBy { it.model }
+        assertThat(byModel.getValue("openai/deepseek-chat").spend).isNull()
+        assertThat(byModel.getValue("openai/deepseek-chat").isPriced).isFalse()
+        // Full precision on the wire: rounding would make a tiny priced amount indistinguishable
+        // from an unpriced one, which is the whole thing this feature exists to prevent.
+        assertThat(byModel.getValue("anthropic/claude-sonnet-5").spend).isEqualTo(13.0373135)
+    }
+
+    /**
+     * The scheduler answers `{"erreur": …}` when its own gateway did not reply. Decoding that as a
+     * report would raise a « missing key » naming nothing, on an answer that says what went wrong.
+     */
+    @Test
+    fun `a gateway failure is reported with the scheduler's own words`() = runTest {
+        val api = api(MockEngine {
+            respond(
+                content = envelope("""{"erreur":"GET /user/daily/activity : timeout"}"""),
+                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+            )
+        })
+
+        val failure = assertFailsWith<EngineHttpException> { api.consumption() }
+        assertThat(failure.message).contains("timeout")
+    }
+
+    @Test
+    fun `the period is sent as a tool argument`() = runTest {
+        lateinit var sent: String
+        val api = api(MockEngine { request ->
+            sent = String(request.body.toByteArray())
+            respond(
+                content = envelope("""{"jours":[],"modeles":[],"depense_totale":0.0,
+                    "jetons_totaux":0,"modeles_non_tarifes":[],"economie_du_cache":0.0}""".trimIndent().replace("\n", "")),
+                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+            )
+        })
+
+        api.consumption(days = 30)
+
+        val arguments = json.parseToJsonElement(sent).jsonObject
+            .getValue("params").jsonObject.getValue("arguments").jsonObject
+        assertThat(arguments.getValue("jours").jsonPrimitive.content).isEqualTo("30")
+        // Without this the tool answers the prose a person wants in a chat, and decoding fails.
+        assertThat(arguments.getValue("json_brut").jsonPrimitive.content).isEqualTo("true")
+    }
+
     @Test
     fun `running a mission sends its name as a tool argument`() = runTest {
         lateinit var sent: String
