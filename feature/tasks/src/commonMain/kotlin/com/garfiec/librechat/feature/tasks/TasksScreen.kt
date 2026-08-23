@@ -16,6 +16,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -36,6 +37,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.garfiec.librechat.core.data.engine.Mission
 import com.garfiec.librechat.core.model.engine.EngineFailureKind
 import com.garfiec.librechat.core.model.engine.MissionState
+import com.garfiec.librechat.core.model.scheduler.Consumption
+import com.garfiec.librechat.core.model.scheduler.ModelConsumption
 import com.garfiec.librechat.core.model.scheduler.ScheduledMission
 import com.garfiec.librechat.feature.tasks.resources.Res
 import com.garfiec.librechat.feature.tasks.resources.tasks_empty
@@ -68,6 +71,14 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_tools
 import com.garfiec.librechat.feature.tasks.resources.tasks_sessions_header
 import com.garfiec.librechat.feature.tasks.resources.tasks_settings_open
 import com.garfiec.librechat.feature.tasks.resources.tasks_settings_title
+import com.garfiec.librechat.feature.tasks.resources.tasks_spend_cache_saved
+import com.garfiec.librechat.feature.tasks.resources.tasks_spend_calls
+import com.garfiec.librechat.feature.tasks.resources.tasks_spend_header
+import com.garfiec.librechat.feature.tasks.resources.tasks_spend_tiny
+import com.garfiec.librechat.feature.tasks.resources.tasks_spend_total
+import com.garfiec.librechat.feature.tasks.resources.tasks_spend_total_partial
+import com.garfiec.librechat.feature.tasks.resources.tasks_spend_unpriced
+import com.garfiec.librechat.feature.tasks.resources.tasks_spend_unpriced_note
 import com.garfiec.librechat.feature.tasks.resources.tasks_state_failed
 import com.garfiec.librechat.feature.tasks.resources.tasks_state_idle
 import com.garfiec.librechat.feature.tasks.resources.tasks_state_running
@@ -171,8 +182,18 @@ fun TasksScreen(
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                // The schedule leads: what runs tonight without anyone watching is what someone
-                // opens this tab to check. Sessions are the record of what already happened.
+                // The week's spend leads, above the schedule: it is the one number that
+                // answers « where am I », and it fits in two lines. Everything below it is
+                // detail by comparison.
+                state.consumption?.let { report ->
+                    item(key = "spend-header") {
+                        SectionHeader(stringResource(Res.string.tasks_spend_header))
+                    }
+                    item(key = "spend-section") { SpendSection(report) }
+                }
+
+                // The schedule leads among the rest: what runs tonight without anyone watching is
+                // what someone opens this tab to check. Sessions are the record of what happened.
                 if (state.scheduled.isNotEmpty()) {
                     item(key = "scheduled-header") {
                         SectionHeader(stringResource(Res.string.tasks_scheduled_header))
@@ -223,6 +244,104 @@ fun TasksScreen(
         )
     }
 }
+
+/**
+ * The week's spend, by model.
+ *
+ * Three states share this list and must not be confusable, which is the whole reason this screen
+ * exists in the form it does:
+ *
+ * - a real amount — « 13.0373 $ » ;
+ * - a real amount too small to print at four decimals — « < 0,0001 $ », never « 0.0000 $ » ;
+ * - **no price at all** — « non tarifé », because the gateway writes a literal zero for a model
+ *   its price table does not know, and rendering that as free would be a lie about precisely the
+ *   cheap models one routes traffic to in order to save money.
+ *
+ * When any model is unpriced the total is a floor, and the header says « at least ». A total
+ * presented as exact when terms are missing is worse than no total.
+ */
+@Composable
+private fun SpendSection(report: Consumption) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            val tokens = groupThousands(report.totalTokens)
+            Text(
+                if (report.isComplete) {
+                    stringResource(Res.string.tasks_spend_total, money(report.totalSpend), tokens)
+                } else {
+                    stringResource(
+                        Res.string.tasks_spend_total_partial, money(report.totalSpend), tokens,
+                    )
+                },
+                style = MaterialTheme.typography.titleMedium,
+            )
+            if (report.cacheSavings > 0) {
+                Text(
+                    stringResource(Res.string.tasks_spend_cache_saved, money(report.cacheSavings)),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            HorizontalDivider()
+            report.models.forEach { model ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(model.model, style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            groupThousands(model.tokens) + " · " +
+                                stringResource(Res.string.tasks_spend_calls, model.calls),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Text(
+                        modelAmount(model),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (model.isPriced) {
+                            MaterialTheme.colorScheme.onSurface
+                        } else {
+                            // Dimmed, not red: « no price » is not an error, it is an unknown.
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                    )
+                }
+            }
+            if (!report.isComplete) {
+                Text(
+                    stringResource(Res.string.tasks_spend_unpriced_note),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun modelAmount(model: ModelConsumption): String {
+    val spend = model.spend
+    return when {
+        spend == null -> stringResource(Res.string.tasks_spend_unpriced)
+        // A positive amount that rounds to zero at four decimals: printing « 0.0000 $ » here would
+        // put back the misleading zero the server takes such care to remove. Seen in service on
+        // 23/08 — deepseek/deepseek-chat had cost 0.00000572 $.
+        spend > 0 && money(spend) == money(0.0) -> stringResource(Res.string.tasks_spend_tiny)
+        else -> money(spend)
+    }
+}
+
+/** Four decimals, because a day of the cheap models lands well under a cent. */
+private fun money(value: Double): String {
+    val cents = kotlin.math.round(value * 10_000).toLong()
+    return "${cents / 10_000}.${(cents % 10_000).toString().padStart(4, '0')} $"
+}
+
+/** « 7 748 977 » — a raw seven-digit number is unreadable at a glance. */
+private fun groupThousands(value: Long): String =
+    value.toString().reversed().chunked(3).joinToString("\u202f").reversed()
 
 @Composable
 private fun SectionHeader(label: String) {

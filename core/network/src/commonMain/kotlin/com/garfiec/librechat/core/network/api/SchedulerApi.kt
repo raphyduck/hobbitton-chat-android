@@ -1,5 +1,6 @@
 package com.garfiec.librechat.core.network.api
 
+import com.garfiec.librechat.core.model.scheduler.Consumption
 import com.garfiec.librechat.core.model.scheduler.SchedulerState
 import com.garfiec.librechat.core.network.engine.EngineHttpException
 import io.ktor.client.HttpClient
@@ -44,6 +45,34 @@ class SchedulerApi(
 
     /** Every mission, its next due time and its last run — one call, because a screen wants it at once. */
     suspend fun state(): SchedulerState = json.decodeFromString(callTool("etat", null))
+
+    /**
+     * What the platform spent, by model and by day, over the last [days] days — both bounds
+     * included, so `1` means today.
+     *
+     * `json_brut` is what makes this readable by a program: without it the tool answers the prose
+     * a person wants in a chat. One tool serving both is deliberate — every tool a connector
+     * declares is re-sent to the model on every turn, and a second one would be paid for on every
+     * mission that never calls it.
+     */
+    suspend fun consumption(days: Int = 7): Consumption {
+        val payload = callTool("consommation", buildJsonObject {
+            put("jours", days)
+            put("json_brut", true)
+        })
+        // A gateway the scheduler could not reach answers `{"erreur": "…"}` rather than a report.
+        // Decoding that as a Consumption would raise a serialization error naming a missing key,
+        // on an answer that says exactly what went wrong — so the cause is read out and raised
+        // the same way a JSON-RPC error is.
+        json.parseToJsonElement(payload).jsonObject["erreur"]?.let { reason ->
+            throw EngineHttpException(
+                200,
+                "consommation",
+                reason.jsonPrimitive.content,
+            )
+        }
+        return json.decodeFromString(payload)
+    }
 
     /**
      * Starts a mission now. Returns the scheduler's own sentence, which is the useful thing to

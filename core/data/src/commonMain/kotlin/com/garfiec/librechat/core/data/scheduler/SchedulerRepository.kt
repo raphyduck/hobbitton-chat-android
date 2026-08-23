@@ -1,6 +1,7 @@
 package com.garfiec.librechat.core.data.scheduler
 
 import com.garfiec.librechat.core.data.engine.EngineSettingsStore
+import com.garfiec.librechat.core.model.scheduler.Consumption
 import com.garfiec.librechat.core.model.scheduler.ScheduledMission
 import com.garfiec.librechat.core.network.api.SchedulerApi
 
@@ -32,6 +33,18 @@ class SchedulerRepository(
     suspend fun missions(): List<ScheduledMission> {
         if (!isConfigured()) return emptyList()
         return api.state().missions.sortedByDescending { it.running }
+    }
+
+    /**
+     * What the platform spent over the last [days] days, or null when no scheduler is configured.
+     *
+     * Null rather than an empty report, and the distinction matters on this screen more than most:
+     * an empty report renders as « nothing spent », which on an unconfigured install is a lie about
+     * money. The screen says « not configured » instead and offers the settings form.
+     */
+    suspend fun consumption(days: Int = 7): Consumption? {
+        if (!isConfigured()) return null
+        return api.consumption(days)
     }
 
     /** Starts a mission now. Returns what the scheduler said — including its refusals. */
