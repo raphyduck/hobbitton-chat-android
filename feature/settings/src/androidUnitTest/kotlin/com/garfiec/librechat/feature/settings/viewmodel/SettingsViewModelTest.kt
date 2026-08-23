@@ -26,6 +26,8 @@ import com.garfiec.librechat.core.data.repository.UserRepository
 import com.garfiec.librechat.core.data.util.PermissionGate
 import com.garfiec.librechat.core.logging.DiagnosticLogRepository
 import com.garfiec.librechat.core.model.User
+import com.garfiec.librechat.core.model.config.BalanceConfig
+import com.garfiec.librechat.core.model.config.StartupConfig
 import com.garfiec.librechat.core.model.speech.SpeechConfig
 import com.garfiec.librechat.feature.settings.util.ContentReader
 import com.garfiec.librechat.feature.settings.util.PlatformCacheCleaner
@@ -143,6 +145,12 @@ class SettingsViewModelTest {
         every { roleRepository.userPermissions } returns MutableStateFlow(null)
         coEvery { permissionGate.awaitRole() } returns null
         every { configRepository.startupConfig } returns MutableStateFlow(null)
+        // Les deux, et pas seulement la première : `observeAccountDeletionPolicy` combine ces
+        // flux, et un `combine` n'émet qu'une fois que CHAQUE source a émis. Laissée en mock
+        // relaxé, `detectedBackendVersion` ne collecte rien — le bloc ne tourne jamais, et tout
+        // ce qu'il écrit garde sa valeur par défaut. Une assertion sur ce défaut passerait alors
+        // sans rien prouver.
+        every { configRepository.detectedBackendVersion } returns MutableStateFlow(null)
     }
 
     @After
@@ -460,6 +468,38 @@ class SettingsViewModelTest {
         assertThat(payload?.content).isEqualTo(buffer)
         assertThat(payload?.fileName).endsWith(".jsonl")
         assertThat(viewModel.uiState.value.isLogsExporting).isFalse()
+    }
+
+    /**
+     * A server that has not answered — or one where `balance.enabled` is false — is not a server
+     * where the user has zero credits. Rendering the balance card in that case shows « 0 available
+     * balance » on a deployment that does not run on credits at all, which reads as « you are out
+     * of credit » and sent a real person looking for a top-up button that does not exist.
+     */
+    @Test
+    fun `the balance is hidden until the server says it runs on credits`() = runTest {
+        viewModel = createViewModel()
+        advanceUntilIdle()
+        assertThat(viewModel.uiState.value.balanceEnabled).isFalse()
+    }
+
+    @Test
+    fun `the balance appears once the server enables it`() = runTest {
+        every { configRepository.startupConfig } returns MutableStateFlow(
+            StartupConfig(balance = BalanceConfig(enabled = true)),
+        )
+        viewModel = createViewModel()
+        advanceUntilIdle()
+        assertThat(viewModel.uiState.value.balanceEnabled).isTrue()
+    }
+
+    /** `balance` absent from `/api/config` is the older-server shape, and it is not « enabled ». */
+    @Test
+    fun `a config without a balance block leaves it hidden`() = runTest {
+        every { configRepository.startupConfig } returns MutableStateFlow(StartupConfig())
+        viewModel = createViewModel()
+        advanceUntilIdle()
+        assertThat(viewModel.uiState.value.balanceEnabled).isFalse()
     }
 
     @Test

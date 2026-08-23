@@ -207,15 +207,17 @@ fun AccountSettingsContent(
                 )
             }
 
-            // Balance section
-            item(key = "balance_header") {
-                SectionHeader(stringResource(Res.string.section_balance))
-            }
-            item(key = "balance_section") {
-                BalanceSection(
-                    tokenCredits = uiState.tokenCredits,
-                    isLoading = uiState.isBalanceLoading,
-                )
+            // Balance section — seulement si le serveur compte en crédits.
+            if (uiState.balanceEnabled) {
+                item(key = "balance_header") {
+                    SectionHeader(stringResource(Res.string.section_balance))
+                }
+                item(key = "balance_section") {
+                    BalanceSection(
+                        tokenCredits = uiState.tokenCredits,
+                        isLoading = uiState.isBalanceLoading,
+                    )
+                }
             }
 
             // Security section

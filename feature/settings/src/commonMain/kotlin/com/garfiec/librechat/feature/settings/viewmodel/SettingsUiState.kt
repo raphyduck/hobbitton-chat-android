@@ -153,6 +153,15 @@ data class SettingsUiState(
     // Balance
     val tokenCredits: Long = 0,
     val isBalanceLoading: Boolean = false,
+    /**
+     * Whether this server runs on token credits at all (`balance.enabled` in `/api/config`).
+     *
+     * Defaults to **false**: a server that has not answered yet, or one whose config predates the
+     * field, is one where nothing proves credits are in use — and a « 0 available balance » card on
+     * such a server reads as « you are out of credit » when in fact the feature is simply off.
+     * Showing nothing is the honest state; the card appears once the server says it means something.
+     */
+    val balanceEnabled: Boolean = false,
     // Avatar
     val showAvatarDialog: Boolean = false,
     val isAvatarUploading: Boolean = false,
