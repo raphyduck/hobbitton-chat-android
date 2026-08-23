@@ -72,4 +72,12 @@
     <string name="tasks_spend_calls">%1$d appels</string>
     <string name="tasks_spend_cache_saved">Le cache de préfixe a économisé %1$s</string>
     <string name="tasks_spend_unpriced_note">Non tarifé ne veut pas dire gratuit : la gateway a compté les jetons mais n'a pas de prix pour ces modèles.</string>
+    <string name="tasks_providers_header">Fournisseurs</string>
+    <string name="tasks_providers_check">Tester les fournisseurs</string>
+    <string name="tasks_providers_checking">Appel de chaque modèle…</string>
+    <string name="tasks_providers_unknown">Inconnu tant qu'on n'a pas testé. Le test appelle réellement chaque modèle : quelques dixièmes de centime, et deux à trois secondes.</string>
+    <string name="tasks_providers_all_ok">Les %1$d fournisseurs répondent.</string>
+    <string name="tasks_providers_failing">%1$d fournisseur(s) ne répondent pas.</string>
+    <string name="tasks_providers_none">La gateway n'a déclaré aucun modèle. Ce n'est pas « tout va bien » — le catalogue est vide.</string>
+    <string name="tasks_providers_failed">Le test lui-même a échoué : %1$s</string>
 </resources>

@@ -10,6 +10,7 @@ import com.garfiec.librechat.core.data.engine.engineFailureKind
 import com.garfiec.librechat.core.data.scheduler.SchedulerRepository
 import com.garfiec.librechat.core.model.engine.EngineFailureKind
 import com.garfiec.librechat.core.model.scheduler.Consumption
+import com.garfiec.librechat.core.model.scheduler.ProviderHealth
 import com.garfiec.librechat.core.model.scheduler.ScheduledMission
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -43,6 +44,18 @@ data class TasksUiState(
      * would be false here.
      */
     val consumption: Consumption? = null,
+    /**
+     * Which providers answer — null until someone asks, and deliberately so.
+     *
+     * Obtaining it calls every model for real (~0,0015 $, two to three seconds). Loading it with
+     * the rest of the screen would spend money on every glance at the tab, for an answer that
+     * changes about once a month. It stays null until [checkProviders].
+     */
+    val providers: ProviderHealth? = null,
+    val providersChecking: Boolean = false,
+    /** Why the last provider check failed, or null. Kept apart from [error] for the usual reason:
+     * a gateway that did not answer is not an engine that did not answer. */
+    val providersError: String? = null,
     val profiles: List<String> = emptyList(),
     /** Why the last call failed, or null. The screen turns it into a sentence and an offer. */
     val error: EngineFailureKind? = null,
@@ -123,6 +136,32 @@ class TasksViewModel(
                 Logger.w(failure, tag = "Tasks") { "Could not read the week's spend" }
                 _state.update { it.copy(consumption = null) }
             }
+    }
+
+    /**
+     * Asks every provider whether it still answers. **Spends money**, so it is only ever called
+     * from an explicit press — never from [refresh].
+     */
+    fun checkProviders() {
+        if (_state.value.providersChecking) return
+        viewModelScope.launch {
+            _state.update { it.copy(providersChecking = true, providersError = null) }
+            runCatching { scheduler.providers() }
+                .onSuccess { health ->
+                    _state.update { it.copy(providers = health, providersChecking = false) }
+                }
+                .onFailure { failure ->
+                    Logger.w(failure, tag = "Tasks") { "Could not check the providers" }
+                    _state.update {
+                        it.copy(
+                            providersChecking = false,
+                            // The message, not a generic « failed »: the scheduler forwards the
+                            // gateway's own sentence, and that sentence is the answer.
+                            providersError = failure.message ?: "…",
+                        )
+                    }
+                }
+        }
     }
 
     /** Starts a scheduled mission now, without waiting for its cron. */

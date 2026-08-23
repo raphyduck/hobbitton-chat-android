@@ -2,6 +2,7 @@ package com.garfiec.librechat.core.data.scheduler
 
 import com.garfiec.librechat.core.data.engine.EngineSettingsStore
 import com.garfiec.librechat.core.model.scheduler.Consumption
+import com.garfiec.librechat.core.model.scheduler.ProviderHealth
 import com.garfiec.librechat.core.model.scheduler.ScheduledMission
 import com.garfiec.librechat.core.network.api.SchedulerApi
 
@@ -45,6 +46,18 @@ class SchedulerRepository(
     suspend fun consumption(days: Int = 7): Consumption? {
         if (!isConfigured()) return null
         return api.consumption(days)
+    }
+
+    /**
+     * Which providers answer, or null when no scheduler is configured.
+     *
+     * **Costs a real call to every model.** Never call this from a refresh path — it belongs to a
+     * button the person pressed, and the repository deliberately offers no cached variant that
+     * would make it look free.
+     */
+    suspend fun providers(): ProviderHealth? {
+        if (!isConfigured()) return null
+        return api.providers()
     }
 
     /** Starts a mission now. Returns what the scheduler said — including its refusals. */

@@ -216,6 +216,70 @@ class SchedulerApiTest {
     }
 
     @Test
+    fun `a failing provider carries its message and its status`() = runTest {
+        val payload = """
+            {"fournisseurs":[
+            {"nom":"moonshot","sain":false,"adresse":"https://api.moonshot.ai/v1",
+             "modeles":[{"nom":"moonshot/kimi-k2.6","sain":false,
+             "erreur":"AuthenticationError: Invalid API key provided","statut_http":401},
+            {"nom":"moonshot/kimi-k2.7-code","sain":true,"erreur":null,"statut_http":null}]},
+            {"nom":"anthropic","sain":true,"adresse":null,
+             "modeles":[{"nom":"anthropic/claude-sonnet-5","sain":true,"erreur":null,
+             "statut_http":null}]}],
+            "cout_du_controle":0.0015}
+        """.trimIndent().replace("\n", "")
+        val api = api(MockEngine {
+            respond(
+                content = envelope(payload),
+                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+            )
+        })
+
+        val health = api.providers()
+
+        assertThat(health.allHealthy).isFalse()
+        assertThat(health.failing.map { it.name }).containsExactly("moonshot")
+        val moonshot = health.providers.first { it.name == "moonshot" }
+        assertThat(moonshot.baseUrl).isEqualTo("https://api.moonshot.ai/v1")
+        // One model down is enough to fail the provider — the server decides that, and the client
+        // must not second-guess it by recomputing from the model list.
+        assertThat(moonshot.isHealthy).isFalse()
+        val broken = moonshot.models.first { !it.isHealthy }
+        assertThat(broken.httpStatus).isEqualTo(401)
+        assertThat(broken.error).contains("Invalid API key")
+    }
+
+    /**
+     * An empty catalogue is not « all is well ». The server says so in words; the client must at
+     * least not report it as healthy, which `allHealthy` on an empty list would do if it were a
+     * plain `all { }`.
+     */
+    @Test
+    fun `an empty catalogue is not reported as healthy`() = runTest {
+        val api = api(MockEngine {
+            respond(
+                content = envelope("""{"fournisseurs":[],"cout_du_controle":0.0015}"""),
+                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+            )
+        })
+
+        assertThat(api.providers().allHealthy).isFalse()
+    }
+
+    @Test
+    fun `a gateway failure on the provider check is reported too`() = runTest {
+        val api = api(MockEngine {
+            respond(
+                content = envelope("""{"erreur":"GET /health -> HTTP 500 : "}"""),
+                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+            )
+        })
+
+        val failure = assertFailsWith<EngineHttpException> { api.providers() }
+        assertThat(failure.message).contains("HTTP 500")
+    }
+
+    @Test
     fun `running a mission sends its name as a tool argument`() = runTest {
         lateinit var sent: String
         val api = api(MockEngine { request ->

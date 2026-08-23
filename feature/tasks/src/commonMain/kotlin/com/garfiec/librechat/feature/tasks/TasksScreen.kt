@@ -39,6 +39,8 @@ import com.garfiec.librechat.core.model.engine.EngineFailureKind
 import com.garfiec.librechat.core.model.engine.MissionState
 import com.garfiec.librechat.core.model.scheduler.Consumption
 import com.garfiec.librechat.core.model.scheduler.ModelConsumption
+import com.garfiec.librechat.core.model.scheduler.Provider
+import com.garfiec.librechat.core.model.scheduler.ProviderHealth
 import com.garfiec.librechat.core.model.scheduler.ScheduledMission
 import com.garfiec.librechat.feature.tasks.resources.Res
 import com.garfiec.librechat.feature.tasks.resources.tasks_empty
@@ -57,6 +59,14 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_error_unreachable_hin
 import com.garfiec.librechat.feature.tasks.resources.tasks_new
 import com.garfiec.librechat.feature.tasks.resources.tasks_not_configured
 import com.garfiec.librechat.feature.tasks.resources.tasks_not_configured_hint
+import com.garfiec.librechat.feature.tasks.resources.tasks_providers_all_ok
+import com.garfiec.librechat.feature.tasks.resources.tasks_providers_check
+import com.garfiec.librechat.feature.tasks.resources.tasks_providers_checking
+import com.garfiec.librechat.feature.tasks.resources.tasks_providers_failed
+import com.garfiec.librechat.feature.tasks.resources.tasks_providers_failing
+import com.garfiec.librechat.feature.tasks.resources.tasks_providers_header
+import com.garfiec.librechat.feature.tasks.resources.tasks_providers_none
+import com.garfiec.librechat.feature.tasks.resources.tasks_providers_unknown
 import com.garfiec.librechat.feature.tasks.resources.tasks_retry
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_disable
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_enable
@@ -192,6 +202,22 @@ fun TasksScreen(
                     item(key = "spend-section") { SpendSection(report) }
                 }
 
+                // Providers come after the money and before the schedule: knowing a provider is
+                // dead changes how you read everything below it.
+                if (state.schedulerConfigured) {
+                    item(key = "providers-header") {
+                        SectionHeader(stringResource(Res.string.tasks_providers_header))
+                    }
+                    item(key = "providers-section") {
+                        ProvidersSection(
+                            health = state.providers,
+                            checking = state.providersChecking,
+                            failure = state.providersError,
+                            onCheck = viewModel::checkProviders,
+                        )
+                    }
+                }
+
                 // The schedule leads among the rest: what runs tonight without anyone watching is
                 // what someone opens this tab to check. Sessions are the record of what happened.
                 if (state.scheduled.isNotEmpty()) {
@@ -260,6 +286,120 @@ fun TasksScreen(
  * When any model is unpriced the total is a floor, and the header says « at least ». A total
  * presented as exact when terms are missing is worse than no total.
  */
+/**
+ * Which providers still answer — and the reason this one has a button.
+ *
+ * Every other section on this screen loads itself. This one does not, because obtaining it calls
+ * every model in the catalogue for real: about $0.0015 and two to three seconds, measured
+ * server-side rather than guessed. An answer that changes roughly once a month has no business
+ * being re-bought on every glance at the tab.
+ *
+ * So the honest default is « unknown », said out loud, with the price of finding out written next
+ * to the button. A screen that quietly spends money when it appears is one nobody can reason about.
+ */
+@Composable
+private fun ProvidersSection(
+    health: ProviderHealth?,
+    checking: Boolean,
+    failure: String?,
+    onCheck: () -> Unit,
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            when {
+                checking -> Text(
+                    stringResource(Res.string.tasks_providers_checking),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+
+                // No figure before the first check, on purpose: the exact cost comes back
+                // *with* the answer, and a number hardcoded here would go stale in silence the
+                // day the catalogue grows. « A few tenths of a cent » is true and stays true.
+                health == null -> Text(
+                    stringResource(Res.string.tasks_providers_unknown),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+
+                health.providers.isEmpty() -> Text(
+                    stringResource(Res.string.tasks_providers_none),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+
+                else -> {
+                    Text(
+                        if (health.allHealthy) {
+                            stringResource(
+                                Res.string.tasks_providers_all_ok, health.providers.size,
+                            )
+                        } else {
+                            stringResource(
+                                Res.string.tasks_providers_failing, health.failing.size,
+                            )
+                        },
+                        style = MaterialTheme.typography.titleSmall,
+                        color = if (health.allHealthy) {
+                            MaterialTheme.colorScheme.onSurface
+                        } else {
+                            MaterialTheme.colorScheme.error
+                        },
+                    )
+                    HorizontalDivider()
+                    health.providers.forEach { ProviderRow(it) }
+                }
+            }
+
+            failure?.let {
+                Text(
+                    stringResource(Res.string.tasks_providers_failed, it),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+
+            TextButton(onClick = onCheck, enabled = !checking) {
+                Text(stringResource(Res.string.tasks_providers_check))
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProviderRow(provider: Provider) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(
+            provider.name + (provider.baseUrl?.let { "  ($it)" } ?: ""),
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (provider.isHealthy) {
+                MaterialTheme.colorScheme.onSurface
+            } else {
+                MaterialTheme.colorScheme.error
+            },
+        )
+        provider.models.forEach { model ->
+            Text(
+                if (model.isHealthy) {
+                    model.name
+                } else {
+                    // The provider's own sentence, and its status: « 401 — Invalid API key » says
+                    // what to do next, where a red dot says only that something is wrong.
+                    model.name +
+                        (model.httpStatus?.let { " [$it]" } ?: "") +
+                        " — " + (model.error ?: "")
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = if (model.isHealthy) {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                } else {
+                    MaterialTheme.colorScheme.error
+                },
+                modifier = Modifier.padding(start = 12.dp),
+            )
+        }
+    }
+}
+
 @Composable
 private fun SpendSection(report: Consumption) {
     Card(modifier = Modifier.fillMaxWidth()) {
