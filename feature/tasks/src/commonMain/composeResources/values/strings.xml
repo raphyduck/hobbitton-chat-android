@@ -39,7 +39,7 @@
     <string name="tasks_settings_save">Save</string>
     <string name="tasks_settings_forget">Forget</string>
     <string name="tasks_error_authentication">Sign-in to the engine failed</string>
-    <string name="tasks_error_authentication_hint">The portal answered instead of the engine: the session has expired, or the settings point somewhere else. Check them and try again.</string>
+    <string name="tasks_error_authentication_hint">No valid token: the portal answered instead of the engine. Sign in through the portal — the second factor is part of it.</string>
     <string name="tasks_error_permission">This account is not allowed on the engine</string>
     <string name="tasks_error_permission_hint">Authentication worked; the engine refused the request. Retrying will not change that.</string>
     <string name="tasks_error_not_found">The address answers, but not the engine</string>
@@ -80,4 +80,10 @@
     <string name="tasks_providers_failing">%1$d provider(s) do not answer.</string>
     <string name="tasks_providers_none">The gateway declared no model. That is not « all is well » — the catalogue is empty.</string>
     <string name="tasks_providers_failed">The check itself failed: %1$s</string>
+    <string name="tasks_sign_in">Sign in through the portal</string>
+    <string name="tasks_sign_in_not_configured">Nothing to sign in to yet: fill in the engine and portal addresses first.</string>
+    <string name="tasks_sign_in_unreachable">The portal did not answer. Check the portal address and the network, then try again.</string>
+    <string name="tasks_sign_in_refused">The portal refused: consent declined, second factor abandoned, or the request expired. Starting again is safe.</string>
+    <string name="tasks_sign_in_interrupted">The round trip did not finish — the browser was closed, or it took more than five minutes. Try again.</string>
+    <string name="tasks_sign_in_missing_scope">Signed in, and the token still does not open the engine: the portal did not grant it authorization scope. That one is fixed on the server, not here.</string>
 </resources>

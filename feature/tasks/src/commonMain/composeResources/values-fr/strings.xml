@@ -39,7 +39,7 @@
     <string name="tasks_settings_save">Enregistrer</string>
     <string name="tasks_settings_forget">Oublier</string>
     <string name="tasks_error_authentication">La connexion au moteur a échoué</string>
-    <string name="tasks_error_authentication_hint">C\'est le portail qui a répondu, pas le moteur : la session a expiré, ou les réglages pointent ailleurs. Vérifiez-les puis réessayez.</string>
+    <string name="tasks_error_authentication_hint">Aucun jeton valide : c\'est le portail qui a répondu, pas le moteur. Connectez-vous via le portail — le second facteur en fait partie.</string>
     <string name="tasks_error_permission">Ce compte n\'est pas autorisé sur le moteur</string>
     <string name="tasks_error_permission_hint">L\'authentification a fonctionné ; le moteur a refusé la demande. Réessayer n\'y changera rien.</string>
     <string name="tasks_error_not_found">L\'adresse répond, mais ce n\'est pas le moteur</string>
@@ -80,4 +80,10 @@
     <string name="tasks_providers_failing">%1$d fournisseur(s) ne répondent pas.</string>
     <string name="tasks_providers_none">La gateway n'a déclaré aucun modèle. Ce n'est pas « tout va bien » — le catalogue est vide.</string>
     <string name="tasks_providers_failed">Le test lui-même a échoué : %1$s</string>
+    <string name="tasks_sign_in">Se connecter via le portail</string>
+    <string name="tasks_sign_in_not_configured">Rien à quoi se connecter pour l\'instant : renseignez d\'abord les adresses du moteur et du portail.</string>
+    <string name="tasks_sign_in_unreachable">Le portail n\'a pas répondu. Vérifiez son adresse et le réseau, puis réessayez.</string>
+    <string name="tasks_sign_in_refused">Le portail a refusé : consentement décliné, second facteur abandonné, ou demande expirée. Recommencer ne coûte rien.</string>
+    <string name="tasks_sign_in_interrupted">L\'aller-retour ne s\'est pas terminé — navigateur fermé, ou plus de cinq minutes écoulées. Réessayez.</string>
+    <string name="tasks_sign_in_missing_scope">Connexion faite, et le jeton n\'ouvre toujours pas le moteur : le portail ne lui a pas accordé la portée d\'autorisation. Celle-là se corrige côté serveur, pas ici.</string>
 </resources>

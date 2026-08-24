@@ -31,6 +31,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -81,6 +82,12 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_tools
 import com.garfiec.librechat.feature.tasks.resources.tasks_sessions_header
 import com.garfiec.librechat.feature.tasks.resources.tasks_settings_open
 import com.garfiec.librechat.feature.tasks.resources.tasks_settings_title
+import com.garfiec.librechat.feature.tasks.resources.tasks_sign_in
+import com.garfiec.librechat.feature.tasks.resources.tasks_sign_in_interrupted
+import com.garfiec.librechat.feature.tasks.resources.tasks_sign_in_missing_scope
+import com.garfiec.librechat.feature.tasks.resources.tasks_sign_in_not_configured
+import com.garfiec.librechat.feature.tasks.resources.tasks_sign_in_refused
+import com.garfiec.librechat.feature.tasks.resources.tasks_sign_in_unreachable
 import com.garfiec.librechat.feature.tasks.resources.tasks_spend_cache_saved
 import com.garfiec.librechat.feature.tasks.resources.tasks_spend_calls
 import com.garfiec.librechat.feature.tasks.resources.tasks_spend_header
@@ -112,6 +119,10 @@ fun TasksScreen(
     viewModel: TasksViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    // The portal round trip needs a browser, and Compose already knows how to open one on both
+    // platforms. Reaching for a platform launcher here would make this screen Android-only for the
+    // sake of one call.
+    val uriHandler = LocalUriHandler.current
     var composing by remember { mutableStateOf(false) }
     var configuring by remember { mutableStateOf(false) }
     // Read once into a local: `state` is a delegated property, so the branch below cannot smart-cast
@@ -165,16 +176,31 @@ fun TasksScreen(
 
             failure != null && state.missions.isEmpty() -> Explanation(
                 title = stringResource(failure.title()),
-                hint = failure.hint()?.let { stringResource(it) },
+                // What the last sign-in attempt ran into outranks the generic hint: it is the more
+                // recent and the more specific of the two answers to « why ».
+                hint = state.signInProblem?.let { stringResource(it.sentence()) }
+                    ?: failure.hint()?.let { stringResource(it) },
                 // The offer follows the cause. « Retry » in front of an expired session is a button
                 // that cannot work, and it is the one someone will press five times before
                 // suspecting their settings.
                 action = when (failure) {
-                    EngineFailureKind.AUTHENTICATION, EngineFailureKind.NOT_FOUND ->
+                    // Going through the portal is the remedy, and it was missing entirely until
+                    // 24 August: the tab offered the settings form, so the only thing anyone could
+                    // do about a missing token was retype a password that had nothing to do with it.
+                    EngineFailureKind.AUTHENTICATION ->
+                        stringResource(Res.string.tasks_sign_in) to
+                            { viewModel.signIn(uriHandler::openUri) }
+                    EngineFailureKind.NOT_FOUND ->
                         stringResource(Res.string.tasks_settings_open) to { configuring = true }
                     EngineFailureKind.PERMISSION -> null
                     else -> stringResource(Res.string.tasks_retry) to viewModel::refresh
                 },
+                secondary = if (failure == EngineFailureKind.AUTHENTICATION) {
+                    stringResource(Res.string.tasks_settings_open) to { configuring = true }
+                } else {
+                    null
+                },
+                busy = state.signingIn,
                 modifier = Modifier.padding(padding),
             )
 
@@ -663,6 +689,14 @@ private fun Explanation(
     hint: String?,
     modifier: Modifier = Modifier,
     action: Pair<String, () -> Unit>? = null,
+    /** Offered under [action] when there are two ways out and one is clearly the usual one. */
+    secondary: Pair<String, () -> Unit>? = null,
+    /**
+     * Something is under way — the portal round trip, in practice. Both offers are withdrawn while
+     * it is: a second tap opens a second browser tab against a request the first one already
+     * consumed, and the failure that produces names neither.
+     */
+    busy: Boolean = false,
 ) {
     Column(
         modifier = modifier.fillMaxSize().padding(32.dp),
@@ -679,10 +713,32 @@ private fun Explanation(
                 modifier = Modifier.padding(top = 8.dp),
             )
         }
-        action?.let { (label, onClick) ->
-            TextButton(onClick = onClick, modifier = Modifier.padding(top = 16.dp)) { Text(label) }
+        if (busy) {
+            CircularProgressIndicator(modifier = Modifier.padding(top = 16.dp))
+        } else {
+            action?.let { (label, onClick) ->
+                TextButton(onClick = onClick, modifier = Modifier.padding(top = 16.dp)) { Text(label) }
+            }
+            secondary?.let { (label, onClick) ->
+                TextButton(onClick = onClick) { Text(label) }
+            }
         }
     }
+}
+
+/**
+ * What a failed sign-in says, one sentence per cause.
+ *
+ * Separate from [EngineFailureKind.hint] because they answer different questions: that one explains
+ * why the *engine* turned a request away, this one why the *portal* did — and only one of the six
+ * cases here can be fixed by trying again.
+ */
+private fun EngineSignInProblem.sentence() = when (this) {
+    EngineSignInProblem.NOT_CONFIGURED -> Res.string.tasks_sign_in_not_configured
+    EngineSignInProblem.PORTAL_UNREACHABLE -> Res.string.tasks_sign_in_unreachable
+    EngineSignInProblem.REFUSED -> Res.string.tasks_sign_in_refused
+    EngineSignInProblem.INTERRUPTED -> Res.string.tasks_sign_in_interrupted
+    EngineSignInProblem.MISSING_SCOPE -> Res.string.tasks_sign_in_missing_scope
 }
 
 /** The sentence shown for a failure. One per cause, because the remedies differ. */

@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.data.engine.EngineMissionRepository
 import com.garfiec.librechat.core.data.engine.EngineSettingsStore
+import com.garfiec.librechat.core.data.engine.EngineSignIn
+import com.garfiec.librechat.core.data.engine.EngineSignInResult
 import com.garfiec.librechat.core.data.engine.Mission
 import com.garfiec.librechat.core.data.engine.engineFailureKind
 import com.garfiec.librechat.core.data.scheduler.SchedulerRepository
@@ -59,12 +61,44 @@ data class TasksUiState(
     val profiles: List<String> = emptyList(),
     /** Why the last call failed, or null. The screen turns it into a sentence and an offer. */
     val error: EngineFailureKind? = null,
+    /** The portal round trip is in flight: the browser is open, the person is proving who they are. */
+    val signingIn: Boolean = false,
+    /**
+     * Why the last sign-in did not end in a token, or null.
+     *
+     * Kept apart from [error] because they answer different questions. [error] says the engine
+     * turned a request away; this says the *portal* did — and the remedies do not overlap.
+     */
+    val signInProblem: EngineSignInProblem? = null,
 )
+
+/** What a failed sign-in means, in the only terms that change what the person does next. */
+enum class EngineSignInProblem {
+    /** No engine or portal address stored: there is nothing to sign in to yet. */
+    NOT_CONFIGURED,
+
+    /** The portal never answered, or answered something unusable. Retrying is reasonable. */
+    PORTAL_UNREACHABLE,
+
+    /** The portal said no: consent declined, second factor abandoned, request expired. */
+    REFUSED,
+
+    /** It broke somewhere it should not have — including the five-minute deadline running out. */
+    INTERRUPTED,
+
+    /**
+     * Signed in, and the token still will not open the engine — the client is not allowed to ask
+     * for `authelia.bearer.authz`. Its own case because it is the one failure that looks like a
+     * success, and the only one the person cannot fix from the phone.
+     */
+    MISSING_SCOPE,
+}
 
 class TasksViewModel(
     private val repository: EngineMissionRepository,
     private val scheduler: SchedulerRepository,
     private val settings: EngineSettingsStore,
+    private val portal: EngineSignIn,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(TasksUiState())
@@ -72,6 +106,30 @@ class TasksViewModel(
 
     init {
         refresh()
+    }
+
+    /**
+     * Sends the person through the portal, and reloads once a token exists.
+     *
+     * [openBrowser] comes from the screen — Compose's `UriHandler` — rather than from this class:
+     * a view model that opens browsers is a view model that cannot be tested without one.
+     *
+     * This is the half of the flow that was missing until 24 August. Everything under it had been
+     * written and unit-tested; nothing called it, so the tab could only ever report a failed
+     * sign-in, and no amount of re-entering the password changed that.
+     */
+    fun signIn(openBrowser: (url: String) -> Unit) {
+        if (_state.value.signingIn) return
+        viewModelScope.launch {
+            _state.update { it.copy(signingIn = true, signInProblem = null) }
+            val outcome = runCatching { portal.signIn(openBrowser) }
+                .getOrElse { failure ->
+                    Logger.w(failure, tag = "Tasks") { "The engine sign-in failed outright" }
+                    EngineSignInResult.Interrupted(failure.message ?: "sign-in failed")
+                }
+            _state.update { it.copy(signingIn = false, signInProblem = outcome.asProblem()) }
+            if (outcome is EngineSignInResult.Authorized) refresh()
+        }
     }
 
     fun refresh() {
@@ -206,4 +264,14 @@ class TasksViewModel(
             refresh()
         }
     }
+}
+
+/** Null when it worked — the state holds « no problem » rather than a success value nobody reads. */
+private fun EngineSignInResult.asProblem(): EngineSignInProblem? = when (this) {
+    EngineSignInResult.Authorized -> null
+    EngineSignInResult.NotConfigured -> EngineSignInProblem.NOT_CONFIGURED
+    is EngineSignInResult.PortalUnreachable -> EngineSignInProblem.PORTAL_UNREACHABLE
+    is EngineSignInResult.Refused -> EngineSignInProblem.REFUSED
+    is EngineSignInResult.Interrupted -> EngineSignInProblem.INTERRUPTED
+    is EngineSignInResult.MissingAuthorizationScope -> EngineSignInProblem.MISSING_SCOPE
 }
