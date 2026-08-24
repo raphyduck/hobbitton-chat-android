@@ -54,3 +54,17 @@ public fun pkceChallengeOf(verifier: String): String =
  */
 internal fun base64UrlNoPad(bytes: ByteArray): String =
     bytes.toByteString().base64Url().trimEnd('=')
+
+/**
+ * An opaque, unguessable `state` for one authorization attempt.
+ *
+ * Same CSPRNG as the verifier, and for a related reason: `state` is what lets the app refuse a
+ * callback that answers somebody else's request. A predictable one is no check at all.
+ *
+ * Sixteen bytes rather than the verifier's thirty-two — this value is compared, never hashed, and
+ * 128 bits of it is already far beyond what a one-shot loopback socket could be probed with.
+ */
+public fun generateStateToken(random: (Int) -> ByteArray = ::secureRandomBytes): String =
+    base64UrlNoPad(random(STATE_BYTES))
+
+private const val STATE_BYTES = 16

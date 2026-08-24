@@ -3,7 +3,9 @@ package com.garfiec.librechat.core.data.di
 import com.garfiec.librechat.core.common.di.KoinQualifiers
 import com.garfiec.librechat.core.data.engine.EngineSecureStore
 import com.garfiec.librechat.core.data.engine.EngineSessionManager
+import com.garfiec.librechat.core.data.engine.EngineSignIn
 import com.garfiec.librechat.core.data.engine.EngineSettingsStore
+import com.garfiec.librechat.core.data.engine.SocketCallbackListener
 import com.garfiec.librechat.core.data.scheduler.SchedulerRepository
 import com.garfiec.librechat.core.network.api.AgentEngineApi
 import com.garfiec.librechat.core.network.api.SchedulerApi
@@ -143,6 +145,22 @@ val engineModule: Module = module {
             client = get(),
             endpoints = { get<EngineSettingsStore>().access()?.let { discoveredEndpoints(it.issuerUrl, get()) } },
             now = { kotlin.time.Clock.System.now().epochSeconds },
+        )
+    }
+
+    /**
+     * The first sign-in. A **factory** for the socket, not a single: the listener holds one
+     * `ServerSocket` for one exchange, and a shared instance would have a second attempt inherit the
+     * closed socket of the first — the retry would fail for a reason that has nothing to do with the
+     * portal.
+     */
+    single {
+        EngineSignIn(
+            access = { get<EngineSettingsStore>().access() },
+            tokens = get(),
+            sessions = get(),
+            listener = { SocketCallbackListener(io = get(KoinQualifiers.IO)) },
+            endpoints = { issuerUrl -> discoveredEndpoints(issuerUrl, get()) },
         )
     }
 }
