@@ -95,3 +95,39 @@ fun callbackResponsePage(succeeded: Boolean): String {
         append(body)
     }
 }
+
+/**
+ * Whether a whole HTTP request has arrived, or the socket should keep reading.
+ *
+ * A single `read()` on a socket returns whatever a single TCP segment happened to carry. A browser
+ * is entitled to send the headers in one write and the form body in another — and Chrome on Android
+ * does exactly that often enough to matter. Reading once and parsing what came back therefore finds
+ * headers with an empty body, and reports « no code in body » on an authorization that in fact
+ * succeeded.
+ *
+ * Written against the raw text, like [parseFormPostCallback], and for the same reason: the whole
+ * server is one socket alive for one request. What it must get right:
+ *
+ *  * headers are only complete once the blank line has arrived — CRLF by spec, LF in practice from
+ *    some clients;
+ *  * `Content-Length` decides how much body to wait for, and it is the browser's own count of
+ *    **bytes**, which is why the comparison is on bytes and not on characters — one accented
+ *    character in an error description would otherwise leave the reader waiting for a byte that
+ *    never comes;
+ *  * a request with no `Content-Length` has nothing more to wait for. Refusing to stop there would
+ *    hang every `GET` probe until the read timeout.
+ */
+public fun requeteComplete(brut: String): Boolean {
+    val separateur = listOf("\r\n\r\n", "\n\n").firstOrNull { brut.contains(it) } ?: return false
+    val entetes = brut.substringBefore(separateur)
+    val corps = brut.substringAfter(separateur)
+
+    val annonce = entetes.lineSequence()
+        .firstOrNull { it.startsWith("content-length", ignoreCase = true) }
+        ?.substringAfter(':')
+        ?.trim()
+        ?.toIntOrNull()
+        ?: return true
+
+    return corps.encodeToByteArray().size >= annonce
+}

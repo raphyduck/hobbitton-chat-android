@@ -4,6 +4,8 @@ import com.garfiec.librechat.core.common.di.KoinQualifiers
 import com.garfiec.librechat.core.data.engine.EngineSecureStore
 import com.garfiec.librechat.core.data.engine.EngineSessionManager
 import com.garfiec.librechat.core.data.engine.EngineSignIn
+import com.garfiec.librechat.core.data.engine.EngineSignInCoordinator
+import com.garfiec.librechat.core.data.engine.EngineSignInLauncher
 import com.garfiec.librechat.core.data.engine.EngineSettingsStore
 import com.garfiec.librechat.core.data.engine.SocketCallbackListener
 import com.garfiec.librechat.core.data.scheduler.SchedulerRepository
@@ -161,6 +163,21 @@ val engineModule: Module = module {
             sessions = get(),
             listener = { SocketCallbackListener(io = get(KoinQualifiers.IO)) },
             endpoints = { issuerUrl -> discoveredEndpoints(issuerUrl, get()) },
+        )
+    }
+
+    /**
+     * Le tour du portail vit sur la portée APPLICATIVE, pas sur celle de l'écran.
+     *
+     * C'est le correctif du 24/08 : le `viewModelScope` meurt avec l'écran, et l'écran est
+     * justement ce qui disparaît quand le navigateur passe devant. Le tour doit survivre au geste
+     * qui l'a lancé, et son résultat attendre le retour.
+     */
+    single<EngineSignInLauncher> {
+        EngineSignInCoordinator(
+            contexte = androidContext(),
+            portail = get(),
+            portee = get(KoinQualifiers.ApplicationScope),
         )
     }
 }
