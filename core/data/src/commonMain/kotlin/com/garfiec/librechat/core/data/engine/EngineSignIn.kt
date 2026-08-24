@@ -217,4 +217,3 @@ sealed interface EngineSignInProgress {
     data object EnCours : EngineSignInProgress
     data class Termine(val issue: EngineSignInResult) : EngineSignInProgress
 }
-
