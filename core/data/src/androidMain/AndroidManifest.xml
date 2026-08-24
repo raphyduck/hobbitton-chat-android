@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Le service qui garde l'application exécutable pendant le tour du portail, déclaré ICI plutôt que
+    dans `app/` : il appartient au module qui le contient, et une déclaration posée ailleurs se
+    désynchronise de la classe qu'elle nomme sans que rien ne le dise avant le premier plantage.
+
+    `specialUse` plutôt que `shortService` : ce dernier est plafonné à environ trois minutes, et
+    l'attente en autorise cinq — un second facteur se lit parfois sur un autre appareil.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+
+    <application>
+        <service
+            android:name="com.garfiec.librechat.core.data.engine.EngineSignInService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Maintient l'application joignable sur sa boucle locale le temps que le portail d'authentification renvoie son code d'autorisation, que le protocole impose de délivrer par un POST de formulaire." />
+        </service>
+    </application>
+</manifest>

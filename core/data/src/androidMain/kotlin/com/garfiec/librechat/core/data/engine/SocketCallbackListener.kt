@@ -4,6 +4,7 @@ import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.network.engine.auth.FormPostCallback
 import com.garfiec.librechat.core.network.engine.auth.callbackResponsePage
 import com.garfiec.librechat.core.network.engine.auth.parseFormPostCallback
+import com.garfiec.librechat.core.network.engine.auth.requeteComplete
 import java.net.InetAddress
 import java.net.ServerSocket
 import java.net.SocketTimeoutException
@@ -46,12 +47,7 @@ class SocketCallbackListener(
         try {
             bound.accept().use { connection ->
                 connection.soTimeout = READ_TIMEOUT_MS
-                // Read what is available rather than to end-of-stream: the browser keeps the
-                // connection open after the body, so reading until EOF would block until the read
-                // timeout on every successful sign-in.
-                val buffer = ByteArray(MAX_REQUEST_BYTES)
-                val read = connection.getInputStream().read(buffer)
-                val raw = if (read > 0) String(buffer, 0, read, Charsets.UTF_8) else ""
+                val raw = lireRequete(connection.getInputStream())
                 val callback = parseFormPostCallback(raw)
 
                 runCatching {
@@ -75,6 +71,29 @@ class SocketCallbackListener(
         }
     }
 
+    /**
+     * Lit jusqu'à ce que la requête soit entière — pas une fois.
+     *
+     * Une seule lecture rend ce qu'un seul segment TCP a transporté, et un navigateur a le droit
+     * d'envoyer les en-têtes dans une écriture et le corps du formulaire dans la suivante. On lisait
+     * alors des en-têtes sans corps, et une autorisation RÉUSSIE ressortait en « pas de code ».
+     *
+     * On ne lit pas non plus jusqu'à la fin du flux : le navigateur garde la connexion ouverte après
+     * le corps, donc attendre EOF ferait expirer le délai de lecture à chaque connexion réussie.
+     * [requeteComplete] est l'arbitre — c'est `Content-Length` qui dit quand s'arrêter.
+     */
+    private fun lireRequete(flux: java.io.InputStream): String {
+        val accumule = StringBuilder()
+        val tampon = ByteArray(LECTURE_OCTETS)
+        while (accumule.length < MAX_REQUEST_BYTES) {
+            val lus = flux.read(tampon)
+            if (lus <= 0) break
+            accumule.append(String(tampon, 0, lus, Charsets.UTF_8))
+            if (requeteComplete(accumule.toString())) break
+        }
+        return accumule.toString()
+    }
+
     override fun close() {
         runCatching { socket?.close() }
         socket = null
@@ -85,5 +104,6 @@ class SocketCallbackListener(
         const val LOOPBACK = "127.0.0.1"
         const val READ_TIMEOUT_MS = 10_000
         const val MAX_REQUEST_BYTES = 64 * 1024
+        const val LECTURE_OCTETS = 8 * 1024
     }
 }

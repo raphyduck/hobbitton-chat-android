@@ -5,7 +5,8 @@ import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.data.engine.EngineMissionRepository
 import com.garfiec.librechat.core.data.engine.EngineSettingsStore
-import com.garfiec.librechat.core.data.engine.EngineSignIn
+import com.garfiec.librechat.core.data.engine.EngineSignInLauncher
+import com.garfiec.librechat.core.data.engine.EngineSignInProgress
 import com.garfiec.librechat.core.data.engine.EngineSignInResult
 import com.garfiec.librechat.core.data.engine.Mission
 import com.garfiec.librechat.core.data.engine.engineFailureKind
@@ -98,7 +99,7 @@ class TasksViewModel(
     private val repository: EngineMissionRepository,
     private val scheduler: SchedulerRepository,
     private val settings: EngineSettingsStore,
-    private val portal: EngineSignIn,
+    private val portal: EngineSignInLauncher,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(TasksUiState())
@@ -106,6 +107,7 @@ class TasksViewModel(
 
     init {
         refresh()
+        followPortal()
     }
 
     /**
@@ -118,17 +120,35 @@ class TasksViewModel(
      * written and unit-tested; nothing called it, so the tab could only ever report a failed
      * sign-in, and no amount of re-entering the password changed that.
      */
-    fun signIn(openBrowser: (url: String) -> Unit) {
-        if (_state.value.signingIn) return
+    fun signIn(openBrowser: (url: String) -> Unit) = portal.lancer(openBrowser)
+
+    /**
+     * Follows the portal round trip rather than awaiting it.
+     *
+     * The wait used to live in `viewModelScope` — which dies with the screen, and the screen is
+     * exactly what goes away when the browser comes to the front. What that produced on 24 August:
+     * the portal redirected to the loopback socket and nobody was left to read it. The round trip now
+     * lives on the application scope; this screen watches it, and finds the outcome waiting even if
+     * it was destroyed in between.
+     */
+    private fun followPortal() {
         viewModelScope.launch {
-            _state.update { it.copy(signingIn = true, signInProblem = null) }
-            val outcome = runCatching { portal.signIn(openBrowser) }
-                .getOrElse { failure ->
-                    Logger.w(failure, tag = "Tasks") { "The engine sign-in failed outright" }
-                    EngineSignInResult.Interrupted(failure.message ?: "sign-in failed")
+            portal.etat.collect { progress ->
+                when (progress) {
+                    EngineSignInProgress.Idle -> _state.update { it.copy(signingIn = false) }
+                    EngineSignInProgress.EnCours ->
+                        _state.update { it.copy(signingIn = true, signInProblem = null) }
+                    is EngineSignInProgress.Termine -> {
+                        _state.update {
+                            it.copy(signingIn = false, signInProblem = progress.issue.asProblem())
+                        }
+                        if (progress.issue is EngineSignInResult.Authorized) refresh()
+                        // Acknowledged so a second attempt starts clean — otherwise a recreated
+                        // screen's `collect` would replay the old outcome as if it had just landed.
+                        portal.acquitter()
+                    }
                 }
-            _state.update { it.copy(signingIn = false, signInProblem = outcome.asProblem()) }
-            if (outcome is EngineSignInResult.Authorized) refresh()
+            }
         }
     }
 

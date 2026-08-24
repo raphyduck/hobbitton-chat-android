@@ -191,3 +191,30 @@ sealed interface EngineSignInResult {
      */
     data class MissingAuthorizationScope(val granted: List<String>) : EngineSignInResult
 }
+
+/**
+ * Ce que l'écran appelle pour déclencher un tour de portail — une interface parce que
+ * l'implémentation est forcément propre à la plateforme : elle a besoin d'un socket local et d'un
+ * service au premier plan, dont aucun n'existe en code partagé.
+ *
+ * L'écran n'attend PAS un résultat rendu : il observe [etat]. C'est le correctif du 24/08 — celui
+ * qui a lancé la connexion n'est pas forcément là quand elle se termine, puisque le navigateur passe
+ * devant et que l'écran peut être détruit entre-temps.
+ */
+interface EngineSignInLauncher {
+    val etat: kotlinx.coroutines.flow.StateFlow<EngineSignInProgress>
+
+    /** Lance le tour, ou ne fait rien s'il en reste un en vol. */
+    fun lancer(ouvrirNavigateur: (url: String) -> Unit)
+
+    /** Remet l'état à zéro une fois le résultat lu, pour qu'un second essai reparte propre. */
+    fun acquitter()
+}
+
+/** Où en est le tour, pour un écran qui peut être arrivé au milieu. */
+sealed interface EngineSignInProgress {
+    data object Idle : EngineSignInProgress
+    data object EnCours : EngineSignInProgress
+    data class Termine(val issue: EngineSignInResult) : EngineSignInProgress
+}
+
