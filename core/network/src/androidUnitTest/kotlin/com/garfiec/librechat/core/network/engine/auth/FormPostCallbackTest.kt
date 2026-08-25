@@ -4,56 +4,75 @@ import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
 /**
- * What lands on the loopback socket. The socket is open to every process on the device for the few
- * seconds the exchange lasts, so what it refuses matters as much as what it accepts.
+ * Ce que le système délivre sur `at.hobbitton.chat://oauth`.
+ *
+ * Ce point d'entrée est ouvert à toute application de l'appareil — c'est la nature d'un schéma
+ * applicatif — donc ce qu'il refuse compte autant que ce qu'il accepte. Ce qui garde le code, ce
+ * n'est pas l'exclusivité du schéma : c'est PKCE, et le `state` vérifié avant que le code ne soit
+ * dépensé.
  */
-class FormPostCallbackTest {
-
-    private fun request(
-        method: String = "POST",
-        path: String = "/oauth/authelia",
-        body: String = "code=abc&state=xyz",
-        separator: String = "\r\n\r\n",
-    ) = "$method $path HTTP/1.1\r\nHost: 127.0.0.1:41234\r\n" +
-        "Content-Type: application/x-www-form-urlencoded\r\n" +
-        "Content-Length: ${body.length}$separator$body"
+class ParseCallbackUriTest {
 
     @Test
-    fun `a form post callback yields the code and the state`() {
-        val result = parseFormPostCallback(request())
+    fun `un retour de portail rend le code et le state`() {
+        val result = parseCallbackUri("at.hobbitton.chat://oauth?code=abc&state=xyz")
 
         assertThat(result).isEqualTo(FormPostCallback.Success(code = "abc", state = "xyz"))
     }
 
     @Test
-    fun `a bare LF separator is accepted too`() {
-        // The spec says CRLF; real clients are not all so careful, and a callback lost to a
-        // line-ending would look exactly like a user who never finished logging in.
-        val result = parseFormPostCallback(request(separator = "\n\n"))
+    fun `les valeurs sont decodees`() {
+        // La page du serveur encode ce qu'Authelia lui a POSTé. Un `state` contenant `/` ou `+`
+        // ressortirait faux sans décodage, et serait rejeté au contrôle pour rien.
+        val result = parseCallbackUri("at.hobbitton.chat://oauth?code=a%2Fb&state=x%2By")
 
-        assertThat(result).isInstanceOf(FormPostCallback.Success::class.java)
+        assertThat(result).isEqualTo(FormPostCallback.Success(code = "a/b", state = "x+y"))
     }
 
     @Test
-    fun `a GET is not a callback`() {
-        // Browsers probe. A favicon fetch on this port must not be read as an authorization result.
-        val result = parseFormPostCallback(request(method = "GET"))
+    fun `un autre schema n'est pas le retour du portail`() {
+        val result = parseCallbackUri("librechat://conversation/42?code=abc&state=xyz")
 
         assertThat(result).isInstanceOf(FormPostCallback.Malformed::class.java)
     }
 
     @Test
-    fun `another path on the same port is refused`() {
-        val result = parseFormPostCallback(request(path = "/"))
+    fun `un autre hote sur le meme schema est refuse`() {
+        // `at.hobbitton.chat://autre-chose` viendrait d'un autre usage du schéma, pas du portail.
+        val result = parseCallbackUri("at.hobbitton.chat://reglages?code=abc&state=xyz")
 
         assertThat(result).isInstanceOf(FormPostCallback.Malformed::class.java)
     }
 
     @Test
-    fun `a refusal is reported as such, with its reason`() {
-        val body = "error=access_denied&error_description=User%20refused&state=xyz"
+    fun `la casse du schema et de l'hote n'a pas d'importance`() {
+        // Le système normalise en minuscules ; rien n'oblige la page du serveur à en faire autant.
+        val result = parseCallbackUri("AT.Hobbitton.Chat://OAuth?code=abc&state=xyz")
 
-        val result = parseFormPostCallback(request(body = body))
+        assertThat(result).isEqualTo(FormPostCallback.Success(code = "abc", state = "xyz"))
+    }
+
+    @Test
+    fun `une barre finale ne change rien`() {
+        val result = parseCallbackUri("at.hobbitton.chat://oauth/?code=abc&state=xyz")
+
+        assertThat(result).isEqualTo(FormPostCallback.Success(code = "abc", state = "xyz"))
+    }
+
+    @Test
+    fun `le fragment est jete avant la requete`() {
+        // Sans ça, `?code=abc#zz` donnerait un code de « abc#zz » — refusé à l'échange avec un
+        // `invalid_grant` qui se lit comme un code expiré, et n'en est pas un.
+        val result = parseCallbackUri("at.hobbitton.chat://oauth?code=abc&state=xyz#quelquechose")
+
+        assertThat(result).isEqualTo(FormPostCallback.Success(code = "abc", state = "xyz"))
+    }
+
+    @Test
+    fun `un refus est rapporte comme tel, avec sa raison`() {
+        val result = parseCallbackUri(
+            "at.hobbitton.chat://oauth?error=access_denied&error_description=User%20refused&state=xyz",
+        )
 
         assertThat(result).isEqualTo(
             FormPostCallback.Failure(
@@ -65,90 +84,35 @@ class FormPostCallbackTest {
     }
 
     @Test
-    fun `a body without a state is malformed, not a success`() {
-        // State is the CSRF defence of this flow. A code without one is not usable.
-        val result = parseFormPostCallback(request(body = "code=abc"))
+    fun `un refus sans state reste un refus`() {
+        // Un portail qui refuse avant d'avoir lu la demande n'a pas de `state` à rendre. L'exiger
+        // transformerait un refus lisible en « lien malformé », et masquerait la vraie cause.
+        val result = parseCallbackUri("at.hobbitton.chat://oauth?error=invalid_request")
+
+        assertThat(result).isEqualTo(
+            FormPostCallback.Failure(error = "invalid_request", description = null, state = null),
+        )
+    }
+
+    @Test
+    fun `un code sans state est malforme, pas un succes`() {
+        // Le `state` est la défense de ce flux contre une réponse injectée. Un code sans lui n'est
+        // pas utilisable, et l'accepter reviendrait à supprimer le contrôle.
+        val result = parseCallbackUri("at.hobbitton.chat://oauth?code=abc")
 
         assertThat(result).isInstanceOf(FormPostCallback.Malformed::class.java)
     }
 
     @Test
-    fun `an oversized request is refused rather than buffered`() {
-        val result = parseFormPostCallback(request(body = "code=" + "a".repeat(100_000)))
+    fun `un lien sans parametre du tout est malforme`() {
+        assertThat(parseCallbackUri("at.hobbitton.chat://oauth"))
+            .isInstanceOf(FormPostCallback.Malformed::class.java)
+    }
+
+    @Test
+    fun `un lien demesure est refuse plutot qu'analyse`() {
+        val result = parseCallbackUri("at.hobbitton.chat://oauth?code=" + "a".repeat(100_000))
 
         assertThat(result).isInstanceOf(FormPostCallback.Malformed::class.java)
-    }
-
-    @Test
-    fun `the page handed back announces the outcome and a well formed response`() {
-        val ok = callbackResponsePage(succeeded = true)
-
-        assertThat(ok).startsWith("HTTP/1.1 200 OK")
-        assertThat(ok).contains("Content-Length:")
-        assertThat(callbackResponsePage(succeeded = false)).startsWith("HTTP/1.1 400")
-    }
-}
-
-/**
- * Quand la lecture doit s'arrêter, et quand elle doit continuer.
- *
- * Ces tests couvrent le second défaut du socket, indépendant de celui qui a
- * empêché la toute première connexion : une seule lecture rend ce qu'un seul
- * segment TCP a transporté. Un navigateur a parfaitement le droit d'envoyer les
- * en-têtes dans une écriture et le corps du formulaire dans la suivante — et
- * Chrome sur Android le fait assez souvent pour que ça compte. La requête est
- * alors lue sans son corps, et une autorisation qui a RÉUSSI est rapportée
- * comme « pas de code dans le corps ».
- */
-class RequeteCompleteTest {
-
-    private val entetes =
-        "POST /oauth/authelia HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Length: 24\r\n\r\n"
-
-    @Test
-    fun `des entetes sans leur corps ne suffisent pas`() {
-        assertThat(requeteComplete(entetes)).isFalse()
-    }
-
-    @Test
-    fun `un corps partiel ne suffit pas non plus`() {
-        assertThat(requeteComplete(entetes + "code=abc")).isFalse()
-    }
-
-    @Test
-    fun `le corps annonce en entier arrete la lecture`() {
-        val corps = "code=abc&state=xyz123456"
-        // La longueur annoncee dans `entetes` et celle du corps doivent coincider, sinon ce test
-        // passerait ou echouerait pour une raison qui n'a rien a voir avec la regle.
-        assertThat(corps).hasLength(24)
-        assertThat(requeteComplete(entetes + corps)).isTrue()
-    }
-
-    @Test
-    fun `content-length compte des OCTETS, pas des caracteres`() {
-        // Une description d'erreur accentuee ferait attendre un octet qui
-        // n'arriverait jamais si on comparait des caracteres.
-        val corps = "error_description=éé"
-        val avec = "POST /oauth/authelia HTTP/1.1\r\nContent-Length: ${corps.encodeToByteArray().size}\r\n\r\n"
-        assertThat(requeteComplete(avec + corps)).isTrue()
-        assertThat(corps.length).isLessThan(corps.encodeToByteArray().size)
-    }
-
-    @Test
-    fun `sans content-length il n'y a rien a attendre`() {
-        // Un GET de sonde, une requete de favicon. Continuer a lire les ferait
-        // pendre jusqu'au delai de lecture, a chaque fois.
-        assertThat(requeteComplete("GET /favicon.ico HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n")).isTrue()
-    }
-
-    @Test
-    fun `un en-tete coupe en plein milieu attend la suite`() {
-        assertThat(requeteComplete("POST /oauth/authelia HTTP/1.1\r\nHost: 127.0")).isFalse()
-    }
-
-    @Test
-    fun `la separation en LF simple est reconnue`() {
-        // CRLF par la specification, LF en pratique chez certains clients.
-        assertThat(requeteComplete("POST /oauth/authelia HTTP/1.1\nContent-Length: 3\n\nabc")).isTrue()
     }
 }

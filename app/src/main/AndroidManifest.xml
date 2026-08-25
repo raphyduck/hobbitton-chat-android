@@ -42,6 +42,38 @@
                 <data android:scheme="librechat" />
             </intent-filter>
 
+            <!--
+                Le retour du portail d'authentification.
+
+                Le code d'autorisation revient forcément par un POST de formulaire — Authelia
+                l'impose dès qu'on demande le scope `authelia.bearer.authz` — et un POST ne se
+                délivre pas à un schéma d'application. C'est donc une route HTTPS du planificateur
+                qui le reçoit, et qui rebondit ici en GET (D-049 côté serveur).
+
+                Ce détour remplace la socket sur 127.0.0.1 essayée le 24/08 : Android gèle une
+                application passée en arrière-plan, et son `accept()` ne s'exécute plus pendant que
+                la personne est dans son navigateur. Un lien profond, lui, RÉVEILLE l'application.
+
+                Le schéma est réclamable par n'importe quelle application installée. C'est la limite
+                connue du motif, couverte par PKCE et `state` : un code intercepté ne s'échange pas
+                sans le `code_verifier`, qui n'a jamais quitté ce processus.
+
+                Il n'est PAS suffixé par variante, contrairement à l'applicationId. Conséquence à
+                connaître : avec le debug et la release installés côte à côte, le système propose un
+                choix, et se tromper coûte une connexion — jamais un jeton, la mauvaise variante
+                n'ayant pas le `code_verifier`. Le suffixer imposerait au serveur de savoir vers
+                quelle variante rebondir, donc de le lire quelque part dans la requête : un
+                paramètre de redirection choisi par l'appelant, ce qu'on refuse.
+            -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:host="oauth"
+                    android:scheme="at.hobbitton.chat" />
+            </intent-filter>
+
             <!-- Receive shared text -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />

@@ -31,7 +31,7 @@ class EngineAuthorizationTest {
     private val attempt = EngineAuthorizationAttempt(
         pkce = PkcePair(verifier = "verifier-secret", challenge = "challenge-digest"),
         state = "state-123",
-        redirectUri = loopbackRedirectUri(port = 41_234),
+        redirectUri = callbackRedirectUri("https://sched.example.com")!!,
     )
 
     private fun client(engine: MockEngine) = EngineTokenClient(
@@ -42,10 +42,31 @@ class EngineAuthorizationTest {
     private fun jsonHeaders() = headersOf(HttpHeaders.ContentType, "application/json")
 
     @Test
-    fun `the redirect is a loopback address, not an app scheme`() {
-        // A form POST cannot be delivered to `at.hobbitton.chat://…`, and an App Link intent would
-        // drop the body. RFC 8252 §7.3 says 127.0.0.1, not localhost.
-        assertThat(attempt.redirectUri).isEqualTo("http://127.0.0.1:41234/oauth/authelia")
+    fun `la redirection est une route HTTPS du serveur, pas un schema d'application`() {
+        // Un `form_post` ne peut pas être délivré à `at.hobbitton.chat://…` : une App Link perd le
+        // corps. C'est donc le serveur qui le reçoit, et qui rebondit vers le schéma en GET (D-049).
+        assertThat(attempt.redirectUri).isEqualTo("https://sched.example.com/oauth/authelia")
+    }
+
+    @Test
+    fun `une barre finale dans le reglage ne double pas la barre de la route`() {
+        // `redirect_uri` est comparé caractère pour caractère par le portail, entre la demande et
+        // l'échange, et contre ce qui est enregistré. Un `//oauth/authelia` échoue en
+        // `invalid_request`, un message qui ne nomme ni le réglage ni sa valeur.
+        assertThat(callbackRedirectUri("https://sched.example.com/"))
+            .isEqualTo("https://sched.example.com/oauth/authelia")
+    }
+
+    @Test
+    fun `sans adresse de planificateur il n'y a pas de porte de retour`() {
+        assertThat(callbackRedirectUri("")).isNull()
+        assertThat(callbackRedirectUri("   ")).isNull()
+    }
+
+    @Test
+    fun `un hote nu sans schema est refuse ici plutot que par le portail`() {
+        // Authelia le rejetterait en `invalid_request`, sans dire quel réglage est en cause.
+        assertThat(callbackRedirectUri("sched.example.com")).isNull()
     }
 
     @Test
@@ -93,9 +114,10 @@ class EngineAuthorizationTest {
         val fields = body!!.parseUrlEncodedParameters()
         assertThat(fields["grant_type"]).isEqualTo("authorization_code")
         assertThat(fields["code_verifier"]).isEqualTo("verifier-secret")
-        // Repeated on purpose: the server compares it, and a port that drifted between the two
-        // calls comes back as `invalid_grant`, which reads exactly like an expired code.
-        assertThat(fields["redirect_uri"]).isEqualTo("http://127.0.0.1:41234/oauth/authelia")
+        // Repeated on purpose: the server compares it between the two calls, character for
+        // character, and a divergence comes back as `invalid_grant` — which reads exactly like an
+        // expired code and is not one.
+        assertThat(fields["redirect_uri"]).isEqualTo("https://sched.example.com/oauth/authelia")
         // Public client: there is no secret to send, and sending one would be a different flow.
         assertThat(fields["client_secret"]).isNull()
         assertThat(token.accessToken).isEqualTo("at-1")

@@ -56,7 +56,8 @@ data class EngineAuthorizationAttempt(
  *
  * `response_mode=form_post` is **not** a preference. Authelia's own `validate-config` refuses a
  * client that asks for `authelia.bearer.authz` with anything else, and a form POST cannot be
- * delivered to an app scheme — which is why [redirectUri] is a loopback address.
+ * delivered to an app scheme — which is why the redirect points at [callbackRedirectUri], an HTTPS
+ * route on the server that bounces to the app scheme in a GET.
  */
 fun pushedAuthorizationForm(
     clientId: String,
@@ -85,17 +86,39 @@ fun authorizationUrl(endpoints: EngineOAuthEndpoints, clientId: String, requestU
         parameters.append("request_uri", requestUri)
     }.buildString()
 
+/** Le chemin de la route qui reçoit le `form_post` côté serveur. */
+const val CALLBACK_PATH: String = "/oauth/authelia"
+
 /**
- * The loopback redirect (RFC 8252 §7.3). The port is whatever the OS handed us for this one
- * exchange — the app cannot reserve a fixed port, and nothing would guarantee it. Authelia is
- * registered with a **port-less** `http://127.0.0.1/oauth/authelia`, which is what makes any port
- * acceptable at redemption time.
+ * L'adresse à laquelle le portail renvoie le code : une route du planificateur, en HTTPS.
  *
- * `127.0.0.1` and not `localhost`: the RFC is explicit, because `localhost` can resolve to an
- * interface other than the loopback one on a misconfigured device.
+ * Pas une boucle locale — le motif venait du bureau et supposait que l'application tourne encore
+ * pendant que la personne est dans son navigateur, ce qu'Android ne garantit pas (D-049). Pas un
+ * schéma d'application non plus, directement : `form_post` est imposé par le scope
+ * `authelia.bearer.authz`, et une App Link perd le corps de la requête. Le serveur reçoit donc le
+ * POST, et rebondit vers le schéma en GET.
+ *
+ * Construite à partir de l'adresse du planificateur plutôt qu'écrite en dur : c'est le même
+ * raisonnement que [EngineAccess][com.garfiec.librechat.core.network.engine.EngineAccess] — un
+ * déploiement qui n'est pas celui-ci existe, et une constante compilée le rendrait impossible.
+ *
+ * Rend `null` quand il n'y a pas d'adresse utilisable. Ce n'est pas une erreur en soi : le
+ * planificateur est facultatif partout ailleurs. Mais sans lui il n'y a **pas de porte de retour**,
+ * donc pas de connexion possible, et l'appelant doit le dire plutôt que de fabriquer une URL que le
+ * portail rejettera avec un message qui ne parle de rien.
  */
-fun loopbackRedirectUri(port: Int, path: String = "/oauth/authelia"): String =
-    "http://127.0.0.1:$port$path"
+fun callbackRedirectUri(schedulerUrl: String, path: String = CALLBACK_PATH): String? {
+    val base = schedulerUrl.trim().trimEnd('/')
+    if (base.isBlank()) return null
+    // Un hôte nu (« sched.example.com ») produirait un `redirect_uri` sans schéma, qu'Authelia
+    // refuse en `invalid_request` — un message qui ne nomme ni le réglage ni sa valeur.
+    if (!base.startsWith("http://", ignoreCase = true) &&
+        !base.startsWith("https://", ignoreCase = true)
+    ) {
+        return null
+    }
+    return base + path
+}
 
 @Serializable
 data class PushedAuthorizationResponse(

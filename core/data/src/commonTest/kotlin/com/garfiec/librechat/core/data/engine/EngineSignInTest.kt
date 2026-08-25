@@ -42,22 +42,21 @@ class EngineSignInTest {
     }
 
     /**
-     * The loopback socket, replaced by what it would have read.
+     * La boîte aux lettres, remplacée par ce qu'elle aurait reçu.
      *
-     * [answer] is a lambda taking the recorded PAR form so a test can reply with the very `state`
-     * the flow just sent — which is what a portal does, and what makes the mismatch test mean
-     * something.
+     * [answer] prend le `state` relevé dans le formulaire PAR, pour qu'un test puisse répondre avec
+     * celui-là même que le flux vient d'envoyer — ce que fait un portail, et ce qui donne son sens
+     * au test de discordance.
      */
-    private class FakeListener(
-        val port: Int = 45_678,
+    private class FakeInbox(
         val answer: (state: String) -> FormPostCallback,
-    ) : EngineCallbackListener {
-        var opened = false
-        var closed = false
+    ) : EngineCallbackInbox {
+        var armed = false
+        var released = false
         lateinit var stateSeen: () -> String
-        override suspend fun open(): Int { opened = true; return port }
-        override suspend fun await(timeoutMillis: Long): FormPostCallback = answer(stateSeen())
-        override fun close() { closed = true }
+        override fun armer() { armed = true }
+        override suspend fun attendre(timeoutMillis: Long): FormPostCallback = answer(stateSeen())
+        override fun liberer() { released = true }
     }
 
     private val endpoints = EngineOAuthEndpoints(
@@ -73,6 +72,7 @@ class EngineSignInTest {
         clientId = "hobbitton-chat-android",
         username = "opencode",
         password = "motdepasse",
+        schedulerUrl = "https://sched.example.com",
     )
 
     /** Records what each back-channel call carried — where the wiring mistakes actually live. */
@@ -113,14 +113,14 @@ class EngineSignInTest {
 
     private fun flow(
         portal: Portal,
-        listener: FakeListener,
+        inbox: FakeInbox,
         store: FakeStore,
-        configured: Boolean = true,
+        engine: EngineAccess? = access,
     ): EngineSignIn {
-        listener.stateSeen = { portal.forms["par"]?.get("state").orEmpty() }
+        inbox.stateSeen = { portal.forms["par"]?.get("state").orEmpty() }
         val tokens = portal.client()
         return EngineSignIn(
-            access = { access.takeIf { configured } },
+            access = { engine },
             tokens = tokens,
             sessions = EngineSessionManager(
                 store = store,
@@ -128,7 +128,7 @@ class EngineSignInTest {
                 endpoints = { endpoints },
                 now = { 1_000 },
             ),
-            listener = { listener },
+            inbox = inbox,
             endpoints = { endpoints },
         )
     }
@@ -137,15 +137,15 @@ class EngineSignInTest {
     fun `un aller-retour complet stocke les jetons`() = runTest {
         val portal = Portal()
         val store = FakeStore()
-        val listener = FakeListener { state -> FormPostCallback.Success("le-code", state) }
+        val inbox = FakeInbox { state -> FormPostCallback.Success("le-code", state) }
 
         var opened: String? = null
-        val result = flow(portal, listener, store).signIn { opened = it }
+        val result = flow(portal, inbox, store).signIn { opened = it }
 
         assertEquals(EngineSignInResult.Authorized, result)
         assertEquals("jeton", store.stored?.accessToken)
         assertEquals("renouveau", store.stored?.refreshToken)
-        assertTrue(listener.opened && listener.closed, "le socket s'ouvre puis se referme")
+        assertTrue(inbox.armed && inbox.released, "la boîte s'arme puis se libère")
         assertTrue(opened!!.contains("request_uri="), "le navigateur reçoit l'URL opaque du PAR")
         assertTrue(
             "code_challenge" !in opened!!,
@@ -154,24 +154,43 @@ class EngineSignInTest {
     }
 
     @Test
-    fun `la redirection annoncee porte le port que le socket a ouvert`() = runTest {
-        // Le serveur compare `redirect_uri` entre la demande et l'échange. Un port qui change entre
-        // les deux est refusé en `invalid_grant`, ce qui se lit comme un code expiré et n'en est pas.
+    fun `la redirection annoncee est la route HTTPS, la meme aux deux etapes`() = runTest {
+        // Le portail compare `redirect_uri` entre la demande et l'échange, caractère pour
+        // caractère. Une divergence est refusée en `invalid_grant`, ce qui se lit comme un code
+        // expiré et n'en est pas un.
         val portal = Portal()
-        val listener = FakeListener(port = 51_234) { state -> FormPostCallback.Success("le-code", state) }
+        val inbox = FakeInbox { state -> FormPostCallback.Success("le-code", state) }
 
-        flow(portal, listener, FakeStore()).signIn { }
+        flow(portal, inbox, FakeStore()).signIn { }
 
-        assertEquals("http://127.0.0.1:51234/oauth/authelia", portal.forms["par"]?.get("redirect_uri"))
-        assertEquals("http://127.0.0.1:51234/oauth/authelia", portal.forms["token"]?.get("redirect_uri"))
+        val attendu = "https://sched.example.com/oauth/authelia"
+        assertEquals(attendu, portal.forms["par"]?.get("redirect_uri"))
+        assertEquals(attendu, portal.forms["token"]?.get("redirect_uri"))
+    }
+
+    @Test
+    fun `sans adresse de planificateur, la connexion s'arrete avant le portail`() = runTest {
+        // La route de retour vit sur le planificateur : sans son adresse, le portail n'a nulle part
+        // où renvoyer le code. Son propre résultat, parce que sa réparation lui est propre — il ne
+        // manque pas « les réglages », il manque celui-là.
+        val portal = Portal()
+        val inbox = FakeInbox { FormPostCallback.Malformed("jamais appelé") }
+
+        var opened = false
+        val result = flow(portal, inbox, FakeStore(), engine = access.copy(schedulerUrl = ""))
+            .signIn { opened = true }
+
+        assertEquals(EngineSignInResult.NoCallbackHost, result)
+        assertTrue(!opened, "aucun navigateur ne doit s'ouvrir")
+        assertTrue(!inbox.armed, "rien ne doit être armé")
     }
 
     @Test
     fun `le verificateur PKCE ne part qu'au canal arriere`() = runTest {
         val portal = Portal()
-        val listener = FakeListener { state -> FormPostCallback.Success("le-code", state) }
+        val inbox = FakeInbox { state -> FormPostCallback.Success("le-code", state) }
 
-        flow(portal, listener, FakeStore()).signIn { }
+        flow(portal, inbox, FakeStore()).signIn { }
 
         val defi = portal.forms["par"]?.get("code_challenge")
         val verificateur = portal.forms["token"]?.get("code_verifier")
@@ -184,24 +203,24 @@ class EngineSignInTest {
     fun `un state qui n'est pas le notre ne depense pas le code`() = runTest {
         val portal = Portal()
         val store = FakeStore()
-        val listener = FakeListener { FormPostCallback.Success("le-code", "un-autre-state") }
+        val inbox = FakeInbox { FormPostCallback.Success("le-code", "un-autre-state") }
 
-        val result = flow(portal, listener, store).signIn { }
+        val result = flow(portal, inbox, store).signIn { }
 
         assertIs<EngineSignInResult.Interrupted>(result)
         assertNull(store.stored, "rien ne doit être stocké")
         assertNull(portal.forms["token"], "le code ne doit même pas être présenté")
-        assertTrue(listener.closed)
+        assertTrue(inbox.released)
     }
 
     @Test
     fun `un refus du portail se distingue d'une panne`() = runTest {
         val portal = Portal()
-        val listener = FakeListener {
+        val inbox = FakeInbox {
             FormPostCallback.Failure("access_denied", "l'utilisateur a refusé", state = null)
         }
 
-        val result = flow(portal, listener, FakeStore()).signIn { }
+        val result = flow(portal, inbox, FakeStore()).signIn { }
 
         assertIs<EngineSignInResult.Refused>(result)
         assertEquals("access_denied", result.error)
@@ -213,9 +232,9 @@ class EngineSignInTest {
         // bout, et chaque requête continuera pourtant d'atterrir sur le portail.
         val portal = Portal(grantedScope = "openid profile")
         val store = FakeStore()
-        val listener = FakeListener { state -> FormPostCallback.Success("le-code", state) }
+        val inbox = FakeInbox { state -> FormPostCallback.Success("le-code", state) }
 
-        val result = flow(portal, listener, store).signIn { }
+        val result = flow(portal, inbox, store).signIn { }
 
         assertIs<EngineSignInResult.MissingAuthorizationScope>(result)
         assertEquals(listOf("openid", "profile"), result.granted)
@@ -227,26 +246,27 @@ class EngineSignInTest {
     @Test
     fun `sans reglages, rien ne part vers le portail`() = runTest {
         val portal = Portal()
-        val listener = FakeListener { FormPostCallback.Malformed("jamais appelé") }
+        val inbox = FakeInbox { FormPostCallback.Malformed("jamais appelé") }
 
         var opened = false
-        val result = flow(portal, listener, FakeStore(), configured = false).signIn { opened = true }
+        val result = flow(portal, inbox, FakeStore(), engine = null).signIn { opened = true }
 
         assertEquals(EngineSignInResult.NotConfigured, result)
         assertTrue(!opened, "aucun navigateur ne doit s'ouvrir")
-        assertTrue(!listener.opened, "aucun socket ne doit s'ouvrir")
+        assertTrue(!inbox.armed, "rien ne doit être armé")
     }
 
     @Test
-    fun `le socket se referme meme quand le portail casse`() = runTest {
-        // Un socket laissé ouvert survit à l'échec et le suivant échoue sur « adresse déjà
-        // utilisée » — une erreur qui ne parle ni du portail ni de la vraie cause.
+    fun `la boite se libere meme quand le portail casse`() = runTest {
+        // Une boîte laissée armée garde le `state` de la tentative morte. Le lien du tour suivant y
+        // tomberait, serait rejeté au contrôle, et l'échec ne parlerait ni du portail ni de la
+        // vraie cause.
         val portal = Portal()
-        val listener = FakeListener { FormPostCallback.Malformed("le navigateur a raccroché") }
+        val inbox = FakeInbox { FormPostCallback.Malformed("le navigateur a raccroché") }
 
-        val result = flow(portal, listener, FakeStore()).signIn { }
+        val result = flow(portal, inbox, FakeStore()).signIn { }
 
         assertIs<EngineSignInResult.Interrupted>(result)
-        assertTrue(listener.closed)
+        assertTrue(inbox.released)
     }
 }

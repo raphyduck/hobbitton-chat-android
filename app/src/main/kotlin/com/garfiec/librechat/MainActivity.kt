@@ -49,6 +49,8 @@ import com.garfiec.librechat.core.common.network.ConnectivityObserver
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.datastore.ThemeDataStore
 import com.garfiec.librechat.core.data.datastore.ThemeMode
+import com.garfiec.librechat.core.data.engine.EngineCallbackDelivery
+import com.garfiec.librechat.core.network.engine.auth.CALLBACK_SCHEME
 import com.garfiec.librechat.core.ui.theme.LibreChatTheme
 import com.garfiec.librechat.feature.chat.ShareIntentConsumer
 import com.garfiec.librechat.feature.chat.SharedContent
@@ -68,6 +70,7 @@ class MainActivity : ComponentActivity() {
     private val connectivityObserver: ConnectivityObserver by inject()
     private val themeDataStore: ThemeDataStore by inject()
     private val settingsDataStore: SettingsDataStore by inject()
+    private val engineCallbacks: EngineCallbackDelivery by inject()
 
     private var deepLinkUri by mutableStateOf<Uri?>(null)
 
@@ -220,6 +223,14 @@ class MainActivity : ComponentActivity() {
 
     private fun handleDeepLink(intent: Intent) {
         intent.data?.let { uri ->
+            // Le retour du portail d'authentification. Traité ici et pas par le graphe de
+            // navigation : ce lien ne désigne aucun écran — il porte un code d'autorisation que le
+            // tour de connexion attend, et rien à afficher. Le laisser suivre la route ordinaire le
+            // ferait juste rejeter comme « lien non géré », avec le code perdu dedans.
+            if (uri.scheme.equals(CALLBACK_SCHEME, ignoreCase = true)) {
+                engineCallbacks.deposer(uri.toString())
+                return@let
+            }
             if (uri.scheme != DeepLinks.SCHEME) return@let
             // Same resolver the nav host uses — the accept decision and the routing decision can't
             // drift because they're one source of truth. Anything it doesn't route is dropped here.

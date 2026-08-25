@@ -82,6 +82,7 @@
     <string name="tasks_providers_failed">The check itself failed: %1$s</string>
     <string name="tasks_sign_in">Sign in through the portal</string>
     <string name="tasks_sign_in_not_configured">Nothing to sign in to yet: fill in the engine and portal addresses first.</string>
+    <string name="tasks_sign_in_no_callback_host">The scheduler address is missing, and that is where the portal sends the authorization code back. Fill it in, then sign in again.</string>
     <string name="tasks_sign_in_unreachable">The portal did not answer. Check the portal address and the network, then try again.</string>
     <string name="tasks_sign_in_refused">The portal refused: consent declined, second factor abandoned, or the request expired. Starting again is safe.</string>
     <string name="tasks_sign_in_interrupted">The round trip did not finish — the browser was closed, or it took more than five minutes. Try again.</string>
