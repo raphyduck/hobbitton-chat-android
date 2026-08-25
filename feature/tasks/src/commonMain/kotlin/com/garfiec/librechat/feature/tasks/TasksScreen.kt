@@ -289,11 +289,10 @@ fun TasksScreen(
 
     if (composing) {
         NewMissionSheet(
-            profiles = state.profiles,
             onDismiss = { composing = false },
-            onLaunch = { profile, objective, connectors, autonomous ->
+            onLaunch = { objective, connectors, autonomous ->
                 composing = false
-                viewModel.launch(profile, objective, connectors, autonomous)
+                viewModel.launch(objective, connectors, autonomous)
             },
         )
     }
