@@ -7,17 +7,17 @@ import com.garfiec.librechat.core.network.engine.auth.EngineOAuthEndpoints
 import com.garfiec.librechat.core.network.engine.auth.EngineTokenClient
 import com.garfiec.librechat.core.network.engine.auth.FormPostCallback
 import com.garfiec.librechat.core.network.engine.auth.authorizationUrl
+import com.garfiec.librechat.core.network.engine.auth.callbackRedirectUri
 import com.garfiec.librechat.core.network.engine.auth.generatePkcePair
 import com.garfiec.librechat.core.network.engine.auth.generateStateToken
-import com.garfiec.librechat.core.network.engine.auth.loopbackRedirectUri
 
 /**
  * The first sign-in — the half of the portal round trip that was never wired.
  *
  * Everything downstream of it existed and was tested: PKCE, the pushed authorization request, the
- * loopback callback parser, the code exchange, the token store, the renewal. Nothing **called**
+ * callback parser, the code exchange, the token store, the renewal. Nothing **called**
  * them. [EngineSessionManager.onAuthorized] had no caller in the whole application, and neither did
- * `pushAuthorizationRequest`, `authorizationUrl` or `parseFormPostCallback` outside their own unit
+ * `pushAuthorizationRequest`, `authorizationUrl` or `parseCallbackUri` outside their own unit
  * tests. The app could therefore renew a token it had no way of ever obtaining.
  *
  * What that looked like on 24 August, and why it resisted three attempts to fix it by re-entering
@@ -27,12 +27,18 @@ import com.garfiec.librechat.core.network.engine.auth.loopbackRedirectUri
  * requests produced **no such line at all**. It was sending no token, because it had none, because
  * nothing had ever asked the portal for one.
  *
- * ## Why a socket and not an app scheme
+ * ## Par où le code revient
  *
- * Authelia refuses `authelia.bearer.authz` with anything but `response_mode=form_post`, and a form
- * POST cannot be delivered to `at.hobbitton.chat://…` — an App Link intent drops the body. So the
- * app listens on `127.0.0.1` for exactly one request. That is RFC 8252 §7.3, and it is why the
- * client is registered with a **port-less** redirect: the OS picks the port per exchange.
+ * Authelia refuse `authelia.bearer.authz` avec autre chose que `response_mode=form_post`, et un
+ * POST de formulaire ne peut pas être délivré à `at.hobbitton.chat://…` — une App Link perd le
+ * corps. La première réponse a été une socket sur `127.0.0.1` (RFC 8252 §7.3) ; elle a échoué sur
+ * l'appareil, et pour une raison qui ne se corrige pas : Android gèle une application passée en
+ * arrière-plan, et son `accept()` ne s'exécute plus pendant que la personne est dans son navigateur.
+ *
+ * Le POST atterrit donc sur une route HTTPS du planificateur, qui rebondit vers le schéma
+ * applicatif en GET. Un lien profond **réveille** l'application au lieu de supposer qu'elle tourne.
+ * Conséquence ici : plus de socket à ouvrir, plus de port à annoncer, et [EngineCallbackInbox] à la
+ * place — voir D-049 côté serveur.
  */
 class EngineSignIn(
     /**
@@ -43,7 +49,12 @@ class EngineSignIn(
     private val access: suspend () -> EngineAccess?,
     private val tokens: EngineTokenClient,
     private val sessions: EngineSessionManager,
-    private val listener: () -> EngineCallbackListener,
+    /**
+     * La boîte aux lettres du lien profond. Une instance, pas une fabrique : le point d'entrée de
+     * la plateforme y dépose, ce tour y relève, et deux instances feraient deux boîtes dont l'une
+     * ne serait jamais relevée.
+     */
+    private val inbox: EngineCallbackInbox,
     private val endpoints: suspend (issuerUrl: String) -> EngineOAuthEndpoints?,
 ) {
 
@@ -57,6 +68,11 @@ class EngineSignIn(
         val engine = access() ?: return EngineSignInResult.NotConfigured
         if (engine.issuerUrl.isBlank()) return EngineSignInResult.NotConfigured
 
+        // La porte de retour. Sans elle le portail n'a nulle part où renvoyer le code, et c'est son
+        // propre échec — distinct de « rien n'est configuré », qui a une autre réparation.
+        val redirect = callbackRedirectUri(engine.schedulerUrl)
+            ?: return EngineSignInResult.NoCallbackHost
+
         val discovered = endpoints(engine.issuerUrl)
             ?: return EngineSignInResult.PortalUnreachable("discovery failed for ${engine.issuerUrl}")
         if (discovered.parEndpoint == null) {
@@ -65,12 +81,16 @@ class EngineSignIn(
             return EngineSignInResult.PortalUnreachable("the portal advertises no PAR endpoint")
         }
 
-        val socket = listener()
+        // Armée AVANT que le navigateur ne s'ouvre. Sur un appareil rapide — session du portail
+        // déjà valide, second facteur mémorisé — le retour peut arriver avant que cette coroutine
+        // n'atteigne `attendre`, et une boîte armée après serait une boîte qui rate son propre
+        // courrier.
+        inbox.armer()
         return try {
             val attempt = EngineAuthorizationAttempt(
                 pkce = generatePkcePair(),
                 state = generateStateToken(),
-                redirectUri = loopbackRedirectUri(socket.open()),
+                redirectUri = redirect,
             )
 
             val pushed = runCatching {
@@ -88,7 +108,7 @@ class EngineSignIn(
                 ),
             )
 
-            when (val callback = socket.await(CALLBACK_TIMEOUT_MS)) {
+            when (val callback = inbox.attendre(CALLBACK_TIMEOUT_MS)) {
                 is FormPostCallback.Success -> exchange(discovered, attempt, callback)
                 is FormPostCallback.Failure -> EngineSignInResult.Refused(
                     error = callback.error,
@@ -97,7 +117,7 @@ class EngineSignIn(
                 is FormPostCallback.Malformed -> EngineSignInResult.Interrupted(callback.reason)
             }
         } finally {
-            socket.close()
+            inbox.liberer()
         }
     }
 
@@ -148,21 +168,6 @@ class EngineSignIn(
 }
 
 /**
- * The one-request loopback socket, behind an interface because `ServerSocket` is a JVM class and
- * this orchestration is not.
- */
-interface EngineCallbackListener {
-    /** Binds `127.0.0.1` on a port the OS chooses, and returns it. */
-    suspend fun open(): Int
-
-    /** Waits for the callback, answers the browser with a closing page, and reports what it read. */
-    suspend fun await(timeoutMillis: Long): FormPostCallback
-
-    /** Releases the socket. Called even when the flow failed — especially then. */
-    fun close()
-}
-
-/**
  * What came of it, in the terms that change what the person should do next — the same rule as
  * [com.garfiec.librechat.core.model.engine.EngineFailureKind], for the same reason.
  */
@@ -171,6 +176,15 @@ sealed interface EngineSignInResult {
 
     /** No engine address or no portal address stored: there is nothing to sign in to. */
     data object NotConfigured : EngineSignInResult
+
+    /**
+     * Le planificateur n'a pas d'adresse, donc le portail n'a nulle part où renvoyer le code.
+     *
+     * Son propre résultat parce que sa réparation est propre : ce n'est pas « configurez tout »,
+     * c'est « il manque CE réglage-là ». La route de retour vit sur le planificateur (D-049), ce
+     * qui fait de son adresse — facultative pour tout le reste — la condition de la connexion.
+     */
+    data object NoCallbackHost : EngineSignInResult
 
     /** The portal never answered, or answered something unusable. Retrying is reasonable. */
     data class PortalUnreachable(val reason: String) : EngineSignInResult
@@ -194,8 +208,8 @@ sealed interface EngineSignInResult {
 
 /**
  * Ce que l'écran appelle pour déclencher un tour de portail — une interface parce que
- * l'implémentation est forcément propre à la plateforme : elle a besoin d'un socket local et d'un
- * service au premier plan, dont aucun n'existe en code partagé.
+ * l'implémentation a besoin d'une portée qui survive à l'écran, et que c'est la plateforme qui la
+ * fournit.
  *
  * L'écran n'attend PAS un résultat rendu : il observe [etat]. C'est le correctif du 24/08 — celui
  * qui a lancé la connexion n'est pas forcément là quand elle se termine, puisque le navigateur passe

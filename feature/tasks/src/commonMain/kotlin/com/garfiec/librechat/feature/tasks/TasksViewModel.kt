@@ -78,6 +78,15 @@ enum class EngineSignInProblem {
     /** No engine or portal address stored: there is nothing to sign in to yet. */
     NOT_CONFIGURED,
 
+    /**
+     * L'adresse du planificateur manque, et c'est par là que le code revient.
+     *
+     * Distingué de [NOT_CONFIGURED] parce que la réparation l'est : il ne manque pas « les
+     * réglages », il manque CE réglage-là. Facultatif pour tout le reste de l'onglet, il est la
+     * condition de la connexion depuis que la route de retour vit sur le planificateur.
+     */
+    NO_CALLBACK_HOST,
+
     /** The portal never answered, or answered something unusable. Retrying is reasonable. */
     PORTAL_UNREACHABLE,
 
@@ -126,10 +135,9 @@ class TasksViewModel(
      * Follows the portal round trip rather than awaiting it.
      *
      * The wait used to live in `viewModelScope` — which dies with the screen, and the screen is
-     * exactly what goes away when the browser comes to the front. What that produced on 24 August:
-     * the portal redirected to the loopback socket and nobody was left to read it. The round trip now
-     * lives on the application scope; this screen watches it, and finds the outcome waiting even if
-     * it was destroyed in between.
+     * exactly what goes away when the browser comes to the front. The round trip now lives on the
+     * application scope; this screen watches it, and finds the outcome waiting even if it was
+     * destroyed in between.
      */
     private fun followPortal() {
         viewModelScope.launch {
@@ -290,6 +298,7 @@ class TasksViewModel(
 private fun EngineSignInResult.asProblem(): EngineSignInProblem? = when (this) {
     EngineSignInResult.Authorized -> null
     EngineSignInResult.NotConfigured -> EngineSignInProblem.NOT_CONFIGURED
+    EngineSignInResult.NoCallbackHost -> EngineSignInProblem.NO_CALLBACK_HOST
     is EngineSignInResult.PortalUnreachable -> EngineSignInProblem.PORTAL_UNREACHABLE
     is EngineSignInResult.Refused -> EngineSignInProblem.REFUSED
     is EngineSignInResult.Interrupted -> EngineSignInProblem.INTERRUPTED

@@ -85,6 +85,7 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_settings_title
 import com.garfiec.librechat.feature.tasks.resources.tasks_sign_in
 import com.garfiec.librechat.feature.tasks.resources.tasks_sign_in_interrupted
 import com.garfiec.librechat.feature.tasks.resources.tasks_sign_in_missing_scope
+import com.garfiec.librechat.feature.tasks.resources.tasks_sign_in_no_callback_host
 import com.garfiec.librechat.feature.tasks.resources.tasks_sign_in_not_configured
 import com.garfiec.librechat.feature.tasks.resources.tasks_sign_in_refused
 import com.garfiec.librechat.feature.tasks.resources.tasks_sign_in_unreachable
@@ -735,6 +736,7 @@ private fun Explanation(
  */
 private fun EngineSignInProblem.sentence() = when (this) {
     EngineSignInProblem.NOT_CONFIGURED -> Res.string.tasks_sign_in_not_configured
+    EngineSignInProblem.NO_CALLBACK_HOST -> Res.string.tasks_sign_in_no_callback_host
     EngineSignInProblem.PORTAL_UNREACHABLE -> Res.string.tasks_sign_in_unreachable
     EngineSignInProblem.REFUSED -> Res.string.tasks_sign_in_refused
     EngineSignInProblem.INTERRUPTED -> Res.string.tasks_sign_in_interrupted

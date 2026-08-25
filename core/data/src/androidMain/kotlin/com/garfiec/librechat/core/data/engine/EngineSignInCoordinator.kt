@@ -1,9 +1,5 @@
 package com.garfiec.librechat.core.data.engine
 
-import android.content.Context
-import android.content.Intent
-import android.os.Build
-import androidx.core.content.ContextCompat
 import co.touchlab.kermit.Logger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -15,35 +11,20 @@ import kotlinx.coroutines.launch
 /**
  * Le tour du portail, sorti de l'écran qui le déclenche.
  *
- * ## Ce qui a échoué, et ce que le détail disait
+ * ## Ce qui reste du correctif du 24/08, et ce qui a disparu
  *
- * Premier essai réel, le 24/08 : le navigateur atteint `127.0.0.1:34685/oauth/authelia` et reçoit
- * **« connection timed out »**. C'est ce mot-là qui informe — un port fermé répondrait *refused*,
- * immédiatement. Un délai d'attente veut dire que le socket est bien lié, que le noyau a accepté la
- * connexion dans sa file, et que **personne côté application n'est venu la chercher**.
+ * Ce qui reste : la **portée applicative**. Le `viewModelScope` meurt avec l'écran, et l'écran est
+ * justement ce qui disparaît quand le navigateur passe devant. Le tour doit survivre au geste qui
+ * l'a lancé, et son résultat attendre le retour — d'où le [StateFlow] plutôt qu'une valeur rendue à
+ * l'appelant.
  *
- * L'application ne s'exécutait donc plus pendant que la personne était dans son navigateur. Deux
- * raisons possibles, et ce coordinateur les couvre toutes les deux plutôt que de parier sur l'une :
- *
- *  * l'écran est détruit — le `viewModelScope` qui portait l'attente meurt avec lui. D'où la portée
- *    applicative ici : le tour survit à l'écran qui l'a lancé, et le résultat l'attend au retour.
- *  * le processus est **gelé** — Android met en cache une application passée en arrière-plan, et un
- *    `accept()` en attente ne s'exécute plus. Seul un service au premier plan en est exempté, d'où
- *    [EngineSignInService].
- *
- * ## Pourquoi la boucle locale, alors qu'elle coûte tout ça
- *
- * Parce qu'il n'y a pas d'autre forme. Vérifié contre `authelia validate-config` le 24/08 :
- *
- * ```
- * option 'response_modes' must only have the values 'form_post' and 'form_post.jwt'
- * when configured with scope 'authelia.bearer.authz' but the values 'query' are present
- * ```
- *
- * Et un `form_post` ne peut pas être délivré à un schéma d'application : une App Link perd le corps.
+ * Ce qui a disparu : le **service au premier plan**, et les deux permissions qui allaient avec. Il
+ * n'existait que pour empêcher le gel du processus, parce qu'un `accept()` en attente ne s'exécute
+ * plus une fois l'application mise en cache. Le retour du portail est maintenant un lien profond
+ * (D-049) : le système **réveille** l'application pour le lui délivrer. Il n'y a plus rien à
+ * maintenir éveillé.
  */
 class EngineSignInCoordinator(
-    private val contexte: Context,
     private val portail: EngineSignIn,
     private val portee: CoroutineScope,
 ) : EngineSignInLauncher {
@@ -71,17 +52,12 @@ class EngineSignInCoordinator(
 
         enCours = portee.launch {
             _etat.value = EngineSignInProgress.EnCours
-            ancrer()
-            try {
-                val issue = runCatching { portail.signIn(ouvrirNavigateur) }
-                    .getOrElse { echec ->
-                        Logger.w("Engine", echec) { "Le tour du portail a échoué d'entrée" }
-                        EngineSignInResult.Interrupted(echec.message ?: "sign-in failed")
-                    }
-                _etat.value = EngineSignInProgress.Termine(issue)
-            } finally {
-                liberer()
-            }
+            val issue = runCatching { portail.signIn(ouvrirNavigateur) }
+                .getOrElse { echec ->
+                    Logger.w("Engine", echec) { "Le tour du portail a échoué d'entrée" }
+                    EngineSignInResult.Interrupted(echec.message ?: "sign-in failed")
+                }
+            _etat.value = EngineSignInProgress.Termine(issue)
         }
     }
 
@@ -90,29 +66,5 @@ class EngineSignInCoordinator(
         if (_etat.value is EngineSignInProgress.Termine) {
             _etat.value = EngineSignInProgress.Idle
         }
-    }
-
-    /**
-     * Démarre le service qui empêche le gel — et n'échoue jamais la connexion s'il est refusé.
-     *
-     * Android refuse un service au premier plan dans plusieurs situations (économiseur de batterie,
-     * restrictions constructeur, démarrage depuis l'arrière-plan). Sans lui la connexion redevient
-     * seulement fragile ; la faire échouer ici la rendrait impossible.
-     */
-    private fun ancrer() {
-        runCatching {
-            val intention = Intent(contexte, EngineSignInService::class.java)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                ContextCompat.startForegroundService(contexte, intention)
-            } else {
-                contexte.startService(intention)
-            }
-        }.onFailure { echec ->
-            Logger.i("Engine", echec) { "Pas de service au premier plan — le tour continue sans" }
-        }
-    }
-
-    private fun liberer() {
-        runCatching { contexte.stopService(Intent(contexte, EngineSignInService::class.java)) }
     }
 }

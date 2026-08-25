@@ -1,13 +1,15 @@
 package com.garfiec.librechat.core.data.di
 
 import com.garfiec.librechat.core.common.di.KoinQualifiers
+import com.garfiec.librechat.core.data.engine.EngineCallbackDelivery
+import com.garfiec.librechat.core.data.engine.EngineCallbackInbox
+import com.garfiec.librechat.core.data.engine.EngineCallbackMailbox
 import com.garfiec.librechat.core.data.engine.EngineSecureStore
 import com.garfiec.librechat.core.data.engine.EngineSessionManager
 import com.garfiec.librechat.core.data.engine.EngineSignIn
 import com.garfiec.librechat.core.data.engine.EngineSignInCoordinator
 import com.garfiec.librechat.core.data.engine.EngineSignInLauncher
 import com.garfiec.librechat.core.data.engine.EngineSettingsStore
-import com.garfiec.librechat.core.data.engine.SocketCallbackListener
 import com.garfiec.librechat.core.data.scheduler.SchedulerRepository
 import com.garfiec.librechat.core.network.api.AgentEngineApi
 import com.garfiec.librechat.core.network.api.SchedulerApi
@@ -30,6 +32,7 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.Module
+import org.koin.dsl.binds
 import org.koin.dsl.module
 
 /**
@@ -151,17 +154,26 @@ val engineModule: Module = module {
     }
 
     /**
-     * The first sign-in. A **factory** for the socket, not a single: the listener holds one
-     * `ServerSocket` for one exchange, and a shared instance would have a second attempt inherit the
-     * closed socket of the first — the retry would fail for a reason that has nothing to do with the
-     * portal.
+     * La boîte aux lettres du lien profond, en **singleton** — et c'est le point qui compte.
+     *
+     * `MainActivity` y dépose ce qu'Android lui délivre, le tour de connexion y relève. Deux
+     * instances feraient deux boîtes : celle du dépôt jamais relevée, celle de l'attente jamais
+     * remplie, et une connexion qui expire au bout de cinq minutes sans que rien n'explique
+     * pourquoi. C'est aussi ce qui la distingue du socket qu'elle remplace, lui volontairement
+     * fabriqué à chaque tour.
      */
+    single { EngineCallbackMailbox() } binds arrayOf(
+        EngineCallbackInbox::class,
+        EngineCallbackDelivery::class,
+    )
+
+    /** Le premier jeton : le tour de portail complet. */
     single {
         EngineSignIn(
             access = { get<EngineSettingsStore>().access() },
             tokens = get(),
             sessions = get(),
-            listener = { SocketCallbackListener(io = get(KoinQualifiers.IO)) },
+            inbox = get(),
             endpoints = { issuerUrl -> discoveredEndpoints(issuerUrl, get()) },
         )
     }
@@ -175,7 +187,6 @@ val engineModule: Module = module {
      */
     single<EngineSignInLauncher> {
         EngineSignInCoordinator(
-            contexte = androidContext(),
             portail = get(),
             portee = get(KoinQualifiers.ApplicationScope),
         )
