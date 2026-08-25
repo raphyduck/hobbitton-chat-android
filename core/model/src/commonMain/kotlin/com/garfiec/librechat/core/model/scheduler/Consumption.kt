@@ -67,6 +67,18 @@ data class ModelConsumption(
      */
     @SerialName("depense") val spend: Double? = null,
     @SerialName("tarife") val isPriced: Boolean = true,
+    /**
+     * True when part of this model's spend has no price — so [spend] is a floor, not a total.
+     *
+     * A row can now cover several names for one model: the gateway logs the resolved provider id
+     * for real traffic (`anthropic/claude-sonnet-5`) and the catalogue alias for its own health
+     * probe (`claude-sonnet-5`), and some names survive from a declaration since corrected
+     * (`openai/deepseek-chat`, from before 23/08). Merging them is what turns seventeen rows into
+     * nine — and it is also what could quietly put back the misleading zero, by summing a priced
+     * part with an unpriced one and presenting the result as complete. Hence this flag: the amount
+     * stays visible, and says it is a minimum.
+     */
+    @SerialName("partiel") val isPartial: Boolean = false,
     @SerialName("appels") val calls: Int = 0,
     @SerialName("echecs") val failures: Int = 0,
 )

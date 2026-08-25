@@ -178,6 +178,46 @@ class SchedulerApiTest {
     }
 
     /**
+     * A merged model whose spend is only partly priced.
+     *
+     * The gateway logs one model under several names — the resolved provider id for real traffic,
+     * the catalogue alias for its own health probe, and whatever a since-corrected declaration
+     * used. The server now merges them, which is what turns seventeen rows into nine; `partiel`
+     * is the guard that keeps the merge honest, and an app that dropped it would show a floor as
+     * if it were a total. Its default is `false`, so a server that stopped sending it would fail
+     * silently — hence a test on the field arriving, not merely on it existing.
+     */
+    @Test
+    fun `a partly priced model says its amount is a floor`() = runTest {
+        val payload = """
+            {"jours":[],
+            "modeles":[{"modele":"deepseek-chat","jetons":31922,
+            "jetons_entree":20600,"jetons_sortie":11322,"jetons_cache":0,
+            "depense":0.005,"tarife":true,"partiel":true,"appels":14,"echecs":0},
+            {"modele":"claude-sonnet-5","jetons":7748977,"jetons_entree":7452847,
+            "jetons_sortie":296130,"jetons_cache":3719970,"depense":13.0373135,
+            "tarife":true,"partiel":false,"appels":177,"echecs":0}],
+            "depense_totale":13.0423135,"jetons_totaux":7780899,
+            "modeles_non_tarifes":["deepseek-chat"],"economie_du_cache":6.6959}
+        """.trimIndent().replace("\n", "")
+        val api = api(MockEngine {
+            respond(
+                content = envelope(payload),
+                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+            )
+        })
+
+        val byModel = api.consumption(days = 7).models.associateBy { it.model }
+
+        // Priced AND partial: the amount is real, and it is a minimum.
+        assertThat(byModel.getValue("deepseek-chat").isPriced).isTrue()
+        assertThat(byModel.getValue("deepseek-chat").isPartial).isTrue()
+        assertThat(byModel.getValue("deepseek-chat").spend).isEqualTo(0.005)
+        // The guard: without it, marking everything partial would pass too.
+        assertThat(byModel.getValue("claude-sonnet-5").isPartial).isFalse()
+    }
+
+    /**
      * The scheduler answers `{"erreur": …}` when its own gateway did not reply. Decoding that as a
      * report would raise a « missing key » naming nothing, on an answer that says what went wrong.
      */

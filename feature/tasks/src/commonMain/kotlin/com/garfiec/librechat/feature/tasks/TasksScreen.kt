@@ -89,6 +89,7 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_sign_in_no_callback_h
 import com.garfiec.librechat.feature.tasks.resources.tasks_sign_in_not_configured
 import com.garfiec.librechat.feature.tasks.resources.tasks_sign_in_refused
 import com.garfiec.librechat.feature.tasks.resources.tasks_sign_in_unreachable
+import com.garfiec.librechat.feature.tasks.resources.tasks_spend_at_least
 import com.garfiec.librechat.feature.tasks.resources.tasks_spend_cache_saved
 import com.garfiec.librechat.feature.tasks.resources.tasks_spend_calls
 import com.garfiec.librechat.feature.tasks.resources.tasks_spend_header
@@ -496,6 +497,10 @@ private fun modelAmount(model: ModelConsumption): String {
         // put back the misleading zero the server takes such care to remove. Seen in service on
         // 23/08 — deepseek/deepseek-chat had cost 0.00000572 $.
         spend > 0 && money(spend) == money(0.0) -> stringResource(Res.string.tasks_spend_tiny)
+        // « at least », like the header total: part of this model's spend has no price, so the
+        // amount is a floor. Saying the number without the reserve would be the misleading zero
+        // in another costume — a figure that looks complete and is not.
+        model.isPartial -> stringResource(Res.string.tasks_spend_at_least, money(spend))
         else -> money(spend)
     }
 }

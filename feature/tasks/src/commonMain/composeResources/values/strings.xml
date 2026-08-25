@@ -69,6 +69,7 @@
     <string name="tasks_spend_total_partial">at least %1$s over %2$s tokens</string>
     <string name="tasks_spend_unpriced">no price</string>
     <string name="tasks_spend_tiny">&lt; 0.0001 $</string>
+    <string name="tasks_spend_at_least">at least %1$s</string>
     <string name="tasks_spend_calls">%1$d calls</string>
     <string name="tasks_spend_cache_saved">Prefix cache saved %1$s</string>
     <string name="tasks_spend_unpriced_note">No price does not mean free: the gateway counted the tokens but has no price for these models.</string>
