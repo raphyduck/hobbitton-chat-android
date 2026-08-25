@@ -2,9 +2,12 @@ package com.garfiec.librechat.feature.tasks
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
@@ -63,7 +66,14 @@ fun NewMissionSheet(
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 32.dp),
+            // Défilable, sinon le bouton « Lancer » est hors de l'écran et la mission est
+            // impossible à créer depuis un téléphone. Constaté le 25/08 : la feuille s'arrêtait
+            // au milieu du choix de mode, sans rien pour aller plus bas.
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text(stringResource(Res.string.tasks_new), style = MaterialTheme.typography.titleLarge)
@@ -77,7 +87,14 @@ fun NewMissionSheet(
             )
 
             Text(stringResource(Res.string.tasks_profile), style = MaterialTheme.typography.titleSmall)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            // `FlowRow` et non `Row` : une `Row` ne passe pas à la ligne, elle COMPRIME. Avec
+            // cinq profils, la dernière puce se retrouvait large d'un caractère et son texte
+            // s'écrivait verticalement, une lettre par ligne — et les profils suivants
+            // n'existaient plus à l'écran, donc étaient inatteignables.
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 profiles.forEach { candidate ->
                     FilterChip(
                         selected = candidate == profile,
@@ -104,7 +121,10 @@ fun NewMissionSheet(
                 }
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 FilterChip(
                     selected = autonomous,
                     onClick = {
