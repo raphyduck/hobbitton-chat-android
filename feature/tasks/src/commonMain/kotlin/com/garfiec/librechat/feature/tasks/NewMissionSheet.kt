@@ -2,9 +2,12 @@ package com.garfiec.librechat.feature.tasks
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
@@ -31,7 +34,6 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_mode_hint_interactive
 import com.garfiec.librechat.feature.tasks.resources.tasks_mode_interactive
 import com.garfiec.librechat.feature.tasks.resources.tasks_new
 import com.garfiec.librechat.feature.tasks.resources.tasks_objective
-import com.garfiec.librechat.feature.tasks.resources.tasks_profile
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -44,7 +46,13 @@ import org.jetbrains.compose.resources.stringResource
 private val CONNECTORS = listOf("memoire", "memoire-ecriture", "fichiers", "shell")
 
 /**
- * Creating a mission: an objective, a profile, the connectors it may use, and how it is watched.
+ * Creating a mission: an objective, the connectors it may use, and how it is watched.
+ *
+ * No profile choice, deliberately (25/08). What a mission does is what its objective says; what it
+ * MAY do is what these checkboxes grant — the per-session permission rules override the profile's
+ * anyway. The profile had become a third control that decided neither, offered the engine's
+ * internal agents (`compaction`) alongside the real ones, and pushed the launch button off screen.
+ * Every mission from this sheet runs on the server's generic `mission` profile.
  *
  * Nothing is ticked by default. A mission that can do nothing is useless but harmless; one that can
  * write to memory because a checkbox was pre-filled is neither.
@@ -52,18 +60,23 @@ private val CONNECTORS = listOf("memoire", "memoire-ecriture", "fichiers", "shel
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun NewMissionSheet(
-    profiles: List<String>,
     onDismiss: () -> Unit,
-    onLaunch: (profile: String, objective: String, connectors: List<String>, autonomous: Boolean) -> Unit,
+    onLaunch: (objective: String, connectors: List<String>, autonomous: Boolean) -> Unit,
 ) {
     var objective by remember { mutableStateOf("") }
-    var profile by remember(profiles) { mutableStateOf(profiles.firstOrNull().orEmpty()) }
     var autonomous by remember { mutableStateOf(true) }
     val ticked = remember { mutableListOf<String>().toMutableStateList() }
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 32.dp),
+            // Défilable, sinon le bouton « Lancer » est hors de l'écran et la mission est
+            // impossible à créer depuis un téléphone. Constaté le 25/08 : la feuille s'arrêtait
+            // au milieu du choix de mode, sans rien pour aller plus bas.
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text(stringResource(Res.string.tasks_new), style = MaterialTheme.typography.titleLarge)
@@ -75,17 +88,6 @@ fun NewMissionSheet(
                 minLines = 3,
                 modifier = Modifier.fillMaxWidth(),
             )
-
-            Text(stringResource(Res.string.tasks_profile), style = MaterialTheme.typography.titleSmall)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                profiles.forEach { candidate ->
-                    FilterChip(
-                        selected = candidate == profile,
-                        onClick = { profile = candidate },
-                        label = { Text(candidate) },
-                    )
-                }
-            }
 
             Text(stringResource(Res.string.tasks_connectors), style = MaterialTheme.typography.titleSmall)
             CONNECTORS.forEach { connector ->
@@ -104,7 +106,10 @@ fun NewMissionSheet(
                 }
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 FilterChip(
                     selected = autonomous,
                     onClick = {
@@ -136,8 +141,8 @@ fun NewMissionSheet(
             ) {
                 TextButton(onClick = onDismiss) { Text(stringResource(Res.string.tasks_cancel)) }
                 TextButton(
-                    enabled = objective.isNotBlank() && profile.isNotBlank(),
-                    onClick = { onLaunch(profile, objective.trim(), ticked.toList(), autonomous) },
+                    enabled = objective.isNotBlank(),
+                    onClick = { onLaunch(objective.trim(), ticked.toList(), autonomous) },
                 ) { Text(stringResource(Res.string.tasks_launch)) }
             }
         }

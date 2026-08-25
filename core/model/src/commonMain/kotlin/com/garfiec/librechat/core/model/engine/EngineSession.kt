@@ -55,6 +55,16 @@ data class EngineAgentProfile(
     /** Iteration cap. NOT a duration: the engine has no wall-clock bound, which is why the server
      * carries a watchdog instead (server-side D-028). */
     val steps: Int? = null,
+    /** `primary`, `subagent` or `all` — a subagent is the engine's internal help, not a profile. */
+    val mode: String? = null,
+    /**
+     * True for the agents OpenCode ships with — `build`, `compaction` — as opposed to the ones
+     * declared in the deployment's own configuration. On 25/08 the New-mission sheet offered
+     * `compaction`, the engine's internal context-summarizer, as if it were a mission profile:
+     * the list from `GET /agent` mixes both kinds, and only this flag tells them apart.
+     */
+    val native: Boolean = false,
+    val hidden: Boolean = false,
 )
 
 @Serializable

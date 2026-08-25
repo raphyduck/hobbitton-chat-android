@@ -11,6 +11,7 @@ import com.garfiec.librechat.core.data.engine.EngineSignInResult
 import com.garfiec.librechat.core.data.engine.Mission
 import com.garfiec.librechat.core.data.engine.engineFailureKind
 import com.garfiec.librechat.core.data.scheduler.SchedulerRepository
+import com.garfiec.librechat.core.model.engine.EngineAgentProfile
 import com.garfiec.librechat.core.model.engine.EngineFailureKind
 import com.garfiec.librechat.core.model.scheduler.Consumption
 import com.garfiec.librechat.core.model.scheduler.ProviderHealth
@@ -59,7 +60,6 @@ data class TasksUiState(
     /** Why the last provider check failed, or null. Kept apart from [error] for the usual reason:
      * a gateway that did not answer is not an engine that did not answer. */
     val providersError: String? = null,
-    val profiles: List<String> = emptyList(),
     /** Why the last call failed, or null. The screen turns it into a sentence and an offer. */
     val error: EngineFailureKind? = null,
     /** The portal round trip is in flight: the browser is open, the person is proving who they are. */
@@ -172,13 +172,13 @@ class TasksViewModel(
             refreshScheduled()
             runCatching { repository.missions() to repository.profiles() }
                 .onSuccess { (missions, profiles) ->
+                    profils = profiles
                     _state.update {
                         it.copy(
                             loading = false,
                             // Newest first: the mission someone just launched is the one they are
                             // looking for, and the engine returns them oldest first.
                             missions = missions.sortedByDescending { mission -> mission.createdAtMillis ?: 0 },
-                            profiles = profiles.map { profile -> profile.name },
                         )
                     }
                 }
@@ -268,10 +268,15 @@ class TasksViewModel(
         }
     }
 
-    fun launch(profile: String, objective: String, connectors: List<String>, autonomous: Boolean) {
+    /** Ce que le moteur a répondu à `GET /agent` — gardé pour résoudre le profil au lancement. */
+    private var profils: List<EngineAgentProfile> = emptyList()
+
+    fun launch(objective: String, connectors: List<String>, autonomous: Boolean) {
         viewModelScope.launch {
             _state.update { it.copy(loading = true, error = null) }
-            runCatching { repository.launch(profile, objective, connectors, autonomous = autonomous) }
+            runCatching {
+                repository.launch(missionProfile(profils), objective, connectors, autonomous = autonomous)
+            }
                 .onSuccess { refresh() }
                 .onFailure { failure ->
                     Logger.w(failure, tag = "Tasks") { "Could not start the mission" }
@@ -304,3 +309,28 @@ private fun EngineSignInResult.asProblem(): EngineSignInProblem? = when (this) {
     is EngineSignInResult.Interrupted -> EngineSignInProblem.INTERRUPTED
     is EngineSignInResult.MissingAuthorizationScope -> EngineSignInProblem.MISSING_SCOPE
 }
+
+/** Le profil du moteur sur lequel toute mission de l'application tourne. Déclaré côté serveur dans
+ * `config/opencode/opencode.json` ; les deux noms ne doivent pas dériver. */
+internal const val MISSION_PROFILE = "mission"
+
+/**
+ * Le profil à utiliser, sans demander à la personne.
+ *
+ * Décision du 25/08 : le choix de profil disparaît de la feuille « nouvelle mission ». Ce qu'une
+ * mission FAIT est son objectif ; ce qu'elle PEUT faire est la liste de connecteurs cochés — les
+ * règles de permission par session priment sur celles du profil, donc le choix ne décidait ni de
+ * l'un ni de l'autre. Il offrait en revanche `compaction`, le résumeur interne d'OpenCode, comme
+ * profil de mission.
+ *
+ * L'ordre des replis compte :
+ *  1. le profil générique [MISSION_PROFILE], s'il est déployé ;
+ *  2. sinon le premier profil DÉCLARÉ — ni natif, ni caché, ni sous-agent — pour qu'un moteur pas
+ *     encore à jour continue de lancer des missions au lieu d'échouer sur un nom inconnu ;
+ *  3. sinon [MISSION_PROFILE] quand même : le moteur refusera avec une erreur que l'écran sait
+ *     déjà montrer, ce qui vaut mieux qu'un lancement silencieusement impossible.
+ */
+internal fun missionProfile(profiles: List<EngineAgentProfile>): String =
+    profiles.firstOrNull { it.name == MISSION_PROFILE }?.name
+        ?: profiles.firstOrNull { !it.native && !it.hidden && it.mode != "subagent" }?.name
+        ?: MISSION_PROFILE

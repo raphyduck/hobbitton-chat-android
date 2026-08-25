@@ -13,7 +13,6 @@
     <string name="tasks_state_failed">Échec</string>
     <string name="tasks_state_idle">Non lancée</string>
     <string name="tasks_objective">Objectif</string>
-    <string name="tasks_profile">Profil</string>
     <string name="tasks_connectors">Connecteurs</string>
     <string name="tasks_mode_autonomous">Autonome</string>
     <string name="tasks_mode_interactive">Interactif</string>
@@ -69,6 +68,7 @@
     <string name="tasks_spend_total_partial">au moins %1$s pour %2$s jetons</string>
     <string name="tasks_spend_unpriced">non tarifé</string>
     <string name="tasks_spend_tiny">&lt; 0,0001 $</string>
+    <string name="tasks_spend_at_least">au moins %1$s</string>
     <string name="tasks_spend_calls">%1$d appels</string>
     <string name="tasks_spend_cache_saved">Le cache de préfixe a économisé %1$s</string>
     <string name="tasks_spend_unpriced_note">Non tarifé ne veut pas dire gratuit : la gateway a compté les jetons mais n'a pas de prix pour ces modèles.</string>

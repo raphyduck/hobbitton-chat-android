@@ -82,6 +82,14 @@ class EngineSignInTest {
         fun client(): EngineTokenClient {
             val engine = MockEngine { request ->
                 val fields = request.body.toByteArray().decodeToString()
+                    // `+` vaut ESPACE en `application/x-www-form-urlencoded` — un `+` litteral y
+                    // voyage en `%2B`. `parseUrlEncodedParameters` de Ktor ne fait pas cette
+                    // conversion ; Go, dont Authelia est fait, la fait. Sans cette ligne le faux
+                    // decode moins bien que la vraie chose, et une assertion sur une valeur a
+                    // plusieurs mots — les scopes, les audiences — echoue pour une raison qui
+                    // n'existe pas en service. Verifie le 25/08 : une demande PAR dont l'audience
+                    // est separee par `+` est acceptee (201).
+                    .replace('+', ' ')
                     .parseUrlEncodedParameters()
                     .entries()
                     .associate { (name, values) -> name to values.first() }
@@ -166,6 +174,22 @@ class EngineSignInTest {
         val attendu = "https://sched.example.com/oauth/authelia"
         assertEquals(attendu, portal.forms["par"]?.get("redirect_uri"))
         assertEquals(attendu, portal.forms["token"]?.get("redirect_uri"))
+    }
+
+    @Test
+    fun `le tour reclame les audiences du moteur et du planificateur`() = runTest {
+        // Le defaut du 25/08 : le tour complet reussissait et le jeton obtenu etait refuse a chaque
+        // requete. « token does not contain a valid audience … invalid_target », dans les journaux
+        // d'Authelia, pendant que l'ecran disait « le moteur n'a pas repondu ».
+        val portal = Portal()
+        val inbox = FakeInbox { state -> FormPostCallback.Success("le-code", state) }
+
+        flow(portal, inbox, FakeStore()).signIn { }
+
+        assertEquals(
+            "https://agent.example.com https://sched.example.com",
+            portal.forms["par"]?.get("audience"),
+        )
     }
 
     @Test

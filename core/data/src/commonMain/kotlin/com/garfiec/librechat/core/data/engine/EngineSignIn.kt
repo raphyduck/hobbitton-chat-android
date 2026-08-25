@@ -94,7 +94,15 @@ class EngineSignIn(
             )
 
             val pushed = runCatching {
-                tokens.pushAuthorizationRequest(discovered, attempt)
+                // Les audiences sont RÉCLAMÉES, pas héritées : la liste du client côté portail dit
+                // ce qui est permis, pas ce qui est accordé. Sans elles, tout le tour réussit et le
+                // jeton obtenu est refusé à chaque requête en `invalid_target` — l'échec du 25/08,
+                // qui se lisait à l'écran comme « le moteur n'a pas répondu ».
+                tokens.pushAuthorizationRequest(
+                    endpoints = discovered,
+                    attempt = attempt,
+                    audiences = listOf(engine.baseUrl, engine.schedulerUrl),
+                )
             }.getOrElse { failure ->
                 Logger.w("Engine", failure) { "The pushed authorization request was refused" }
                 return EngineSignInResult.PortalUnreachable(failure.message ?: "PAR refused")
