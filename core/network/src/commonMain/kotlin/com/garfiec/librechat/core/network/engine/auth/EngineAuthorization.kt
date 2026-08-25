@@ -58,21 +58,48 @@ data class EngineAuthorizationAttempt(
  * client that asks for `authelia.bearer.authz` with anything else, and a form POST cannot be
  * delivered to an app scheme — which is why the redirect points at [callbackRedirectUri], an HTTPS
  * route on the server that bounces to the app scheme in a GET.
+ *
+ * ## `audience` — le paramètre dont l'absence ne se voit qu'à l'usage
+ *
+ * Un jeton `authelia.bearer.authz` ne vaut que pour les audiences qu'il PORTE, et il ne porte que
+ * celles que la demande d'autorisation a réclamées. La liste `audience` du client, côté serveur,
+ * est ce qui est *permis* — pas ce qui est accordé d'office.
+ *
+ * Sans ce paramètre, tout réussit et rien ne marche : le portail authentifie, délivre un code,
+ * l'échange rend un jeton parfaitement valide… que le proxy refuse à chaque requête. Relevé le
+ * 25/08 dans les journaux d'Authelia :
+ *
+ * ```
+ * failed to validate Proxy-Authorization header with bearer scheme: token does not contain
+ * a valid audience for the url 'https://sched.hobbitton.at/mcp' with the error: invalid_target
+ * ```
+ *
+ * Vérifié contre le serveur, pas déduit : une demande PAR **avec** `audience` est acceptée (201),
+ * exactement comme celle sans. C'est bien la demande qui manquait, pas le droit de la faire.
+ *
+ * [audiences] doit contenir les adresses des services que le jeton devra ouvrir — le moteur, et le
+ * planificateur quand il est configuré. Les valeurs sont comparées telles quelles à la liste du
+ * client : une barre finale de trop suffit à faire échouer l'appariement, d'où le nettoyage ici
+ * plutôt qu'au bon vouloir de chaque appelant.
  */
 fun pushedAuthorizationForm(
     clientId: String,
     attempt: EngineAuthorizationAttempt,
     scopes: List<String> = EngineScopes.DEFAULT,
-): List<Pair<String, String>> = listOf(
-    "client_id" to clientId,
-    "response_type" to "code",
-    "response_mode" to "form_post",
-    "redirect_uri" to attempt.redirectUri,
-    "scope" to scopes.joinToString(" "),
-    "state" to attempt.state,
-    "code_challenge" to attempt.pkce.challenge,
-    "code_challenge_method" to PkcePair.METHOD,
-)
+    audiences: List<String> = emptyList(),
+): List<Pair<String, String>> = buildList {
+    add("client_id" to clientId)
+    add("response_type" to "code")
+    add("response_mode" to "form_post")
+    add("redirect_uri" to attempt.redirectUri)
+    add("scope" to scopes.joinToString(" "))
+    add("state" to attempt.state)
+    add("code_challenge" to attempt.pkce.challenge)
+    add("code_challenge_method" to PkcePair.METHOD)
+
+    val demandees = audiences.map { it.trim().trimEnd('/') }.filter { it.isNotBlank() }.distinct()
+    if (demandees.isNotEmpty()) add("audience" to demandees.joinToString(" "))
+}
 
 /**
  * The URL to hand to the system browser once the PAR call has returned its `request_uri`.

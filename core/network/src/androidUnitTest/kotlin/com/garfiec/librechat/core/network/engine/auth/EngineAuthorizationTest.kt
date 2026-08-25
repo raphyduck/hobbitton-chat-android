@@ -70,6 +70,51 @@ class EngineAuthorizationTest {
     }
 
     @Test
+    fun `la demande reclame les audiences, sans quoi le jeton n'ouvre rien`() {
+        // Le defaut du 25/08. Tout le tour reussissait — portail, code, echange — et chaque requete
+        // repartait en `invalid_target` : « token does not contain a valid audience ». La liste
+        // `audience` du client cote portail dit ce qui est PERMIS, pas ce qui est accorde.
+        val form = pushedAuthorizationForm(
+            "hobbitton-chat-android",
+            attempt,
+            audiences = listOf("https://agent.example.com", "https://sched.example.com"),
+        ).toMap()
+
+        assertThat(form["audience"])
+            .isEqualTo("https://agent.example.com https://sched.example.com")
+    }
+
+    @Test
+    fun `une barre finale ne fait pas rater l'appariement d'audience`() {
+        // Les valeurs sont comparees telles quelles a la liste du client. Un `/` de trop suffit a
+        // faire refuser le jeton, avec un message qui ne nomme ni le reglage ni sa valeur.
+        val form = pushedAuthorizationForm(
+            "hobbitton-chat-android",
+            attempt,
+            audiences = listOf("https://agent.example.com/", "  https://sched.example.com  "),
+        ).toMap()
+
+        assertThat(form["audience"])
+            .isEqualTo("https://agent.example.com https://sched.example.com")
+    }
+
+    @Test
+    fun `une audience vide n'est pas envoyee du tout`() {
+        // Le planificateur est facultatif : son adresse peut etre vide. Envoyer un `audience` vide
+        // ou avec une entree blanche ferait rejeter la demande entiere plutot que d'en retirer une
+        // cible.
+        val form = pushedAuthorizationForm(
+            "hobbitton-chat-android",
+            attempt,
+            audiences = listOf("https://agent.example.com", "", "   "),
+        ).toMap()
+
+        assertThat(form["audience"]).isEqualTo("https://agent.example.com")
+        assertThat(pushedAuthorizationForm("hobbitton-chat-android", attempt).toMap())
+            .doesNotContainKey("audience")
+    }
+
+    @Test
     fun `the pushed request asks for form_post and the bearer scope`() {
         val form = pushedAuthorizationForm("hobbitton-chat-android", attempt).toMap()
 

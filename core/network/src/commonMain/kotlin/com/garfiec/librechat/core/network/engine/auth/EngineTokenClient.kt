@@ -34,12 +34,14 @@ class EngineTokenClient(
         endpoints: EngineOAuthEndpoints,
         attempt: EngineAuthorizationAttempt,
         scopes: List<String> = EngineScopes.DEFAULT,
+        audiences: List<String> = emptyList(),
     ): PushedAuthorizationResponse {
         val endpoint = requireNotNull(endpoints.parEndpoint) {
             "This Authelia does not advertise a pushed authorization request endpoint"
         }
         val form = Parameters.build {
-            pushedAuthorizationForm(clientId, attempt, scopes).forEach { (k, v) -> append(k, v) }
+            pushedAuthorizationForm(clientId, attempt, scopes, audiences)
+                .forEach { (k, v) -> append(k, v) }
         }
         return client.submitForm(url = endpoint, formParameters = form).body()
     }
