@@ -1,9 +1,11 @@
 package com.garfiec.librechat.core.network.engine.auth
 
+import com.garfiec.librechat.core.common.result.ApiException
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.forms.submitForm
 import io.ktor.client.request.get
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.Parameters
 
 /**
@@ -73,16 +75,58 @@ class EngineTokenClient(
      *
      * The response may carry a **new** refresh token; callers must store whichever came back rather
      * than keeping the old one, or the next renewal fails once the server rotates them.
+     *
+     * Raises [EngineGrantRefused] — and only then — when the portal rejects the grant itself. Every
+     * other failure (no network, a proxy hiccup, a portal being restarted) comes out as whatever it
+     * was, so the caller can keep a session that is still perfectly good. Both used to arrive as an
+     * indistinguishable `Throwable`, and the caller forgot the session on either.
      */
     suspend fun refresh(
         endpoints: EngineOAuthEndpoints,
         refreshToken: String,
-    ): EngineTokenResponse = client.submitForm(
-        url = endpoints.tokenEndpoint,
-        formParameters = Parameters.build {
-            append("grant_type", "refresh_token")
-            append("refresh_token", refreshToken)
-            append("client_id", clientId)
-        },
-    ).body()
+    ): EngineTokenResponse {
+        val response = try {
+            client.submitForm(
+                url = endpoints.tokenEndpoint,
+                formParameters = Parameters.build {
+                    append("grant_type", "refresh_token")
+                    append("refresh_token", refreshToken)
+                    append("client_id", clientId)
+                },
+            )
+        } catch (raised: ApiException) {
+            // This client validates responses, so a failing status arrives here rather than below.
+            // A 5xx is deliberately left alone: an overloaded portal is not a revoked token.
+            if (raised.statusCode in REFUSAL_STATUSES) {
+                throw EngineGrantRefused(
+                    error = oauthError(raised.body) ?: "http ${raised.statusCode}",
+                    cause = raised,
+                )
+            }
+            throw raised
+        }
+        // And when it does not validate — the shape the tests use, and any future client without a
+        // validator — the same status has to be read off the response itself. Left to fall through,
+        // a `{"error":"invalid_grant"}` body would surface as a deserialization failure: a
+        // definitive refusal wearing the costume of a transient one.
+        if (response.status.value in REFUSAL_STATUSES) {
+            val body = runCatching { response.bodyAsText() }.getOrNull()
+            throw EngineGrantRefused(oauthError(body) ?: "http ${response.status.value}")
+        }
+        return response.body()
+    }
+
+    private companion object {
+        /**
+         * The portal's own refusals. `400` carries `invalid_grant`, `401` an unknown client — both
+         * are final, and no amount of retrying turns them into a token.
+         */
+        val REFUSAL_STATUSES = 400..499
+
+        /** Best effort: the log reads better with `invalid_grant` than with `http 400`. */
+        fun oauthError(body: String?): String? = body
+            ?.substringAfter("\"error\":\"", "")
+            ?.substringBefore('"')
+            ?.takeIf { it.isNotBlank() }
+    }
 }

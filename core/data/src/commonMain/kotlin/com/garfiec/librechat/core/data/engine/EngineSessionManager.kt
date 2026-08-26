@@ -3,9 +3,11 @@ package com.garfiec.librechat.core.data.engine
 import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.network.engine.EngineTokenStore
 import com.garfiec.librechat.core.network.engine.EngineTokens
+import com.garfiec.librechat.core.network.engine.auth.EngineGrantRefused
 import com.garfiec.librechat.core.network.engine.auth.EngineOAuthEndpoints
 import com.garfiec.librechat.core.network.engine.auth.EngineTokenClient
 import com.garfiec.librechat.core.network.engine.auth.EngineTokenResponse
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -57,14 +59,23 @@ class EngineSessionManager(
             return@withLock null
         }
 
-        val renewed = runCatching { client.refresh(requireEndpoints(), refreshToken) }
-            .onFailure { error ->
-                Logger.w("Engine", error) { "Engine token renewal failed" }
-            }
-            .getOrNull() ?: run {
-            // Deliberately destructive: a refusal here means the portal session is gone, and
-            // keeping a dead pair around only produces the same failure on every later call.
+        val renewed = try {
+            client.refresh(requireEndpoints(), refreshToken)
+        } catch (refused: EngineGrantRefused) {
+            // Destructive, and only here. The portal will not honour this pair again — keeping it
+            // reproduces the same refusal on every later call.
+            Logger.i("Engine") { "The portal refused the renewal (${refused.error}) — the portal has to be visited again" }
             store.clear()
+            return@withLock null
+        } catch (cancellation: CancellationException) {
+            // The screen went away mid-renewal. Nothing is wrong with the session, and swallowing
+            // this would also break the caller's own cancellation.
+            throw cancellation
+        } catch (unreachable: Exception) {
+            // No network, a proxy hiccup, a portal being restarted. The tokens are still valid:
+            // forgetting them here is how a lost Wi-Fi second becomes a full second-factor login.
+            // The caller gets null and fails this one request; the next one renews normally.
+            Logger.w("Engine", unreachable) { "Engine token renewal could not reach the portal — session kept" }
             return@withLock null
         }
 
