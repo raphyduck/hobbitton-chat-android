@@ -16,6 +16,7 @@ import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.test.runTest
+import kotlinx.io.IOException
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -120,6 +121,32 @@ class EngineSessionManagerTest {
 
         assertNull(bearer)
         assertEquals(true, store.cleared)
+    }
+
+    @Test
+    fun `a portal that cannot be reached keeps the session it could not renew`() = runTest {
+        // The one that used to log the user out for a lost second of Wi-Fi. The tokens are still
+        // perfectly valid; only the trip to the portal failed. Forgetting them here costs a full
+        // second-factor login, and nothing on screen says why.
+        val engine = MockEngine { throw IOException("network is unreachable") }
+        val store = FakeStore(EngineTokens("at-1", "rt-1", expiresAtEpochSeconds = 500))
+
+        val bearer = manager(store, engine).bearer()
+
+        assertNull(bearer)
+        assertEquals(false, store.cleared)
+        assertEquals("rt-1", store.tokens?.refreshToken)
+    }
+
+    @Test
+    fun `a portal that is merely overloaded is not a revoked session either`() = runTest {
+        // 5xx is the portal having a bad moment, not the grant being dead. Same reasoning as the
+        // unreachable case, and the status is the only thing that tells them apart.
+        val engine = MockEngine { respond("upstream is down", HttpStatusCode.BadGateway) }
+        val store = FakeStore(EngineTokens("at-1", "rt-1", expiresAtEpochSeconds = 500))
+
+        assertNull(manager(store, engine).bearer())
+        assertEquals(false, store.cleared)
     }
 
     @Test
