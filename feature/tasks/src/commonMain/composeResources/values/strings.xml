@@ -6,6 +6,7 @@
     <string name="tasks_new">New mission</string>
     <string name="tasks_retry">Retry</string>
     <string name="tasks_stop">Stop</string>
+    <string name="tasks_transcript_empty">Nothing to show yet — the mission has not spoken.</string>
     <string name="tasks_not_configured">The engine is not set up yet</string>
     <string name="tasks_not_configured_hint">Add its address and credentials in Settings, then come back.</string>
     <string name="tasks_state_running">Running</string>

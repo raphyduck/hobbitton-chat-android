@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -110,6 +111,8 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_state_running
 import com.garfiec.librechat.feature.tasks.resources.tasks_state_succeeded
 import com.garfiec.librechat.feature.tasks.resources.tasks_stop
 import com.garfiec.librechat.feature.tasks.resources.tasks_title
+import com.garfiec.librechat.feature.tasks.resources.tasks_transcript_empty
+import com.garfiec.librechat.feature.tasks.util.TranscriptEntry
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -273,7 +276,13 @@ fun TasksScreen(
                         SectionHeader(stringResource(Res.string.tasks_sessions_header))
                     }
                     items(state.missions, key = { it.sessionId }) { mission ->
-                        MissionRow(mission = mission, onStop = { viewModel.abort(mission.sessionId) })
+                        MissionRow(
+                            mission = mission,
+                            expanded = state.openSessionId == mission.sessionId,
+                            transcript = state.transcripts[mission.sessionId],
+                            onToggle = { viewModel.toggleMission(mission.sessionId) },
+                            onStop = { viewModel.abort(mission.sessionId) },
+                        )
                     }
                 }
             }
@@ -683,10 +692,36 @@ private fun LastRunLine(mission: ScheduledMission) {
 }
 
 @Composable
-private fun MissionRow(mission: Mission, onStop: () -> Unit) {
+private fun MissionRow(
+    mission: Mission,
+    expanded: Boolean,
+    transcript: TranscriptLoad?,
+    onToggle: () -> Unit,
+    onStop: () -> Unit,
+) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(mission.title, style = MaterialTheme.typography.titleMedium)
+            // The whole header is the target: tapping the row opens the transcript, which is what
+            // « I clicked and nothing happened » was asking for. The chevron says it is openable;
+            // the row was a flat card before, with nothing telling anyone it could be.
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onToggle),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    mission.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                Icon(
+                    if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -705,6 +740,52 @@ private fun MissionRow(mission: Mission, onStop: () -> Unit) {
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
                 )
+            }
+            if (expanded) {
+                HorizontalDivider()
+                MissionTranscriptView(transcript)
+            }
+        }
+    }
+}
+
+/** The opened session's transcript: a spinner while it loads, a reason if it will not, the lines if it does. */
+@Composable
+private fun MissionTranscriptView(transcript: TranscriptLoad?) {
+    when (transcript) {
+        null, TranscriptLoad.Loading -> CircularProgressIndicator(
+            modifier = Modifier.size(20.dp),
+            strokeWidth = 2.dp,
+        )
+
+        is TranscriptLoad.Failed -> Text(
+            stringResource(transcript.kind.title()),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.error,
+        )
+
+        is TranscriptLoad.Loaded -> if (transcript.entries.isEmpty()) {
+            Text(
+                stringResource(Res.string.tasks_transcript_empty),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                transcript.entries.forEach { entry ->
+                    when (entry.kind) {
+                        TranscriptEntry.Kind.TOOL -> Text(
+                            "🔧 " + entry.text,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+
+                        TranscriptEntry.Kind.TEXT -> Text(
+                            entry.text,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+                }
             }
         }
     }
