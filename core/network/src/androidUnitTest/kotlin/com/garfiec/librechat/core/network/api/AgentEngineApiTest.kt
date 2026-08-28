@@ -56,6 +56,12 @@ class AgentEngineApiTest {
             assertThat(rules).hasSize(2)
             assertThat(rules[0].jsonObject["permission"]!!.jsonPrimitive.content).isEqualTo("*")
             assertThat(rules[0].jsonObject["action"]!!.jsonPrimitive.content).isEqualTo("deny")
+            // `pattern` MUST survive serialization even though it equals its default: the engine
+            // validates each rule as {permission, pattern, action} and 400s the whole request when
+            // it is absent. The app's Json is `encodeDefaults = false`, so only @EncodeDefault(ALWAYS)
+            // on the field keeps it on the wire — dropping it made every mission launch fail.
+            assertThat(rules[0].jsonObject.keys).contains("pattern")
+            assertThat(rules[0].jsonObject["pattern"]!!.jsonPrimitive.content).isEqualTo("*")
             respond(
                 content = """{"id":"ses_abc","title":"consolidation"}""",
                 status = HttpStatusCode.OK,
@@ -80,8 +86,11 @@ class AgentEngineApiTest {
     @Test
     fun `the objective goes to prompt_async, which is the route that exists`() = runTest {
         var path: String? = null
+        var parts: kotlinx.serialization.json.JsonArray? = null
         val engine = MockEngine { request ->
             path = request.url.encodedPath
+            parts = json.parseToJsonElement(String(request.body.toByteArray()))
+                .jsonObject["parts"]!!.jsonArray
             respond(content = "{}", status = HttpStatusCode.OK, headers = jsonHeaders())
         }
 
@@ -92,6 +101,12 @@ class AgentEngineApiTest {
 
         // `message/async` reads plausibly and returns 404.
         assertThat(path).isEqualTo("/session/ses_abc/prompt_async")
+        // `type` MUST survive serialization even at its default: prompt_async validates each part as
+        // a discriminated union on `type` and 400s ("Expected { type: \"text\" … }") when it is
+        // absent. Same `encodeDefaults = false` trap as the permission rule's `pattern` — the twin
+        // bug one call further on. @EncodeDefault(ALWAYS) is what keeps it on the wire.
+        assertThat(parts!![0].jsonObject.keys).contains("type")
+        assertThat(parts!![0].jsonObject["type"]!!.jsonPrimitive.content).isEqualTo("text")
     }
 
     @Test

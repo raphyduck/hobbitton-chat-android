@@ -1,5 +1,7 @@
 package com.garfiec.librechat.core.model.engine
 
+import kotlinx.serialization.EncodeDefault
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -41,9 +43,16 @@ data class EngineTime(
  * always opens with a `*` → `deny` catch-all and adds the connectors the mission is allowed.
  */
 @Serializable
+@OptIn(ExperimentalSerializationApi::class)
 data class EnginePermissionRule(
     val permission: String,
-    val pattern: String = "*",
+    // ALWAYS on the wire, even though it equals its default: the engine's `POST /session` validates
+    // each rule as `{permission, pattern, action}` and rejects the whole request with a bare 400
+    // `{"_tag":"BadRequest"}` when `pattern` is absent (verified against the live engine 28/08/2026).
+    // The app's Json is `encodeDefaults = false`, so without this annotation the default `"*"` is
+    // dropped and EVERY mission launch fails — permissionsFor always emits at least the deny-all rule
+    // with the default pattern, so createSession never once succeeded from the app.
+    @EncodeDefault(EncodeDefault.Mode.ALWAYS) val pattern: String = "*",
     val action: String,
 )
 
