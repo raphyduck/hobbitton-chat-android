@@ -11,6 +11,16 @@ import kotlinx.serialization.Serializable
  * the live server on 28/08/2026, versus 11,8 kB here. Downloading it onto a phone to fill a picker
  * with nine entries would be absurd, and the size is not the only reason: that catalogue lists
  * providers this deployment has no key for, so most of what it offers cannot be selected.
+ *
+ * **This response carries a live credential, and nothing here decodes it.** Each provider object
+ * has an `options` field holding the API key the engine was configured with — for the gateway
+ * provider that is the LiteLLM virtual key, in clear text, to anyone who can reach the route.
+ * Observed on the live engine, 28/08/2026. The classes below deliberately declare no `options`
+ * field, so `ignoreUnknownKeys` drops it at parse and it never reaches app state; no HTTP client in
+ * this module logs response bodies, so it never reaches Logcat either.
+ *
+ * Both of those are load-bearing. Adding an `options` property « for completeness », or turning a
+ * client's `LogLevel` up to `BODY` while debugging, puts a gateway key into a log file.
  */
 @Serializable
 data class EngineProviderCatalogue(
