@@ -99,7 +99,8 @@ sealed interface ContentGroup {
 
     /**
      * A reasoning + tool-call block rendered under one collapsible header. Labeled blocks carry
-     * the model's own summary; unlabeled ones are the legacy run-of-two-or-more-tools grouping.
+     * the model's own summary; unlabeled ones fold a run of two or more tool calls together with
+     * any reasoning interleaved among them (see [groupSequentially]).
      */
     data class Activity(
         override val key: String,
@@ -192,16 +193,29 @@ private fun groupSequentially(
     var claimStart = 0
 
     fun flushUnlabeled() {
+        // A run is a maximal stretch of groupable tool calls AND the reasoning interleaved with
+        // them. Reasoning does NOT break the run: a "think → tools → think → tools" sequence — what
+        // a model that emits no activity labels produces, i.e. most non-Anthropic models — folds
+        // into ONE "Used N tools" block instead of the stack of alternating Thinking and tool
+        // cards it used to render.
+        //
+        // DELIBERATE DIVERGENCE from upstream's feature-off path (`groupToolCalls.ts` renders
+        // reasoning standalone in place, runs of ≥2 tools grouped): Raphaël, 28/08/2026 — the
+        // alternating stack overloads the chat for a single work sequence. A /sync-upstream must
+        // NOT "restore parity" here. The grouping threshold still counts TOOL CALLS, not entries,
+        // so a run holding fewer than two tools renders every entry standalone: a lone tool call,
+        // and a stray thought with no tools around it, read exactly as before.
         var run = mutableListOf<IndexedContentPart>()
         fun flushRun() {
+            val toolCount = run.count { it.part.type == ContentType.TOOL_CALL }
             when {
-                run.size >= 2 -> result += activityGroup(run.toList(), label = null)
+                toolCount >= 2 -> result += activityGroup(run.toList(), label = null)
                 else -> run.forEach { result += ContentGroup.Single(it) }
             }
             run = mutableListOf()
         }
         block.forEach { entry ->
-            if (entry.part.isGroupableToolCall()) {
+            if (entry.part.isGroupableToolCall() || entry.part.type == ContentType.THINK) {
                 run += entry
             } else {
                 flushRun()
