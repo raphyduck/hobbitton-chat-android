@@ -3,9 +3,9 @@ name: Release
 # Manual, one-button release. Versions are calver (YYYY.MM.PATCH); year/month come
 # from the current UTC date automatically, so the only choice is stable vs candidate.
 # The job bumps version.properties, builds a signed universal APK, and ONLY THEN
-# commits + tags it and publishes a draft GitHub Release with auto-generated notes —
+# commits + tags it and publishes a GitHub Release with auto-generated notes —
 # so a failed build never leaves an orphaned tag or a burned version on the branch.
-# Review the draft, then publish it; Obtainium/IzzyOnDroid pick up published releases.
+# The release is PUBLISHED directly (no draft); Obtainium/IzzyOnDroid pick it up.
 on:
   workflow_dispatch:
     inputs:
@@ -37,7 +37,7 @@ jobs:
     # settings). Secrets are unavailable to fork PRs, so this stays off the PR path.
     environment: release
     # Surface the bumped version + tag so the secondary `ios` job can check out the tagged
-    # commit and name/upload its IPA against the same draft release.
+    # commit and name/upload its IPA against the same release.
     outputs:
       version_name: ${{ steps.bump.outputs.version_name }}
       tag: ${{ steps.bump.outputs.tag }}
@@ -189,7 +189,7 @@ jobs:
           gh api --method POST "repos/${{ github.repository }}/releases/generate-notes" \
             -f tag_name="$TAG" --jq .body > "$RUNNER_TEMP/changelog.md"
 
-          # The iOS job uploads this deterministic asset name to the same draft; reference it
+          # The iOS job uploads this deterministic asset name to the same release; reference it
           # statically here even though this step runs before that job finishes.
           IPA="switchboard-v${VERSION}.ipa"
 
@@ -212,7 +212,7 @@ jobs:
               "${{ github.server_url }}" "${{ github.repository }}" "${{ github.run_id }}"
           } > "$RUNNER_TEMP/body.md"
 
-      - name: Create draft release
+      - name: Create and publish release
         # Pinned to a commit SHA (not a moving tag): this step runs with a
         # contents:write token, so a hijacked tag could push tags/releases on our
         # behalf. Dependabot bumps the pin — see .github/dependabot.yml.
@@ -220,7 +220,11 @@ jobs:
         with:
           tag_name: ${{ steps.bump.outputs.tag }}
           name: ${{ steps.bump.outputs.tag }}
-          draft: true
+          # Published directly, not as a draft (Raphaël, 28/08/2026): a draft is invisible
+          # to Obtainium and direct downloads until someone clicks Publish, which stranded
+          # seven releases. A hyphenated version is still marked pre-release below, so the
+          # stable channel stays gated without a manual step.
+          draft: false
           # A hyphenated version (e.g. 2026.07.1-rc1) is a pre-release; Obtainium then
           # ignores it unless the user opts into "Include prereleases".
           prerelease: ${{ contains(steps.bump.outputs.tag, '-') }}
@@ -235,15 +239,15 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Remind to publish the draft
+      - name: Confirm the release is public
         run: |
-          echo "::warning title=Release is a DRAFT::${{ steps.bump.outputs.tag }} was created as a DRAFT. Obtainium and direct downloads will NOT see it until you open it in the GitHub Releases UI and click Publish."
+          echo "::notice title=Release published::${{ steps.bump.outputs.tag }} was PUBLISHED directly (no draft). Obtainium and direct downloads will pick it up. A hyphenated tag is marked pre-release, which Obtainium skips unless the user opts in."
 
   # Secondary, NON-BLOCKING iOS job: builds an UNSIGNED, device-arch IPA from the just-tagged
-  # commit and attaches it to the same draft release. It needs no secrets and no Apple account
+  # commit and attaches it to the same release. It needs no secrets and no Apple account
   # — sideload installers (AltStore/SideStore/Sideloadly) re-sign with the user's free Apple ID,
   # and TrollStore/jailbreak installers accept unsigned IPAs directly. If this macOS job fails,
-  # the Android release (tag + APK + draft) already stands; just re-run it or upload manually.
+  # the Android release (tag + APK + published release) already stands; just re-run it or upload manually.
   ios:
     name: Build & attach unsigned IPA
     needs: release
@@ -340,7 +344,7 @@ jobs:
         with:
           subject-path: ${{ steps.ipa.outputs.ipa }}
 
-      - name: Upload IPA to the draft release
+      - name: Upload IPA to the release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ needs.release.outputs.tag }}
