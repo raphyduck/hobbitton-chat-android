@@ -13,6 +13,8 @@ import com.garfiec.librechat.core.data.engine.engineFailureKind
 import com.garfiec.librechat.core.data.scheduler.SchedulerRepository
 import com.garfiec.librechat.core.model.engine.EngineAgentProfile
 import com.garfiec.librechat.core.model.engine.EngineFailureKind
+import com.garfiec.librechat.core.model.engine.EngineModelRef
+import com.garfiec.librechat.core.model.engine.EngineSelectableModel
 import com.garfiec.librechat.core.model.scheduler.Consumption
 import com.garfiec.librechat.core.model.scheduler.ProviderHealth
 import com.garfiec.librechat.core.model.scheduler.ScheduledMission
@@ -62,6 +64,16 @@ data class TasksUiState(
     val providersError: String? = null,
     /** Why the last call failed, or null. The screen turns it into a sentence and an offer. */
     val error: EngineFailureKind? = null,
+    /**
+     * The models a new mission may be launched on, and the one to tick when the sheet opens.
+     *
+     * Loaded when the sheet is opened, not with the rest of the tab: the catalogue is 11,8 kB and
+     * changes about once a month, so paying for it on every pull-to-refresh buys nothing. Empty
+     * until then, and empty is a valid state — the sheet simply offers no choice and the mission
+     * runs on the profile's own model, exactly as it did before this existed.
+     */
+    val models: List<EngineSelectableModel> = emptyList(),
+    val preselectedModel: EngineSelectableModel? = null,
     /** The portal round trip is in flight: the browser is open, the person is proving who they are. */
     val signingIn: Boolean = false,
     /**
@@ -271,11 +283,44 @@ class TasksViewModel(
     /** Ce que le moteur a répondu à `GET /agent` — gardé pour résoudre le profil au lancement. */
     private var profils: List<EngineAgentProfile> = emptyList()
 
-    fun launch(objective: String, connectors: List<String>, autonomous: Boolean) {
+    /**
+     * Fetches the model catalogue, once.
+     *
+     * Called when the New-mission sheet opens. A failure is **swallowed on purpose**: not being
+     * able to list the models must not stop someone from launching a mission — it costs the
+     * choice, not the feature, and the mission then runs on the profile's own model. Turning this
+     * into the tab's red banner would report « the engine is unreachable » on a screen whose
+     * mission list had just loaded fine.
+     */
+    fun loadModels() {
+        if (_state.value.models.isNotEmpty()) return
+        viewModelScope.launch {
+            runCatching { repository.models() }
+                .onSuccess { choice ->
+                    _state.update { it.copy(models = choice.models, preselectedModel = choice.preselected) }
+                }
+                .onFailure { failure ->
+                    Logger.w(failure, tag = "Tasks") { "Could not list the engine's models" }
+                }
+        }
+    }
+
+    fun launch(
+        objective: String,
+        connectors: List<String>,
+        autonomous: Boolean,
+        model: EngineModelRef? = null,
+    ) {
         viewModelScope.launch {
             _state.update { it.copy(loading = true, error = null) }
             runCatching {
-                repository.launch(missionProfile(profils), objective, connectors, autonomous = autonomous)
+                repository.launch(
+                    missionProfile(profils),
+                    objective,
+                    connectors,
+                    autonomous = autonomous,
+                    model = model,
+                )
             }
                 .onSuccess { refresh() }
                 .onFailure { failure ->

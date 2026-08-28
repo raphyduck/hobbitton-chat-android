@@ -13,6 +13,9 @@
     <string name="tasks_state_failed">Échec</string>
     <string name="tasks_state_idle">Non lancée</string>
     <string name="tasks_objective">Objectif</string>
+    <string name="tasks_model">Modèle</string>
+    <string name="tasks_model_default">Aucun modèle choisi : la mission tourne sur celui du profil.</string>
+    <string name="tasks_model_none">Celui du profil</string>
     <string name="tasks_connectors">Connecteurs</string>
     <string name="tasks_mode_autonomous">Autonome</string>
     <string name="tasks_mode_interactive">Interactif</string>
