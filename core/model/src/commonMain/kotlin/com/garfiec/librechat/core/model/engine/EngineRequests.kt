@@ -1,5 +1,7 @@
 package com.garfiec.librechat.core.model.engine
 
+import kotlinx.serialization.EncodeDefault
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 
 /**
@@ -35,8 +37,14 @@ data class EnginePromptRequest(
 )
 
 @Serializable
+@OptIn(ExperimentalSerializationApi::class)
 data class EnginePromptPart(
-    val type: String = "text",
+    // ALWAYS on the wire, same trap as EnginePermissionRule.pattern: `prompt_async` validates each
+    // part as a discriminated union keyed on `type` and answers 400 ("Expected { type: "text" … }")
+    // when it is absent. `encodeDefaults = false` would otherwise drop the default `"text"` and every
+    // objective would be rejected — the twin of the createSession bug, one call further on (verified
+    // against the live engine 28/08/2026).
+    @EncodeDefault(EncodeDefault.Mode.ALWAYS) val type: String = "text",
     val text: String,
 )
 

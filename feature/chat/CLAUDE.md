@@ -420,9 +420,12 @@ tool block. It is pure because this module has no Compose test harness.
 
 - **Activity groups.** Consecutive reasoning + tool calls fold under one header, terminated by an
   `activity_label` part. A blank label is a *reservation* — invisible, and it only moves the claim
-  boundary so a later filled label cannot reach back past it. With no label at all the block
-  re-splits into the legacy shape (reasoning standalone, runs of ≥2 tools grouped), so a server
-  without the feature renders exactly as before.
+  boundary so a later filled label cannot reach back past it. With no label at all (most
+  non-Anthropic models) the block folds a run of ≥2 tool calls together with any reasoning
+  interleaved among them into one collapsible; a run with fewer than two tools renders every entry
+  standalone. This is a **deliberate divergence** from upstream's feature-off path, which renders
+  reasoning standalone in place — Raphaël, 28/08/2026: the "think → tools → think → tools" stack
+  overloaded the chat for a single work sequence. A `/sync-upstream` must not restore parity here.
 - **Group identity is anchored to the first TOOL CALL, never the first part.** A label absorbs the
   block's leading `THINK` when its text lands, so `parts[0]` flips at the instant the block becomes
   a group; keying on it remounts the group and drops the user's expansion.

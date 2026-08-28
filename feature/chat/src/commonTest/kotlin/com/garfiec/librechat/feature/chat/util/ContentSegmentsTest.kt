@@ -152,16 +152,48 @@ class ContentSegmentsTest {
     }
 
     @Test
-    fun aLabelThatNeverArrivesFallsBackToLegacyGrouping() {
-        // Reasoning renders standalone in its original position and only runs of two or more
-        // tools group — exactly what the feature-off path does.
+    fun withNoLabelReasoningFoldsIntoTheToolRunItSitsIn() {
+        // DELIBERATE DIVERGENCE from upstream's feature-off path: leading reasoning is absorbed
+        // into the run of two or more tools rather than rendered standalone ahead of it, so a
+        // model that emits no activity labels shows one collapsible instead of a Thinking card
+        // plus a "Used N tools" card.
         val segment = onlySegment(listOf(think("planning"), tool("t1"), tool("t2")))
 
-        assertEquals(2, segment.groups.size)
-        assertTrue(segment.groups[0] is ContentGroup.Single)
-        val group = segment.groups[1] as ContentGroup.Activity
+        val group = segment.groups.single() as ContentGroup.Activity
         assertEquals("", group.labelText)
-        assertEquals(listOf(1, 2), group.entries.map { it.index })
+        assertEquals(listOf(0, 1, 2), group.entries.map { it.index })
+        assertEquals(2, group.toolCount, "absorbed reasoning is not a tool")
+    }
+
+    @Test
+    fun withNoLabelInterleavedReasoningCollapsesTheWholeSequenceIntoOneGroup() {
+        // The screenshot case: think → 2 tools → think → 4 tools → think → 2 tools from a model
+        // without activity labels used to render as three Thinking cards and three "Used N tools"
+        // cards. Reasoning no longer breaks the run, so the whole work sequence is ONE group.
+        val parts = buildList {
+            add(think("plan"))
+            repeat(2) { add(tool("a$it")) }
+            add(think("more"))
+            repeat(4) { add(tool("b$it")) }
+            add(think("wrap"))
+            repeat(2) { add(tool("c$it")) }
+        }
+        val segment = onlySegment(parts)
+
+        val group = segment.groups.single() as ContentGroup.Activity
+        assertEquals("", group.labelText)
+        assertEquals(8, group.toolCount)
+        assertEquals(parts.indices.toList(), group.entries.map { it.index })
+    }
+
+    @Test
+    fun withNoLabelAStrayThoughtBetweenSingleToolsStaysStandalone() {
+        // Fewer than two tool calls in the run: no group forms, so an isolated thought and a lone
+        // tool render exactly as before — the change only groups genuine multi-tool sequences.
+        val segment = onlySegment(listOf(think("aside"), tool("t1"), text("done")))
+
+        assertEquals(3, segment.groups.size)
+        assertTrue(segment.groups.all { it is ContentGroup.Single })
     }
 
     @Test
