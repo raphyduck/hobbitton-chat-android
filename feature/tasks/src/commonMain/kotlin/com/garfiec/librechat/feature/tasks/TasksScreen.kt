@@ -1,5 +1,6 @@
 package com.garfiec.librechat.feature.tasks
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,6 +10,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
@@ -29,6 +32,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -91,6 +95,7 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_sign_in_not_configure
 import com.garfiec.librechat.feature.tasks.resources.tasks_sign_in_refused
 import com.garfiec.librechat.feature.tasks.resources.tasks_sign_in_unreachable
 import com.garfiec.librechat.feature.tasks.resources.tasks_spend_at_least
+import com.garfiec.librechat.feature.tasks.resources.tasks_spend_by_model
 import com.garfiec.librechat.feature.tasks.resources.tasks_spend_cache_saved
 import com.garfiec.librechat.feature.tasks.resources.tasks_spend_calls
 import com.garfiec.librechat.feature.tasks.resources.tasks_spend_header
@@ -457,39 +462,68 @@ private fun SpendSection(report: Consumption) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            HorizontalDivider()
-            report.models.forEach { model ->
+
+            if (report.models.isNotEmpty()) {
+                // The per-model breakdown is the long part of this card — eight-plus rows that push
+                // the schedule below the fold. Collapsed by default so the week's total, the one
+                // number this section exists to answer, sits alone at the top of the tab. Saveable
+                // so scrolling the card out of the LazyColumn does not re-collapse an opened list.
+                var detailShown by rememberSaveable { mutableStateOf(false) }
+                HorizontalDivider()
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { detailShown = !detailShown }
+                        .padding(vertical = 4.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(model.model, style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        stringResource(Res.string.tasks_spend_by_model, report.models.size),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Icon(
+                        if (detailShown) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (detailShown) {
+                    report.models.forEach { model ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(model.model, style = MaterialTheme.typography.bodyMedium)
+                                Text(
+                                    groupThousands(model.tokens) + " · " +
+                                        stringResource(Res.string.tasks_spend_calls, model.calls),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Text(
+                                modelAmount(model),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = if (model.isPriced) {
+                                    MaterialTheme.colorScheme.onSurface
+                                } else {
+                                    // Dimmed, not red: « no price » is not an error, it is an unknown.
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                            )
+                        }
+                    }
+                    if (!report.isComplete) {
                         Text(
-                            groupThousands(model.tokens) + " · " +
-                                stringResource(Res.string.tasks_spend_calls, model.calls),
+                            stringResource(Res.string.tasks_spend_unpriced_note),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    Text(
-                        modelAmount(model),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = if (model.isPriced) {
-                            MaterialTheme.colorScheme.onSurface
-                        } else {
-                            // Dimmed, not red: « no price » is not an error, it is an unknown.
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                    )
                 }
-            }
-            if (!report.isComplete) {
-                Text(
-                    stringResource(Res.string.tasks_spend_unpriced_note),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
             }
         }
     }
