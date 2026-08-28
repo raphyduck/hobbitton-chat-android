@@ -9,8 +9,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -24,6 +28,8 @@ import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.garfiec.librechat.core.model.engine.EngineModelRef
+import com.garfiec.librechat.core.model.engine.EngineSelectableModel
 import com.garfiec.librechat.feature.tasks.resources.Res
 import com.garfiec.librechat.feature.tasks.resources.tasks_cancel
 import com.garfiec.librechat.feature.tasks.resources.tasks_connectors
@@ -34,10 +40,9 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_mode_hint_interactive
 import com.garfiec.librechat.feature.tasks.resources.tasks_mode_interactive
 import com.garfiec.librechat.feature.tasks.resources.tasks_model
 import com.garfiec.librechat.feature.tasks.resources.tasks_model_default
+import com.garfiec.librechat.feature.tasks.resources.tasks_model_none
 import com.garfiec.librechat.feature.tasks.resources.tasks_new
 import com.garfiec.librechat.feature.tasks.resources.tasks_objective
-import com.garfiec.librechat.core.model.engine.EngineModelRef
-import com.garfiec.librechat.core.model.engine.EngineSelectableModel
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -110,29 +115,55 @@ fun NewMissionSheet(
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            // Rendered only when the catalogue arrived. A heading over an empty row would look
-            // like a list that failed to load, when in fact nothing is wrong: the mission runs on
-            // the profile's model, which is what it did before this picker existed.
+            // A field, not a row of chips, and the difference is whether the sheet fits.
+            //
+            // Nine chips wrap to three rows — 112 dp — and push the « Lancer » button past the
+            // bottom of a 390x844 phone, with nothing on screen saying anything is below. That is
+            // the same failure the mode selector had on 25/08: a sheet that scrolls, and a person
+            // who cannot see that it does. One 56 dp field leaves the whole sheet on screen,
+            // button included, and it is Material's own answer for a single choice among more
+            // than five.
+            //
+            // Rendered only when the catalogue arrived. A field with an empty menu behind it
+            // would read as a list that failed to load, when in fact nothing is wrong: the
+            // mission runs on the profile's model, as it did before this picker existed.
             if (models.isNotEmpty()) {
-                Text(stringResource(Res.string.tasks_model), style = MaterialTheme.typography.titleSmall)
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                var expanded by remember { mutableStateOf(false) }
+                ExposedDropdownMenuBox(
+                    expanded = expanded,
+                    onExpandedChange = { expanded = it },
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
-                    models.forEach { candidate ->
-                        FilterChip(
-                            selected = candidate == model,
-                            onClick = { model = candidate },
-                            label = { Text(candidate.label) },
-                        )
-                    }
-                }
-                if (model == null) {
-                    Text(
-                        stringResource(Res.string.tasks_model_default),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    OutlinedTextField(
+                        value = model?.label ?: stringResource(Res.string.tasks_model_none),
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text(stringResource(Res.string.tasks_model)) },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                        // Only when nothing is picked: the sentence explains what happens then, and
+                        // it is the one case a person needs telling. Under a chosen model it would
+                        // be a permanent line of text saying nothing.
+                        supportingText = if (model == null) {
+                            { Text(stringResource(Res.string.tasks_model_default)) }
+                        } else {
+                            null
+                        },
+                        singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor(MenuAnchorType.PrimaryNotEditable),
                     )
+                    ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                        models.forEach { candidate ->
+                            DropdownMenuItem(
+                                text = { Text(candidate.label) },
+                                onClick = {
+                                    model = candidate
+                                    expanded = false
+                                },
+                            )
+                        }
+                    }
                 }
             }
 
