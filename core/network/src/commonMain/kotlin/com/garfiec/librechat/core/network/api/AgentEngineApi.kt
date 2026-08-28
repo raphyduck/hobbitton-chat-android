@@ -5,6 +5,7 @@ import com.garfiec.librechat.core.model.engine.EngineAgentProfile
 import com.garfiec.librechat.core.model.engine.EngineMessage
 import com.garfiec.librechat.core.model.engine.EnginePermissionReply
 import com.garfiec.librechat.core.model.engine.EnginePromptRequest
+import com.garfiec.librechat.core.model.engine.EngineProviderCatalogue
 import com.garfiec.librechat.core.model.engine.EngineSession
 import com.garfiec.librechat.core.model.engine.EngineSessionStatus
 import com.garfiec.librechat.core.network.engine.EngineHttpException
@@ -48,6 +49,16 @@ class AgentEngineApi(
     /** The profiles the engine is configured with — `cerveau`, `work-compta`… */
     suspend fun profiles(): List<EngineAgentProfile> =
         client.get { url { path("agent") } }.decoded()
+
+    /**
+     * The providers this engine is wired to, and the models each one offers.
+     *
+     * `config/providers`, **not** `provider`. Both answer 200 and both look right; the second
+     * returns the engine's whole built-in catalogue — 5,5 MB against the live server on
+     * 28/08/2026, versus 11,8 kB here — most of it providers this deployment holds no key for.
+     */
+    suspend fun providers(): EngineProviderCatalogue =
+        client.get { url { path("config/providers") } }.decoded()
 
     suspend fun createSession(request: CreateEngineSessionRequest): EngineSession =
         client.post {

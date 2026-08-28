@@ -25,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -288,12 +289,19 @@ fun TasksScreen(
     }
 
     if (composing) {
+        // The catalogue is asked for when the sheet appears, not with the rest of the tab: it is
+        // 11,8 kB for something that changes about once a month, and it is useless anywhere else.
+        // `LaunchedEffect(Unit)` rather than a call in the composition — a body that runs on every
+        // recomposition would re-ask on each keystroke in the objective field.
+        LaunchedEffect(Unit) { viewModel.loadModels() }
         NewMissionSheet(
             onDismiss = { composing = false },
-            onLaunch = { objective, connectors, autonomous ->
+            onLaunch = { objective, connectors, autonomous, model ->
                 composing = false
-                viewModel.launch(objective, connectors, autonomous)
+                viewModel.launch(objective, connectors, autonomous, model)
             },
+            models = state.models,
+            preselectedModel = state.preselectedModel,
         )
     }
 }

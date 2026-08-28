@@ -6,6 +6,9 @@ import com.garfiec.librechat.core.model.engine.EngineMessage
 import com.garfiec.librechat.core.model.engine.EnginePermissionRule
 import com.garfiec.librechat.core.model.engine.EnginePromptPart
 import com.garfiec.librechat.core.model.engine.EnginePromptRequest
+import com.garfiec.librechat.core.model.engine.EngineModelRef
+import com.garfiec.librechat.core.model.engine.EngineProviderModel
+import com.garfiec.librechat.core.model.engine.EngineSelectableModel
 import com.garfiec.librechat.core.model.engine.MissionState
 import com.garfiec.librechat.core.model.engine.judgeMission
 import com.garfiec.librechat.core.network.api.AgentEngineApi
@@ -24,6 +27,14 @@ data class Mission(
 )
 
 /**
+ * What the New-mission sheet needs to offer a model: the list, and what to tick when it opens.
+ */
+data class EngineModelChoice(
+    val models: List<EngineSelectableModel> = emptyList(),
+    val preselected: EngineSelectableModel? = null,
+)
+
+/**
  * The missions of the Tasks tab, read from the engine and judged here.
  *
  * **Nothing is cached locally.** The engine is the source of truth: a mission that exists only on a
@@ -36,6 +47,46 @@ class EngineMissionRepository(
 ) {
 
     suspend fun profiles(): List<EngineAgentProfile> = api.profiles()
+
+    /**
+     * The models a mission may be launched on, and the one the engine would pick itself.
+     *
+     * **Only providers the deployment declared itself** (`source == "config"`). The engine also
+     * carries the endpoint OpenCode ships with, keyed and ready — and a mission sent there would
+     * leave the platform's gateway entirely: no cost accounting, no ceiling, and none of the
+     * catalogue curated for this deployment. The brief hands the model choice to the user (§6bis);
+     * it does not hand out a way around the gateway. Server-side D-054 records the choice and its
+     * alternative.
+     *
+     * One call, both answers. Asking twice — once for the list, once for the default — would be two
+     * round trips for one sheet, and two chances for them to disagree if the engine is reconfigured
+     * in between.
+     *
+     * Sorted by label, because a map promises no order and a picker that reshuffles between two
+     * openings is a picker that gets misread.
+     */
+    suspend fun models(): EngineModelChoice {
+        val catalogue = api.providers()
+        val declared = catalogue.providers.filter { it.source == DECLARED_PROVIDER }
+
+        fun selectable(providerId: String, key: String, model: EngineProviderModel?) =
+            EngineSelectableModel(
+                providerId = providerId,
+                modelId = model?.id ?: key,
+                label = model?.name?.takeIf { it.isNotBlank() } ?: (model?.id ?: key),
+            )
+
+        return EngineModelChoice(
+            models = declared
+                .flatMap { p -> p.models.map { (key, m) -> selectable(p.id, key, m) } }
+                .sortedBy { it.label },
+            // Null when the engine names none — and then nothing is preselected, rather than a
+            // first-in-the-list guess quietly becoming this deployment's default.
+            preselected = declared.firstNotNullOfOrNull { p ->
+                catalogue.default[p.id]?.let { key -> selectable(p.id, key, p.models[key]) }
+            },
+        )
+    }
 
     /**
      * The list, with each mission's state resolved.
@@ -74,6 +125,16 @@ class EngineMissionRepository(
      * returned even on that path: an orphan the tab can show and abort beats an orphan nobody knows
      * about. Same reasoning as the scheduler's, which records the session id before the mission
      * produces anything (brief §6, phase 3).
+     *
+     * [model] travels with the **prompt**, and never with the session. That is not a style
+     * preference: since OpenCode 1.18.18 `POST /session` rejects a `model` key outright — HTTP 400
+     * `{"_tag":"BadRequest"}`, naming no field — so putting it there kills the mission before it
+     * exists. The server learned this the hard way on 24/08/2026, when the only scheduled mission
+     * that named a model failed in 0,0 s for three nights running; its watchdog carries the same
+     * comment (`scheduler/moteur.py`). The prompt is where the model decides the call anyway.
+     *
+     * Null means « whatever the profile is configured with » — an absent key, not an empty one, so
+     * the engine's own default applies untouched.
      */
     suspend fun launch(
         profile: String,
@@ -81,6 +142,7 @@ class EngineMissionRepository(
         connectors: List<String>,
         title: String? = null,
         autonomous: Boolean = true,
+        model: EngineModelRef? = null,
     ): String {
         val session = api.createSession(
             CreateEngineSessionRequest(
@@ -94,6 +156,7 @@ class EngineMissionRepository(
             request = EnginePromptRequest(
                 parts = listOf(EnginePromptPart(text = objective)),
                 agent = profile,
+                model = model,
             ),
         )
         return session.id
@@ -103,6 +166,13 @@ class EngineMissionRepository(
 
     private companion object {
         const val TITLE_LENGTH = 60
+
+        /**
+         * `source` of a provider this deployment declared in its own `opencode.json`, as opposed
+         * to `custom` for one OpenCode ships with. Measured against the live engine on 28/08/2026:
+         * `hobbitton-gateway` reports `config`, OpenCode's own bundled endpoint reports `custom`.
+         */
+        const val DECLARED_PROVIDER = "config"
     }
 }
 

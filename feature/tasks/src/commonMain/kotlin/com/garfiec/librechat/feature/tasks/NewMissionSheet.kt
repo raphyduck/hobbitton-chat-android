@@ -32,8 +32,12 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_mode_autonomous
 import com.garfiec.librechat.feature.tasks.resources.tasks_mode_hint_autonomous
 import com.garfiec.librechat.feature.tasks.resources.tasks_mode_hint_interactive
 import com.garfiec.librechat.feature.tasks.resources.tasks_mode_interactive
+import com.garfiec.librechat.feature.tasks.resources.tasks_model
+import com.garfiec.librechat.feature.tasks.resources.tasks_model_default
 import com.garfiec.librechat.feature.tasks.resources.tasks_new
 import com.garfiec.librechat.feature.tasks.resources.tasks_objective
+import com.garfiec.librechat.core.model.engine.EngineModelRef
+import com.garfiec.librechat.core.model.engine.EngineSelectableModel
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -56,16 +60,33 @@ private val CONNECTORS = listOf("memoire", "memoire-ecriture", "fichiers", "shel
  *
  * Nothing is ticked by default. A mission that can do nothing is useless but harmless; one that can
  * write to memory because a checkbox was pre-filled is neither.
+ *
+ * The model, on the other hand, IS preselected — with the engine's own default, and never with a
+ * first-in-the-list guess. An unticked connector means « you may not »; an unticked model would
+ * mean nothing at all, since a mission always runs on *some* model. The honest preselection is
+ * therefore what the engine would have picked anyway, which is also what makes the picker safe to
+ * ignore.
  */
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun NewMissionSheet(
     onDismiss: () -> Unit,
-    onLaunch: (objective: String, connectors: List<String>, autonomous: Boolean) -> Unit,
+    onLaunch: (
+        objective: String,
+        connectors: List<String>,
+        autonomous: Boolean,
+        model: EngineModelRef?,
+    ) -> Unit,
+    models: List<EngineSelectableModel> = emptyList(),
+    preselectedModel: EngineSelectableModel? = null,
 ) {
     var objective by remember { mutableStateOf("") }
     var autonomous by remember { mutableStateOf(true) }
     val ticked = remember { mutableListOf<String>().toMutableStateList() }
+    // Keyed on the preselection: the catalogue is fetched while the sheet is already open, so the
+    // default arrives a moment late. Without the key the selection would stay null through that
+    // arrival and the sheet would offer a list with nothing ticked.
+    var model by remember(preselectedModel) { mutableStateOf(preselectedModel) }
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
@@ -88,6 +109,32 @@ fun NewMissionSheet(
                 minLines = 3,
                 modifier = Modifier.fillMaxWidth(),
             )
+
+            // Rendered only when the catalogue arrived. A heading over an empty row would look
+            // like a list that failed to load, when in fact nothing is wrong: the mission runs on
+            // the profile's model, which is what it did before this picker existed.
+            if (models.isNotEmpty()) {
+                Text(stringResource(Res.string.tasks_model), style = MaterialTheme.typography.titleSmall)
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    models.forEach { candidate ->
+                        FilterChip(
+                            selected = candidate == model,
+                            onClick = { model = candidate },
+                            label = { Text(candidate.label) },
+                        )
+                    }
+                }
+                if (model == null) {
+                    Text(
+                        stringResource(Res.string.tasks_model_default),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
 
             Text(stringResource(Res.string.tasks_connectors), style = MaterialTheme.typography.titleSmall)
             CONNECTORS.forEach { connector ->
@@ -142,7 +189,7 @@ fun NewMissionSheet(
                 TextButton(onClick = onDismiss) { Text(stringResource(Res.string.tasks_cancel)) }
                 TextButton(
                     enabled = objective.isNotBlank(),
-                    onClick = { onLaunch(objective.trim(), ticked.toList(), autonomous) },
+                    onClick = { onLaunch(objective.trim(), ticked.toList(), autonomous, model?.ref) },
                 ) { Text(stringResource(Res.string.tasks_launch)) }
             }
         }

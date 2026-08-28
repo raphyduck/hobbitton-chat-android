@@ -13,6 +13,8 @@
     <string name="tasks_state_failed">Failed</string>
     <string name="tasks_state_idle">Not started</string>
     <string name="tasks_objective">Objective</string>
+    <string name="tasks_model">Model</string>
+    <string name="tasks_model_default">No model chosen: the mission runs on the profile’s own.</string>
     <string name="tasks_connectors">Connectors</string>
     <string name="tasks_mode_autonomous">Autonomous</string>
     <string name="tasks_mode_interactive">Interactive</string>
