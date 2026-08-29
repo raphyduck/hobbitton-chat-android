@@ -2,6 +2,7 @@ package com.garfiec.librechat.feature.tasks.navigation
 
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
+import com.garfiec.librechat.feature.tasks.MissionChatScreen
 import com.garfiec.librechat.feature.tasks.TasksScreen
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.modules.SerializersModule
@@ -12,8 +13,15 @@ import kotlinx.serialization.modules.subclass
 
 @Serializable data object TasksList : TasksRoute
 
-fun EntryProviderScope<NavKey>.tasksEntries() {
-    entry<TasksList> { TasksScreen() }
+/** One mission session, opened as a live conversation. */
+@Serializable data class MissionChat(val sessionId: String) : TasksRoute
+
+fun EntryProviderScope<NavKey>.tasksEntries(
+    onOpenMissionChat: (String) -> Unit,
+    onBack: () -> Unit,
+) {
+    entry<TasksList> { TasksScreen(onOpenMissionChat = onOpenMissionChat) }
+    entry<MissionChat> { key -> MissionChatScreen(sessionId = key.sessionId, onBack = onBack) }
 }
 
 /**
@@ -23,5 +31,6 @@ fun EntryProviderScope<NavKey>.tasksEntries() {
 val tasksSerializersModule = SerializersModule {
     polymorphic(NavKey::class) {
         subclass(TasksList::class)
+        subclass(MissionChat::class)
     }
 }

@@ -9,9 +9,13 @@ import com.garfiec.librechat.core.model.engine.EnginePromptPart
 import com.garfiec.librechat.core.model.engine.EnginePromptRequest
 import com.garfiec.librechat.core.model.engine.EngineProviderModel
 import com.garfiec.librechat.core.model.engine.EngineSelectableModel
+import com.garfiec.librechat.core.model.engine.EngineStreamEvent
 import com.garfiec.librechat.core.model.engine.MissionState
 import com.garfiec.librechat.core.model.engine.judgeMission
 import com.garfiec.librechat.core.network.api.AgentEngineApi
+import com.garfiec.librechat.core.network.engine.EngineEventTransport
+import com.garfiec.librechat.core.network.engine.EngineStreamClient
+import kotlinx.coroutines.flow.Flow
 
 /**
  * One mission as the tab shows it: what it is, and what it is doing.
@@ -44,6 +48,8 @@ data class EngineModelChoice(
  */
 class EngineMissionRepository(
     private val api: AgentEngineApi,
+    private val streamClient: EngineStreamClient,
+    private val eventTransport: EngineEventTransport,
 ) {
 
     suspend fun profiles(): List<EngineAgentProfile> = api.profiles()
@@ -163,6 +169,20 @@ class EngineMissionRepository(
     }
 
     suspend fun abort(sessionId: String) = api.abort(sessionId)
+
+    /**
+     * The live conversation of a session, for the interactive chat: the durable event stream replays
+     * the whole history and then tails the reply as it is written. Reconnects on a drop without
+     * repeating or missing an event — the seq cursor is [EngineStreamClient]'s job.
+     */
+    fun events(sessionId: String): Flow<EngineStreamEvent> = streamClient.connect(sessionId, eventTransport)
+
+    /**
+     * Sends a message into an existing session and returns at once. The reply does not come back
+     * here — it arrives over [events], token by token. This is the **v2** prompt, the one that drives
+     * that feed, not the fire-and-forget `prompt_async` a mission launch uses.
+     */
+    suspend fun sendMessage(sessionId: String, text: String) = api.promptStreaming(sessionId, text)
 
     private companion object {
         const val TITLE_LENGTH = 60

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Settings
@@ -50,6 +51,7 @@ import com.garfiec.librechat.core.model.scheduler.Provider
 import com.garfiec.librechat.core.model.scheduler.ProviderHealth
 import com.garfiec.librechat.core.model.scheduler.ScheduledMission
 import com.garfiec.librechat.feature.tasks.resources.Res
+import com.garfiec.librechat.feature.tasks.resources.tasks_chat_open
 import com.garfiec.librechat.feature.tasks.resources.tasks_empty
 import com.garfiec.librechat.feature.tasks.resources.tasks_empty_hint
 import com.garfiec.librechat.feature.tasks.resources.tasks_error_authentication
@@ -127,6 +129,7 @@ import org.koin.compose.viewmodel.koinViewModel
 @Composable
 fun TasksScreen(
     modifier: Modifier = Modifier,
+    onOpenMissionChat: (String) -> Unit = {},
     viewModel: TasksViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -281,6 +284,7 @@ fun TasksScreen(
                             expanded = state.openSessionId == mission.sessionId,
                             transcript = state.transcripts[mission.sessionId],
                             onToggle = { viewModel.toggleMission(mission.sessionId) },
+                            onOpenChat = { onOpenMissionChat(mission.sessionId) },
                             onStop = { viewModel.abort(mission.sessionId) },
                         )
                     }
@@ -697,13 +701,14 @@ private fun MissionRow(
     expanded: Boolean,
     transcript: TranscriptLoad?,
     onToggle: () -> Unit,
+    onOpenChat: () -> Unit,
     onStop: () -> Unit,
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            // The whole header is the target: tapping the row opens the transcript, which is what
-            // « I clicked and nothing happened » was asking for. The chevron says it is openable;
-            // the row was a flat card before, with nothing telling anyone it could be.
+            // Tapping the row peeks at the transcript inline; the chat button opens the session as a
+            // conversation you can talk to. Two different needs — a glance, and a reply — so two
+            // targets rather than one overloaded tap.
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -716,6 +721,13 @@ private fun MissionRow(
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f),
                 )
+                IconButton(onClick = onOpenChat) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.Chat,
+                        contentDescription = stringResource(Res.string.tasks_chat_open),
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                }
                 Icon(
                     if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                     contentDescription = null,
@@ -871,7 +883,7 @@ private fun EngineSignInProblem.sentence() = when (this) {
 }
 
 /** The sentence shown for a failure. One per cause, because the remedies differ. */
-private fun EngineFailureKind.title() = when (this) {
+internal fun EngineFailureKind.title() = when (this) {
     EngineFailureKind.AUTHENTICATION -> Res.string.tasks_error_authentication
     EngineFailureKind.PERMISSION -> Res.string.tasks_error_permission
     EngineFailureKind.NOT_FOUND -> Res.string.tasks_error_not_found
