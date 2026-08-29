@@ -69,6 +69,7 @@ fun MissionChatScreen(
     sessionId: String,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    title: String = "",
     viewModel: MissionChatViewModel = koinViewModel { parametersOf(sessionId) },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -77,7 +78,9 @@ fun MissionChatScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(Res.string.tasks_chat_title)) },
+                title = {
+                    Text(title.ifBlank { stringResource(Res.string.tasks_chat_title) })
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(

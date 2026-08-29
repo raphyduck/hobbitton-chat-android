@@ -18,8 +18,6 @@ import com.garfiec.librechat.core.model.engine.EngineSelectableModel
 import com.garfiec.librechat.core.model.scheduler.Consumption
 import com.garfiec.librechat.core.model.scheduler.ProviderHealth
 import com.garfiec.librechat.core.model.scheduler.ScheduledMission
-import com.garfiec.librechat.feature.tasks.util.TranscriptEntry
-import com.garfiec.librechat.feature.tasks.util.missionTranscript
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -85,25 +83,7 @@ data class TasksUiState(
      * turned a request away; this says the *portal* did — and the remedies do not overlap.
      */
     val signInProblem: EngineSignInProblem? = null,
-    /**
-     * The session whose transcript is open in the list, or null when every row is collapsed. One at
-     * a time: opening a second closes the first, so the list never becomes a wall of transcripts.
-     */
-    val openSessionId: String? = null,
-    /**
-     * The transcript load for each session that has been opened, keyed by session id. Kept across a
-     * collapse so reopening a settled mission is instant; a still-running one is refetched on every
-     * open, because its transcript is still growing.
-     */
-    val transcripts: Map<String, TranscriptLoad> = emptyMap(),
 )
-
-/** The state of one session's transcript fetch — its own small loading machine, per row. */
-sealed interface TranscriptLoad {
-    data object Loading : TranscriptLoad
-    data class Loaded(val entries: List<TranscriptEntry>) : TranscriptLoad
-    data class Failed(val kind: EngineFailureKind) : TranscriptLoad
-}
 
 /** What a failed sign-in means, in the only terms that change what the person does next. */
 enum class EngineSignInProblem {
@@ -360,40 +340,6 @@ class TasksViewModel(
             runCatching { repository.abort(sessionId) }
                 .onFailure { failure -> Logger.w(failure, tag = "Tasks") { "Could not stop $sessionId" } }
             refresh()
-        }
-    }
-
-    /**
-     * Opens a mission's transcript in the list, or closes it if it was the one already open.
-     *
-     * The engine is the only place a session's messages live — nothing is cached locally — so this
-     * fetches on every open: a running mission's transcript grows between glances, and a stale one
-     * would read as « nothing happened » under a mission that is busy. A failure fills the row's own
-     * slot rather than the tab's banner, for the same reason [providersError] is kept apart from
-     * [error]: one session that will not load is not the engine going dark.
-     */
-    fun toggleMission(sessionId: String) {
-        if (_state.value.openSessionId == sessionId) {
-            _state.update { it.copy(openSessionId = null) }
-            return
-        }
-        _state.update {
-            it.copy(
-                openSessionId = sessionId,
-                transcripts = it.transcripts + (sessionId to TranscriptLoad.Loading),
-            )
-        }
-        viewModelScope.launch {
-            runCatching { repository.messages(sessionId) }
-                .onSuccess { messages ->
-                    val load = TranscriptLoad.Loaded(missionTranscript(messages))
-                    _state.update { it.copy(transcripts = it.transcripts + (sessionId to load)) }
-                }
-                .onFailure { failure ->
-                    Logger.w(failure, tag = "Tasks") { "Could not read $sessionId's transcript" }
-                    val load = TranscriptLoad.Failed(failure.engineFailureKind())
-                    _state.update { it.copy(transcripts = it.transcripts + (sessionId to load)) }
-                }
         }
     }
 }

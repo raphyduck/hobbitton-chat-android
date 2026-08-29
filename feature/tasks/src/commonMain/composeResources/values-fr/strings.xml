@@ -6,14 +6,15 @@
     <string name="tasks_new">Nouvelle mission</string>
     <string name="tasks_retry">Réessayer</string>
     <string name="tasks_stop">Arrêter</string>
-    <string name="tasks_transcript_empty">Rien à afficher pour l’instant — la mission n’a rien dit.</string>
+    <string name="tasks_age_minutes">%1$d min</string>
+    <string name="tasks_age_hours">%1$d h</string>
+    <string name="tasks_age_days">%1$d j</string>
     <string name="tasks_chat_title">Session</string>
     <string name="tasks_chat_hint">Message…</string>
     <string name="tasks_chat_send">Envoyer</string>
     <string name="tasks_chat_back">Retour</string>
     <string name="tasks_chat_empty">Aucun message — envoyez-en un pour parler à la session.</string>
     <string name="tasks_chat_working">En cours…</string>
-    <string name="tasks_chat_open">Ouvrir la conversation</string>
     <string name="tasks_not_configured">Le moteur n\'est pas encore configuré</string>
     <string name="tasks_not_configured_hint">Renseignez son adresse et ses identifiants dans les réglages, puis revenez.</string>
     <string name="tasks_state_running">En cours</string>
