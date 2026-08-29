@@ -3,6 +3,9 @@ package com.garfiec.librechat.core.data.engine
 import com.garfiec.librechat.core.model.engine.EngineModelRef
 import com.garfiec.librechat.core.network.api.AgentEngineApi
 import com.garfiec.librechat.core.network.di.librechatJson
+import com.garfiec.librechat.core.network.engine.EngineEventParser
+import com.garfiec.librechat.core.network.engine.EngineEventTransport
+import com.garfiec.librechat.core.network.engine.EngineStreamClient
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
@@ -17,6 +20,8 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -61,12 +66,18 @@ class EngineModelChoiceTest {
      * code under test and everything about the harness.
      */
     private fun repository(engine: MockEngine) = EngineMissionRepository(
-        AgentEngineApi(
+        api = AgentEngineApi(
             HttpClient(engine) {
                 install(ContentNegotiation) { json(librechatJson) }
                 defaultRequest { contentType(ContentType.Application.Json) }
             },
         ),
+        // The chat's live feed is not exercised here — this suite is about the model catalogue — so
+        // the stream side is stubbed: a real parser and an event transport that never emits.
+        streamClient = EngineStreamClient(EngineEventParser(librechatJson)),
+        eventTransport = object : EngineEventTransport {
+            override fun stream(sessionId: String, after: String?): Flow<ByteArray> = emptyFlow()
+        },
     )
 
     private fun jsonHeaders() = headersOf(HttpHeaders.ContentType, "application/json")

@@ -76,6 +76,7 @@ import com.garfiec.librechat.feature.settings.navigation.memoriesEntry
 import com.garfiec.librechat.feature.settings.navigation.settingsEntries
 import com.garfiec.librechat.feature.skills.navigation.SkillsList
 import com.garfiec.librechat.feature.skills.navigation.skillsEntries
+import com.garfiec.librechat.feature.tasks.navigation.MissionChat
 import com.garfiec.librechat.feature.tasks.navigation.TasksList
 import com.garfiec.librechat.feature.tasks.navigation.tasksEntries
 import com.garfiec.librechat.shared.resources.Res
@@ -575,7 +576,10 @@ fun MainNavDisplay(
                     navigator.navigateToTopLevel(NewChat(agentId))
                 },
             )
-            tasksEntries()
+            tasksEntries(
+                onOpenMissionChat = { sessionId -> navigator.navigate(MissionChat(sessionId)) },
+                onBack = { navigator.goBack() },
+            )
             skillsEntries(
                 onNavigate = { navigator.navigate(it) },
                 onBack = { navigator.goBack() },

@@ -110,6 +110,30 @@ class AgentEngineApiTest {
     }
 
     @Test
+    fun `the streaming prompt hits the v2 route, nests the text, and unwraps the data envelope`() = runTest {
+        var path: String? = null
+        var body: kotlinx.serialization.json.JsonObject? = null
+        val engine = MockEngine { request ->
+            path = request.url.encodedPath
+            body = json.parseToJsonElement(String(request.body.toByteArray())).jsonObject
+            // The v2 routes answer inside a `data` envelope — unlike the classic ones.
+            respond(
+                content = """{"data":{"admittedSeq":1,"id":"msg_user","sessionID":"ses_abc"}}""",
+                status = HttpStatusCode.OK,
+                headers = jsonHeaders(),
+            )
+        }
+
+        val admission = api(engine).promptStreaming(sessionId = "ses_abc", text = "salut")
+
+        // v2 lives under /api; the classic prompt_async does not. And the text nests under `prompt`.
+        assertThat(path).isEqualTo("/api/session/ses_abc/prompt")
+        assertThat(body!!["prompt"]!!.jsonObject["text"]!!.jsonPrimitive.content).isEqualTo("salut")
+        // The id the engine minted for the user's message, lifted out of the envelope.
+        assertThat(admission.id).isEqualTo("msg_user")
+    }
+
+    @Test
     fun `status returns every active session at once, and absence means idle`() = runTest {
         val engine = MockEngine {
             respond(
