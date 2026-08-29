@@ -3,6 +3,9 @@ package com.garfiec.librechat.feature.chat.components
 import com.garfiec.librechat.core.model.ContentType
 import com.garfiec.librechat.core.model.Message
 import com.garfiec.librechat.core.model.content.MessageContentPart
+import com.garfiec.librechat.core.ui.markdown.InlineSegment
+import com.garfiec.librechat.core.ui.markdown.MarkdownSegment
+import com.garfiec.librechat.core.ui.markdown.parseMarkdownSegments
 import com.garfiec.librechat.feature.chat.components.artifact.Artifact
 import com.garfiec.librechat.feature.chat.components.artifact.ArtifactSegment
 import com.garfiec.librechat.feature.chat.components.artifact.detectArtifacts

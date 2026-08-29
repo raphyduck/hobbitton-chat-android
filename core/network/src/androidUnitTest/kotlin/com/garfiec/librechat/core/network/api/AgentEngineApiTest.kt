@@ -110,27 +110,31 @@ class AgentEngineApiTest {
     }
 
     @Test
-    fun `the streaming prompt hits the v2 route, nests the text, and unwraps the data envelope`() = runTest {
+    fun `sending a message hits the classic route and returns the finished turn`() = runTest {
         var path: String? = null
         var body: kotlinx.serialization.json.JsonObject? = null
         val engine = MockEngine { request ->
             path = request.url.encodedPath
             body = json.parseToJsonElement(String(request.body.toByteArray())).jsonObject
-            // The v2 routes answer inside a `data` envelope — unlike the classic ones.
+            // The classic routes answer with the object itself — no `data` envelope.
             respond(
-                content = """{"data":{"admittedSeq":1,"id":"msg_user","sessionID":"ses_abc"}}""",
+                content = """{"info":{"id":"msg_a","role":"assistant","sessionID":"ses_abc"},
+                    |"parts":[{"id":"prt_1","type":"text","text":"bonsoir"}]}""".trimMargin(),
                 status = HttpStatusCode.OK,
                 headers = jsonHeaders(),
             )
         }
 
-        val admission = api(engine).promptStreaming(sessionId = "ses_abc", text = "salut")
+        val message = api(engine).sendMessage(sessionId = "ses_abc", text = "salut")
 
-        // v2 lives under /api; the classic prompt_async does not. And the text nests under `prompt`.
-        assertThat(path).isEqualTo("/api/session/ses_abc/prompt")
-        assertThat(body!!["prompt"]!!.jsonObject["text"]!!.jsonPrimitive.content).isEqualTo("salut")
-        // The id the engine minted for the user's message, lifted out of the envelope.
-        assertThat(admission.id).isEqualTo("msg_user")
+        // `message`, not the v2 `/api/session/…/prompt`: a session launched by `prompt_async` never
+        // executes a v2 prompt — it admits it and then does nothing. Measured 29/08/2026.
+        assertThat(path).isEqualTo("/session/ses_abc/message")
+        assertThat(body!!["parts"]!!.jsonArray[0].jsonObject["text"]!!.jsonPrimitive.content)
+            .isEqualTo("salut")
+        // Synchronous: what comes back is the assistant's finished turn, not an admission receipt.
+        assertThat(message.info.id).isEqualTo("msg_a")
+        assertThat(message.parts.single().text).isEqualTo("bonsoir")
     }
 
     @Test

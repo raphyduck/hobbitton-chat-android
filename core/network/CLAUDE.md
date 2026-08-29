@@ -149,6 +149,40 @@ field gets under half the width, which rendered both `CF-Access-Client-Id` and
 `CF-Access-Client-Secret` as `CF-Access-C…`: two different headers looking identical, next to a
 masked value.
 
+## The Agent engine has two disjoint API worlds
+
+`AgentEngineApi` talks to OpenCode, and OpenCode exposes the *same* session twice: a **classic**
+surface under `/session/…` and a **v2** surface under `/api/…` with a durable, resumable event feed.
+They look interchangeable. They are not, and picking the wrong one produces no error at all — which
+is exactly how the Tasks chat shipped on 29/08/2026 showing an empty transcript and swallowing every
+message sent to it.
+
+Measured against the live engine on 29/08/2026:
+
+| | v2 (`/api/…`) | classic (`/session/…`) |
+|---|---|---|
+| Missions are launched here | no | **yes** (`prompt_async`) |
+| Transcript readable | empty, or the request times out before headers | **13 messages, complete** |
+| A prompt starts a turn | only if the session has *never* used the classic surface | **always** |
+
+A session that has run `prompt_async` **never executes a v2 prompt**. It answers 200, emits
+`prompt.admitted` then `prompted`, and stops — with `delivery: steer` and with `delivery: queue`
+alike. Nothing reports a failure; the turn simply never happens.
+
+So everything a mission session needs goes through the classic routes:
+
+- **history** — `GET /session/{id}/message`
+- **send** — `POST /session/{id}/message`, synchronous, returning the finished assistant message
+  (~2,9 s measured)
+- **live tokens** — `GET /event`, which is **global**: one feed carrying every session's frames
+  (`message.updated`, `message.part.updated`, `message.part.delta`, `session.idle`), each naming its
+  session in `properties.sessionID`. `EngineStreamClient` subscribes once and drops what is not the
+  session on screen. There is no per-session classic feed and no resume cursor — a reconnect
+  re-reads the transcript instead.
+
+`engineHistoryEvents` replays a fetched transcript as the same `EngineStreamEvent`s a live turn
+emits, so the past and the present fold through one reducer and cannot drift apart.
+
 ## Key Configuration
 
 - `Json { ignoreUnknownKeys = true; isLenient = true; encodeDefaults = false; explicitNulls = false; coerceInputValues = true }`

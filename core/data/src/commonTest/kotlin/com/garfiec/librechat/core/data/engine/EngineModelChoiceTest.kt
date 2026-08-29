@@ -76,7 +76,7 @@ class EngineModelChoiceTest {
         // the stream side is stubbed: a real parser and an event transport that never emits.
         streamClient = EngineStreamClient(EngineEventParser(librechatJson)),
         eventTransport = object : EngineEventTransport {
-            override fun stream(sessionId: String, after: String?): Flow<ByteArray> = emptyFlow()
+            override fun stream(): Flow<ByteArray> = emptyFlow()
         },
     )
 

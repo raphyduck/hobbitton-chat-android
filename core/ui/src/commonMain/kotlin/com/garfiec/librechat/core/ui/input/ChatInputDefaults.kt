@@ -1,4 +1,4 @@
-package com.garfiec.librechat.feature.chat.components
+package com.garfiec.librechat.core.ui.input
 
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -12,6 +12,14 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 
+/**
+ * The composer's look, in one place.
+ *
+ * Lives here rather than in `feature/chat` because two screens now render a composer — the chat and a
+ * mission session's conversation in `feature/tasks` — and feature modules cannot see each other. A
+ * copy in each is a copy that drifts: the tasks composer shipped on 29/08/2026 with a bare
+ * `OutlinedTextField` and read as a different, lesser control on a screen that does the same thing.
+ */
 object ChatInputDefaults {
     val shape: Shape = RoundedCornerShape(24.dp)
 

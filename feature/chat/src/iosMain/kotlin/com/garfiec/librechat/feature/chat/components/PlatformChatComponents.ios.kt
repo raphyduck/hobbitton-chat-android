@@ -82,6 +82,9 @@ import com.mikepenz.markdown.m3.markdownColor
 import com.mikepenz.markdown.m3.markdownTypography
 import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.stringResource
+import com.garfiec.librechat.core.ui.markdown.TableCellAlignment
+import com.garfiec.librechat.core.ui.markdown.MarkdownSegment
+import com.garfiec.librechat.core.ui.markdown.InlineSegment
 
 private const val ACTION_AUTO_HIDE_MILLIS = 30_000L
 

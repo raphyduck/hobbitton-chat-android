@@ -66,6 +66,10 @@ import com.garfiec.librechat.feature.chat.resources.Res
 import com.mikepenz.markdown.m3.markdownColor
 import com.mikepenz.markdown.m3.markdownTypography
 import org.jetbrains.compose.resources.stringResource
+import com.garfiec.librechat.core.ui.markdown.TableCellAlignment
+import com.garfiec.librechat.core.ui.markdown.MarkdownSegment
+import com.garfiec.librechat.core.ui.markdown.InlineSegment
+import com.garfiec.librechat.core.ui.markdown.CITATION_DETECT_REGEX
 
 /**
  * Markdown content rendering with full CommonMark support. Uses a hybrid approach:

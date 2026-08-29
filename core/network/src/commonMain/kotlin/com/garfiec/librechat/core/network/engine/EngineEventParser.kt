@@ -1,160 +1,87 @@
 package com.garfiec.librechat.core.network.engine
 
+import com.garfiec.librechat.core.model.engine.EnginePartSnapshot
 import com.garfiec.librechat.core.model.engine.EngineStreamEvent
 import com.garfiec.librechat.core.network.sse.SseEvent
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.longOrNull
 
 /**
- * Turns one SSE frame off the engine's durable feed into a domain [EngineStreamEvent].
+ * Turns one frame of the engine's **global** event feed (`GET /event`) into a domain event.
  *
- * The engine frames every event the plain way — a single `data: {json}` line per event, no `event:`
- * line — so [com.garfiec.librechat.core.network.sse.SseLineParser] already hands us the JSON whole in
- * [SseEvent.data]. The event's *kind* lives inside that JSON under `type`; its ordering lives under
- * `durable.seq`. This class reads both and maps the shapes the chat cares about, leaving every other
- * durable type to advance the cursor without producing an event.
+ * The feed is global, not per-session: every frame carries `properties.sessionID` and a listener
+ * keeps the ones it asked for. [parse] therefore reports the session id alongside the event and
+ * leaves the filtering to [EngineStreamClient], which is the only place that knows which session is
+ * on screen.
  *
- * Pure and platform-free on purpose: the whole point of Stage 3 is that the mapping is unit-tested
- * against captured frames rather than a live engine.
+ * The four shapes below were captured off the live engine on 29/08/2026 during a real turn; every
+ * other type on the feed (`session.status`, `session.diff`, `message.removed`…) maps to null and is
+ * dropped. Pure and platform-free, so the mapping is pinned by tests rather than by a live run.
  */
 class EngineEventParser(private val json: Json) {
 
-    /**
-     * @param seq the frame's `durable.seq`, so a caller can resume the stream after it (`?after=`).
-     *   Present even when [event] is null, which is how an unmodelled type still moves the cursor.
-     * @param event the mapped event, or null for a frame that is not one the chat renders.
-     */
-    data class Parsed(val seq: Long?, val event: EngineStreamEvent?)
+    data class Parsed(val sessionId: String?, val event: EngineStreamEvent?)
 
-    /** Null when [frame] is not a JSON object with a `type` — a stray comment or a malformed line. */
+    /** Null when the frame is not a JSON object with a `type` — a comment, or a malformed line. */
     fun parse(frame: SseEvent): Parsed? {
         if (frame.data.isBlank()) return null
         val root = runCatching { json.parseToJsonElement(frame.data) }.getOrNull() as? JsonObject ?: return null
         val type = root.str("type") ?: return null
-        val seq = (root["durable"] as? JsonObject)?.get("seq")?.let { (it as? JsonPrimitive)?.longOrNull }
-        val data = root["data"] as? JsonObject
-        return Parsed(seq, data?.let { map(type, it) })
+        val props = root["properties"] as? JsonObject ?: return null
+        return Parsed(sessionId = props.str("sessionID"), event = map(type, props))
     }
 
-    @Suppress("CyclomaticComplexMethod")
-    private fun map(type: String, data: JsonObject): EngineStreamEvent? = when (type) {
-        "session.next.prompt.admitted" ->
-            data.str("messageID")?.let { id ->
-                EngineStreamEvent.PromptAdmitted(messageId = id, text = (data["prompt"] as? JsonObject)?.str("text"))
-            }
+    private fun map(type: String, props: JsonObject): EngineStreamEvent? = when (type) {
+        "message.updated" -> {
+            val info = props["info"] as? JsonObject
+            val id = info?.str("id")
+            val role = info?.str("role")
+            if (id != null && role != null) EngineStreamEvent.MessageStarted(id, role) else null
+        }
 
-        "session.next.step.started" ->
-            data.str("assistantMessageID")?.let { id ->
-                EngineStreamEvent.StepStarted(
-                    assistantMessageId = id,
-                    agent = data.str("agent"),
-                    modelId = (data["model"] as? JsonObject)?.str("id"),
+        "message.part.updated" -> {
+            val part = props["part"] as? JsonObject
+            val messageId = part?.str("messageID")
+            val partId = part?.str("id")
+            val partType = part?.str("type")
+            if (part != null && messageId != null && partId != null && partType != null) {
+                EngineStreamEvent.PartUpdated(
+                    messageId = messageId,
+                    partId = partId,
+                    part = EnginePartSnapshot(
+                        type = partType,
+                        text = part.str("text"),
+                        tool = part.str("tool"),
+                        callId = part.str("callID"),
+                        status = (part["state"] as? JsonObject)?.str("status"),
+                    ),
                 )
-            }
-
-        "session.next.text.started" ->
-            data.str("assistantMessageID")?.let { id ->
-                EngineStreamEvent.TextStarted(assistantMessageId = id, textId = data.str("textID") ?: "")
-            }
-
-        "session.next.text.delta" ->
-            data.str("assistantMessageID")?.let { id ->
-                EngineStreamEvent.TextDelta(
-                    assistantMessageId = id,
-                    textId = data.str("textID") ?: "",
-                    delta = data.str("delta") ?: "",
-                )
-            }
-
-        "session.next.text.ended" ->
-            data.str("assistantMessageID")?.let { id ->
-                EngineStreamEvent.TextEnded(
-                    assistantMessageId = id,
-                    textId = data.str("textID") ?: "",
-                    text = data.str("text") ?: "",
-                )
-            }
-
-        "session.next.reasoning.delta" ->
-            data.str("assistantMessageID")?.let { id ->
-                EngineStreamEvent.ReasoningDelta(
-                    assistantMessageId = id,
-                    reasoningId = data.str("reasoningID") ?: "",
-                    delta = data.str("delta") ?: "",
-                )
-            }
-
-        "session.next.reasoning.ended" ->
-            data.str("assistantMessageID")?.let { id ->
-                EngineStreamEvent.ReasoningEnded(
-                    assistantMessageId = id,
-                    reasoningId = data.str("reasoningID") ?: "",
-                    text = data.str("text"),
-                )
-            }
-
-        // Two events can announce a tool: `tool.input.started` names it early (`name`), `tool.called`
-        // names it with its arguments (`tool`). Either can be the first the chat sees, so both map to
-        // the same start and the consumer dedupes by callID.
-        "session.next.tool.input.started" ->
-            toolStart(data, nameKey = "name")
-
-        "session.next.tool.called" ->
-            toolStart(data, nameKey = "tool")
-
-        "session.next.tool.success" ->
-            data.str("assistantMessageID")?.let { id ->
-                data.str("callID")?.let { call ->
-                    EngineStreamEvent.ToolEnded(assistantMessageId = id, callId = call, ok = true, error = null)
-                }
-            }
-
-        "session.next.tool.failed" ->
-            data.str("assistantMessageID")?.let { id ->
-                data.str("callID")?.let { call ->
-                    EngineStreamEvent.ToolEnded(
-                        assistantMessageId = id,
-                        callId = call,
-                        ok = false,
-                        error = data.errorText("error"),
-                    )
-                }
-            }
-
-        "session.next.step.ended" ->
-            data.str("assistantMessageID")?.let { id ->
-                EngineStreamEvent.StepEnded(assistantMessageId = id, finish = data.str("finish"))
-            }
-
-        "session.next.step.failed" ->
-            EngineStreamEvent.Failed(
-                assistantMessageId = data.str("assistantMessageID"),
-                error = data.errorText("error") ?: "step failed",
-            )
-
-        else -> null
-    }
-
-    private fun toolStart(data: JsonObject, nameKey: String): EngineStreamEvent? =
-        data.str("assistantMessageID")?.let { id ->
-            data.str("callID")?.let { call ->
-                EngineStreamEvent.ToolStarted(
-                    assistantMessageId = id,
-                    callId = call,
-                    name = data.str(nameKey) ?: data.str("tool") ?: data.str("name") ?: call,
-                )
+            } else {
+                null
             }
         }
 
-    private fun JsonObject.str(key: String): String? =
-        (this[key] as? JsonPrimitive)?.takeIf { it.isString }?.content
+        "message.part.delta" -> {
+            val messageId = props.str("messageID")
+            val partId = props.str("partID")
+            if (messageId != null && partId != null) {
+                EngineStreamEvent.PartDelta(
+                    messageId = messageId,
+                    partId = partId,
+                    field = props.str("field") ?: "",
+                    delta = props.str("delta") ?: "",
+                )
+            } else {
+                null
+            }
+        }
 
-    /** `error` may be a plain string or a nested object; take a string if there is one, else null. */
-    private fun JsonObject.errorText(key: String): String? = when (val e = this[key]) {
-        is JsonPrimitive -> e.content.takeIf { it.isNotBlank() }
-        is JsonObject -> e.str("message") ?: e.str("name") ?: e.toString()
+        "session.idle" -> EngineStreamEvent.Idle
+
         else -> null
     }
+
+    private fun JsonObject.str(key: String): String? =
+        (this[key] as? JsonPrimitive)?.takeIf { it.isString }?.content
 }

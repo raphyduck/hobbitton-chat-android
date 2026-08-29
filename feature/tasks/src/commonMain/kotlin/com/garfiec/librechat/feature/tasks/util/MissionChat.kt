@@ -1,183 +1,154 @@
 package com.garfiec.librechat.feature.tasks.util
 
+import com.garfiec.librechat.core.model.engine.EnginePartSnapshot
 import com.garfiec.librechat.core.model.engine.EngineStreamEvent
 
 /**
- * The conversation, folded from the engine's durable event stream.
+ * The conversation, folded from the engine's events.
  *
- * The stream is the single source of truth: it replays a session's whole history and then tails the
- * live reply, so one pure reducer over [EngineStreamEvent] reconstructs both. Text is folded the way
- * the wire delivers it — deltas append optimistically, and a `text.ended` overwrites with the
- * authoritative value — so a model that streams token by token and one that answers in a single block
- * both land on the same rendered text.
+ * One reducer serves both the past and the present: a fetched transcript is replayed as the same
+ * events a live turn emits (`engineHistoryEvents`), so opening a session and watching it answer go
+ * through identical code and cannot drift apart.
  *
- * Pure on purpose (the Tasks module has no Compose test harness): every rule here is pinned by
- * `MissionChatTest`, not discovered against a live engine.
+ * Parts are addressed by id, which is what makes the fold total: a snapshot
+ * ([EngineStreamEvent.PartUpdated]) is authoritative and overwrites, a delta appends. The engine
+ * sends an empty text part first, fills it with deltas, then closes it with a snapshot — so a
+ * consumer honouring only snapshots still lands on the right text, just not live.
+ *
+ * Pure on purpose (this module has no Compose test harness): every rule is pinned by `MissionChatTest`.
  */
 data class MissionChatState(
     val turns: List<ChatTurn> = emptyList(),
-    /** An assistant answer is in flight — drives the spinner and the send/stop button's face. */
+    /** A turn is running — drives the spinner and the send/stop button's face. */
     val streaming: Boolean = false,
-    /** A failure that belongs to no turn (the stream itself dropped for good). */
+    /** A failure that belongs to no turn (the feed itself gave up). */
     val error: String? = null,
 )
 
 sealed interface ChatTurn {
     val key: String
 
-    data class User(override val key: String, val text: String) : ChatTurn
+    data class User(override val key: String, val parts: List<ChatPart> = emptyList()) : ChatTurn
 
-    data class Assistant(
-        override val key: String,
-        val parts: List<ChatPart> = emptyList(),
-        /** Set when the turn failed; the bubble shows it in place. */
-        val failed: String? = null,
-    ) : ChatTurn
+    data class Assistant(override val key: String, val parts: List<ChatPart> = emptyList()) : ChatTurn
 }
 
 sealed interface ChatPart {
-    /** A block of the assistant's answer. `id` is the engine's `textID`, so deltas find their block. */
-    data class Text(val id: String, val text: String) : ChatPart
+    val id: String
+
+    /** A block of prose. Rendered as markdown, like the chat's own bubbles. */
+    data class Text(override val id: String, val text: String) : ChatPart
 
     /** The model's thinking, shown muted. */
-    data class Reasoning(val id: String, val text: String) : ChatPart
+    data class Reasoning(override val id: String, val text: String) : ChatPart
 
     /** A tool the assistant reached for, and how it ended. */
-    data class Tool(val callId: String, val name: String, val state: ToolState) : ChatPart
+    data class Tool(
+        override val id: String,
+        val name: String,
+        val state: ToolState,
+    ) : ChatPart
 }
 
 enum class ToolState { RUNNING, OK, FAILED }
 
-/** Fold a whole sequence — the replayed history, or a test's script — into one state. */
+/** Fold a whole sequence — a replayed transcript, a live run, or a test's script — into one state. */
 fun missionChatFrom(events: List<EngineStreamEvent>): MissionChatState =
     events.fold(MissionChatState()) { state, event -> state.reduce(event) }
 
 /**
- * Apply one event. Every branch is total and idempotent enough to survive a replay: a re-seen
- * `prompt.admitted` does not add a second user bubble, and a tool announced twice (`input.started`
- * then `called`) stays one card.
+ * Apply one event. Idempotent under replay: a message or part seen twice is updated in place rather
+ * than duplicated, which is what lets the screen seed from history and then tail the feed without the
+ * seam showing.
  */
 fun MissionChatState.reduce(event: EngineStreamEvent): MissionChatState = when (event) {
-    is EngineStreamEvent.PromptAdmitted -> {
-        val already = turns.any { it is ChatTurn.User && it.key == event.messageId }
-        val next = if (already) turns else turns + ChatTurn.User(event.messageId, event.text.orEmpty())
-        copy(turns = next, streaming = true, error = null)
+    is EngineStreamEvent.MessageStarted -> {
+        val known = turns.any { it.key == event.messageId }
+        when {
+            known -> this
+            event.role == ROLE_USER ->
+                copy(turns = turns + ChatTurn.User(event.messageId), error = null)
+            else ->
+                copy(turns = turns + ChatTurn.Assistant(event.messageId), streaming = true, error = null)
+        }
     }
 
-    is EngineStreamEvent.StepStarted ->
-        copy(turns = ensureAssistant(event.assistantMessageId), streaming = true)
+    is EngineStreamEvent.PartUpdated -> {
+        val part = event.part.asChatPart(event.partId)
+        if (part == null) this else copy(turns = turns.withPart(event.messageId, part))
+    }
 
-    is EngineStreamEvent.TextStarted ->
-        copy(turns = withAssistant(event.assistantMessageId) { it.ensureText(event.textId) })
-
-    is EngineStreamEvent.TextDelta ->
-        copy(
-            turns = withAssistant(event.assistantMessageId) { it.appendText(event.textId, event.delta) },
-            streaming = true,
-        )
-
-    is EngineStreamEvent.TextEnded ->
-        copy(turns = withAssistant(event.assistantMessageId) { it.setText(event.textId, event.text) })
-
-    is EngineStreamEvent.ReasoningDelta ->
-        copy(
-            turns = withAssistant(event.assistantMessageId) { it.appendReasoning(event.reasoningId, event.delta) },
-            streaming = true,
-        )
-
-    is EngineStreamEvent.ReasoningEnded -> {
-        val text = event.text
-        if (text == null) {
+    is EngineStreamEvent.PartDelta ->
+        if (event.field != FIELD_TEXT) {
             this
         } else {
-            copy(turns = withAssistant(event.assistantMessageId) { it.setReasoning(event.reasoningId, text) })
+            copy(turns = turns.appendingText(event.messageId, event.partId, event.delta), streaming = true)
+        }
+
+    EngineStreamEvent.Idle -> copy(streaming = false)
+}
+
+private const val ROLE_USER = "user"
+private const val FIELD_TEXT = "text"
+
+/**
+ * The parts worth rendering. `step-start` and `step-finish` are the run's own bookkeeping — nobody
+ * reads them — and a text part with nothing in it yet is not a blank bubble, it is a part waiting for
+ * its deltas, so it is kept (empty) rather than dropped.
+ */
+private fun EnginePartSnapshot.asChatPart(partId: String): ChatPart? = when (type) {
+    "text" -> ChatPart.Text(partId, text.orEmpty())
+    "reasoning" -> ChatPart.Reasoning(partId, text.orEmpty())
+    "tool" -> ChatPart.Tool(
+        id = partId,
+        name = tool ?: callId ?: partId,
+        state = when (status) {
+            "completed" -> ToolState.OK
+            "error" -> ToolState.FAILED
+            // No status yet means the call is still being assembled — not a success. Reading an
+            // absent status as OK would put a ✓ on a tool that may still fail.
+            else -> ToolState.RUNNING
+        },
+    )
+    else -> null
+}
+
+/** Upsert a part into its message, creating the message if the feed named it before announcing it. */
+private fun List<ChatTurn>.withPart(messageId: String, part: ChatPart): List<ChatTurn> {
+    val base = if (any { it.key == messageId }) this else this + ChatTurn.Assistant(messageId)
+    return base.map { turn ->
+        if (turn.key != messageId) return@map turn
+        turn.mapParts { parts ->
+            if (parts.any { it.id == part.id }) {
+                parts.map { if (it.id == part.id) part else it }
+            } else {
+                parts + part
+            }
         }
     }
+}
 
-    is EngineStreamEvent.ToolStarted ->
-        copy(
-            turns = withAssistant(event.assistantMessageId) { it.ensureTool(event.callId, event.name) },
-            streaming = true,
-        )
-
-    is EngineStreamEvent.ToolEnded ->
-        copy(turns = withAssistant(event.assistantMessageId) { it.endTool(event.callId, event.ok) })
-
-    is EngineStreamEvent.StepEnded ->
-        // Only the canonical stop ends the turn; a step that ends to run a tool keeps the spinner up.
-        copy(streaming = if (event.finish == FINISH_STOP) false else streaming)
-
-    is EngineStreamEvent.Failed -> {
-        val id = event.assistantMessageId
-        if (id == null) {
-            copy(streaming = false, error = event.error)
-        } else {
-            copy(turns = withAssistant(id) { it.copy(failed = event.error) }, streaming = false)
+private fun List<ChatTurn>.appendingText(messageId: String, partId: String, delta: String): List<ChatTurn> {
+    val base = if (any { it.key == messageId }) this else this + ChatTurn.Assistant(messageId)
+    return base.map { turn ->
+        if (turn.key != messageId) return@map turn
+        turn.mapParts { parts ->
+            if (parts.any { it.id == partId }) {
+                parts.map { if (it is ChatPart.Text && it.id == partId) it.copy(text = it.text + delta) else it }
+            } else {
+                parts + ChatPart.Text(partId, delta)
+            }
         }
     }
 }
 
-private const val FINISH_STOP = "stop"
-
-private fun MissionChatState.ensureAssistant(id: String): List<ChatTurn> =
-    if (turns.any { it is ChatTurn.Assistant && it.key == id }) {
-        turns
-    } else {
-        turns + ChatTurn.Assistant(key = id)
-    }
-
-private inline fun MissionChatState.withAssistant(
-    id: String,
-    transform: (ChatTurn.Assistant) -> ChatTurn.Assistant,
-): List<ChatTurn> {
-    val present = turns.any { it is ChatTurn.Assistant && it.key == id }
-    val base = if (present) turns else turns + ChatTurn.Assistant(key = id)
-    return base.map { if (it is ChatTurn.Assistant && it.key == id) transform(it) else it }
+private inline fun ChatTurn.mapParts(transform: (List<ChatPart>) -> List<ChatPart>): ChatTurn = when (this) {
+    is ChatTurn.User -> copy(parts = transform(parts))
+    is ChatTurn.Assistant -> copy(parts = transform(parts))
 }
 
-private fun ChatTurn.Assistant.ensureText(textId: String): ChatTurn.Assistant =
-    if (parts.any { it is ChatPart.Text && it.id == textId }) this else copy(parts = parts + ChatPart.Text(textId, ""))
-
-private fun ChatTurn.Assistant.appendText(textId: String, delta: String): ChatTurn.Assistant =
-    mapText(textId) { it.copy(text = it.text + delta) }
-
-private fun ChatTurn.Assistant.setText(textId: String, text: String): ChatTurn.Assistant =
-    mapText(textId) { it.copy(text = text) }
-
-private inline fun ChatTurn.Assistant.mapText(
-    textId: String,
-    transform: (ChatPart.Text) -> ChatPart.Text,
-): ChatTurn.Assistant {
-    val present = parts.any { it is ChatPart.Text && it.id == textId }
-    val base = if (present) parts else parts + ChatPart.Text(textId, "")
-    return copy(parts = base.map { if (it is ChatPart.Text && it.id == textId) transform(it) else it })
-}
-
-private fun ChatTurn.Assistant.appendReasoning(reasoningId: String, delta: String): ChatTurn.Assistant =
-    mapReasoning(reasoningId) { it.copy(text = it.text + delta) }
-
-private fun ChatTurn.Assistant.setReasoning(reasoningId: String, text: String): ChatTurn.Assistant =
-    mapReasoning(reasoningId) { it.copy(text = text) }
-
-private inline fun ChatTurn.Assistant.mapReasoning(
-    reasoningId: String,
-    transform: (ChatPart.Reasoning) -> ChatPart.Reasoning,
-): ChatTurn.Assistant {
-    val present = parts.any { it is ChatPart.Reasoning && it.id == reasoningId }
-    val base = if (present) parts else parts + ChatPart.Reasoning(reasoningId, "")
-    return copy(parts = base.map { if (it is ChatPart.Reasoning && it.id == reasoningId) transform(it) else it })
-}
-
-private fun ChatTurn.Assistant.ensureTool(callId: String, name: String): ChatTurn.Assistant =
-    if (parts.any { it is ChatPart.Tool && it.callId == callId }) {
-        this
-    } else {
-        copy(parts = parts + ChatPart.Tool(callId, name, ToolState.RUNNING))
-    }
-
-private fun ChatTurn.Assistant.endTool(callId: String, ok: Boolean): ChatTurn.Assistant {
-    val present = parts.any { it is ChatPart.Tool && it.callId == callId }
-    val base = if (present) parts else parts + ChatPart.Tool(callId, callId, ToolState.RUNNING)
-    val ended = if (ok) ToolState.OK else ToolState.FAILED
-    return copy(parts = base.map { if (it is ChatPart.Tool && it.callId == callId) it.copy(state = ended) else it })
-}
+/** The visible text of a turn — what a bubble renders, and what an empty turn has none of. */
+fun ChatTurn.text(): String = when (this) {
+    is ChatTurn.User -> parts
+    is ChatTurn.Assistant -> parts
+}.filterIsInstance<ChatPart.Text>().joinToString("\n\n") { it.text }.trim()

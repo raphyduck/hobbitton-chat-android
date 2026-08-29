@@ -11,6 +11,7 @@ import com.garfiec.librechat.core.model.engine.EngineProviderModel
 import com.garfiec.librechat.core.model.engine.EngineSelectableModel
 import com.garfiec.librechat.core.model.engine.EngineStreamEvent
 import com.garfiec.librechat.core.model.engine.MissionState
+import com.garfiec.librechat.core.model.engine.engineHistoryEvents
 import com.garfiec.librechat.core.model.engine.judgeMission
 import com.garfiec.librechat.core.network.api.AgentEngineApi
 import com.garfiec.librechat.core.network.engine.EngineEventTransport
@@ -171,18 +172,29 @@ class EngineMissionRepository(
     suspend fun abort(sessionId: String) = api.abort(sessionId)
 
     /**
-     * The live conversation of a session, for the interactive chat: the durable event stream replays
-     * the whole history and then tails the reply as it is written. Reconnects on a drop without
-     * repeating or missing an event — the seq cursor is [EngineStreamClient]'s job.
+     * What the session has already said, replayed as the events a live turn would have produced.
+     *
+     * The transcript is the **only** place a mission's past lives: the classic routes are what
+     * launched it, and the v2 durable feed knows nothing about such a session. Seeding from here and
+     * tailing [events] afterwards is what makes the chat open on a conversation instead of a blank
+     * page — the bug the tab shipped with on 29/08/2026.
+     */
+    suspend fun history(sessionId: String): List<EngineStreamEvent> =
+        engineHistoryEvents(api.messages(sessionId))
+
+    /**
+     * What is happening in the session right now. The engine's feed is global; the client keeps only
+     * this session's frames.
      */
     fun events(sessionId: String): Flow<EngineStreamEvent> = streamClient.connect(sessionId, eventTransport)
 
     /**
-     * Sends a message into an existing session and returns at once. The reply does not come back
-     * here — it arrives over [events], token by token. This is the **v2** prompt, the one that drives
-     * that feed, not the fire-and-forget `prompt_async` a mission launch uses.
+     * Sends a message and waits for the finished answer. The turn also streams on [events] while this
+     * call is in flight, so the screen fills in token by token and this return value is the
+     * reconciliation rather than the first thing the user sees.
      */
-    suspend fun sendMessage(sessionId: String, text: String) = api.promptStreaming(sessionId, text)
+    suspend fun sendMessage(sessionId: String, text: String): List<EngineStreamEvent> =
+        engineHistoryEvents(listOf(api.sendMessage(sessionId, text)))
 
     private companion object {
         const val TITLE_LENGTH = 60
