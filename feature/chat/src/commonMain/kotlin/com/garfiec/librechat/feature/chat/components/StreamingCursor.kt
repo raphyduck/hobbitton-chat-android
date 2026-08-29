@@ -39,6 +39,9 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
+import com.garfiec.librechat.core.ui.markdown.CITATION_DETECT_REGEX
+import com.garfiec.librechat.core.ui.markdown.InlineSegment
+import com.garfiec.librechat.core.ui.markdown.MarkdownSegment
 import com.garfiec.librechat.feature.chat.resources.*
 import com.garfiec.librechat.feature.chat.resources.Res
 import com.mikepenz.markdown.model.MarkdownAnnotator

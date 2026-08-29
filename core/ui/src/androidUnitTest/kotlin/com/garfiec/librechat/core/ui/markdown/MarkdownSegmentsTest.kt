@@ -1,4 +1,4 @@
-package com.garfiec.librechat.feature.chat.components
+package com.garfiec.librechat.core.ui.markdown
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue

@@ -153,4 +153,17 @@ data class EnginePart(
     val type: String,
     val text: String? = null,
     val tool: String? = null,
+    /** Ties a tool part to the call it reports on; the same id appears on the live feed. */
+    @SerialName("callID") val callId: String? = null,
+    /**
+     * How the call ended. Absent while it is still being assembled — which is why a transcript can
+     * legitimately show a tool with no status, and why the chat must not read that as a success.
+     */
+    val state: EngineToolState? = null,
+)
+
+/** A tool call's outcome, as `GET /session/{id}/message` returns it: "completed", "error"… */
+@Serializable
+data class EngineToolState(
+    val status: String? = null,
 )

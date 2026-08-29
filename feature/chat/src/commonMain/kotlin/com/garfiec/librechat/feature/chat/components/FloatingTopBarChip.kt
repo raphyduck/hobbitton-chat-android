@@ -29,6 +29,7 @@ import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.garfiec.librechat.core.ui.input.ChatInputDefaults
 
 /**
  * The diameter of a circular floating top-bar control chip. Shared so the bar's height

@@ -4,14 +4,11 @@ import com.garfiec.librechat.core.model.engine.CreateEngineSessionRequest
 import com.garfiec.librechat.core.model.engine.EngineAgentProfile
 import com.garfiec.librechat.core.model.engine.EngineMessage
 import com.garfiec.librechat.core.model.engine.EnginePermissionReply
-import com.garfiec.librechat.core.model.engine.EnginePromptAdmission
-import com.garfiec.librechat.core.model.engine.EnginePromptAdmissionEnvelope
+import com.garfiec.librechat.core.model.engine.EnginePromptPart
 import com.garfiec.librechat.core.model.engine.EnginePromptRequest
 import com.garfiec.librechat.core.model.engine.EngineProviderCatalogue
 import com.garfiec.librechat.core.model.engine.EngineSession
 import com.garfiec.librechat.core.model.engine.EngineSessionStatus
-import com.garfiec.librechat.core.model.engine.EngineStreamPromptRequest
-import com.garfiec.librechat.core.model.engine.EngineStreamPromptText
 import com.garfiec.librechat.core.network.engine.EngineHttpException
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -82,17 +79,20 @@ class AgentEngineApi(
     }
 
     /**
-     * The **v2** prompt — hands a message to an existing session and returns the id the engine minted
-     * for it, without waiting for the answer. Unlike [prompt]'s `prompt_async`, this one drives the
-     * durable event feed the interactive chat subscribes to (`GET /api/session/{id}/event`): the reply
-     * arrives there, token by token. The v2 routes answer inside a `data` envelope, so the admission
-     * is unwrapped from one.
+     * Talks to an existing session and **waits for the answer** — the interactive chat's send.
+     *
+     * `POST /session/{id}/message`, the classic route, deliberately and not the v2 prompt. A mission
+     * is launched through `prompt_async`, and a session that has run there never executes a v2
+     * prompt: it is admitted (`prompt.admitted`, `prompted`) and then no step ever starts, whatever
+     * the `delivery` — measured on the live engine on 29/08/2026, which is exactly the « I send a
+     * message and nothing answers » the tab shipped with. This route answers in seconds with the
+     * finished assistant message, and streams its progress on the global `/event` feed meanwhile.
      */
-    suspend fun promptStreaming(sessionId: String, text: String): EnginePromptAdmission =
+    suspend fun sendMessage(sessionId: String, text: String, agent: String? = null): EngineMessage =
         client.post {
-            url { path("api/session/${sessionId.encodeURLPathPart()}/prompt") }
-            setBody(EngineStreamPromptRequest(prompt = EngineStreamPromptText(text)))
-        }.decoded<EnginePromptAdmissionEnvelope>().data
+            url { path("session/${sessionId.encodeURLPathPart()}/message") }
+            setBody(EnginePromptRequest(parts = listOf(EnginePromptPart(text = text)), agent = agent))
+        }.decoded()
 
     /**
      * Every active session at once, keyed by id — there is no per-session route. A session **absent

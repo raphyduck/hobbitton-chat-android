@@ -1,8 +1,8 @@
-package com.garfiec.librechat.feature.chat.components
+package com.garfiec.librechat.core.ui.markdown
 
 // Shared markdown + LaTeX parsing logic used by both Android and iOS MarkdownContent.
 
-internal sealed interface MarkdownSegment {
+sealed interface MarkdownSegment {
     data class TextBlock(val text: String) : MarkdownSegment
     data class CodeBlock(val code: String, val language: String?) : MarkdownSegment
     data class LatexBlock(val latex: String) : MarkdownSegment
@@ -14,11 +14,11 @@ internal sealed interface MarkdownSegment {
     ) : MarkdownSegment
 }
 
-internal enum class TableCellAlignment {
+enum class TableCellAlignment {
     LEFT, CENTER, RIGHT,
 }
 
-internal sealed interface InlineSegment {
+sealed interface InlineSegment {
     data class Text(val text: String) : InlineSegment
     data class Latex(val latex: String) : InlineSegment
 }
@@ -27,7 +27,7 @@ internal sealed interface InlineSegment {
 private val CODE_BLOCK_REGEX = Regex("```(\\w*)[^\\S\\n]*\\n([\\s\\S]*?)```")
 private val BLOCK_LATEX_REGEX = Regex("\\$\\$([\\s\\S]+?)\\$\\$|\\\\\\[([\\s\\S]+?)\\\\\\]")
 private val INLINE_LATEX_REGEX = Regex("(?<!\\$)\\$(?!\\$)(.+?)(?<!\\$)\\$(?!\\$)|\\\\\\((.+?)\\\\\\)")
-internal val CITATION_DETECT_REGEX = Regex("""\[\d+]|\u3010\d+\u2020""")
+val CITATION_DETECT_REGEX = Regex("""\[\d+]|\u3010\d+\u2020""")
 private val TABLE_SEPARATOR_REGEX = Regex("^\\|?\\s*:?-{1,}:?\\s*(\\|\\s*:?-{1,}:?\\s*)*\\|?$")
 
 private val HTML_BLOCK_TAG_NAMES = setOf(
@@ -45,7 +45,7 @@ private val HTML_OPENING_TAG_REGEX = Regex(
 private val LATEX_INDICATORS = setOf('\\', '^', '_', '{', '}')
 private val LATEX_KEYWORDS = listOf("frac", "sqrt", "sum", "int", "lim", "infty", "alpha", "beta")
 
-internal fun looksLikeLatex(content: String): Boolean {
+fun looksLikeLatex(content: String): Boolean {
     if (content.any { it in LATEX_INDICATORS }) return true
     return LATEX_KEYWORDS.any { keyword -> content.contains(keyword) }
 }
@@ -140,7 +140,7 @@ private fun extractHtmlBlocks(segments: List<MarkdownSegment>): List<MarkdownSeg
  * 5-phase markdown parser that extracts code blocks, HTML blocks, block LaTeX,
  * tables, and inline LaTeX from raw text.
  */
-internal fun parseMarkdownSegments(text: String): List<MarkdownSegment> {
+fun parseMarkdownSegments(text: String): List<MarkdownSegment> {
     // --- Pass 1: split on fenced code blocks ---
     val afterCodeBlocks = mutableListOf<MarkdownSegment>()
     var lastIndex = 0
@@ -340,12 +340,12 @@ private fun isTableRow(line: String): Boolean {
 
 private fun isTableSeparator(line: String): Boolean = TABLE_SEPARATOR_REGEX.matches(line.trim())
 
-internal fun parseTableRow(line: String): List<String> {
+fun parseTableRow(line: String): List<String> {
     val inner = line.trim().removePrefix("|").removeSuffix("|")
     return inner.split('|').map { it.trim() }
 }
 
-internal fun parseAlignments(separatorLine: String, columnCount: Int): List<TableCellAlignment> {
+fun parseAlignments(separatorLine: String, columnCount: Int): List<TableCellAlignment> {
     val cells = parseTableRow(separatorLine)
     return List(columnCount) { col ->
         val cell = cells.getOrElse(col) { "---" }.trim()

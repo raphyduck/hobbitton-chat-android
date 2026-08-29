@@ -10,6 +10,34 @@ Material 3 theme and shared Compose components used across all feature modules. 
 - `Type.kt`: Typography scale.
 - `Shape.kt`: Corner radius definitions.
 
+### Markdown parsing (`markdown/`)
+
+`MarkdownParsing.kt` — the block-level parser (`parseMarkdownSegments`, `MarkdownSegment`,
+`InlineSegment`, `parseTableRow`, `parseAlignments`, `looksLikeLatex`, `CITATION_DETECT_REGEX`).
+
+It lives here because **two features render markdown**: `feature/chat` and, since 29/08/2026, a
+mission session's conversation in `feature/tasks`. Feature modules cannot see each other, so the
+alternative was a second copy of rules that took a long time to get right — fences of any length,
+tables, LaTeX, the artifact-aware fence handling — and would have drifted the first time one side
+fixed a bug.
+
+**Only the parser is shared.** The renderers stay in their own features:
+
+- `CachedMarkdown` and `ParsedMarkdownCache` are *not* here, and moving them would not work: they
+  depend on the `mikepenz` markdown library (not a dependency of this module) and on chat-local
+  symbols (`LocalParsedMarkdownCache`, `StreamingCursorAnnotator`, `LocalImmediateMarkdown`).
+- The chat's renderer is layered with in-conversation search, citations and steer markers, all built
+  on chat message semantics a mission has no data for. `feature/tasks` renders its own `MissionMarkdown`
+  on top of the shared parser instead.
+
+### Composer look (`input/`)
+
+`ChatInputDefaults` — shape, fill, border, keyboard options and text-field colours for the message
+composer. Shared for the same reason as the parser: the chat and the mission conversation both render
+a composer, and the tasks screen first shipped with a bare `OutlinedTextField` that read as a
+different, lesser control. The composers themselves are *not* shared — attachments, MCP pickers,
+voice, queueing and steering are chat concepts a mission session does not have.
+
 ### Shared Components (`components/`)
 - `LibreChatTopBar` - App bar with optional back navigation and actions.
 - `LoadingIndicator` - Centered circular progress.

@@ -1,5 +1,6 @@
 package com.garfiec.librechat.feature.chat.components
 
+import com.garfiec.librechat.core.ui.markdown.MarkdownSegment
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel

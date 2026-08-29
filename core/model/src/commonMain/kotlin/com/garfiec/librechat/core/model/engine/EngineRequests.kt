@@ -48,47 +48,6 @@ data class EnginePromptPart(
     val text: String,
 )
 
-/**
- * The **v2** prompt — `POST /api/session/{id}/prompt`.
- *
- * Where [EnginePromptRequest] launches a mission and returns at once (`prompt_async`, no stream),
- * this one is what an interactive chat sends: the same call drives the session's durable event feed
- * (`GET /api/session/{id}/event`), so the reply arrives token by token on a stream the screen is
- * already watching. It carries no `agent` or `model` — the session it lands on already has both, and
- * a chat continues that session rather than reconfiguring it.
- *
- * The whole v2 surface wraps its request-and-response bodies differently from the classic routes: the
- * body nests the text under `prompt`, and the answer comes back inside a `data` envelope
- * ([EnginePromptAdmissionEnvelope]). Verified on the wire against the live engine, 29/08/2026.
- */
-@Serializable
-data class EngineStreamPromptRequest(
-    val prompt: EngineStreamPromptText,
-    val delivery: String? = null,
-)
-
-@Serializable
-data class EngineStreamPromptText(
-    val text: String,
-)
-
-/** The `data` envelope every v2 route answers with. */
-@Serializable
-data class EnginePromptAdmissionEnvelope(
-    val data: EnginePromptAdmission,
-)
-
-/**
- * What `POST /api/session/{id}/prompt` returns: the id it minted for the user's message, echoed so a
- * caller can tie the outgoing bubble to the `messageID` the event stream will name.
- */
-@Serializable
-data class EnginePromptAdmission(
-    val id: String,
-    val sessionID: String? = null,
-    val admittedSeq: Long? = null,
-)
-
 /** Approve or refuse one pending permission request in interactive mode. */
 @Serializable
 data class EnginePermissionReply(

@@ -5,6 +5,8 @@ import com.garfiec.librechat.core.model.Message
 import com.garfiec.librechat.core.model.content.MessageContentPart
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
+import com.garfiec.librechat.core.ui.markdown.parseMarkdownSegments
+import com.garfiec.librechat.core.ui.markdown.MarkdownSegment
 
 /**
  * Consistency contract for the shared render-order occurrence enumeration
