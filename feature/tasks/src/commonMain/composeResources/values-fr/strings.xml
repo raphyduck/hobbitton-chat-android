@@ -6,6 +6,7 @@
     <string name="tasks_new">Nouvelle mission</string>
     <string name="tasks_retry">Réessayer</string>
     <string name="tasks_stop">Arrêter</string>
+    <string name="tasks_transcript_empty">Rien à afficher pour l’instant — la mission n’a rien dit.</string>
     <string name="tasks_not_configured">Le moteur n\'est pas encore configuré</string>
     <string name="tasks_not_configured_hint">Renseignez son adresse et ses identifiants dans les réglages, puis revenez.</string>
     <string name="tasks_state_running">En cours</string>
