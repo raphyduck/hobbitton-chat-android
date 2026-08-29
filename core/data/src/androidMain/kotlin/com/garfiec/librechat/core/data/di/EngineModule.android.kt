@@ -14,6 +14,10 @@ import com.garfiec.librechat.core.data.scheduler.SchedulerRepository
 import com.garfiec.librechat.core.network.api.AgentEngineApi
 import com.garfiec.librechat.core.network.api.SchedulerApi
 import com.garfiec.librechat.core.network.engine.EngineAuthPlugin
+import com.garfiec.librechat.core.network.engine.EngineEventParser
+import com.garfiec.librechat.core.network.engine.EngineEventTransport
+import com.garfiec.librechat.core.network.engine.EngineStreamClient
+import com.garfiec.librechat.core.network.engine.KtorEngineEventTransport
 import com.garfiec.librechat.core.network.engine.EnginePasswordStore
 import com.garfiec.librechat.core.network.engine.EngineTokenStore
 import com.garfiec.librechat.core.network.engine.auth.EngineOAuthEndpoints
@@ -96,6 +100,13 @@ val engineModule: Module = module {
     }
 
     single { AgentEngineApi(get(KoinQualifiers.Engine)) }
+
+    // The interactive chat's live feed: a byte transport over the engine's own client, framed and
+    // reconnected by EngineStreamClient, each frame mapped by EngineEventParser. Wired here, with the
+    // rest of the Android-only engine graph.
+    single<EngineEventTransport> { KtorEngineEventTransport(get(KoinQualifiers.Engine)) }
+    single { EngineEventParser(get()) }
+    single { EngineStreamClient(get()) }
 
     /**
      * A **third** client, for the scheduler.
