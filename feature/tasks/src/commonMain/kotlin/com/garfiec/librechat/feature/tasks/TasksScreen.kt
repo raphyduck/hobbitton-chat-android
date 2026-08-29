@@ -28,6 +28,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -138,9 +139,17 @@ fun TasksScreen(
     val uriHandler = LocalUriHandler.current
     var composing by remember { mutableStateOf(false) }
     var configuring by remember { mutableStateOf(false) }
+    // Collapsed by default: nine recurring missions push the sessions — what someone opens the tab
+    // to read — below the fold. Hoisted to the screen rather than kept in the header, because it
+    // decides whether the LazyColumn emits the rows at all; a lazy item's own state cannot.
+    var scheduledShown by rememberSaveable { mutableStateOf(false) }
     // Read once into a local: `state` is a delegated property, so the branch below cannot smart-cast
     // through it.
     val failure = state.error
+    // A spinner owns the screen only while there is genuinely nothing to show. Past that the pull
+    // indicator carries the refresh — otherwise a pull on a tab showing only the schedule would
+    // blank the very list the finger is on.
+    val nothingToShow = state.missions.isEmpty() && state.scheduled.isEmpty()
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -170,119 +179,129 @@ fun TasksScreen(
             }
         },
     ) { padding ->
-        when {
-            // « Not set up » is not « broken ». Offering a retry here would send someone to check
-            // their network over a settings form they have never filled in.
-            !state.engineConfigured -> Explanation(
-                title = stringResource(Res.string.tasks_not_configured),
-                hint = stringResource(Res.string.tasks_not_configured_hint),
-                action = stringResource(Res.string.tasks_settings_open) to { configuring = true },
-                modifier = Modifier.padding(padding),
-            )
+        PullToRefreshBox(
+            isRefreshing = state.loading && !nothingToShow,
+            onRefresh = viewModel::refresh,
+            modifier = Modifier.fillMaxSize().padding(padding),
+        ) {
+            when {
+                // « Not set up » is not « broken ». Offering a retry here would send someone to check
+                // their network over a settings form they have never filled in.
+                !state.engineConfigured -> Explanation(
+                    title = stringResource(Res.string.tasks_not_configured),
+                    hint = stringResource(Res.string.tasks_not_configured_hint),
+                    action = stringResource(Res.string.tasks_settings_open) to { configuring = true },
+                )
 
-            state.loading && state.missions.isEmpty() ->
-                Column(
-                    modifier = Modifier.fillMaxSize().padding(padding),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                ) { CircularProgressIndicator() }
+                state.loading && nothingToShow ->
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                    ) { CircularProgressIndicator() }
 
-            failure != null && state.missions.isEmpty() -> Explanation(
-                title = stringResource(failure.title()),
-                // What the last sign-in attempt ran into outranks the generic hint: it is the more
-                // recent and the more specific of the two answers to « why ».
-                hint = state.signInProblem?.let { stringResource(it.sentence()) }
-                    ?: failure.hint()?.let { stringResource(it) },
-                // The offer follows the cause. « Retry » in front of an expired session is a button
-                // that cannot work, and it is the one someone will press five times before
-                // suspecting their settings.
-                action = when (failure) {
-                    // Going through the portal is the remedy, and it was missing entirely until
-                    // 24 August: the tab offered the settings form, so the only thing anyone could
-                    // do about a missing token was retype a password that had nothing to do with it.
-                    EngineFailureKind.AUTHENTICATION ->
-                        stringResource(Res.string.tasks_sign_in) to
-                            { viewModel.signIn(uriHandler::openUri) }
-                    EngineFailureKind.NOT_FOUND ->
+                failure != null && state.missions.isEmpty() -> Explanation(
+                    title = stringResource(failure.title()),
+                    // What the last sign-in attempt ran into outranks the generic hint: it is the more
+                    // recent and the more specific of the two answers to « why ».
+                    hint = state.signInProblem?.let { stringResource(it.sentence()) }
+                        ?: failure.hint()?.let { stringResource(it) },
+                    // The offer follows the cause. « Retry » in front of an expired session is a button
+                    // that cannot work, and it is the one someone will press five times before
+                    // suspecting their settings.
+                    action = when (failure) {
+                        // Going through the portal is the remedy, and it was missing entirely until
+                        // 24 August: the tab offered the settings form, so the only thing anyone could
+                        // do about a missing token was retype a password that had nothing to do with it.
+                        EngineFailureKind.AUTHENTICATION ->
+                            stringResource(Res.string.tasks_sign_in) to
+                                { viewModel.signIn(uriHandler::openUri) }
+                        EngineFailureKind.NOT_FOUND ->
+                            stringResource(Res.string.tasks_settings_open) to { configuring = true }
+                        EngineFailureKind.PERMISSION -> null
+                        else -> stringResource(Res.string.tasks_retry) to viewModel::refresh
+                    },
+                    secondary = if (failure == EngineFailureKind.AUTHENTICATION) {
                         stringResource(Res.string.tasks_settings_open) to { configuring = true }
-                    EngineFailureKind.PERMISSION -> null
-                    else -> stringResource(Res.string.tasks_retry) to viewModel::refresh
-                },
-                secondary = if (failure == EngineFailureKind.AUTHENTICATION) {
-                    stringResource(Res.string.tasks_settings_open) to { configuring = true }
-                } else {
-                    null
-                },
-                busy = state.signingIn,
-                modifier = Modifier.padding(padding),
-            )
+                    } else {
+                        null
+                    },
+                    busy = state.signingIn,
+                )
 
-            // « No session yet » is not « nothing to show »: the nine missions that run every
-            // night are still there, and hiding them behind an empty sessions list was exactly
-            // what made all of that work invisible from a phone.
-            state.missions.isEmpty() && state.scheduled.isEmpty() -> Explanation(
-                title = stringResource(Res.string.tasks_empty),
-                hint = stringResource(Res.string.tasks_empty_hint),
-                modifier = Modifier.padding(padding),
-            )
+                // « No session yet » is not « nothing to show »: the nine missions that run every
+                // night are still there, and hiding them behind an empty sessions list was exactly
+                // what made all of that work invisible from a phone.
+                state.missions.isEmpty() && state.scheduled.isEmpty() -> Explanation(
+                    title = stringResource(Res.string.tasks_empty),
+                    hint = stringResource(Res.string.tasks_empty_hint),
+                )
 
-            else -> LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                // The week's spend leads, above the schedule: it is the one number that
-                // answers « where am I », and it fits in two lines. Everything below it is
-                // detail by comparison.
-                state.consumption?.let { report ->
-                    item(key = "spend-header") {
-                        SectionHeader(stringResource(Res.string.tasks_spend_header))
+                else -> LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    // The week's spend leads, above the schedule: it is the one number that
+                    // answers « where am I », and it fits in two lines. Everything below it is
+                    // detail by comparison.
+                    state.consumption?.let { report ->
+                        item(key = "spend-header") {
+                            SectionHeader(stringResource(Res.string.tasks_spend_header))
+                        }
+                        item(key = "spend-section") { SpendSection(report) }
                     }
-                    item(key = "spend-section") { SpendSection(report) }
-                }
 
-                // Providers come after the money and before the schedule: knowing a provider is
-                // dead changes how you read everything below it.
-                if (state.schedulerConfigured) {
-                    item(key = "providers-header") {
-                        SectionHeader(stringResource(Res.string.tasks_providers_header))
+                    // Providers come after the money and before the schedule: knowing a provider is
+                    // dead changes how you read everything below it.
+                    if (state.schedulerConfigured) {
+                        item(key = "providers-header") {
+                            SectionHeader(stringResource(Res.string.tasks_providers_header))
+                        }
+                        item(key = "providers-section") {
+                            ProvidersSection(
+                                health = state.providers,
+                                checking = state.providersChecking,
+                                failure = state.providersError,
+                                onCheck = viewModel::checkProviders,
+                            )
+                        }
                     }
-                    item(key = "providers-section") {
-                        ProvidersSection(
-                            health = state.providers,
-                            checking = state.providersChecking,
-                            failure = state.providersError,
-                            onCheck = viewModel::checkProviders,
-                        )
-                    }
-                }
 
-                // The schedule leads among the rest: what runs tonight without anyone watching is
-                // what someone opens this tab to check. Sessions are the record of what happened.
-                if (state.scheduled.isNotEmpty()) {
-                    item(key = "scheduled-header") {
-                        SectionHeader(stringResource(Res.string.tasks_scheduled_header))
+                    // The schedule leads among the rest: what runs tonight without anyone watching is
+                    // what someone opens this tab to check. Sessions are the record of what happened.
+                    if (state.scheduled.isNotEmpty()) {
+                        item(key = "scheduled-header") {
+                            CollapsibleSectionHeader(
+                                label = stringResource(Res.string.tasks_scheduled_header),
+                                count = state.scheduled.size,
+                                expanded = scheduledShown,
+                                onToggle = { scheduledShown = !scheduledShown },
+                            )
+                        }
+                        if (scheduledShown) {
+                            items(state.scheduled, key = { "scheduled-" + it.name }) { mission ->
+                                ScheduledMissionRow(
+                                    mission = mission,
+                                    onRun = { viewModel.runScheduled(mission.name) },
+                                    onToggle = {
+                                        viewModel.setScheduledEnabled(mission.name, !mission.enabled)
+                                    },
+                                )
+                            }
+                        }
                     }
-                    items(state.scheduled, key = { "scheduled-" + it.name }) { mission ->
-                        ScheduledMissionRow(
-                            mission = mission,
-                            onRun = { viewModel.runScheduled(mission.name) },
-                            onToggle = {
-                                viewModel.setScheduledEnabled(mission.name, !mission.enabled)
-                            },
-                        )
-                    }
-                }
-                if (state.missions.isNotEmpty()) {
-                    item(key = "sessions-header") {
-                        SectionHeader(stringResource(Res.string.tasks_sessions_header))
-                    }
-                    items(state.missions, key = { it.sessionId }) { mission ->
-                        MissionRow(
-                            mission = mission,
-                            onOpenChat = { onOpenMissionChat(mission.sessionId, mission.title) },
-                            onStop = { viewModel.abort(mission.sessionId) },
-                        )
+                    if (state.missions.isNotEmpty()) {
+                        item(key = "sessions-header") {
+                            SectionHeader(stringResource(Res.string.tasks_sessions_header))
+                        }
+                        items(state.missions, key = { it.sessionId }) { mission ->
+                            MissionRow(
+                                mission = mission,
+                                onOpenChat = { onOpenMissionChat(mission.sessionId, mission.title) },
+                                onStop = { viewModel.abort(mission.sessionId) },
+                            )
+                        }
                     }
                 }
             }
@@ -573,6 +592,45 @@ private fun SectionHeader(label: String) {
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
     )
+}
+
+/**
+ * A section header that folds its rows away, carrying the count so a collapsed section still says
+ * how much it is hiding — « Missions programmées 9 » reads as a fact, an empty heading as a bug.
+ */
+@Composable
+private fun CollapsibleSectionHeader(
+    label: String,
+    count: Int,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onToggle)
+            .padding(top = 8.dp, bottom = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                count.toString(),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Icon(
+                if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
 }
 
 /**
