@@ -577,7 +577,9 @@ fun MainNavDisplay(
                 },
             )
             tasksEntries(
-                onOpenMissionChat = { sessionId -> navigator.navigate(MissionChat(sessionId)) },
+                onOpenMissionChat = { sessionId, title ->
+                    navigator.navigate(MissionChat(sessionId, title))
+                },
                 onBack = { navigator.goBack() },
             )
             skillsEntries(

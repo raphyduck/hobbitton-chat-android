@@ -13,15 +13,17 @@ import kotlinx.serialization.modules.subclass
 
 @Serializable data object TasksList : TasksRoute
 
-/** One mission session, opened as a live conversation. */
-@Serializable data class MissionChat(val sessionId: String) : TasksRoute
+/** One mission session, opened as a live conversation. [title] names it in the chat's top bar. */
+@Serializable data class MissionChat(val sessionId: String, val title: String = "") : TasksRoute
 
 fun EntryProviderScope<NavKey>.tasksEntries(
-    onOpenMissionChat: (String) -> Unit,
+    onOpenMissionChat: (sessionId: String, title: String) -> Unit,
     onBack: () -> Unit,
 ) {
     entry<TasksList> { TasksScreen(onOpenMissionChat = onOpenMissionChat) }
-    entry<MissionChat> { key -> MissionChatScreen(sessionId = key.sessionId, onBack = onBack) }
+    entry<MissionChat> { key ->
+        MissionChatScreen(sessionId = key.sessionId, title = key.title, onBack = onBack)
+    }
 }
 
 /**

@@ -6,14 +6,15 @@
     <string name="tasks_new">New mission</string>
     <string name="tasks_retry">Retry</string>
     <string name="tasks_stop">Stop</string>
-    <string name="tasks_transcript_empty">Nothing to show yet — the mission has not spoken.</string>
+    <string name="tasks_age_minutes">%1$d min</string>
+    <string name="tasks_age_hours">%1$d h</string>
+    <string name="tasks_age_days">%1$d d</string>
     <string name="tasks_chat_title">Session</string>
     <string name="tasks_chat_hint">Message…</string>
     <string name="tasks_chat_send">Send</string>
     <string name="tasks_chat_back">Back</string>
     <string name="tasks_chat_empty">No message yet — send one to talk to the session.</string>
     <string name="tasks_chat_working">Working…</string>
-    <string name="tasks_chat_open">Open the conversation</string>
     <string name="tasks_not_configured">The engine is not set up yet</string>
     <string name="tasks_not_configured_hint">Add its address and credentials in Settings, then come back.</string>
     <string name="tasks_state_running">Running</string>

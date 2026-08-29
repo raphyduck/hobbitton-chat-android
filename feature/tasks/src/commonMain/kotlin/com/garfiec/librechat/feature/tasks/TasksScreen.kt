@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Settings
@@ -51,7 +50,9 @@ import com.garfiec.librechat.core.model.scheduler.Provider
 import com.garfiec.librechat.core.model.scheduler.ProviderHealth
 import com.garfiec.librechat.core.model.scheduler.ScheduledMission
 import com.garfiec.librechat.feature.tasks.resources.Res
-import com.garfiec.librechat.feature.tasks.resources.tasks_chat_open
+import com.garfiec.librechat.feature.tasks.resources.tasks_age_days
+import com.garfiec.librechat.feature.tasks.resources.tasks_age_hours
+import com.garfiec.librechat.feature.tasks.resources.tasks_age_minutes
 import com.garfiec.librechat.feature.tasks.resources.tasks_empty
 import com.garfiec.librechat.feature.tasks.resources.tasks_empty_hint
 import com.garfiec.librechat.feature.tasks.resources.tasks_error_authentication
@@ -113,8 +114,6 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_state_running
 import com.garfiec.librechat.feature.tasks.resources.tasks_state_succeeded
 import com.garfiec.librechat.feature.tasks.resources.tasks_stop
 import com.garfiec.librechat.feature.tasks.resources.tasks_title
-import com.garfiec.librechat.feature.tasks.resources.tasks_transcript_empty
-import com.garfiec.librechat.feature.tasks.util.TranscriptEntry
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -129,7 +128,7 @@ import org.koin.compose.viewmodel.koinViewModel
 @Composable
 fun TasksScreen(
     modifier: Modifier = Modifier,
-    onOpenMissionChat: (String) -> Unit = {},
+    onOpenMissionChat: (sessionId: String, title: String) -> Unit = { _, _ -> },
     viewModel: TasksViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -281,10 +280,7 @@ fun TasksScreen(
                     items(state.missions, key = { it.sessionId }) { mission ->
                         MissionRow(
                             mission = mission,
-                            expanded = state.openSessionId == mission.sessionId,
-                            transcript = state.transcripts[mission.sessionId],
-                            onToggle = { viewModel.toggleMission(mission.sessionId) },
-                            onOpenChat = { onOpenMissionChat(mission.sessionId) },
+                            onOpenChat = { onOpenMissionChat(mission.sessionId, mission.title) },
                             onStop = { viewModel.abort(mission.sessionId) },
                         )
                     }
@@ -698,21 +694,16 @@ private fun LastRunLine(mission: ScheduledMission) {
 @Composable
 private fun MissionRow(
     mission: Mission,
-    expanded: Boolean,
-    transcript: TranscriptLoad?,
-    onToggle: () -> Unit,
     onOpenChat: () -> Unit,
     onStop: () -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    // The whole row is the target and it opens the CONVERSATION — the Cowork-app gesture the user
+    // asked to match (29/08). The inline transcript peek this replaced is strictly contained in the
+    // chat, which replays the session's whole history before tailing it live.
+    Card(modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenChat)) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            // Tapping the row peeks at the transcript inline; the chat button opens the session as a
-            // conversation you can talk to. Two different needs — a glance, and a reply — so two
-            // targets rather than one overloaded tap.
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(onClick = onToggle),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -721,18 +712,13 @@ private fun MissionRow(
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f),
                 )
-                IconButton(onClick = onOpenChat) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.Chat,
-                        contentDescription = stringResource(Res.string.tasks_chat_open),
-                        tint = MaterialTheme.colorScheme.primary,
+                mission.createdAtMillis?.let { created ->
+                    Text(
+                        missionAge(created),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                Icon(
-                    if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
             }
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -753,55 +739,25 @@ private fun MissionRow(
                     color = MaterialTheme.colorScheme.error,
                 )
             }
-            if (expanded) {
-                HorizontalDivider()
-                MissionTranscriptView(transcript)
-            }
         }
     }
 }
 
-/** The opened session's transcript: a spinner while it loads, a reason if it will not, the lines if it does. */
+/** The row's age, compact like a messaging list: minutes under an hour, hours under a day, then days. */
 @Composable
-private fun MissionTranscriptView(transcript: TranscriptLoad?) {
-    when (transcript) {
-        null, TranscriptLoad.Loading -> CircularProgressIndicator(
-            modifier = Modifier.size(20.dp),
-            strokeWidth = 2.dp,
-        )
-
-        is TranscriptLoad.Failed -> Text(
-            stringResource(transcript.kind.title()),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.error,
-        )
-
-        is TranscriptLoad.Loaded -> if (transcript.entries.isEmpty()) {
-            Text(
-                stringResource(Res.string.tasks_transcript_empty),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        } else {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                transcript.entries.forEach { entry ->
-                    when (entry.kind) {
-                        TranscriptEntry.Kind.TOOL -> Text(
-                            "🔧 " + entry.text,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-
-                        TranscriptEntry.Kind.TEXT -> Text(
-                            entry.text,
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                    }
-                }
-            }
-        }
+private fun missionAge(createdAtMillis: Long): String {
+    val minutes = ((kotlin.time.Clock.System.now().toEpochMilliseconds() - createdAtMillis) / MILLIS_PER_MINUTE)
+        .coerceAtLeast(0)
+    return when {
+        minutes < MINUTES_PER_HOUR -> stringResource(Res.string.tasks_age_minutes, minutes)
+        minutes < MINUTES_PER_DAY -> stringResource(Res.string.tasks_age_hours, minutes / MINUTES_PER_HOUR)
+        else -> stringResource(Res.string.tasks_age_days, minutes / MINUTES_PER_DAY)
     }
 }
+
+private const val MILLIS_PER_MINUTE = 60_000L
+private const val MINUTES_PER_HOUR = 60L
+private const val MINUTES_PER_DAY = 24 * 60L
 
 @Composable
 private fun MissionChip(state: MissionState) {
