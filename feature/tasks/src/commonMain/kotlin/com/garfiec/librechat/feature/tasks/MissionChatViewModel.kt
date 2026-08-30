@@ -2,6 +2,8 @@ package com.garfiec.librechat.feature.tasks
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.garfiec.librechat.core.data.datastore.ChatFontSize
+import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.engine.ConnectorOption
 import com.garfiec.librechat.core.data.engine.EngineMissionRepository
 import com.garfiec.librechat.core.data.engine.engineFailureKind
@@ -54,11 +56,17 @@ data class MissionChatUiState(
     val connectorsError: EngineFailureKind? = null,
     /** The model list would not load. Independent of [connectorsError]: different host. */
     val modelsError: EngineFailureKind? = null,
+    /**
+     * The chat's own font-size setting, applied here too. One knob for both conversations —
+     * a reader on LARGE was getting normal-size text in this tab only.
+     */
+    val fontScale: Float = 1f,
 )
 
 class MissionChatViewModel(
     private val sessionId: String,
     private val repository: EngineMissionRepository,
+    private val settings: SettingsDataStore,
     private val ioDispatcher: CoroutineDispatcher,
 ) : ViewModel() {
 
@@ -71,6 +79,19 @@ class MissionChatViewModel(
         loadHistory()
         openStream()
         loadCatalogue()
+        viewModelScope.launch {
+            settings.chatFontSize.collect { size ->
+                _uiState.update {
+                    it.copy(
+                        fontScale = when (size) {
+                            ChatFontSize.SMALL -> 0.85f
+                            ChatFontSize.MEDIUM -> 1f
+                            ChatFontSize.LARGE -> 1.2f
+                        },
+                    )
+                }
+            }
+        }
     }
 
     /**

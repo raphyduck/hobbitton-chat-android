@@ -1,6 +1,5 @@
 package com.garfiec.librechat.core.data.scheduler
 
-import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.data.engine.EngineSettingsStore
 import com.garfiec.librechat.core.model.scheduler.Consumption
 import com.garfiec.librechat.core.model.scheduler.ProviderHealth
@@ -62,32 +61,9 @@ class SchedulerRepository(
     }
 
     /** Starts a mission now. Returns what the scheduler said — including its refusals. */
-    /**
-     * Runs a scheduler action, swallowing its failure into a log line.
-     *
-     * The tab's list is the screen's truth and it is refreshed right after; a failed action shows
-     * as « nothing changed », which is what happened. Turning it into the tab's red banner would
-     * report the platform unreachable on a screen whose list had just loaded fine.
-     */
-    suspend fun runCatchingAction(
-        name: String,
-        what: String,
-        action: suspend SchedulerRepository.() -> String,
-    ) {
-        runCatching { action() }
-            .onFailure { failure -> Logger.w(failure, tag = "Scheduler") { "Could not $what $name" } }
-    }
-
     /** Changes named fields of a scheduled mission; what is not named is not touched. */
-    suspend fun updateMission(
-        name: String,
-        cron: String? = null,
-        runAt: String? = null,
-        model: String? = null,
-        connectors: List<String>? = null,
-    ): String = api.updateMission(
-        name = name, cron = cron, runAt = runAt, model = model, connectors = connectors,
-    )
+    suspend fun updateMission(name: String, cron: String?, runAt: String?): String =
+        api.updateMission(name = name, cron = cron, runAt = runAt)
 
     /** Deletes a scheduled mission. Its run history is kept server-side. */
     suspend fun deleteMission(name: String): String = api.deleteMission(name)

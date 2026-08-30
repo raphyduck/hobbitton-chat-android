@@ -33,6 +33,7 @@ val tasksModule = module {
         MissionChatViewModel(
             sessionId = params.get(),
             repository = get(),
+            settings = get(),
             ioDispatcher = get(KoinQualifiers.IO),
         )
     }

@@ -4,7 +4,6 @@ import com.garfiec.librechat.core.model.engine.CreateEngineSessionRequest
 import com.garfiec.librechat.core.model.engine.EngineAgentProfile
 import com.garfiec.librechat.core.model.engine.EngineMessage
 import com.garfiec.librechat.core.model.engine.EngineModelRef
-import com.garfiec.librechat.core.model.engine.EnginePermissionReply
 import com.garfiec.librechat.core.model.engine.EnginePermissionRule
 import com.garfiec.librechat.core.model.engine.EnginePromptPart
 import com.garfiec.librechat.core.model.engine.EnginePromptRequest
@@ -95,7 +94,6 @@ class AgentEngineApi(
     suspend fun sendMessage(
         sessionId: String,
         text: String,
-        agent: String? = null,
         model: EngineModelRef? = null,
     ): EngineMessage =
         client.post {
@@ -103,7 +101,6 @@ class AgentEngineApi(
             setBody(
                 EnginePromptRequest(
                     parts = listOf(EnginePromptPart(text = text)),
-                    agent = agent,
                     // Per message, not per session: the route takes `{providerID, modelID}` and the
                     // engine has no « set the session's model » on the classic surface. Null means
                     // « whatever the session already runs on » — an absent key, not an empty one.
@@ -149,29 +146,6 @@ class AgentEngineApi(
     suspend fun abort(sessionId: String) {
         client.post { url { path("session/${sessionId.encodeURLPathPart()}/abort") } }.orThrow()
     }
-
-    /** Interactive mode: answer a permission the engine is waiting on. */
-    suspend fun replyToPermission(
-        sessionId: String,
-        permissionId: String,
-        reply: EnginePermissionReply,
-    ) {
-        client.post {
-            url {
-                path(
-                    "session/${sessionId.encodeURLPathPart()}" +
-                        "/permissions/${permissionId.encodeURLPathPart()}",
-                )
-            }
-            setBody(reply)
-        }.orThrow()
-    }
-
-    /** The working-tree changes a coding mission produced, as a unified diff. */
-    suspend fun diff(sessionId: String): String =
-        client.get {
-            url { path("session/${sessionId.encodeURLPathPart()}/diff") }
-        }.decoded()
 
     /**
      * Reads the body only once the status says there is one worth reading.

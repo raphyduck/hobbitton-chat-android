@@ -63,15 +63,3 @@ data class EnginePromptPart(
     @EncodeDefault(EncodeDefault.Mode.ALWAYS) val type: String = "text",
     val text: String,
 )
-
-/** Approve or refuse one pending permission request in interactive mode. */
-@Serializable
-data class EnginePermissionReply(
-    val response: String,
-) {
-    companion object {
-        const val ONCE = "once"
-        const val ALWAYS = "always"
-        const val REJECT = "reject"
-    }
-}

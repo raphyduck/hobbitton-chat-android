@@ -24,8 +24,6 @@ data class MissionChatState(
     val turns: List<ChatTurn> = emptyList(),
     /** A turn is running — drives the spinner and the send/stop button's face. */
     val streaming: Boolean = false,
-    /** A failure that belongs to no turn (the feed itself gave up). */
-    val error: String? = null,
 )
 
 sealed interface ChatTurn {
@@ -70,14 +68,14 @@ fun MissionChatState.reduce(event: EngineStreamEvent): MissionChatState = when (
         when {
             known -> this
             event.role == ROLE_USER ->
-                copy(turns = turns + ChatTurn.User(event.messageId), error = null)
+                copy(turns = turns + ChatTurn.User(event.messageId))
             // Ne marque PAS le tour comme en cours. Un transcript rejoué émet un
             // `MessageStarted` par message d'assistant, sans `Idle` derrière : le faire
             // ici laissait le bouton Stop allumé en permanence sur une session terminée
             // depuis des heures. Constaté le 30/08/2026. Seul un delta prouve qu'un tour
             // parle maintenant — et seul le flux vivant en émet.
             else ->
-                copy(turns = turns + ChatTurn.Assistant(event.messageId), error = null)
+                copy(turns = turns + ChatTurn.Assistant(event.messageId))
         }
     }
 

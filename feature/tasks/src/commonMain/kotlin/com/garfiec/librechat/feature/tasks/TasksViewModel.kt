@@ -268,22 +268,11 @@ class TasksViewModel(
     }
 
     /** Starts a scheduled mission now, without waiting for its cron. */
-    fun runScheduled(name: String) {
-        viewModelScope.launch {
-            runCatching { scheduler.run(name) }
-                .onFailure { failure -> Logger.w(failure, tag = "Tasks") { "Could not start $name" } }
-            refresh()
-        }
-    }
+    fun runScheduled(name: String) = actThenRefresh("start $name") { scheduler.run(name) }
 
     /** Suspends a mission, or puts it back — its history survives either way. */
-    fun setScheduledEnabled(name: String, enabled: Boolean) {
-        viewModelScope.launch {
-            runCatching { scheduler.setEnabled(name, enabled) }
-                .onFailure { failure -> Logger.w(failure, tag = "Tasks") { "Could not toggle $name" } }
-            refresh()
-        }
-    }
+    fun setScheduledEnabled(name: String, enabled: Boolean) =
+        actThenRefresh("toggle $name") { scheduler.setEnabled(name, enabled) }
 
     /**
      * Changes an existing mission's schedule.
@@ -293,14 +282,8 @@ class TasksViewModel(
      * so a client that rebuilt the mission from what it displays would wipe the prompt on the first
      * reschedule, without an error. Same failure as the copied connectors, one screen along.
      */
-    fun rescheduleMission(name: String, cron: String?, runAt: String?) {
-        viewModelScope.launch {
-            scheduler.runCatchingAction(name, "reschedule") {
-                updateMission(name = name, cron = cron, runAt = runAt)
-            }
-            refresh()
-        }
-    }
+    fun rescheduleMission(name: String, cron: String?, runAt: String?) =
+        actThenRefresh("reschedule $name") { scheduler.updateMission(name, cron, runAt) }
 
     /**
      * Deletes a scheduled mission — the thing suspending could not do.
@@ -308,9 +291,22 @@ class TasksViewModel(
      * The run history survives server-side: it is the record of what ran, and it must not go with
      * the schedule.
      */
-    fun deleteScheduled(name: String) {
+    fun deleteScheduled(name: String) =
+        actThenRefresh("delete $name") { scheduler.deleteMission(name) }
+
+    fun abort(sessionId: String) = actThenRefresh("stop $sessionId") { repository.abort(sessionId) }
+
+    /**
+     * One action, then the list again — the shape every button on this tab has.
+     *
+     * A failure is a log line, not the tab's red banner: the list is refreshed right after, so a
+     * failed action shows as « nothing changed », which is what happened. Turning it into an error
+     * screen would report the platform unreachable on a tab whose list had just loaded fine.
+     */
+    private fun actThenRefresh(what: String, action: suspend () -> Any?) {
         viewModelScope.launch {
-            scheduler.runCatchingAction(name, "delete") { deleteMission(name) }
+            runCatching { action() }
+                .onFailure { failure -> Logger.w(failure, tag = "Tasks") { "Could not $what" } }
             refresh()
         }
     }
@@ -390,14 +386,6 @@ class TasksViewModel(
     private companion object {
         /** A week: long enough to see a trend, short enough that today still stands out. */
         const val CONSUMPTION_DAYS = 7
-    }
-
-    fun abort(sessionId: String) {
-        viewModelScope.launch {
-            runCatching { repository.abort(sessionId) }
-                .onFailure { failure -> Logger.w(failure, tag = "Tasks") { "Could not stop $sessionId" } }
-            refresh()
-        }
     }
 }
 

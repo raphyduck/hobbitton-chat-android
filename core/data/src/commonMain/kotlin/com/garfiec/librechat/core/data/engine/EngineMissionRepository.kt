@@ -2,7 +2,6 @@ package com.garfiec.librechat.core.data.engine
 
 import com.garfiec.librechat.core.model.engine.CreateEngineSessionRequest
 import com.garfiec.librechat.core.model.engine.EngineAgentProfile
-import com.garfiec.librechat.core.model.engine.EngineMessage
 import com.garfiec.librechat.core.model.engine.EngineModelRef
 import com.garfiec.librechat.core.model.engine.EnginePermissionRule
 import com.garfiec.librechat.core.model.engine.EnginePromptPart
@@ -124,8 +123,6 @@ class EngineMissionRepository(
             )
         }
     }
-
-    suspend fun messages(sessionId: String): List<EngineMessage> = api.messages(sessionId)
 
     /**
      * Starts a mission: a session with its permissions, then the objective.

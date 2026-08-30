@@ -1,10 +1,13 @@
 package com.garfiec.librechat.feature.tasks
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -26,33 +29,27 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.Build
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -63,21 +60,21 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.garfiec.librechat.core.data.engine.ConnectorOption
 import com.garfiec.librechat.core.model.engine.EngineSelectableModel
 import com.garfiec.librechat.core.ui.input.ChatInputDefaults
+import com.garfiec.librechat.feature.tasks.components.ConnectorPickerSheet
+import com.garfiec.librechat.feature.tasks.components.DisclosureRow
+import com.garfiec.librechat.feature.tasks.components.Explanation
 import com.garfiec.librechat.feature.tasks.components.MissionMarkdown
+import com.garfiec.librechat.feature.tasks.components.ModelPickerSheet
 import com.garfiec.librechat.feature.tasks.resources.Res
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_back
-import com.garfiec.librechat.feature.tasks.resources.tasks_chat_collapse
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_connector_count
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_connectors_failed
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_empty
-import com.garfiec.librechat.feature.tasks.resources.tasks_chat_expand
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_hint
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_models_failed
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_no_connector
@@ -86,8 +83,6 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_chat_send
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_title
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_tool_count
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_working
-import com.garfiec.librechat.feature.tasks.resources.tasks_connectors
-import com.garfiec.librechat.feature.tasks.resources.tasks_model
 import com.garfiec.librechat.feature.tasks.resources.tasks_model_default_short
 import com.garfiec.librechat.feature.tasks.resources.tasks_retry
 import com.garfiec.librechat.feature.tasks.resources.tasks_stop
@@ -99,7 +94,9 @@ import com.garfiec.librechat.feature.tasks.util.ToolState
 import com.garfiec.librechat.feature.tasks.util.asBlocks
 import com.garfiec.librechat.feature.tasks.util.hasFailure
 import com.garfiec.librechat.feature.tasks.util.hasReasoning
+import com.garfiec.librechat.feature.tasks.util.hint
 import com.garfiec.librechat.feature.tasks.util.isRunning
+import com.garfiec.librechat.feature.tasks.util.title
 import com.garfiec.librechat.feature.tasks.util.toolCount
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
@@ -170,17 +167,11 @@ private fun MissionChatBody(
             state.loadingHistory && state.chat.turns.isEmpty() ->
                 CircularProgressIndicator(Modifier.align(Alignment.Center))
 
-            historyFailure != null && state.chat.turns.isEmpty() -> Column(
-                Modifier.align(Alignment.Center).padding(32.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Text(
-                    stringResource(historyFailure.title()),
-                    style = MaterialTheme.typography.bodyMedium,
-                    textAlign = TextAlign.Center,
-                )
-                TextButton(onClick = onRetryHistory) { Text(stringResource(Res.string.tasks_retry)) }
-            }
+            historyFailure != null && state.chat.turns.isEmpty() -> Explanation(
+                title = stringResource(historyFailure.title()),
+                hint = historyFailure.hint()?.let { stringResource(it) },
+                action = stringResource(Res.string.tasks_retry) to onRetryHistory,
+            )
 
             state.chat.turns.isEmpty() -> Text(
                 text = stringResource(Res.string.tasks_chat_empty),
@@ -190,23 +181,29 @@ private fun MissionChatBody(
                 modifier = Modifier.align(Alignment.Center).padding(32.dp),
             )
 
-            else -> MissionTurns(state.chat)
+            else -> MissionTurns(state.chat, state.fontScale)
         }
     }
 }
 
 @Composable
-private fun MissionTurns(chat: MissionChatState) {
+private fun MissionTurns(chat: MissionChatState, fontScale: Float) {
     val listState = rememberLazyListState()
-    // Follow the answer as it grows: a new turn, or more text on the last one, scrolls to the tail.
+    // Follow the answer as it grows — but only while the reader is already at the tail. An
+    // unconditional scroll stole the list from anyone reading back through a streaming mission:
+    // every token snapped the screen to the bottom. The chat gates its follow the same way.
     LaunchedEffect(chat.turns.size, tailLength(chat)) {
-        listState.animateScrollToItem((chat.turns.size - 1).coerceAtLeast(0))
+        val info = listState.layoutInfo
+        val nearTail = info.visibleItemsInfo.lastOrNull()
+            ?.let { it.index >= info.totalItemsCount - 2 } ?: true
+        if (nearTail) listState.animateScrollToItem((chat.turns.size - 1).coerceAtLeast(0))
     }
     LazyColumn(
         state = listState,
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        // The chat's rhythm: 16 dp gutters, 16 dp between messages (its 2 x 8 dp bubble padding).
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         items(
             count = chat.turns.size,
@@ -218,8 +215,8 @@ private fun MissionTurns(chat: MissionChatState) {
             val turn = chat.turns[index]
             val live = chat.streaming && index == chat.turns.lastIndex
             when (turn) {
-                is ChatTurn.User -> UserBubble(turn)
-                is ChatTurn.Assistant -> AssistantTurn(turn, streaming = live)
+                is ChatTurn.User -> UserBubble(turn, fontScale)
+                is ChatTurn.Assistant -> AssistantTurn(turn, streaming = live, fontScale = fontScale)
             }
         }
     }
@@ -235,18 +232,27 @@ private fun tailLength(chat: MissionChatState): Int {
 }
 
 @Composable
-private fun UserBubble(turn: ChatTurn.User) {
+private fun UserBubble(turn: ChatTurn.User, fontScale: Float) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
         Surface(
-            color = MaterialTheme.colorScheme.primaryContainer,
-            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            // The chat's own bubble: secondaryContainer, chosen there over primaryContainer for
+            // dark-mode contrast — same reason, same colour here. Shape and the 12 dp inner
+            // padding are the chat's too (`BubbleShape`, `MessageBubble`).
+            color = MaterialTheme.colorScheme.secondaryContainer,
+            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
             shape = RoundedCornerShape(16.dp),
-            modifier = Modifier.fillMaxWidth(BUBBLE_MAX_FRACTION),
+            // Wraps its content instead of always claiming a fixed fraction: « ok » used to ship
+            // in a bubble 85 % of the screen wide.
+            modifier = Modifier.weight(1f, fill = false),
         ) {
-            Column(Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
+            Column(Modifier.padding(12.dp)) {
                 turn.parts.filterIsInstance<ChatPart.Text>().forEach { part ->
                     if (part.text.isNotBlank()) {
-                        MissionMarkdown(part.text, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                        MissionMarkdown(
+                            part.text,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            fontScale = fontScale,
+                        )
                     }
                 }
             }
@@ -265,7 +271,7 @@ private fun UserBubble(turn: ChatTurn.User) {
  * it flat on 30/08/2026 buried the part anyone actually reads.
  */
 @Composable
-private fun AssistantTurn(turn: ChatTurn.Assistant, streaming: Boolean) {
+private fun AssistantTurn(turn: ChatTurn.Assistant, streaming: Boolean, fontScale: Float) {
     val blocks = remember(turn.parts) { turn.parts.asBlocks() }
     Column(
         Modifier.fillMaxWidth(),
@@ -273,7 +279,7 @@ private fun AssistantTurn(turn: ChatTurn.Assistant, streaming: Boolean) {
     ) {
         blocks.forEach { block ->
             when (block) {
-                is ChatBlock.Prose -> MissionMarkdown(block.part.text)
+                is ChatBlock.Prose -> MissionMarkdown(block.part.text, fontScale = fontScale)
                 is ChatBlock.Activity -> ActivityBlock(block)
             }
         }
@@ -282,7 +288,7 @@ private fun AssistantTurn(turn: ChatTurn.Assistant, streaming: Boolean) {
             Text(
                 text = stringResource(Res.string.tasks_chat_working),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = MUTED_ALPHA),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -306,52 +312,41 @@ private fun ActivityBlock(block: ChatBlock.Activity) {
     val running = block.isRunning()
 
     Column(Modifier.fillMaxWidth()) {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(8.dp))
-                .clickable { expanded = !expanded }
-                .padding(vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            when {
-                running -> CircularProgressIndicator(Modifier.size(12.dp), strokeWidth = 2.dp)
-                failed -> Icon(
-                    Icons.Filled.Close,
-                    null,
-                    Modifier.size(14.dp),
-                    tint = MaterialTheme.colorScheme.error,
-                )
-                else -> Icon(
-                    Icons.Outlined.Build,
-                    null,
-                    Modifier.size(14.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = MUTED_ALPHA),
-                )
-            }
-            Text(
-                text = activityLabel(block),
-                style = MaterialTheme.typography.labelMedium,
-                color = if (failed) {
-                    MaterialTheme.colorScheme.error
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
-                modifier = Modifier.weight(1f),
-            )
-            Icon(
-                imageVector = if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
-                contentDescription = stringResource(
-                    if (expanded) Res.string.tasks_chat_collapse else Res.string.tasks_chat_expand,
-                ),
-                modifier = Modifier.size(18.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        if (expanded) {
+        // The chat's activity header, measure for measure (`ActivityGroup`): 16 dp Build icon at
+        // full onSurfaceVariant, bodyMedium label, 8 dp gaps, a 40 dp touch target. What the chat
+        // does NOT have and this keeps: a spinner while a tool still runs and error colour on a
+        // failure — the two states a fold must never hide.
+        DisclosureRow(
+            label = activityLabel(block),
+            expanded = expanded,
+            onToggle = { expanded = !expanded },
+            labelColor = if (failed) {
+                MaterialTheme.colorScheme.error
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
+            leading = {
+                when {
+                    running -> CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp)
+                    failed -> Icon(
+                        Icons.Filled.Close,
+                        null,
+                        Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.error,
+                    )
+                    else -> Icon(
+                        Icons.Filled.Build,
+                        null,
+                        Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            },
+        )
+        // Animated like the chat's: a hard pop reads as the list having jumped, not as a fold.
+        AnimatedVisibility(expanded, enter = expandVertically(), exit = shrinkVertically()) {
             Column(
-                Modifier.padding(start = 20.dp, bottom = 4.dp),
+                Modifier.padding(start = 12.dp, bottom = 4.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 block.parts.forEach { part ->
@@ -360,7 +355,7 @@ private fun ActivityBlock(block: ChatBlock.Activity) {
                         is ChatPart.Reasoning -> Text(
                             text = part.text,
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = MUTED_ALPHA),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         is ChatPart.Text -> Unit
                     }
@@ -388,7 +383,7 @@ private fun ToolRow(tool: ChatPart.Tool) {
             imageVector = Icons.Outlined.Build,
             contentDescription = null,
             modifier = Modifier.size(14.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = MUTED_ALPHA),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Text(tool.name, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         when (tool.state) {
@@ -484,13 +479,13 @@ private fun MissionChatInput(
     }
 
     when (picker) {
-        Picker.CONNECTORS -> ConnectorSheet(
+        Picker.CONNECTORS -> ConnectorPickerSheet(
             options = state.connectors,
-            enabled = state.enabledConnectors,
+            ticked = state.enabledConnectors,
             onToggle = onToggleConnector,
             onDismiss = { picker = Picker.NONE },
         )
-        Picker.MODELS -> ModelSheet(
+        Picker.MODELS -> ModelPickerSheet(
             models = state.models,
             selected = state.model,
             onSelect = {
@@ -595,106 +590,6 @@ private fun RetryChip(label: String, onClick: () -> Unit) {
 }
 
 /**
- * Ticking a connector re-grants the **live** session — it does not wait for the next launch.
- *
- * The tool count is shown because it is what a connector costs: every tool a session declares is
- * re-sent to the model on every turn, and the platform has measured a mission spend the bulk of its
- * budget on a catalogue it never called (server-side D-040). « imap, 10 outils » is that price, in
- * the one place where someone is choosing to pay it.
- */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun ConnectorSheet(
-    options: List<ConnectorOption>,
-    enabled: Set<String>,
-    onToggle: (String) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(
-            Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(bottom = 32.dp),
-        ) {
-            Text(
-                stringResource(Res.string.tasks_connectors),
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
-            )
-            options.forEach { option ->
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .clickable(enabled = option.enabled) { onToggle(option.name) }
-                        .padding(horizontal = 24.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Checkbox(
-                        checked = option.name in enabled,
-                        enabled = option.enabled,
-                        onCheckedChange = { onToggle(option.name) },
-                    )
-                    Column(Modifier.padding(start = 4.dp)) {
-                        Text(option.name, style = MaterialTheme.typography.bodyLarge)
-                        Text(
-                            stringResource(Res.string.tasks_chat_tool_count, option.toolCount),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-/** Which model the next message runs on. Per message, which is how the engine takes it. */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun ModelSheet(
-    models: List<EngineSelectableModel>,
-    selected: EngineSelectableModel?,
-    onSelect: (EngineSelectableModel?) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(
-            Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(bottom = 32.dp),
-        ) {
-            Text(
-                stringResource(Res.string.tasks_model),
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
-            )
-            // « Whatever the session already runs on » stays reachable: an unpicked model is not a
-            // missing setting, it is the engine's own choice, and taking it back should be possible.
-            ModelRow(
-                label = stringResource(Res.string.tasks_model_default_short),
-                selected = selected == null,
-                onClick = { onSelect(null) },
-            )
-            models.forEach { candidate ->
-                ModelRow(
-                    label = candidate.label,
-                    selected = candidate == selected,
-                    onClick = { onSelect(candidate) },
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun ModelRow(label: String, selected: Boolean, onClick: () -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 24.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        RadioButton(selected = selected, onClick = onClick)
-        Text(label, style = MaterialTheme.typography.bodyLarge)
-    }
-}
-
-/**
  * Send, or stop what is running — the chat's button, down to the 56 dp target and the error-coloured
  * stop. Animated across the swap for the same reason the chat animates it: the two states occupy the
  * same spot, and a hard cut reads as the button having been replaced rather than having changed.
@@ -755,8 +650,6 @@ private fun MissionSendButton(
     }
 }
 
-private const val BUBBLE_MAX_FRACTION = 0.85f
-private const val MUTED_ALPHA = 0.7f
 private const val MAX_INPUT_LINES = 6
 
 /** The chat's 56 dp touch target, so the two composers line up when you switch between them. */
