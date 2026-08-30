@@ -13,11 +13,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
@@ -31,6 +35,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.Build
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
@@ -64,10 +69,11 @@ import com.garfiec.librechat.core.ui.input.ChatInputDefaults
 import com.garfiec.librechat.feature.tasks.components.MissionMarkdown
 import com.garfiec.librechat.feature.tasks.resources.Res
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_back
-import com.garfiec.librechat.feature.tasks.resources.tasks_chat_catalogue_failed
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_connector_count
+import com.garfiec.librechat.feature.tasks.resources.tasks_chat_connectors_failed
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_empty
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_hint
+import com.garfiec.librechat.feature.tasks.resources.tasks_chat_models_failed
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_no_connector
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_send
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_title
@@ -314,7 +320,16 @@ private fun MissionChatInput(
     var picker by remember { mutableStateOf(Picker.NONE) }
 
     Surface(tonalElevation = 2.dp) {
-        Column(Modifier.navigationBarsPadding()) {
+        // The keyboard, then the navigation bar — whichever is taller, never both stacked.
+        //
+        // `navigationBarsPadding()` alone left the composer *behind* the keyboard: it is the
+        // Scaffold's bottomBar, so nothing lifts it on its own, and the nav-bar inset says nothing
+        // about the IME. Reported 30/08/2026 — the box was unreachable the moment it was tapped.
+        // Adding `imePadding()` on top would stack the two and leave a nav-bar-high gap under the
+        // keyboard; `union` takes the larger, which is what « above whatever is at the bottom of
+        // the screen » actually means. The chat reaches the same place differently — its composer
+        // is an overlay inside the body, under a Scaffold that carries `imePadding()` itself.
+        Column(Modifier.windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime))) {
             state.sendError?.let { kind ->
                 // The send failed and the text was put back — say why, once, dismissible on tap.
                 Text(
@@ -390,6 +405,11 @@ private enum class Picker { NONE, CONNECTORS, MODELS }
  * Both chips carry their current value in the label rather than opening onto it — « 3 connecteurs »
  * and the model's name — because the answer to « what is this mission allowed to do » should not
  * require opening a sheet to find out.
+ *
+ * The two are independent: the connectors come from the scheduler and the models from the engine,
+ * so one host being unreachable leaves the other's chip standing. A single row that vanished
+ * whenever either failed is what hid a working model picker behind a scheduler that was merely not
+ * redeployed yet (30/08/2026).
  */
 @Composable
 private fun ComposerChips(
@@ -398,29 +418,9 @@ private fun ComposerChips(
     onOpenModels: () -> Unit,
     onRetryCatalogue: () -> Unit,
 ) {
-    // The catalogue is what both chips are made of; without it there is nothing honest to show, and
-    // an empty connector sheet would read as « this mission can have nothing » — a different claim.
-    if (state.catalogueError != null) {
-        Row(
-            Modifier.fillMaxWidth().clickable(onClick = onRetryCatalogue)
-                .padding(horizontal = 14.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                stringResource(Res.string.tasks_chat_catalogue_failed),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                stringResource(Res.string.tasks_retry),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.primary,
-            )
-        }
-        return
-    }
-    if (state.connectors.isEmpty() && state.models.isEmpty()) return
+    val connectorsFailed = state.connectorsError != null
+    val modelsFailed = state.modelsError != null
+    if (state.connectors.isEmpty() && state.models.isEmpty() && !connectorsFailed && !modelsFailed) return
 
     Row(
         Modifier
@@ -428,13 +428,18 @@ private fun ComposerChips(
             .horizontalScroll(rememberScrollState())
             .padding(start = 12.dp, end = 12.dp, top = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (state.connectors.isNotEmpty()) {
-            AssistChip(
+        when {
+            // Naming what is missing beats « something did not load »: the two have different
+            // causes and different fixes, and only one of them is ever the engine.
+            connectorsFailed -> RetryChip(
+                label = stringResource(Res.string.tasks_chat_connectors_failed),
+                onClick = onRetryCatalogue,
+            )
+            state.connectors.isNotEmpty() -> AssistChip(
                 onClick = onOpenConnectors,
-                leadingIcon = {
-                    Icon(Icons.Outlined.Build, null, Modifier.size(16.dp))
-                },
+                leadingIcon = { Icon(Icons.Outlined.Build, null, Modifier.size(16.dp)) },
                 label = {
                     Text(
                         if (state.enabledConnectors.isEmpty()) {
@@ -449,8 +454,13 @@ private fun ComposerChips(
                 },
             )
         }
-        if (state.models.isNotEmpty()) {
-            AssistChip(
+
+        when {
+            modelsFailed -> RetryChip(
+                label = stringResource(Res.string.tasks_chat_models_failed),
+                onClick = onRetryCatalogue,
+            )
+            state.models.isNotEmpty() -> AssistChip(
                 onClick = onOpenModels,
                 leadingIcon = { Icon(Icons.Outlined.Bolt, null, Modifier.size(16.dp)) },
                 label = {
@@ -459,6 +469,23 @@ private fun ComposerChips(
             )
         }
     }
+}
+
+/** A chip that says what is missing and offers to go and get it again. */
+@Composable
+private fun RetryChip(label: String, onClick: () -> Unit) {
+    AssistChip(
+        onClick = onClick,
+        leadingIcon = {
+            Icon(
+                Icons.Outlined.Refresh,
+                null,
+                Modifier.size(16.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        },
+        label = { Text(label, style = MaterialTheme.typography.labelMedium) },
+    )
 }
 
 /**
