@@ -17,9 +17,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.unit.isSpecified
-import androidx.compose.ui.unit.sp
+import com.garfiec.librechat.core.ui.markdown.scaleFontSize
 import kotlin.math.max
 import kotlin.math.min
 
@@ -199,17 +197,6 @@ internal fun matchBoundingRect(layout: TextLayoutResult, range: IntRange): Rect 
         right = max(startBox.right, endBox.right),
         bottom = max(startBox.bottom, endBox.bottom),
     )
-}
-
-/**
- * Scales both fontSize and lineHeight of a TextStyle by the given multiplier.
- * Uses explicit .sp conversion to avoid TextUnit.Unspecified edge cases.
- */
-internal fun TextStyle.scaleFontSize(multiplier: Float): TextStyle {
-    if (multiplier == 1.0f) return this
-    val scaledFontSize = if (fontSize.isSpecified) (fontSize.value * multiplier).sp else fontSize
-    val scaledLineHeight = if (lineHeight.isSpecified) (lineHeight.value * multiplier).sp else lineHeight
-    return copy(fontSize = scaledFontSize, lineHeight = scaledLineHeight)
 }
 
 /**

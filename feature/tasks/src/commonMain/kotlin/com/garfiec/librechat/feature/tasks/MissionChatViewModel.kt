@@ -2,7 +2,6 @@ package com.garfiec.librechat.feature.tasks
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.garfiec.librechat.core.data.datastore.ChatFontSize
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.engine.ConnectorOption
 import com.garfiec.librechat.core.data.engine.EngineMissionRepository
@@ -81,15 +80,7 @@ class MissionChatViewModel(
         loadCatalogue()
         viewModelScope.launch {
             settings.chatFontSize.collect { size ->
-                _uiState.update {
-                    it.copy(
-                        fontScale = when (size) {
-                            ChatFontSize.SMALL -> 0.85f
-                            ChatFontSize.MEDIUM -> 1f
-                            ChatFontSize.LARGE -> 1.2f
-                        },
-                    )
-                }
+                _uiState.update { it.copy(fontScale = size.multiplier) }
             }
         }
     }

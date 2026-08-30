@@ -15,24 +15,21 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.isSpecified
 import com.garfiec.librechat.core.ui.markdown.InlineSegment
 import com.garfiec.librechat.core.ui.markdown.MarkdownSegment
+import com.garfiec.librechat.core.ui.markdown.chatMarkdownColors
+import com.garfiec.librechat.core.ui.markdown.chatMarkdownTypography
 import com.garfiec.librechat.core.ui.markdown.parseMarkdownSegments
 import com.mikepenz.markdown.m3.Markdown
-import com.mikepenz.markdown.m3.markdownColor
-import com.mikepenz.markdown.m3.markdownTypography
 
 /**
  * A mission's prose, rendered exactly the way the chat renders its own.
  *
  * Prose goes through the same mikepenz renderer as the chat (pulled in directly, the
- * `feature/skills` precedent — features depend on `:core:*` only, never on each other) with the
- * chat's colour and typography mapping copied verbatim from `MarkdownContent.kt`. The previous
+ * `feature/skills` precedent — features depend on `:core:*` only, never on each other) dressed in
+ * the shared theme from `:core:ui` that the chat wears too. The previous
  * hand-rolled renderer looked close and *was not*: links rendered as literal `[label](url)`,
  * ordered lists and blockquotes came out raw, a hard-wrapped paragraph stayed hard-wrapped, and
  * `####` downward printed its own octothorpes. A second markdown grammar is a second place for
@@ -71,40 +68,15 @@ private fun InlineSegment.rawText(): String = when (this) {
     is InlineSegment.Latex -> latex
 }
 
-/** The chat's markdown theme, verbatim — `MarkdownContent.kt` is the reference, not a suggestion. */
+/** The shared markdown theme — `core:ui` owns it, this file only asks for it. */
 @Composable
 private fun Prose(content: String, color: Color, fontScale: Float) {
-    val bodyLarge = MaterialTheme.typography.bodyLarge
-    val bodyMedium = MaterialTheme.typography.bodyMedium
     Markdown(
         content = content,
-        colors = markdownColor(
-            text = color,
-            codeBackground = MaterialTheme.colorScheme.surfaceContainerHigh,
-            inlineCodeBackground = MaterialTheme.colorScheme.surfaceContainerHigh,
-            dividerColor = MaterialTheme.colorScheme.outlineVariant,
-        ),
-        typography = markdownTypography(
-            h1 = MaterialTheme.typography.headlineLarge.scaled(fontScale),
-            h2 = MaterialTheme.typography.headlineMedium.scaled(fontScale),
-            h3 = MaterialTheme.typography.headlineSmall.scaled(fontScale),
-            h4 = MaterialTheme.typography.titleLarge.scaled(fontScale),
-            h5 = MaterialTheme.typography.titleMedium.scaled(fontScale),
-            h6 = MaterialTheme.typography.titleSmall.scaled(fontScale),
-            text = bodyLarge.scaled(fontScale),
-            paragraph = bodyLarge.scaled(fontScale),
-            quote = bodyLarge.copy(fontStyle = FontStyle.Italic).scaled(fontScale),
-            code = bodyMedium.copy(fontFamily = FontFamily.Monospace).scaled(fontScale),
-            inlineCode = bodyLarge.copy(fontFamily = FontFamily.Monospace).scaled(fontScale),
-            ordered = bodyLarge.scaled(fontScale),
-            bullet = bodyLarge.scaled(fontScale),
-            list = bodyLarge.scaled(fontScale),
-        ),
+        colors = chatMarkdownColors(text = color),
+        typography = chatMarkdownTypography(fontScale),
     )
 }
-
-private fun TextStyle.scaled(multiplier: Float): TextStyle =
-    if (multiplier == 1f || !fontSize.isSpecified) this else copy(fontSize = fontSize * multiplier)
 
 /** A fenced block: monospace on a raised surface, with its language named when the model gave one. */
 @Composable

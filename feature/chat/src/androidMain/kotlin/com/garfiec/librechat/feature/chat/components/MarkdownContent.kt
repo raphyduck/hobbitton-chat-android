@@ -39,8 +39,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
@@ -49,27 +49,24 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.isSpecified
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.garfiec.librechat.core.ui.markdown.CITATION_DETECT_REGEX
+import com.garfiec.librechat.core.ui.markdown.InlineSegment
+import com.garfiec.librechat.core.ui.markdown.MarkdownSegment
+import com.garfiec.librechat.core.ui.markdown.TableCellAlignment
+import com.garfiec.librechat.core.ui.markdown.chatMarkdownColors
+import com.garfiec.librechat.core.ui.markdown.chatMarkdownTypography
+import com.garfiec.librechat.core.ui.markdown.scaleFontSize
 import com.garfiec.librechat.feature.chat.resources.*
 import com.garfiec.librechat.feature.chat.resources.Res
-import com.mikepenz.markdown.m3.markdownColor
-import com.mikepenz.markdown.m3.markdownTypography
 import org.jetbrains.compose.resources.stringResource
-import com.garfiec.librechat.core.ui.markdown.TableCellAlignment
-import com.garfiec.librechat.core.ui.markdown.MarkdownSegment
-import com.garfiec.librechat.core.ui.markdown.InlineSegment
-import com.garfiec.librechat.core.ui.markdown.CITATION_DETECT_REGEX
 
 /**
  * Markdown content rendering with full CommonMark support. Uses a hybrid approach:
@@ -275,30 +272,8 @@ private fun MarkdownTextSegment(
     streaming: Boolean = false,
     trailingCursor: Boolean = false,
 ) {
-    val colors = markdownColor(
-        text = MaterialTheme.colorScheme.onSurface,
-        codeBackground = MaterialTheme.colorScheme.surfaceContainerHigh,
-        inlineCodeBackground = MaterialTheme.colorScheme.surfaceContainerHigh,
-        dividerColor = MaterialTheme.colorScheme.outlineVariant,
-    )
-    val bodyLarge = MaterialTheme.typography.bodyLarge
-    val bodyMedium = MaterialTheme.typography.bodyMedium
-    val typography = markdownTypography(
-        h1 = MaterialTheme.typography.headlineLarge.scaleFontSize(fontSizeMultiplier),
-        h2 = MaterialTheme.typography.headlineMedium.scaleFontSize(fontSizeMultiplier),
-        h3 = MaterialTheme.typography.headlineSmall.scaleFontSize(fontSizeMultiplier),
-        h4 = MaterialTheme.typography.titleLarge.scaleFontSize(fontSizeMultiplier),
-        h5 = MaterialTheme.typography.titleMedium.scaleFontSize(fontSizeMultiplier),
-        h6 = MaterialTheme.typography.titleSmall.scaleFontSize(fontSizeMultiplier),
-        text = bodyLarge.scaleFontSize(fontSizeMultiplier),
-        paragraph = bodyLarge.scaleFontSize(fontSizeMultiplier),
-        quote = bodyLarge.copy(fontStyle = FontStyle.Italic).scaleFontSize(fontSizeMultiplier),
-        code = bodyMedium.copy(fontFamily = FontFamily.Monospace).scaleFontSize(fontSizeMultiplier),
-        inlineCode = bodyLarge.copy(fontFamily = FontFamily.Monospace).scaleFontSize(fontSizeMultiplier),
-        ordered = bodyLarge.scaleFontSize(fontSizeMultiplier),
-        bullet = bodyLarge.scaleFontSize(fontSizeMultiplier),
-        list = bodyLarge.scaleFontSize(fontSizeMultiplier),
-    )
+    val colors = chatMarkdownColors()
+    val typography = chatMarkdownTypography(fontSizeMultiplier)
 
     // CachedMarkdown reads the ParsedMarkdownCache hoisted on ChatViewModel and
     // renders directly from the cached State.Success on re-entry, which skips the

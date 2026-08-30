@@ -15,17 +15,25 @@ Material 3 theme and shared Compose components used across all feature modules. 
 `MarkdownParsing.kt` — the block-level parser (`parseMarkdownSegments`, `MarkdownSegment`,
 `InlineSegment`, `parseTableRow`, `parseAlignments`, `looksLikeLatex`, `CITATION_DETECT_REGEX`).
 
+`MarkdownTheme.kt` — how rendered markdown *looks*: `chatMarkdownColors`, `chatMarkdownTypography`
+and `TextStyle.scaleFontSize`. The same four colour roles and thirteen typography slots were
+written out three times (the chat's Android renderer, the chat's iOS renderer, the Tasks
+conversation) and the copies had begun to disagree — the Tasks one scaled glyphs without scaling
+line height, so SMALL and LARGE kept MEDIUM's line spacing. `text` is the one parameter, because
+prose on the Tasks user bubble sits on `secondaryContainer` rather than on the surface.
+
 It lives here because **two features render markdown**: `feature/chat` and, since 29/08/2026, a
 mission session's conversation in `feature/tasks`. Feature modules cannot see each other, so the
 alternative was a second copy of rules that took a long time to get right — fences of any length,
 tables, LaTeX, the artifact-aware fence handling — and would have drifted the first time one side
 fixed a bug.
 
-**Only the parser is shared.** The renderers stay in their own features:
+**Only the parser and the theme are shared.** The renderers stay in their own features:
 
-- `CachedMarkdown` and `ParsedMarkdownCache` are *not* here, and moving them would not work: they
-  depend on the `mikepenz` markdown library (not a dependency of this module) and on chat-local
-  symbols (`LocalParsedMarkdownCache`, `StreamingCursorAnnotator`, `LocalImmediateMarkdown`).
+- `CachedMarkdown` and `ParsedMarkdownCache` are *not* here: they depend on chat-local symbols
+  (`LocalParsedMarkdownCache`, `StreamingCursorAnnotator`, `LocalImmediateMarkdown`) and on a cache
+  hoisted onto `ChatViewModel`. The library itself is no longer the obstacle — this module now
+  depends on it for the theme — but the composition locals still are.
 - The chat's renderer is layered with in-conversation search, citations and steer markers, all built
   on chat message semantics a mission has no data for. `feature/tasks` renders its own `MissionMarkdown`
   on top of the shared parser instead.
@@ -54,13 +62,12 @@ voice, queueing and steering are chat concepts a mission session does not have.
   `banner`, so there is a single visual treatment; a `persistable` banner hides the dismiss control.
 
 ### Markdown
-- core/ui does NOT provide a shared markdown renderer. Features render markdown
-  directly with the `com.mikepenz` multiplatform-markdown-renderer
-  (`libs.markdown.renderer.m3`) — see `feature/chat` (CachedMarkdown, streaming-
-  tuned) and `feature/skills` (plain static `Markdown(...)`). `feature/chat`
-  also has its own WebView-based artifact/LaTeX rendering. If a genuinely shared
-  renderer is ever needed, lift it here; until then there is nothing in core/ui
-  to depend on.
+- core/ui provides the parser and the theme (`markdown/`), **not a renderer**. Features call the
+  `com.mikepenz` multiplatform-markdown-renderer themselves — `feature/chat` (CachedMarkdown,
+  streaming-tuned, plus WebView artifact/LaTeX rendering), `feature/tasks` (`MissionMarkdown`) and
+  `feature/skills` (plain static `Markdown(...)`, and deliberately still on the library's own
+  default theme rather than the chat's). This module declares the library as `api` because
+  `chatMarkdownColors`/`chatMarkdownTypography` return its types.
 
 ### Message Components (`message/`)
 - `MessageBubble` - Shared message rendering used by `:feature:chat`.
@@ -81,8 +88,11 @@ voice, queueing and steering are chat concepts a mission session does not have.
 - **No business logic.** No ViewModels, no repository calls, no use cases.
 - Components accept domain models from `:core:model` as parameters and render them.
 - All components must be stateless or hoist state to the caller.
-- Dependencies: `:core:model`, `:core:common`, Coil for image loading, Compose libraries, Kermit logging (androidMain, for the PDF holder).
-- Convention plugins: `librechat.mobile.library` + `librechat.mobile.compose`.
+- Dependencies: `:core:model`, `:core:common`, the mikepenz markdown renderer (`api`, for the shared
+  markdown theme), Coil for image loading, Compose libraries, Kermit logging (androidMain, for the
+  PDF holder). **Not `:core:data`** — the font-size multiplier is passed in as a `Float`, never read
+  from `SettingsDataStore` here (`ChatFontSize.multiplier` lives beside the enum in `:core:data`).
+- Convention plugins: `librechat.kmp.library` + `librechat.kmp.compose` (this module is KMP: Android + both iOS targets).
 - No DI in this module (no Koin modules, no injected classes).
 - Use `@Preview` annotations on all components for Android Studio preview support.
 - During SSE streaming, buffer markdown re-renders to ~100ms intervals to avoid frame drops.
