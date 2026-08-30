@@ -15,7 +15,6 @@ import kotlinx.coroutines.launch
 enum class EngineSettingsField { BASE_URL, ISSUER_URL, SCHEDULER_URL, USERNAME, PASSWORD }
 
 data class EngineSettingsUiState(
-    val loading: Boolean = true,
     val baseUrl: String = "",
     val issuerUrl: String = "",
     /**
@@ -61,7 +60,6 @@ class EngineSettingsViewModel(
     fun load() {
         viewModelScope.launch {
             _state.value = EngineSettingsUiState(
-                loading = false,
                 baseUrl = settings.baseUrl.first(),
                 issuerUrl = settings.issuerUrl.first(),
                 schedulerUrl = settings.schedulerUrl.first(),

@@ -11,11 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
@@ -30,7 +26,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -47,7 +42,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.garfiec.librechat.core.data.engine.Mission
@@ -58,24 +52,13 @@ import com.garfiec.librechat.core.model.scheduler.ModelConsumption
 import com.garfiec.librechat.core.model.scheduler.Provider
 import com.garfiec.librechat.core.model.scheduler.ProviderHealth
 import com.garfiec.librechat.core.model.scheduler.ScheduledMission
+import com.garfiec.librechat.feature.tasks.components.DisclosureRow
+import com.garfiec.librechat.feature.tasks.components.Explanation
+import com.garfiec.librechat.feature.tasks.components.TasksBottomSheet
 import com.garfiec.librechat.feature.tasks.resources.Res
-import com.garfiec.librechat.feature.tasks.resources.tasks_age_days
-import com.garfiec.librechat.feature.tasks.resources.tasks_age_hours
-import com.garfiec.librechat.feature.tasks.resources.tasks_age_minutes
 import com.garfiec.librechat.feature.tasks.resources.tasks_cancel
 import com.garfiec.librechat.feature.tasks.resources.tasks_empty
 import com.garfiec.librechat.feature.tasks.resources.tasks_empty_hint
-import com.garfiec.librechat.feature.tasks.resources.tasks_error_authentication
-import com.garfiec.librechat.feature.tasks.resources.tasks_error_authentication_hint
-import com.garfiec.librechat.feature.tasks.resources.tasks_error_not_found
-import com.garfiec.librechat.feature.tasks.resources.tasks_error_not_found_hint
-import com.garfiec.librechat.feature.tasks.resources.tasks_error_permission
-import com.garfiec.librechat.feature.tasks.resources.tasks_error_permission_hint
-import com.garfiec.librechat.feature.tasks.resources.tasks_error_server
-import com.garfiec.librechat.feature.tasks.resources.tasks_error_server_hint
-import com.garfiec.librechat.feature.tasks.resources.tasks_error_unknown
-import com.garfiec.librechat.feature.tasks.resources.tasks_error_unreachable
-import com.garfiec.librechat.feature.tasks.resources.tasks_error_unreachable_hint
 import com.garfiec.librechat.feature.tasks.resources.tasks_new
 import com.garfiec.librechat.feature.tasks.resources.tasks_not_configured
 import com.garfiec.librechat.feature.tasks.resources.tasks_not_configured_hint
@@ -114,12 +97,6 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_sessions_header
 import com.garfiec.librechat.feature.tasks.resources.tasks_settings_open
 import com.garfiec.librechat.feature.tasks.resources.tasks_settings_title
 import com.garfiec.librechat.feature.tasks.resources.tasks_sign_in
-import com.garfiec.librechat.feature.tasks.resources.tasks_sign_in_interrupted
-import com.garfiec.librechat.feature.tasks.resources.tasks_sign_in_missing_scope
-import com.garfiec.librechat.feature.tasks.resources.tasks_sign_in_no_callback_host
-import com.garfiec.librechat.feature.tasks.resources.tasks_sign_in_not_configured
-import com.garfiec.librechat.feature.tasks.resources.tasks_sign_in_refused
-import com.garfiec.librechat.feature.tasks.resources.tasks_sign_in_unreachable
 import com.garfiec.librechat.feature.tasks.resources.tasks_spend_at_least
 import com.garfiec.librechat.feature.tasks.resources.tasks_spend_by_model
 import com.garfiec.librechat.feature.tasks.resources.tasks_spend_cache_saved
@@ -136,6 +113,12 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_state_running
 import com.garfiec.librechat.feature.tasks.resources.tasks_state_succeeded
 import com.garfiec.librechat.feature.tasks.resources.tasks_stop
 import com.garfiec.librechat.feature.tasks.resources.tasks_title
+import com.garfiec.librechat.feature.tasks.util.groupThousands
+import com.garfiec.librechat.feature.tasks.util.hint
+import com.garfiec.librechat.feature.tasks.util.missionAge
+import com.garfiec.librechat.feature.tasks.util.money
+import com.garfiec.librechat.feature.tasks.util.sentence
+import com.garfiec.librechat.feature.tasks.util.title
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -293,11 +276,22 @@ fun TasksScreen(
                     // what someone opens this tab to check. Sessions are the record of what happened.
                     if (state.scheduled.isNotEmpty()) {
                         item(key = "scheduled-header") {
-                            CollapsibleSectionHeader(
+                            // The count rides along so a collapsed section still says how much it
+                            // is hiding — « Missions programmées 9 » reads as a fact, an empty
+                            // heading as a bug.
+                            DisclosureRow(
                                 label = stringResource(Res.string.tasks_scheduled_header),
-                                count = state.scheduled.size,
                                 expanded = scheduledShown,
                                 onToggle = { scheduledShown = !scheduledShown },
+                                labelStyle = MaterialTheme.typography.titleSmall,
+                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                trailing = {
+                                    Text(
+                                        state.scheduled.size.toString(),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                },
                             )
                         }
                         if (scheduledShown) {
@@ -528,25 +522,12 @@ private fun SpendSection(report: Consumption) {
                 // so scrolling the card out of the LazyColumn does not re-collapse an opened list.
                 var detailShown by rememberSaveable { mutableStateOf(false) }
                 HorizontalDivider()
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { detailShown = !detailShown }
-                        .padding(vertical = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        stringResource(Res.string.tasks_spend_by_model, report.models.size),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Icon(
-                        if (detailShown) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+                DisclosureRow(
+                    label = stringResource(Res.string.tasks_spend_by_model, report.models.size),
+                    expanded = detailShown,
+                    onToggle = { detailShown = !detailShown },
+                    labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 if (detailShown) {
                     report.models.forEach { model ->
                         Row(
@@ -604,16 +585,6 @@ private fun modelAmount(model: ModelConsumption): String {
     }
 }
 
-/** Four decimals, because a day of the cheap models lands well under a cent. */
-private fun money(value: Double): String {
-    val cents = kotlin.math.round(value * 10_000).toLong()
-    return "${cents / 10_000}.${(cents % 10_000).toString().padStart(4, '0')} $"
-}
-
-/** « 7 748 977 » — a raw seven-digit number is unreadable at a glance. */
-private fun groupThousands(value: Long): String =
-    value.toString().reversed().chunked(3).joinToString("\u202f").reversed()
-
 @Composable
 private fun SectionHeader(label: String) {
     Text(
@@ -622,45 +593,6 @@ private fun SectionHeader(label: String) {
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
     )
-}
-
-/**
- * A section header that folds its rows away, carrying the count so a collapsed section still says
- * how much it is hiding — « Missions programmées 9 » reads as a fact, an empty heading as a bug.
- */
-@Composable
-private fun CollapsibleSectionHeader(
-    label: String,
-    count: Int,
-    expanded: Boolean,
-    onToggle: () -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onToggle)
-            .padding(top = 8.dp, bottom = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            label,
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                count.toString(),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Icon(
-                if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
 }
 
 /**
@@ -803,7 +735,6 @@ private fun ScheduledMissionRow(
  *
  * Les deux champs s'excluent, comme côté serveur : une mission est récurrente OU ponctuelle.
  */
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 private fun RescheduleSheet(
     mission: ScheduledMission,
@@ -814,69 +745,64 @@ private fun RescheduleSheet(
     var cron by rememberSaveable { mutableStateOf(mission.cron.orEmpty()) }
     var runAt by rememberSaveable { mutableStateOf(mission.runAt.orEmpty()) }
 
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp)
-                .padding(bottom = 32.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            Text(mission.name, style = MaterialTheme.typography.titleLarge)
+    TasksBottomSheet(
+        onDismiss = onDismiss,
+        horizontalPadding = 24.dp,
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Text(mission.name, style = MaterialTheme.typography.titleLarge)
 
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(
-                    selected = recurring,
-                    onClick = { recurring = true },
-                    label = { Text(stringResource(Res.string.tasks_scheduled_recurring)) },
-                )
-                FilterChip(
-                    selected = !recurring,
-                    onClick = { recurring = false },
-                    label = { Text(stringResource(Res.string.tasks_scheduled_once)) },
-                )
-            }
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(
+                selected = recurring,
+                onClick = { recurring = true },
+                label = { Text(stringResource(Res.string.tasks_scheduled_recurring)) },
+            )
+            FilterChip(
+                selected = !recurring,
+                onClick = { recurring = false },
+                label = { Text(stringResource(Res.string.tasks_scheduled_once)) },
+            )
+        }
 
-            if (recurring) {
-                OutlinedTextField(
-                    value = cron,
-                    onValueChange = { cron = it },
-                    label = { Text(stringResource(Res.string.tasks_scheduled_cron)) },
-                    supportingText = { Text(stringResource(Res.string.tasks_scheduled_cron_hint)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            } else {
-                OutlinedTextField(
-                    value = runAt,
-                    onValueChange = { runAt = it },
-                    label = { Text(stringResource(Res.string.tasks_scheduled_runat)) },
-                    supportingText = { Text(stringResource(Res.string.tasks_scheduled_runat_hint)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
+        if (recurring) {
+            OutlinedTextField(
+                value = cron,
+                onValueChange = { cron = it },
+                label = { Text(stringResource(Res.string.tasks_scheduled_cron)) },
+                supportingText = { Text(stringResource(Res.string.tasks_scheduled_cron_hint)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        } else {
+            OutlinedTextField(
+                value = runAt,
+                onValueChange = { runAt = it },
+                label = { Text(stringResource(Res.string.tasks_scheduled_runat)) },
+                supportingText = { Text(stringResource(Res.string.tasks_scheduled_runat_hint)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
 
-            // Le fuseau de la mission, pas celui du téléphone : c'est dans celui-là que le serveur
-            // lira l'heure saisie, et les deux diffèrent en voyage.
-            if (mission.timeZone.isNotBlank()) {
-                Text(
-                    stringResource(Res.string.tasks_scheduled_timezone, mission.timeZone),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+        // Le fuseau de la mission, pas celui du téléphone : c'est dans celui-là que le serveur
+        // lira l'heure saisie, et les deux diffèrent en voyage.
+        if (mission.timeZone.isNotBlank()) {
+            Text(
+                stringResource(Res.string.tasks_scheduled_timezone, mission.timeZone),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
 
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                TextButton(onClick = onDismiss) { Text(stringResource(Res.string.tasks_cancel)) }
-                TextButton(
-                    enabled = if (recurring) cron.isNotBlank() else runAt.isNotBlank(),
-                    onClick = {
-                        if (recurring) onSave(cron.trim(), null) else onSave(null, runAt.trim())
-                    },
-                ) { Text(stringResource(Res.string.tasks_scheduled_save)) }
-            }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.tasks_cancel)) }
+            TextButton(
+                enabled = if (recurring) cron.isNotBlank() else runAt.isNotBlank(),
+                onClick = {
+                    if (recurring) onSave(cron.trim(), null) else onSave(null, runAt.trim())
+                },
+            ) { Text(stringResource(Res.string.tasks_scheduled_save)) }
         }
     }
 }
@@ -970,22 +896,6 @@ private fun MissionRow(
     }
 }
 
-/** The row's age, compact like a messaging list: minutes under an hour, hours under a day, then days. */
-@Composable
-private fun missionAge(createdAtMillis: Long): String {
-    val minutes = ((kotlin.time.Clock.System.now().toEpochMilliseconds() - createdAtMillis) / MILLIS_PER_MINUTE)
-        .coerceAtLeast(0)
-    return when {
-        minutes < MINUTES_PER_HOUR -> stringResource(Res.string.tasks_age_minutes, minutes)
-        minutes < MINUTES_PER_DAY -> stringResource(Res.string.tasks_age_hours, minutes / MINUTES_PER_HOUR)
-        else -> stringResource(Res.string.tasks_age_days, minutes / MINUTES_PER_DAY)
-    }
-}
-
-private const val MILLIS_PER_MINUTE = 60_000L
-private const val MINUTES_PER_HOUR = 60L
-private const val MINUTES_PER_DAY = 24 * 60L
-
 @Composable
 private fun MissionChip(state: MissionState) {
     val (label, colour) = when (state) {
@@ -1004,82 +914,4 @@ private fun MissionChip(state: MissionState) {
         label = { Text(label) },
         colors = AssistChipDefaults.assistChipColors(labelColor = colour),
     )
-}
-
-@Composable
-private fun Explanation(
-    title: String,
-    hint: String?,
-    modifier: Modifier = Modifier,
-    action: Pair<String, () -> Unit>? = null,
-    /** Offered under [action] when there are two ways out and one is clearly the usual one. */
-    secondary: Pair<String, () -> Unit>? = null,
-    /**
-     * Something is under way — the portal round trip, in practice. Both offers are withdrawn while
-     * it is: a second tap opens a second browser tab against a request the first one already
-     * consumed, and the failure that produces names neither.
-     */
-    busy: Boolean = false,
-) {
-    Column(
-        modifier = modifier.fillMaxSize().padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Text(title, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
-        if (hint != null) {
-            Text(
-                hint,
-                style = MaterialTheme.typography.bodyMedium,
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 8.dp),
-            )
-        }
-        if (busy) {
-            CircularProgressIndicator(modifier = Modifier.padding(top = 16.dp))
-        } else {
-            action?.let { (label, onClick) ->
-                TextButton(onClick = onClick, modifier = Modifier.padding(top = 16.dp)) { Text(label) }
-            }
-            secondary?.let { (label, onClick) ->
-                TextButton(onClick = onClick) { Text(label) }
-            }
-        }
-    }
-}
-
-/**
- * What a failed sign-in says, one sentence per cause.
- *
- * Separate from [EngineFailureKind.hint] because they answer different questions: that one explains
- * why the *engine* turned a request away, this one why the *portal* did — and only one of the six
- * cases here can be fixed by trying again.
- */
-private fun EngineSignInProblem.sentence() = when (this) {
-    EngineSignInProblem.NOT_CONFIGURED -> Res.string.tasks_sign_in_not_configured
-    EngineSignInProblem.NO_CALLBACK_HOST -> Res.string.tasks_sign_in_no_callback_host
-    EngineSignInProblem.PORTAL_UNREACHABLE -> Res.string.tasks_sign_in_unreachable
-    EngineSignInProblem.REFUSED -> Res.string.tasks_sign_in_refused
-    EngineSignInProblem.INTERRUPTED -> Res.string.tasks_sign_in_interrupted
-    EngineSignInProblem.MISSING_SCOPE -> Res.string.tasks_sign_in_missing_scope
-}
-
-/** The sentence shown for a failure. One per cause, because the remedies differ. */
-internal fun EngineFailureKind.title() = when (this) {
-    EngineFailureKind.AUTHENTICATION -> Res.string.tasks_error_authentication
-    EngineFailureKind.PERMISSION -> Res.string.tasks_error_permission
-    EngineFailureKind.NOT_FOUND -> Res.string.tasks_error_not_found
-    EngineFailureKind.UNREACHABLE -> Res.string.tasks_error_unreachable
-    EngineFailureKind.SERVER -> Res.string.tasks_error_server
-    EngineFailureKind.UNKNOWN -> Res.string.tasks_error_unknown
-}
-
-private fun EngineFailureKind.hint() = when (this) {
-    EngineFailureKind.AUTHENTICATION -> Res.string.tasks_error_authentication_hint
-    EngineFailureKind.PERMISSION -> Res.string.tasks_error_permission_hint
-    EngineFailureKind.NOT_FOUND -> Res.string.tasks_error_not_found_hint
-    EngineFailureKind.UNREACHABLE -> Res.string.tasks_error_unreachable_hint
-    EngineFailureKind.SERVER -> Res.string.tasks_error_server_hint
-    EngineFailureKind.UNKNOWN -> null
 }

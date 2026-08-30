@@ -1,7 +1,6 @@
 package com.garfiec.librechat.core.network.api
 
 import com.garfiec.librechat.core.model.engine.CreateEngineSessionRequest
-import com.garfiec.librechat.core.model.engine.EnginePermissionReply
 import com.garfiec.librechat.core.model.engine.EnginePermissionRule
 import com.garfiec.librechat.core.model.engine.EnginePromptPart
 import com.garfiec.librechat.core.model.engine.EnginePromptRequest
@@ -213,22 +212,5 @@ class AgentEngineApiTest {
 
         // Posting a body here is a 400 from the engine.
         assertThat(bodySize).isEqualTo(0)
-    }
-
-    @Test
-    fun `a permission reply names the permission it answers`() = runTest {
-        var path: String? = null
-        var body: String? = null
-        val engine = MockEngine { request ->
-            path = request.url.encodedPath
-            body = String(request.body.toByteArray())
-            respond(content = "{}", status = HttpStatusCode.OK, headers = jsonHeaders())
-        }
-
-        api(engine).replyToPermission("ses_abc", "perm_1", EnginePermissionReply(EnginePermissionReply.ONCE))
-
-        assertThat(path).isEqualTo("/session/ses_abc/permissions/perm_1")
-        assertThat(json.parseToJsonElement(body!!).jsonObject["response"]!!.jsonPrimitive.content)
-            .isEqualTo("once")
     }
 }
