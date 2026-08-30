@@ -42,8 +42,15 @@ data class MissionChatUiState(
     val sendError: EngineFailureKind? = null,
     /** The connectors this deployment offers, fetched from the scheduler — never a local copy. */
     val connectors: List<ConnectorOption> = emptyList(),
-    /** Which of them this session currently carries. */
-    val enabledConnectors: Set<String> = emptySet(),
+    /**
+     * Which of them this session currently carries, read off the engine — **null until read**.
+     *
+     * The distinction is the whole point. This started as an empty set that only the user's own
+     * ticks ever filled, so every session opened claiming « No connector », including the ones the
+     * scheduler had launched with nine. Null says « not known yet » and the chip says so too;
+     * an empty set now means the engine really did answer « none ».
+     */
+    val enabledConnectors: Set<String>? = null,
     /** The models a message may be sent on. */
     val models: List<EngineSelectableModel> = emptyList(),
     /**
@@ -129,15 +136,32 @@ class MissionChatViewModel(
         loadModels()
     }
 
+    /**
+     * The catalogue, and what this session already holds out of it.
+     *
+     * Both, or the chip lies: the list alone says what *could* be granted, and the screen used to
+     * fill in « what is granted » from nothing but the user's own ticks. The two land in a single
+     * update so the chip never renders a catalogue against an unknown grant.
+     *
+     * The grant read is allowed to fail on its own — it is a second route on the same host — and
+     * then the ticks stay unknown rather than becoming a false « none ».
+     */
     private fun loadConnectors() {
         viewModelScope.launch {
             try {
                 val catalogue = withContext(ioDispatcher) { repository.connectors() }
+                val granted = runCatching {
+                    withContext(ioDispatcher) { repository.sessionConnectors(sessionId) }
+                }.getOrNull()
                 _uiState.update {
                     it.copy(
                         // Someone is watching this conversation, so nothing is barred as it would be
                         // for an unattended mission (brief §4.2).
                         connectors = catalogue.offered(autonomous = false),
+                        // A tick the user made while this was in flight outranks what the engine
+                        // said a moment ago: it has already been sent, and overwriting it here would
+                        // undo a checkbox under their finger.
+                        enabledConnectors = it.enabledConnectors ?: granted,
                         connectorsError = null,
                     )
                 }
@@ -183,7 +207,7 @@ class MissionChatViewModel(
      * reason nothing on screen explains.
      */
     fun toggleConnector(name: String) {
-        val before = _uiState.value.enabledConnectors
+        val before = _uiState.value.enabledConnectors.orEmpty()
         val after = if (name in before) before - name else before + name
         _uiState.update { it.copy(enabledConnectors = after) }
         viewModelScope.launch {
@@ -246,9 +270,23 @@ class MissionChatViewModel(
         _uiState.update { it.copy(input = text) }
     }
 
+    /**
+     * Send, and reconcile.
+     *
+     * The call waits for the finished turn, but the turn also arrives on the feed meanwhile — so
+     * the failure arm has to tell two different things apart. A send that never reached the engine
+     * leaves the conversation exactly as it was, and the words belong back in the box. A send that
+     * reached it and then lost the socket has *already* moved the conversation, and reporting « the
+     * engine did not answer » over an answer visibly streaming in is the screen contradicting
+     * itself — which is what it did on 30/08/2026, when the client's 30 s cap expired mid-turn.
+     *
+     * So the fold of the transcript is the arbiter: unchanged means nothing happened, changed means
+     * the engine took it and only the reconciliation was lost.
+     */
     fun send() {
         val text = _uiState.value.input.trim()
         if (text.isEmpty() || _uiState.value.sending) return
+        val before = _uiState.value.chat
         _uiState.update { it.copy(input = "", sending = true, sendError = null) }
         viewModelScope.launch {
             try {
@@ -262,8 +300,14 @@ class MissionChatViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                // Never swallow the words: put them back in the box and name what went wrong.
-                _uiState.update { it.copy(input = text, sendError = e.engineFailureKind()) }
+                _uiState.update { current ->
+                    if (current.chat == before) {
+                        // Never swallow the words: put them back in the box and name what went wrong.
+                        current.copy(input = text, sendError = e.engineFailureKind())
+                    } else {
+                        current
+                    }
+                }
             } finally {
                 _uiState.update { it.copy(sending = false) }
             }

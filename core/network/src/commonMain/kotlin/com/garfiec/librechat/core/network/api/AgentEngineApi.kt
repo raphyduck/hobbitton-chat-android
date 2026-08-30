@@ -14,6 +14,7 @@ import com.garfiec.librechat.core.model.engine.EngineSessionStatus
 import com.garfiec.librechat.core.network.engine.EngineHttpException
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
+import io.ktor.client.plugins.timeout
 import io.ktor.client.request.get
 import io.ktor.client.request.patch
 import io.ktor.client.request.post
@@ -49,6 +50,16 @@ class AgentEngineApi(
      */
     suspend fun sessions(): List<EngineSession> =
         client.get { url { path("session") } }.decoded()
+
+    /**
+     * One session, with the ruleset it currently carries.
+     *
+     * The list route does not serve `permission`; this one does, and it is the only place a live
+     * session's grants are written down. Reading it is what lets the conversation say what the
+     * mission can reach rather than what the screen happens to have ticked.
+     */
+    suspend fun session(sessionId: String): EngineSession =
+        client.get { url { path("session/${sessionId.encodeURLPathPart()}") } }.decoded()
 
     /** The profiles the engine is configured with — `cerveau`, `work-compta`… */
     suspend fun profiles(): List<EngineAgentProfile> =
@@ -98,6 +109,17 @@ class AgentEngineApi(
     ): EngineMessage =
         client.post {
             url { path("session/${sessionId.encodeURLPathPart()}/message") }
+            // No request cap on THIS route, and on this route only. The client's 30 s is right for
+            // the small calls around it and wrong here: this one waits for the whole turn, tools
+            // included, and a mission turn runs for minutes. What the user saw was the timeout, not
+            // the engine — « The engine did not answer » under an answer that was streaming in on
+            // the feed at that very moment (reported 30/08/2026). The engine writes nothing on this
+            // socket until the turn is finished, so a read timeout would be just as wrong; the Stop
+            // button, not a clock, is what ends a turn that has gone on too long.
+            timeout {
+                requestTimeoutMillis = Long.MAX_VALUE
+                socketTimeoutMillis = Long.MAX_VALUE
+            }
             setBody(
                 EnginePromptRequest(
                     parts = listOf(EnginePromptPart(text = text)),

@@ -1,5 +1,6 @@
 package com.garfiec.librechat.core.data.engine
 
+import com.garfiec.librechat.core.model.engine.EnginePermissionRule
 import com.garfiec.librechat.core.model.engine.MissionState
 import com.garfiec.librechat.core.model.scheduler.ConnectorCatalogue
 import com.garfiec.librechat.core.model.scheduler.ConnectorGrant
@@ -94,6 +95,50 @@ class PermissionsForTest {
         val rules = permissionsFor(catalogue, listOf("memoire", "memoire"), autonomous = true)
 
         assertEquals(rules.size, rules.distinctBy { it.permission }.size)
+    }
+    @Test
+    fun `what a session was granted is read back from the rules it carries`() {
+        // The round trip is the contract: what the sheet ticked is what the chip must report, or
+        // the conversation says « No connector » over a mission that is reading mail.
+        val rules = permissionsFor(catalogue, listOf("memoire", "fichiers"), autonomous = false)
+
+        assertEquals(setOf("memoire", "fichiers"), connectorsGranted(catalogue, rules))
+    }
+
+    @Test
+    fun `a session granted nothing reads as nothing`() {
+        val rules = permissionsFor(catalogue, emptyList(), autonomous = false)
+
+        assertEquals(emptySet(), connectorsGranted(catalogue, rules))
+    }
+
+    @Test
+    fun `half a connector is not a connector`() {
+        // `bash` alone is not `shell`. Reading « any tool allowed ⇒ connector on » would report a
+        // capability the session does not have, which is the one direction this must never err in.
+        val rules = listOf(EnginePermissionRule(permission = "bash", action = "allow"))
+
+        assertEquals(emptySet(), connectorsGranted(catalogue, rules))
+    }
+
+    @Test
+    fun `only allow grants`() {
+        // `ask` is a prompt, not a grant, and the ruleset always opens with a `*` deny — neither
+        // may light a chip up.
+        val rules = catalogue.connecteurs.getValue("fichiers").outils.map {
+            EnginePermissionRule(permission = it, action = "ask")
+        }
+
+        assertEquals(emptySet(), connectorsGranted(catalogue, rules))
+    }
+
+    @Test
+    fun `a connector that declares no tool is never on`() {
+        // `containsAll` of an empty list is vacuously true, so without the guard every empty entry
+        // in the catalogue would report as granted on a session that holds nothing at all.
+        val empty = ConnectorCatalogue(connecteurs = mapOf("vide" to ConnectorGrant(outils = emptyList())))
+
+        assertEquals(emptySet(), connectorsGranted(empty, emptyList()))
     }
 }
 
