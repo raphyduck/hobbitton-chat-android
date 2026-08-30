@@ -14,7 +14,6 @@
     <string name="tasks_chat_send">Envoyer</string>
     <string name="tasks_chat_back">Retour</string>
     <string name="tasks_chat_empty">Aucun message — envoyez-en un pour parler à la session.</string>
-    <string name="tasks_chat_working">En cours…</string>
     <string name="tasks_not_configured">Le moteur n\'est pas encore configuré</string>
     <string name="tasks_not_configured_hint">Renseignez son adresse et ses identifiants dans les réglages, puis revenez.</string>
     <string name="tasks_state_running">En cours</string>
@@ -120,4 +119,5 @@
     <string name="tasks_scheduled_runat_hint">ISO 8601, ex. « 2027-01-15T09:00 ». Elle part une fois, puis se désactive.</string>
     <string name="tasks_scheduled_timezone">Lue dans %1$s — le fuseau de la mission, pas celui du téléphone.</string>
     <string name="tasks_scheduled_save">Enregistrer</string>
+    <string name="tasks_chat_output_truncated">%1$d caractères de plus</string>
 </resources>

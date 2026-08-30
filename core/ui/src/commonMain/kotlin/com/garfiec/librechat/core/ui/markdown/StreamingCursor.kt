@@ -1,4 +1,4 @@
-package com.garfiec.librechat.feature.chat.components
+package com.garfiec.librechat.core.ui.markdown
 
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.RepeatMode
@@ -39,11 +39,8 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
-import com.garfiec.librechat.core.ui.markdown.CITATION_DETECT_REGEX
-import com.garfiec.librechat.core.ui.markdown.InlineSegment
-import com.garfiec.librechat.core.ui.markdown.MarkdownSegment
-import com.garfiec.librechat.feature.chat.resources.*
-import com.garfiec.librechat.feature.chat.resources.Res
+import com.garfiec.librechat.core.ui.resources.Res
+import com.garfiec.librechat.core.ui.resources.cd_generating_response
 import com.mikepenz.markdown.model.MarkdownAnnotator
 import com.mikepenz.markdown.model.MarkdownInlineContent
 import com.mikepenz.markdown.model.markdownAnnotator
@@ -71,10 +68,10 @@ import org.jetbrains.compose.resources.stringResource
  * character the lexer treats as ordinary text, so if a frame's sentinel is ever left unclaimed (see
  * the leaf guard in [streamingCursorAnnotate]) it renders as nothing rather than as tofu.
  */
-internal const val STREAMING_CURSOR_SENTINEL = "⁣"
+const val STREAMING_CURSOR_SENTINEL = "⁣"
 
 /** Inline-content id the annotator emits and [rememberStreamingCursorInlineContent] resolves. */
-internal const val STREAMING_CURSOR_INLINE_ID = "librechat:streaming_cursor"
+const val STREAMING_CURSOR_INLINE_ID = "librechat:streaming_cursor"
 
 private const val CURSOR_PULSE_MS = 620
 private const val CURSOR_MIN_ALPHA = 0.25f
@@ -98,7 +95,7 @@ private val CursorPulseEasing = CubicBezierEasing(0.45f, 0f, 0.55f, 1f)
  * character. Without the trim, a delta ending in a newline puts the cursor on the next line — or, for
  * a blank line, in a new paragraph.
  */
-internal fun withStreamingCursor(text: String): String =
+fun withStreamingCursor(text: String): String =
     text.trimEnd() + STREAMING_CURSOR_SENTINEL
 
 /**
@@ -113,7 +110,7 @@ internal fun withStreamingCursor(text: String): String =
  *   renders it through its own code-fence component rather than as annotated text. Without this the
  *   whole of a long code reply would stream with no cursor at all.
  */
-internal fun canHostInlineCursor(segment: MarkdownSegment): Boolean = when (segment) {
+fun canHostInlineCursor(segment: MarkdownSegment): Boolean = when (segment) {
     is MarkdownSegment.TextBlock ->
         segment.text.isNotBlank() &&
             !segment.text.contains(CITATION_DETECT_REGEX) &&
@@ -127,7 +124,7 @@ internal fun canHostInlineCursor(segment: MarkdownSegment): Boolean = when (segm
 }
 
 /** True when [text] ends inside a fenced code block. */
-internal fun hasUnclosedCodeFence(text: String): Boolean =
+fun hasUnclosedCodeFence(text: String): Boolean =
     text.lineSequence().count { it.trimStart().startsWith("```") } % 2 == 1
 
 /**
@@ -143,7 +140,7 @@ internal fun hasUnclosedCodeFence(text: String): Boolean =
  * Exposed as a plain lambda so `StreamingCursorAnnotateTest` can run it against a real parse — an
  * annotator that claims nothing is indistinguishable from a working one at compile time.
  */
-internal val streamingCursorAnnotate: AnnotatedString.Builder.(String, ASTNode) -> Boolean =
+val streamingCursorAnnotate: AnnotatedString.Builder.(String, ASTNode) -> Boolean =
     { content, child ->
         val start = child.startOffset
         val end = child.endOffset
@@ -169,7 +166,7 @@ internal val streamingCursorAnnotate: AnnotatedString.Builder.(String, ASTNode) 
     }
 
 /** One process-wide instance: the renderer keys internal `remember`s on it. */
-internal val StreamingCursorAnnotator: MarkdownAnnotator =
+val StreamingCursorAnnotator: MarkdownAnnotator =
     markdownAnnotator(annotate = streamingCursorAnnotate)
 
 /**
@@ -193,15 +190,15 @@ private val StreamingCursorInlineContent: Map<String, InlineTextContent> = mapOf
 )
 
 @Composable
-internal fun rememberStreamingCursorInlineContent(): MarkdownInlineContent =
+fun rememberStreamingCursorInlineContent(): MarkdownInlineContent =
     markdownInlineContent(StreamingCursorInlineContent)
 
 /** The renderer's no-op default, hoisted so the non-cursor path allocates nothing per composition. */
-internal val NoOpMarkdownAnnotator: MarkdownAnnotator = markdownAnnotator()
+val NoOpMarkdownAnnotator: MarkdownAnnotator = markdownAnnotator()
 
 /** The pulsing bar itself, drawn to whatever box it is given. */
 @Composable
-internal fun StreamingCursor(modifier: Modifier = Modifier) {
+fun StreamingCursor(modifier: Modifier = Modifier) {
     val transition = rememberInfiniteTransition(label = "streaming_cursor")
     val alpha by transition.animateFloat(
         initialValue = 1f,
@@ -231,7 +228,7 @@ internal fun StreamingCursor(modifier: Modifier = Modifier) {
  * Sized from the body text so it matches the line it follows.
  */
 @Composable
-internal fun StandaloneStreamingCursor(
+fun StandaloneStreamingCursor(
     modifier: Modifier = Modifier,
     fontSizeMultiplier: Float = 1.0f,
 ) {
@@ -251,7 +248,7 @@ internal fun StandaloneStreamingCursor(
  * delta there is nothing for it to be positioned after.
  */
 @Composable
-internal fun StreamingWaitIndicator(modifier: Modifier = Modifier) {
+fun StreamingWaitIndicator(modifier: Modifier = Modifier) {
     val transition = rememberInfiniteTransition(label = "streaming_wait")
     val color = MaterialTheme.colorScheme.primary
     val generatingCd = stringResource(Res.string.cd_generating_response)

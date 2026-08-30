@@ -61,7 +61,6 @@
     <string name="cd_fork_conversation">Unterhaltung ab hier verzweigen</string>
     <string name="cd_previous_response">Vorherige Antwort</string>
     <string name="cd_next_response">Nächste Antwort</string>
-    <string name="cd_generating_response">Antwort wird generiert</string>
 
     <!-- Content descriptions - Images -->
     <string name="cd_close">Schließen</string>

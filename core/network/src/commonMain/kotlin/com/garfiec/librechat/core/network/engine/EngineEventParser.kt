@@ -1,5 +1,6 @@
 package com.garfiec.librechat.core.network.engine
 
+import com.garfiec.librechat.core.model.engine.EngineModelRef
 import com.garfiec.librechat.core.model.engine.EnginePartSnapshot
 import com.garfiec.librechat.core.model.engine.EngineStreamEvent
 import com.garfiec.librechat.core.network.sse.SseEvent
@@ -37,7 +38,22 @@ class EngineEventParser(private val json: Json) {
             val info = props["info"] as? JsonObject
             val id = info?.str("id")
             val role = info?.str("role")
-            if (id != null && role != null) EngineStreamEvent.MessageStarted(id, role) else null
+            val modelId = info?.str("modelID")
+            val providerId = info?.str("providerID")
+            if (id != null && role != null) {
+                EngineStreamEvent.MessageStarted(
+                    messageId = id,
+                    role = role,
+                    // Only assistant messages carry them; a user turn simply has neither.
+                    model = if (modelId != null && providerId != null) {
+                        EngineModelRef(providerId = providerId, modelId = modelId)
+                    } else {
+                        null
+                    },
+                )
+            } else {
+                null
+            }
         }
 
         "message.part.updated" -> {
@@ -49,13 +65,21 @@ class EngineEventParser(private val json: Json) {
                 EngineStreamEvent.PartUpdated(
                     messageId = messageId,
                     partId = partId,
-                    part = EnginePartSnapshot(
-                        type = partType,
-                        text = part.str("text"),
-                        tool = part.str("tool"),
-                        callId = part.str("callID"),
-                        status = (part["state"] as? JsonObject)?.str("status"),
-                    ),
+                    part = (part["state"] as? JsonObject).let { state ->
+                        EnginePartSnapshot(
+                            type = partType,
+                            text = part.str("text"),
+                            tool = part.str("tool"),
+                            callId = part.str("callID"),
+                            status = state?.str("status"),
+                            // Measured on the live engine 30/08/2026: a tool's `state` carries its
+                            // `input` object and its `output` text. Reading only `status` is what
+                            // left the conversation able to say that a tool ran and unable to say
+                            // what it did.
+                            input = state?.get("input"),
+                            output = state?.str("output"),
+                        )
+                    },
                 )
             } else {
                 null

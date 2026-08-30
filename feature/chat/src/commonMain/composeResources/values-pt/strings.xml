@@ -61,7 +61,6 @@
     <string name="cd_fork_conversation">Bifurcar conversa a partir daqui</string>
     <string name="cd_previous_response">Resposta anterior</string>
     <string name="cd_next_response">Próxima resposta</string>
-    <string name="cd_generating_response">Gerando resposta</string>
 
     <!-- Content descriptions - Images -->
     <string name="cd_close">Fechar</string>

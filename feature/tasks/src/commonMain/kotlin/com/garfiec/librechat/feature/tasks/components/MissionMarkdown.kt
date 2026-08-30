@@ -19,9 +19,15 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import com.garfiec.librechat.core.ui.markdown.InlineSegment
 import com.garfiec.librechat.core.ui.markdown.MarkdownSegment
+import com.garfiec.librechat.core.ui.markdown.NoOpMarkdownAnnotator
+import com.garfiec.librechat.core.ui.markdown.StandaloneStreamingCursor
+import com.garfiec.librechat.core.ui.markdown.StreamingCursorAnnotator
+import com.garfiec.librechat.core.ui.markdown.canHostInlineCursor
 import com.garfiec.librechat.core.ui.markdown.chatMarkdownColors
 import com.garfiec.librechat.core.ui.markdown.chatMarkdownTypography
 import com.garfiec.librechat.core.ui.markdown.parseMarkdownSegments
+import com.garfiec.librechat.core.ui.markdown.rememberStreamingCursorInlineContent
+import com.garfiec.librechat.core.ui.markdown.withStreamingCursor
 import com.mikepenz.markdown.m3.Markdown
 
 /**
@@ -45,20 +51,35 @@ internal fun MissionMarkdown(
     modifier: Modifier = Modifier,
     color: Color = MaterialTheme.colorScheme.onSurface,
     fontScale: Float = 1f,
+    /** The mission is still writing, and this is the block its next character lands in. */
+    trailingCursor: Boolean = false,
 ) {
     val segments = remember(text) { parseMarkdownSegments(text) }
+    // The cursor rides inside the last block when that block is rendered as annotated text, and
+    // sits on the line below when it is not — a code block, a table, a formula. The same decision
+    // the chat makes, from the same function, so the two cannot answer it differently.
+    val inlineCursor = trailingCursor && segments.lastOrNull()?.let { canHostInlineCursor(it) } == true
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        segments.forEach { segment ->
+        segments.forEachIndexed { index, segment ->
+            val cursorHere = inlineCursor && index == segments.lastIndex
             when (segment) {
                 is MarkdownSegment.CodeBlock -> MissionCodeBlock(segment.code, segment.language)
                 is MarkdownSegment.Table -> MissionTable(segment)
-                is MarkdownSegment.TextBlock -> Prose(segment.text, color, fontScale)
+                is MarkdownSegment.TextBlock -> Prose(segment.text, color, fontScale, cursorHere)
                 // LaTeX has no renderer here: a mission answers in prose and tool output, and a
                 // formula shown as its source beats a formula shown as nothing.
-                is MarkdownSegment.LatexBlock -> Prose(segment.latex, color, fontScale)
+                is MarkdownSegment.LatexBlock -> Prose(segment.latex, color, fontScale, cursorHere)
                 is MarkdownSegment.InlineLatexText ->
-                    Prose(segment.segments.joinToString("") { it.rawText() }, color, fontScale)
+                    Prose(
+                        segment.segments.joinToString("") { it.rawText() },
+                        color,
+                        fontScale,
+                        cursorHere,
+                    )
             }
+        }
+        if (trailingCursor && !inlineCursor) {
+            StandaloneStreamingCursor(fontSizeMultiplier = fontScale)
         }
     }
 }
@@ -70,11 +91,13 @@ private fun InlineSegment.rawText(): String = when (this) {
 
 /** The shared markdown theme — `core:ui` owns it, this file only asks for it. */
 @Composable
-private fun Prose(content: String, color: Color, fontScale: Float) {
+private fun Prose(content: String, color: Color, fontScale: Float, trailingCursor: Boolean = false) {
     Markdown(
-        content = content,
+        content = if (trailingCursor) withStreamingCursor(content) else content,
         colors = chatMarkdownColors(text = color),
         typography = chatMarkdownTypography(fontScale),
+        annotator = if (trailingCursor) StreamingCursorAnnotator else NoOpMarkdownAnnotator,
+        inlineContent = rememberStreamingCursorInlineContent(),
     )
 }
 

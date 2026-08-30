@@ -70,7 +70,9 @@ import com.garfiec.librechat.core.ui.components.endpointIconPainter
 import com.garfiec.librechat.core.ui.components.isMonochromeEndpointIcon
 import com.garfiec.librechat.core.ui.markdown.InlineSegment
 import com.garfiec.librechat.core.ui.markdown.MarkdownSegment
+import com.garfiec.librechat.core.ui.markdown.StandaloneStreamingCursor
 import com.garfiec.librechat.core.ui.markdown.TableCellAlignment
+import com.garfiec.librechat.core.ui.markdown.canHostInlineCursor
 import com.garfiec.librechat.core.ui.markdown.chatMarkdownColors
 import com.garfiec.librechat.core.ui.markdown.chatMarkdownTypography
 import com.garfiec.librechat.core.ui.markdown.scaleFontSize

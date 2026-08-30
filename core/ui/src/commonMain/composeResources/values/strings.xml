@@ -23,4 +23,5 @@
     <string name="server_headers_error_name">Not a valid header name.</string>
     <string name="server_headers_error_value">This value contains characters that can't be sent.</string>
     <string name="server_headers_error_reserved">This header is set by the app and can't be overridden.</string>
+    <string name="cd_generating_response">Generating response</string>
 </resources>

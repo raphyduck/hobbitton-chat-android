@@ -19,4 +19,5 @@
     <string name="server_headers_error_name">Nom d'en-tête non valide.</string>
     <string name="server_headers_error_value">Cette valeur contient des caractères qui ne peuvent pas être envoyés.</string>
     <string name="server_headers_error_reserved">Cet en-tête est défini par l'application et ne peut pas être remplacé.</string>
+    <string name="cd_generating_response">Génération de la réponse</string>
 </resources>

@@ -1,7 +1,11 @@
 package com.garfiec.librechat.feature.tasks.util
 
+import com.garfiec.librechat.core.model.engine.EngineModelRef
 import com.garfiec.librechat.core.model.engine.EnginePartSnapshot
 import com.garfiec.librechat.core.model.engine.EngineStreamEvent
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 
 /**
  * The conversation, folded from the engine's events.
@@ -24,6 +28,14 @@ data class MissionChatState(
     val turns: List<ChatTurn> = emptyList(),
     /** A turn is running — drives the spinner and the send/stop button's face. */
     val streaming: Boolean = false,
+    /**
+     * What the session's last assistant turn actually ran on.
+     *
+     * The engine takes a model per message and keeps it, so this — not the deployment's catalogue
+     * default — is the answer to « which model is this session using ». The chip showed the default
+     * until 30/08/2026, which named the right model only by coincidence.
+     */
+    val model: EngineModelRef? = null,
 )
 
 sealed interface ChatTurn {
@@ -43,13 +55,20 @@ sealed interface ChatPart {
     /** The model's thinking, shown muted. */
     data class Reasoning(override val id: String, val text: String) : ChatPart
 
-    /** A tool the assistant reached for, and how it ended. */
+    /** A tool the assistant reached for, how it ended, and what passed through it. */
     data class Tool(
         override val id: String,
         val name: String,
         val state: ToolState,
+        /** The call's arguments, flattened to one line each in the order the engine sent them. */
+        val arguments: List<ToolArgument> = emptyList(),
+        /** What the tool answered. Long — a median of 760 characters, a measured maximum of 51 425. */
+        val output: String? = null,
     ) : ChatPart
 }
+
+/** One argument of a tool call: its name, and its value rendered as the compact JSON it arrived as. */
+data class ToolArgument(val name: String, val value: String)
 
 enum class ToolState { RUNNING, OK, FAILED }
 
@@ -66,7 +85,10 @@ fun MissionChatState.reduce(event: EngineStreamEvent): MissionChatState = when (
     is EngineStreamEvent.MessageStarted -> {
         val known = turns.any { it.key == event.messageId }
         when {
-            known -> this
+            // The model rides on the envelope, so it is read even for a message already seen — a
+            // live turn re-announces itself as it fills in, and the first announcement can precede
+            // the model being decided.
+            known -> copy(model = event.model ?: model)
             event.role == ROLE_USER ->
                 copy(turns = turns + ChatTurn.User(event.messageId))
             // Ne marque PAS le tour comme en cours. Un transcript rejoué émet un
@@ -75,7 +97,7 @@ fun MissionChatState.reduce(event: EngineStreamEvent): MissionChatState = when (
             // depuis des heures. Constaté le 30/08/2026. Seul un delta prouve qu'un tour
             // parle maintenant — et seul le flux vivant en émet.
             else ->
-                copy(turns = turns + ChatTurn.Assistant(event.messageId))
+                copy(turns = turns + ChatTurn.Assistant(event.messageId), model = event.model ?: model)
         }
     }
 
@@ -108,6 +130,8 @@ private fun EnginePartSnapshot.asChatPart(partId: String): ChatPart? = when (typ
     "tool" -> ChatPart.Tool(
         id = partId,
         name = tool ?: callId ?: partId,
+        arguments = input.asToolArguments(),
+        output = output?.takeIf { it.isNotBlank() },
         state = when (status) {
             "completed" -> ToolState.OK
             "error" -> ToolState.FAILED
@@ -117,6 +141,22 @@ private fun EnginePartSnapshot.asChatPart(partId: String): ChatPart? = when (typ
         },
     )
     else -> null
+}
+
+/**
+ * The argument object, flattened for display: one row per key, values rendered as the compact JSON
+ * they arrived as. Nesting is not unfolded — an argument that is itself an object is shown as its
+ * JSON, which is both honest and short enough to read on a phone.
+ */
+private fun JsonElement?.asToolArguments(): List<ToolArgument> {
+    val obj = this as? JsonObject ?: return emptyList()
+    return obj.map { (name, value) ->
+        ToolArgument(
+            name = name,
+            // A string argument prints without its quotes; anything else prints as written.
+            value = (value as? JsonPrimitive)?.takeIf { it.isString }?.content ?: value.toString(),
+        )
+    }
 }
 
 /** Upsert a part into its message, creating the message if the feed named it before announcing it. */

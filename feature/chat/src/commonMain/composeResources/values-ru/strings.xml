@@ -61,7 +61,6 @@
     <string name="cd_fork_conversation">Ответвить беседу отсюда</string>
     <string name="cd_previous_response">Предыдущий ответ</string>
     <string name="cd_next_response">Следующий ответ</string>
-    <string name="cd_generating_response">Генерация ответа</string>
 
     <!-- Content descriptions - Images -->
     <string name="cd_close">Закрыть</string>

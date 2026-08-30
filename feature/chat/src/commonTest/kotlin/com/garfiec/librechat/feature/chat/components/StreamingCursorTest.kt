@@ -1,13 +1,17 @@
 package com.garfiec.librechat.feature.chat.components
 
+import com.garfiec.librechat.core.ui.markdown.InlineSegment
+import com.garfiec.librechat.core.ui.markdown.MarkdownSegment
+import com.garfiec.librechat.core.ui.markdown.STREAMING_CURSOR_SENTINEL
+import com.garfiec.librechat.core.ui.markdown.TableCellAlignment
+import com.garfiec.librechat.core.ui.markdown.canHostInlineCursor
+import com.garfiec.librechat.core.ui.markdown.hasUnclosedCodeFence
+import com.garfiec.librechat.core.ui.markdown.parseMarkdownSegments
+import com.garfiec.librechat.core.ui.markdown.withStreamingCursor
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
-import com.garfiec.librechat.core.ui.markdown.parseMarkdownSegments
-import com.garfiec.librechat.core.ui.markdown.TableCellAlignment
-import com.garfiec.librechat.core.ui.markdown.MarkdownSegment
-import com.garfiec.librechat.core.ui.markdown.InlineSegment
 
 /**
  * The placement decisions behind the streaming cursor. This module has no unit-level Compose
