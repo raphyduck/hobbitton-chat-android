@@ -2,7 +2,6 @@ package com.garfiec.librechat.feature.tasks
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.garfiec.librechat.core.data.datastore.ChatFontSize
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.engine.ConnectorOption
 import com.garfiec.librechat.core.data.engine.EngineMissionRepository
@@ -45,8 +44,16 @@ data class MissionChatUiState(
     val connectors: List<ConnectorOption> = emptyList(),
     /** Which of them this session currently carries. */
     val enabledConnectors: Set<String> = emptySet(),
-    /** The models a message may be sent on, and which one the next one goes to. */
+    /** The models a message may be sent on. */
     val models: List<EngineSelectableModel> = emptyList(),
+    /**
+     * The model the user picked for the next message, or null to leave the session on its own.
+     *
+     * Deliberately NOT seeded from the deployment's catalogue default. That seeding is what made the
+     * chip lie until 30/08/2026: it named the first declared provider's default on every session,
+     * including the many that had never run on it. Null here means « unchanged », which is also what
+     * the engine reads from an absent model on the wire.
+     */
     val model: EngineSelectableModel? = null,
     /**
      * The connector catalogue would not load. The chip says so instead of offering an empty list —
@@ -61,7 +68,25 @@ data class MissionChatUiState(
      * a reader on LARGE was getting normal-size text in this tab only.
      */
     val fontScale: Float = 1f,
-)
+) {
+    /**
+     * What the model chip says, and what the picker shows as current.
+     *
+     * The user's pick for the next message wins; failing that, the model the session's last turn
+     * actually ran on — read off the engine's own message envelopes, which is the only place that
+     * fact is written. A model the catalogue does not list still gets named, by its raw id: an
+     * unfamiliar model is worth showing, and « Session model » in its place says less than nothing.
+     */
+    val effectiveModel: EngineSelectableModel?
+        get() = model ?: chat.model?.let { ref ->
+            models.firstOrNull { it.ref == ref }
+                ?: EngineSelectableModel(
+                    providerId = ref.providerId,
+                    modelId = ref.modelId,
+                    label = ref.modelId,
+                )
+        }
+}
 
 class MissionChatViewModel(
     private val sessionId: String,
@@ -81,15 +106,7 @@ class MissionChatViewModel(
         loadCatalogue()
         viewModelScope.launch {
             settings.chatFontSize.collect { size ->
-                _uiState.update {
-                    it.copy(
-                        fontScale = when (size) {
-                            ChatFontSize.SMALL -> 0.85f
-                            ChatFontSize.MEDIUM -> 1f
-                            ChatFontSize.LARGE -> 1.2f
-                        },
-                    )
-                }
+                _uiState.update { it.copy(fontScale = size.multiplier) }
             }
         }
     }
@@ -136,13 +153,7 @@ class MissionChatViewModel(
         viewModelScope.launch {
             try {
                 val choice = withContext(ioDispatcher) { repository.models() }
-                _uiState.update {
-                    it.copy(
-                        models = choice.models,
-                        model = it.model ?: choice.preselected,
-                        modelsError = null,
-                    )
-                }
+                _uiState.update { it.copy(models = choice.models, modelsError = null) }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

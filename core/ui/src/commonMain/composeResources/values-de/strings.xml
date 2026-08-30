@@ -19,4 +19,5 @@
     <string name="server_headers_error_name">Kein gültiger Header-Name.</string>
     <string name="server_headers_error_value">Dieser Wert enthält Zeichen, die nicht gesendet werden können.</string>
     <string name="server_headers_error_reserved">Dieser Header wird von der App gesetzt und kann nicht überschrieben werden.</string>
+    <string name="cd_generating_response">Antwort wird generiert</string>
 </resources>

@@ -1,5 +1,7 @@
 package com.garfiec.librechat.core.model.engine
 
+import kotlinx.serialization.json.JsonElement
+
 /**
  * One thing that happened inside a session, as the engine's **classic** event feed reports it
  * (`GET /event`, global, filtered by session).
@@ -17,8 +19,19 @@ package com.garfiec.librechat.core.model.engine
  */
 sealed interface EngineStreamEvent {
 
-    /** A message began, or its envelope changed. `role` is "user" or "assistant". */
-    data class MessageStarted(val messageId: String, val role: String) : EngineStreamEvent
+    /**
+     * A message began, or its envelope changed. `role` is "user" or "assistant".
+     *
+     * [model] is what this turn ran on, when the engine says so — it does on every assistant message,
+     * in history and on the live feed alike. It is the only honest source for « which model is this
+     * session using »: the model travels per message, so the session's answer to that question is
+     * whatever its last turn actually used, not what the deployment's catalogue defaults to.
+     */
+    data class MessageStarted(
+        val messageId: String,
+        val role: String,
+        val model: EngineModelRef? = null,
+    ) : EngineStreamEvent
 
     /**
      * A part of a message, as a whole snapshot — the authoritative value. Text parts arrive first
@@ -54,6 +67,13 @@ data class EnginePartSnapshot(
     val callId: String? = null,
     /** "completed", "error", "running"… — absent while the call is still being assembled. */
     val status: String? = null,
+    /**
+     * What the tool was called with, and what it answered. Both are on the wire and both were
+     * dropped until 30/08/2026 — the fold showed a tool's name and a tick, which says that
+     * something happened and nothing about what.
+     */
+    val input: JsonElement? = null,
+    val output: String? = null,
 )
 
 /**
@@ -66,7 +86,15 @@ fun engineHistoryEvents(messages: List<EngineMessage>): List<EngineStreamEvent> 
     messages.flatMap { message ->
         val id = message.info.id
         buildList {
-            add(EngineStreamEvent.MessageStarted(messageId = id, role = message.info.role))
+            add(
+                EngineStreamEvent.MessageStarted(
+                    messageId = id,
+                    role = message.info.role,
+                    model = message.info.modelId?.let { modelId ->
+                        message.info.providerId?.let { EngineModelRef(it, modelId) }
+                    },
+                ),
+            )
             message.parts.forEachIndexed { index, part ->
                 add(
                     EngineStreamEvent.PartUpdated(
@@ -80,6 +108,8 @@ fun engineHistoryEvents(messages: List<EngineMessage>): List<EngineStreamEvent> 
                             tool = part.tool,
                             callId = part.callId,
                             status = part.state?.status,
+                            input = part.state?.input,
+                            output = part.state?.output,
                         ),
                     ),
                 )

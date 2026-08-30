@@ -61,7 +61,6 @@
     <string name="cd_fork_conversation">여기서 대화 분기</string>
     <string name="cd_previous_response">이전 응답</string>
     <string name="cd_next_response">다음 응답</string>
-    <string name="cd_generating_response">응답 생성 중</string>
 
     <!-- Content descriptions - Images -->
     <string name="cd_close">닫기</string>

@@ -19,4 +19,5 @@
     <string name="server_headers_error_name">ヘッダー名が正しくありません。</string>
     <string name="server_headers_error_value">この値には送信できない文字が含まれています。</string>
     <string name="server_headers_error_reserved">このヘッダーはアプリが設定するため、上書きできません。</string>
+    <string name="cd_generating_response">応答を生成中</string>
 </resources>

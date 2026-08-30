@@ -2,6 +2,11 @@ package com.garfiec.librechat.feature.chat.components
 
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.buildAnnotatedString
+import com.garfiec.librechat.core.ui.markdown.STREAMING_CURSOR_INLINE_ID
+import com.garfiec.librechat.core.ui.markdown.STREAMING_CURSOR_SENTINEL
+import com.garfiec.librechat.core.ui.markdown.canHostInlineCursor
+import com.garfiec.librechat.core.ui.markdown.streamingCursorAnnotate
+import com.garfiec.librechat.core.ui.markdown.withStreamingCursor
 import org.intellij.markdown.ast.ASTNode
 import org.intellij.markdown.flavours.gfm.GFMFlavourDescriptor
 import org.intellij.markdown.parser.MarkdownParser

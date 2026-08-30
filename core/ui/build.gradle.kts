@@ -20,6 +20,10 @@ kotlin {
         commonMain.dependencies {
             implementation(project(":core:model"))
             implementation(project(":core:common"))
+            // `api`, not `implementation`: chatMarkdownColors/Typography return the library's own
+            // MarkdownColors and MarkdownTypography, so those types are part of this module's
+            // public signature and every caller has to see them.
+            api(libs.markdown.renderer.m3)
             implementation(libs.coil3.compose)
             implementation(libs.coil3.network.ktor)
             implementation(libs.zoomimage.compose.coil3.core)

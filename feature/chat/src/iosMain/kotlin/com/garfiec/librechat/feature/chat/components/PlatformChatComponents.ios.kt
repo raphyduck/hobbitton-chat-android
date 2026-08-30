@@ -43,24 +43,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.isSpecified
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.garfiec.librechat.core.common.ChatLayoutConstants
@@ -72,19 +68,22 @@ import com.garfiec.librechat.core.model.content.MessageContentPart
 import com.garfiec.librechat.core.ui.components.AvatarImage
 import com.garfiec.librechat.core.ui.components.endpointIconPainter
 import com.garfiec.librechat.core.ui.components.isMonochromeEndpointIcon
+import com.garfiec.librechat.core.ui.markdown.InlineSegment
+import com.garfiec.librechat.core.ui.markdown.MarkdownSegment
+import com.garfiec.librechat.core.ui.markdown.StandaloneStreamingCursor
+import com.garfiec.librechat.core.ui.markdown.TableCellAlignment
+import com.garfiec.librechat.core.ui.markdown.canHostInlineCursor
+import com.garfiec.librechat.core.ui.markdown.chatMarkdownColors
+import com.garfiec.librechat.core.ui.markdown.chatMarkdownTypography
+import com.garfiec.librechat.core.ui.markdown.scaleFontSize
 import com.garfiec.librechat.feature.chat.resources.Res
 import com.garfiec.librechat.feature.chat.resources.cd_close
 import com.garfiec.librechat.feature.chat.resources.cd_expand_table
 import com.garfiec.librechat.feature.chat.resources.dialog_table
 import com.garfiec.librechat.feature.chat.resources.sender_assistant
 import com.garfiec.librechat.feature.chat.resources.sender_you
-import com.mikepenz.markdown.m3.markdownColor
-import com.mikepenz.markdown.m3.markdownTypography
 import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.stringResource
-import com.garfiec.librechat.core.ui.markdown.TableCellAlignment
-import com.garfiec.librechat.core.ui.markdown.MarkdownSegment
-import com.garfiec.librechat.core.ui.markdown.InlineSegment
 
 private const val ACTION_AUTO_HIDE_MILLIS = 30_000L
 
@@ -493,26 +492,8 @@ actual fun MarkdownContent(
 ) {
     val segments = rememberMarkdownSegments(text, streaming)
 
-    val colors = markdownColor(
-        text = MaterialTheme.colorScheme.onSurface,
-        codeBackground = MaterialTheme.colorScheme.surfaceContainerHigh,
-        inlineCodeBackground = MaterialTheme.colorScheme.surfaceContainerHigh, dividerColor = MaterialTheme.colorScheme.outlineVariant,
-    )
-    val bl = MaterialTheme.typography.bodyLarge
-    val bm = MaterialTheme.typography.bodyMedium
-    val typography = markdownTypography(
-        h1 = MaterialTheme.typography.headlineLarge.scale(fontSizeMultiplier),
-        h2 = MaterialTheme.typography.headlineMedium.scale(fontSizeMultiplier),
-        h3 = MaterialTheme.typography.headlineSmall.scale(fontSizeMultiplier),
-        h4 = MaterialTheme.typography.titleLarge.scale(fontSizeMultiplier),
-        h5 = MaterialTheme.typography.titleMedium.scale(fontSizeMultiplier),
-        h6 = MaterialTheme.typography.titleSmall.scale(fontSizeMultiplier),
-        text = bl.scale(fontSizeMultiplier), paragraph = bl.scale(fontSizeMultiplier),
-        quote = bl.copy(fontStyle = FontStyle.Italic).scale(fontSizeMultiplier),
-        code = bm.copy(fontFamily = FontFamily.Monospace).scale(fontSizeMultiplier),
-        inlineCode = bl.copy(fontFamily = FontFamily.Monospace).scale(fontSizeMultiplier),
-        ordered = bl.scale(fontSizeMultiplier), bullet = bl.scale(fontSizeMultiplier), list = bl.scale(fontSizeMultiplier),
-    )
+    val colors = chatMarkdownColors()
+    val typography = chatMarkdownTypography(fontSizeMultiplier)
 
     val isSearchActive = !searchQuery.isNullOrBlank()
 
@@ -786,7 +767,7 @@ private fun IosMarkdownTable(
     val textColor = MaterialTheme.colorScheme.onSurface
     val headerBackground = MaterialTheme.colorScheme.surfaceContainerHigh
     val dividerColor = MaterialTheme.colorScheme.outlineVariant
-    val bodyStyle = MaterialTheme.typography.bodyMedium.scale(fontSizeMultiplier)
+    val bodyStyle = MaterialTheme.typography.bodyMedium.scaleFontSize(fontSizeMultiplier)
     val headerStyle = bodyStyle.copy(fontWeight = FontWeight.Bold)
     val cellPaddingH = 12.dp
     val cellPaddingV = 8.dp
@@ -908,12 +889,4 @@ private fun TableCell(
             modifier = Modifier.reportFocusedMatchPosition(layoutResult, focusedRange, onFocusedMatchPosition),
         )
     }
-}
-
-private fun TextStyle.scale(m: Float): TextStyle {
-    if (m == 1.0f) return this
-    return copy(
-        fontSize = if (fontSize.isSpecified) (fontSize.value * m).sp else fontSize,
-        lineHeight = if (lineHeight.isSpecified) (lineHeight.value * m).sp else lineHeight,
-    )
 }

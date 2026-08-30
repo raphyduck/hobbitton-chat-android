@@ -1,12 +1,15 @@
 package com.garfiec.librechat.feature.tasks.util
 
 import com.garfiec.librechat.core.model.engine.EngineMessage
+import com.garfiec.librechat.core.model.engine.EngineModelRef
 import com.garfiec.librechat.core.model.engine.EngineMessageInfo
 import com.garfiec.librechat.core.model.engine.EnginePart
 import com.garfiec.librechat.core.model.engine.EnginePartSnapshot
 import com.garfiec.librechat.core.model.engine.EngineStreamEvent
 import com.garfiec.librechat.core.model.engine.EngineToolState
 import com.garfiec.librechat.core.model.engine.engineHistoryEvents
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -171,6 +174,89 @@ class MissionChatTest {
         assertEquals(2, assistant.parts.size)
         assertEquals("premier\n\nsecond", assistant.text())
     }
+
+    @Test
+    fun theSessionModelIsWhatTheLastAssistantTurnActuallyRanOn() {
+        val kimi = EngineModelRef(providerId = "hobbitton-gateway", modelId = "kimi-k3")
+        val claude = EngineModelRef(providerId = "hobbitton-gateway", modelId = "claude-x")
+        val state = missionChatFrom(
+            listOf(
+                started("msg_u", "user"),
+                EngineStreamEvent.MessageStarted("msg_a", "assistant", kimi),
+                started("msg_u2", "user"),
+                EngineStreamEvent.MessageStarted("msg_a2", "assistant", claude),
+            ),
+        )
+
+        // The later turn wins: the model travels per message, so the session's answer to
+        // "which model" is whatever it last ran on.
+        assertEquals(claude, state.model)
+    }
+
+    @Test
+    fun aTurnWithoutAModelLeavesTheLastKnownOneStanding() {
+        val kimi = EngineModelRef(providerId = "hobbitton-gateway", modelId = "kimi-k3")
+        val state = missionChatFrom(
+            listOf(
+                EngineStreamEvent.MessageStarted("msg_a", "assistant", kimi),
+                // A user turn carries no model, and re-announcing a known message must not blank it.
+                started("msg_u", "user"),
+                started("msg_a", "assistant"),
+            ),
+        )
+
+        assertEquals(kimi, state.model)
+    }
+
+    @Test
+    fun aToolCarriesItsArgumentsAndItsOutput() {
+        val state = missionChatFrom(
+            listOf(
+                started("msg_a", "assistant"),
+                part(
+                    "msg_a",
+                    "p1",
+                    EnginePartSnapshot(
+                        type = "tool",
+                        tool = "memoire_lire",
+                        status = "completed",
+                        input = buildJsonObject {
+                            put("chemin", JsonPrimitive("journal/2026-08.md"))
+                            put("limite", JsonPrimitive(20))
+                        },
+                        output = "trois entrées",
+                    ),
+                ),
+            ),
+        )
+
+        val tool = state.turns.single().let { (it as ChatTurn.Assistant).parts }
+            .filterIsInstance<ChatPart.Tool>().single()
+        assertEquals(
+            listOf(
+                ToolArgument("chemin", "journal/2026-08.md"),
+                // A non-string argument keeps its JSON form; a string one loses its quotes.
+                ToolArgument("limite", "20"),
+            ),
+            tool.arguments,
+        )
+        assertEquals("trois entrées", tool.output)
+    }
+
+    @Test
+    fun aToolWithAnEmptyOutputReportsNoneRatherThanAnEmptyDrawer() {
+        val state = missionChatFrom(
+            listOf(
+                started("msg_a", "assistant"),
+                part("msg_a", "p1", EnginePartSnapshot(type = "tool", tool = "t", status = "completed", output = "")),
+            ),
+        )
+
+        val tool = (state.turns.single() as ChatTurn.Assistant).parts
+            .filterIsInstance<ChatPart.Tool>().single()
+        assertEquals(null, tool.output)
+        assertTrue(tool.arguments.isEmpty())
+    }
 }
 
 /**
@@ -254,4 +340,5 @@ class ChatBlockTest {
 
         assertEquals(before.key, after.key)
     }
+
 }

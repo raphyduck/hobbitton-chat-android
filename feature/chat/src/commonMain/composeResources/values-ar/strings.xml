@@ -61,7 +61,6 @@
     <string name="cd_fork_conversation">تفريع المحادثة من هنا</string>
     <string name="cd_previous_response">الرد السابق</string>
     <string name="cd_next_response">الرد التالي</string>
-    <string name="cd_generating_response">جارٍ إنشاء الرد</string>
 
     <!-- Content descriptions - Images -->
     <string name="cd_close">إغلاق</string>

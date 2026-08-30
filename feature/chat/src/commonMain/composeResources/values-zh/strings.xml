@@ -61,7 +61,6 @@
     <string name="cd_fork_conversation">从此处分叉对话</string>
     <string name="cd_previous_response">上一条回复</string>
     <string name="cd_next_response">下一条回复</string>
-    <string name="cd_generating_response">正在生成回复</string>
 
     <!-- Content descriptions - Images -->
     <string name="cd_close">关闭</string>

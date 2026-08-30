@@ -14,7 +14,6 @@
     <string name="tasks_chat_send">Send</string>
     <string name="tasks_chat_back">Back</string>
     <string name="tasks_chat_empty">No message yet — send one to talk to the session.</string>
-    <string name="tasks_chat_working">Working…</string>
     <string name="tasks_not_configured">The engine is not set up yet</string>
     <string name="tasks_not_configured_hint">Add its address and credentials in Settings, then come back.</string>
     <string name="tasks_state_running">Running</string>
@@ -120,4 +119,5 @@
     <string name="tasks_scheduled_runat_hint">ISO 8601, e.g. “2027-01-15T09:00”. It fires once, then suspends itself.</string>
     <string name="tasks_scheduled_timezone">Read in %1$s — the mission\'s time zone, not this phone\'s.</string>
     <string name="tasks_scheduled_save">Save</string>
+    <string name="tasks_chat_output_truncated">%1$d more characters</string>
 </resources>

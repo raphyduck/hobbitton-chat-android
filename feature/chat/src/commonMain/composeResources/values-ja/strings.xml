@@ -61,7 +61,6 @@
     <string name="cd_fork_conversation">ここから会話をフォーク</string>
     <string name="cd_previous_response">前の応答</string>
     <string name="cd_next_response">次の応答</string>
-    <string name="cd_generating_response">応答を生成中</string>
 
     <!-- Content descriptions - Images -->
     <string name="cd_close">閉じる</string>

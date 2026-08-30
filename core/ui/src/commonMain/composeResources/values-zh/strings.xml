@@ -19,4 +19,5 @@
     <string name="server_headers_error_name">请求头名称无效。</string>
     <string name="server_headers_error_value">此值包含无法发送的字符。</string>
     <string name="server_headers_error_reserved">此请求头由应用设置，无法覆盖。</string>
+    <string name="cd_generating_response">正在生成回复</string>
 </resources>

@@ -4,6 +4,7 @@ import kotlinx.serialization.EncodeDefault
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 
 /**
  * The Agent engine (OpenCode) — not LibreChat. Its wire shapes come from the engine's own OpenAPI
@@ -110,6 +111,14 @@ data class EngineMessageInfo(
     val tokens: EngineTokens? = null,
     val cost: Double? = null,
     /**
+     * Which model actually answered this turn. Measured on the live engine 30/08/2026: every
+     * assistant `info` carries both (`kimi-k3` / `hobbitton-gateway`), and they are the only place
+     * the truth is written — the session's model can be changed per message, so a chip built from
+     * the deployment's catalogue default names a model the session may never have run on.
+     */
+    @SerialName("modelID") val modelId: String? = null,
+    @SerialName("providerID") val providerId: String? = null,
+    /**
      * A failed model call does not crash the session: the engine files the error here and lets the
      * session fall idle within milliseconds. Reading only the status map therefore reports success
      * for a mission that never spoke to a model — the exact failure that silently swallowed a
@@ -162,8 +171,17 @@ data class EnginePart(
     val state: EngineToolState? = null,
 )
 
-/** A tool call's outcome, as `GET /session/{id}/message` returns it: "completed", "error"… */
+/**
+ * A tool call's outcome, as `GET /session/{id}/message` returns it.
+ *
+ * Measured 30/08/2026 over 112 real calls: `status` is "completed" or "error"; `input` is the
+ * argument object the model passed; `output` is the tool's answer, 27 to 51 425 characters with a
+ * median of 760. `title` exists on the wire and was **empty on all 112**, so nothing is built on it.
+ */
 @Serializable
 data class EngineToolState(
     val status: String? = null,
+    /** Whatever the tool takes — every tool has its own keys, so this stays untyped. */
+    val input: JsonElement? = null,
+    val output: String? = null,
 )

@@ -19,4 +19,5 @@
     <string name="server_headers_error_name">اسم الترويسة غير صالح.</string>
     <string name="server_headers_error_value">تحتوي هذه القيمة على أحرف لا يمكن إرسالها.</string>
     <string name="server_headers_error_reserved">يضبط التطبيق هذه الترويسة ولا يمكن تجاوزها.</string>
+    <string name="cd_generating_response">جارٍ إنشاء الرد</string>
 </resources>

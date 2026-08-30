@@ -71,7 +71,6 @@
     <string name="cd_fork_conversation">Fork conversation from here</string>
     <string name="cd_previous_response">Previous response</string>
     <string name="cd_next_response">Next response</string>
-    <string name="cd_generating_response">Generating response</string>
 
     <!-- Content descriptions - Images -->
     <string name="cd_close">Close</string>

@@ -19,4 +19,5 @@
     <string name="server_headers_error_name">올바른 헤더 이름이 아닙니다.</string>
     <string name="server_headers_error_value">이 값에는 보낼 수 없는 문자가 있습니다.</string>
     <string name="server_headers_error_reserved">이 헤더는 앱이 설정하므로 덮어쓸 수 없습니다.</string>
+    <string name="cd_generating_response">응답 생성 중</string>
 </resources>
