@@ -120,4 +120,5 @@
     <string name="tasks_scheduled_timezone">Read in %1$s — the mission\'s time zone, not this phone\'s.</string>
     <string name="tasks_scheduled_save">Save</string>
     <string name="tasks_chat_output_truncated">%1$d more characters</string>
+    <string name="tasks_connector_default">on by default</string>
 </resources>

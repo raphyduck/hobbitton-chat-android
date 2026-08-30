@@ -290,6 +290,7 @@ fun ConnectorCatalogue.offered(autonomous: Boolean): List<ConnectorOption> =
             // Disabled rather than hidden: someone who wonders where shell went gets an answer,
             // instead of a missing row to puzzle over.
             enabled = !(autonomous && grant.refusedWhenAutonomous),
+            tickedByDefault = grant.tickedByDefault,
         )
     }
 
@@ -298,4 +299,6 @@ data class ConnectorOption(
     val name: String,
     val toolCount: Int,
     val enabled: Boolean,
+    /** Ticked when the sheet opens. The scheduler decides which, on cost — see [ConnectorGrant]. */
+    val tickedByDefault: Boolean = false,
 )

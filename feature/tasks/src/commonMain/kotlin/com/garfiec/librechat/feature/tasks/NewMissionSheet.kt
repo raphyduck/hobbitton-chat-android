@@ -15,6 +15,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -58,8 +59,16 @@ import org.jetbrains.compose.resources.stringResource
  * MAY do is what the connector picker grants — the per-session permission rules override the
  * profile's anyway. Every mission from this sheet runs on the server's generic `mission` profile.
  *
- * Nothing is ticked by default. A mission that can do nothing is useless but harmless; one that can
- * write to memory because a checkbox was pre-filled is neither.
+ * A socle is ticked by default, and the **scheduler** decides which — never a list written here.
+ * Until 30/08/2026 nothing was ticked, on the reasoning that a mission which can do nothing is
+ * harmless while one that writes to memory from a pre-filled checkbox is not. That held while the
+ * app was a launcher for a handful of missions; it stopped holding when the app became the way to
+ * work, and every mission started with a picker to open before it could do anything at all.
+ *
+ * What makes it safe is *which* connectors: the server's socle is reading only — memory, files, web
+ * search, bank accounts, the schedule's state — and nothing that acts. What makes it bounded is
+ * cost: every ticked connector reloads its tool catalogue to the model on every turn, so ticking
+ * all thirty would spend a mission's budget before it did anything (D-040).
  *
  * The model, on the other hand, IS preselected — with the engine's own default, and never with a
  * first-in-the-list guess. An unticked connector means « you may not »; an unticked model would
@@ -101,6 +110,24 @@ fun NewMissionSheet(
 
     // Recomputed on the mode: what an autonomous mission may not tick depends on it.
     val offered = catalogue.offered(autonomous)
+
+    // The socle, ticked once the catalogue lands — it is fetched while the sheet is already open,
+    // so there is nothing to tick on the first composition.
+    //
+    // Once, and never again: `seeded` survives a configuration change alongside `ticked`, so a
+    // rotation does not re-tick what was just unticked. Without it the seeding would fight the
+    // person — the same shape as the model preselection's key, one state further on.
+    var seeded by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(offered) {
+        if (!seeded && offered.isNotEmpty()) {
+            seeded = true
+            // `enabled` is honoured here too: an autonomous mission must not open the sheet with a
+            // connector already ticked that the server would refuse at launch.
+            offered.filter { it.tickedByDefault && it.enabled }.forEach { option ->
+                if (option.name !in ticked) ticked += option.name
+            }
+        }
+    }
 
     TasksBottomSheet(
         onDismiss = onDismiss,
