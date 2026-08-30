@@ -3,6 +3,7 @@ package com.garfiec.librechat.feature.tasks
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -10,20 +11,27 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -54,6 +62,7 @@ import com.garfiec.librechat.feature.tasks.resources.Res
 import com.garfiec.librechat.feature.tasks.resources.tasks_age_days
 import com.garfiec.librechat.feature.tasks.resources.tasks_age_hours
 import com.garfiec.librechat.feature.tasks.resources.tasks_age_minutes
+import com.garfiec.librechat.feature.tasks.resources.tasks_cancel
 import com.garfiec.librechat.feature.tasks.resources.tasks_empty
 import com.garfiec.librechat.feature.tasks.resources.tasks_empty_hint
 import com.garfiec.librechat.feature.tasks.resources.tasks_error_authentication
@@ -79,15 +88,27 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_providers_header
 import com.garfiec.librechat.feature.tasks.resources.tasks_providers_none
 import com.garfiec.librechat.feature.tasks.resources.tasks_providers_unknown
 import com.garfiec.librechat.feature.tasks.resources.tasks_retry
+import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_cron
+import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_cron_hint
+import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_delete
+import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_delete_body
+import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_delete_title
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_disable
+import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_edit
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_enable
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_header
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_last_failed
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_last_ok
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_never
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_next
+import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_once
+import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_recurring
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_run
+import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_runat
+import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_runat_hint
+import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_save
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_suspended
+import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_timezone
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_tools
 import com.garfiec.librechat.feature.tasks.resources.tasks_sessions_header
 import com.garfiec.librechat.feature.tasks.resources.tasks_settings_open
@@ -287,6 +308,10 @@ fun TasksScreen(
                                     onToggle = {
                                         viewModel.setScheduledEnabled(mission.name, !mission.enabled)
                                     },
+                                    onReschedule = { cron, runAt ->
+                                        viewModel.rescheduleMission(mission.name, cron, runAt)
+                                    },
+                                    onDelete = { viewModel.deleteScheduled(mission.name) },
                                 )
                             }
                         }
@@ -651,7 +676,11 @@ private fun ScheduledMissionRow(
     mission: ScheduledMission,
     onRun: () -> Unit,
     onToggle: () -> Unit,
+    onReschedule: (cron: String?, runAt: String?) -> Unit,
+    onDelete: () -> Unit,
 ) {
+    var editing by rememberSaveable(mission.name) { mutableStateOf(false) }
+    var confirmingDelete by rememberSaveable(mission.name) { mutableStateOf(false) }
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(mission.name, style = MaterialTheme.typography.titleMedium)
@@ -712,6 +741,141 @@ private fun ScheduledMissionRow(
                         ),
                     )
                 }
+                TextButton(onClick = { editing = true }) {
+                    Text(stringResource(Res.string.tasks_scheduled_edit))
+                }
+                TextButton(
+                    onClick = { confirmingDelete = true },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error,
+                    ),
+                ) {
+                    Text(stringResource(Res.string.tasks_scheduled_delete))
+                }
+            }
+        }
+    }
+
+    if (editing) {
+        RescheduleSheet(
+            mission = mission,
+            onDismiss = { editing = false },
+            onSave = { cron, runAt ->
+                editing = false
+                onReschedule(cron, runAt)
+            },
+        )
+    }
+    if (confirmingDelete) {
+        AlertDialog(
+            onDismissRequest = { confirmingDelete = false },
+            title = { Text(stringResource(Res.string.tasks_scheduled_delete_title, mission.name)) },
+            // Ce que la suppression emporte, et ce qu'elle n'emporte pas : l'historique reste, et
+            // c'est la seule question qu'on se pose avant de confirmer.
+            text = { Text(stringResource(Res.string.tasks_scheduled_delete_body)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        confirmingDelete = false
+                        onDelete()
+                    },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error,
+                    ),
+                ) { Text(stringResource(Res.string.tasks_scheduled_delete)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmingDelete = false }) {
+                    Text(stringResource(Res.string.tasks_cancel))
+                }
+            },
+        )
+    }
+}
+
+/**
+ * Changer quand une mission part — l'horaire, ou la date unique.
+ *
+ * Seul le champ modifié voyage : `modifier` fusionne côté serveur. Renvoyer la mission entière
+ * n'était pas une option — `etat` ne publie ni le prompt ni la liste d'outils, donc un écran qui
+ * reconstruirait la mission depuis ce qu'il affiche viderait le prompt au premier report. C'est la
+ * panne des connecteurs recopiés, un écran plus loin.
+ *
+ * Les deux champs s'excluent, comme côté serveur : une mission est récurrente OU ponctuelle.
+ */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+private fun RescheduleSheet(
+    mission: ScheduledMission,
+    onDismiss: () -> Unit,
+    onSave: (cron: String?, runAt: String?) -> Unit,
+) {
+    var recurring by rememberSaveable { mutableStateOf(mission.runAt == null) }
+    var cron by rememberSaveable { mutableStateOf(mission.cron.orEmpty()) }
+    var runAt by rememberSaveable { mutableStateOf(mission.runAt.orEmpty()) }
+
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Text(mission.name, style = MaterialTheme.typography.titleLarge)
+
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(
+                    selected = recurring,
+                    onClick = { recurring = true },
+                    label = { Text(stringResource(Res.string.tasks_scheduled_recurring)) },
+                )
+                FilterChip(
+                    selected = !recurring,
+                    onClick = { recurring = false },
+                    label = { Text(stringResource(Res.string.tasks_scheduled_once)) },
+                )
+            }
+
+            if (recurring) {
+                OutlinedTextField(
+                    value = cron,
+                    onValueChange = { cron = it },
+                    label = { Text(stringResource(Res.string.tasks_scheduled_cron)) },
+                    supportingText = { Text(stringResource(Res.string.tasks_scheduled_cron_hint)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            } else {
+                OutlinedTextField(
+                    value = runAt,
+                    onValueChange = { runAt = it },
+                    label = { Text(stringResource(Res.string.tasks_scheduled_runat)) },
+                    supportingText = { Text(stringResource(Res.string.tasks_scheduled_runat_hint)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+
+            // Le fuseau de la mission, pas celui du téléphone : c'est dans celui-là que le serveur
+            // lira l'heure saisie, et les deux diffèrent en voyage.
+            if (mission.timeZone.isNotBlank()) {
+                Text(
+                    stringResource(Res.string.tasks_scheduled_timezone, mission.timeZone),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                TextButton(onClick = onDismiss) { Text(stringResource(Res.string.tasks_cancel)) }
+                TextButton(
+                    enabled = if (recurring) cron.isNotBlank() else runAt.isNotBlank(),
+                    onClick = {
+                        if (recurring) onSave(cron.trim(), null) else onSave(null, runAt.trim())
+                    },
+                ) { Text(stringResource(Res.string.tasks_scheduled_save)) }
             }
         }
     }

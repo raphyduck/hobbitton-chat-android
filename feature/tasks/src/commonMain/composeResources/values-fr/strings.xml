@@ -108,4 +108,20 @@
     <string name="tasks_chat_models_failed">Modèles indisponibles</string>
     <string name="tasks_connectors_failed">Le catalogue des connecteurs n\'a pas pu être chargé. Lancer maintenant donnerait une mission sans aucun outil.</string>
     <string name="tasks_connectors_loading">Chargement des connecteurs…</string>
+    <string name="tasks_chat_reasoning">réflexion</string>
+    <string name="tasks_chat_expand">Voir les étapes</string>
+    <string name="tasks_chat_collapse">Masquer les étapes</string>
+    <string name="tasks_connectors_count">%1$d / %2$d</string>
+    <string name="tasks_scheduled_edit">Replanifier</string>
+    <string name="tasks_scheduled_delete">Supprimer</string>
+    <string name="tasks_scheduled_delete_title">Supprimer « %1$s » ?</string>
+    <string name="tasks_scheduled_delete_body">La planification part ; son historique reste. Irréversible depuis ici.</string>
+    <string name="tasks_scheduled_recurring">Récurrente</string>
+    <string name="tasks_scheduled_once">Ponctuelle</string>
+    <string name="tasks_scheduled_cron">Horaire (cron)</string>
+    <string name="tasks_scheduled_cron_hint">Cinq champs, comme une crontab : « 0 5 * * * » = tous les jours à 5 h.</string>
+    <string name="tasks_scheduled_runat">Date et heure</string>
+    <string name="tasks_scheduled_runat_hint">ISO 8601, ex. « 2027-01-15T09:00 ». Elle part une fois, puis se désactive.</string>
+    <string name="tasks_scheduled_timezone">Lue dans %1$s — le fuseau de la mission, pas celui du téléphone.</string>
+    <string name="tasks_scheduled_save">Enregistrer</string>
 </resources>

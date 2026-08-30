@@ -285,6 +285,36 @@ class TasksViewModel(
         }
     }
 
+    /**
+     * Changes an existing mission's schedule.
+     *
+     * Only the named field travels: server-side `modifier` merges, it does not replace. Resending
+     * the whole mission is not an option — `etat` publishes neither the prompt nor the tool list,
+     * so a client that rebuilt the mission from what it displays would wipe the prompt on the first
+     * reschedule, without an error. Same failure as the copied connectors, one screen along.
+     */
+    fun rescheduleMission(name: String, cron: String?, runAt: String?) {
+        viewModelScope.launch {
+            scheduler.runCatchingAction(name, "reschedule") {
+                updateMission(name = name, cron = cron, runAt = runAt)
+            }
+            refresh()
+        }
+    }
+
+    /**
+     * Deletes a scheduled mission — the thing suspending could not do.
+     *
+     * The run history survives server-side: it is the record of what ran, and it must not go with
+     * the schedule.
+     */
+    fun deleteScheduled(name: String) {
+        viewModelScope.launch {
+            scheduler.runCatchingAction(name, "delete") { deleteMission(name) }
+            refresh()
+        }
+    }
+
     /** Ce que le moteur a répondu à `GET /agent` — gardé pour résoudre le profil au lancement. */
     private var profils: List<EngineAgentProfile> = emptyList()
 
