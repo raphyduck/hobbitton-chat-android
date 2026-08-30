@@ -3,16 +3,20 @@ package com.garfiec.librechat.core.network.api
 import com.garfiec.librechat.core.model.engine.CreateEngineSessionRequest
 import com.garfiec.librechat.core.model.engine.EngineAgentProfile
 import com.garfiec.librechat.core.model.engine.EngineMessage
+import com.garfiec.librechat.core.model.engine.EngineModelRef
 import com.garfiec.librechat.core.model.engine.EnginePermissionReply
+import com.garfiec.librechat.core.model.engine.EnginePermissionRule
 import com.garfiec.librechat.core.model.engine.EnginePromptPart
 import com.garfiec.librechat.core.model.engine.EnginePromptRequest
 import com.garfiec.librechat.core.model.engine.EngineProviderCatalogue
 import com.garfiec.librechat.core.model.engine.EngineSession
+import com.garfiec.librechat.core.model.engine.EngineSessionPatch
 import com.garfiec.librechat.core.model.engine.EngineSessionStatus
 import com.garfiec.librechat.core.network.engine.EngineHttpException
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
+import io.ktor.client.request.patch
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
@@ -88,11 +92,44 @@ class AgentEngineApi(
      * message and nothing answers » the tab shipped with. This route answers in seconds with the
      * finished assistant message, and streams its progress on the global `/event` feed meanwhile.
      */
-    suspend fun sendMessage(sessionId: String, text: String, agent: String? = null): EngineMessage =
+    suspend fun sendMessage(
+        sessionId: String,
+        text: String,
+        agent: String? = null,
+        model: EngineModelRef? = null,
+    ): EngineMessage =
         client.post {
             url { path("session/${sessionId.encodeURLPathPart()}/message") }
-            setBody(EnginePromptRequest(parts = listOf(EnginePromptPart(text = text)), agent = agent))
+            setBody(
+                EnginePromptRequest(
+                    parts = listOf(EnginePromptPart(text = text)),
+                    agent = agent,
+                    // Per message, not per session: the route takes `{providerID, modelID}` and the
+                    // engine has no « set the session's model » on the classic surface. Null means
+                    // « whatever the session already runs on » — an absent key, not an empty one.
+                    model = model,
+                ),
+            )
         }.decoded()
+
+    /**
+     * Changes what a **live** session is allowed to touch.
+     *
+     * `PATCH /session/{id}` takes a whole `PermissionRuleset`, so this replaces the rules rather
+     * than adding to them — which is what makes unticking a connector actually revoke it. That the
+     * engine accepts this at all is what lets the conversation offer connector chips: permissions
+     * are not frozen at creation, and a session that was launched with memory alone can be handed
+     * the mail connector without being restarted and losing its transcript.
+     *
+     * The rules are the caller's to build, from the scheduler's catalogue — this class copies no
+     * tool table of its own.
+     */
+    suspend fun setPermissions(sessionId: String, rules: List<EnginePermissionRule>) {
+        client.patch {
+            url { path("session/${sessionId.encodeURLPathPart()}") }
+            setBody(EngineSessionPatch(permission = rules))
+        }.orThrow()
+    }
 
     /**
      * Every active session at once, keyed by id — there is no per-session route. A session **absent

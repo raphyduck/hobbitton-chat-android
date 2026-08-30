@@ -25,6 +25,22 @@ data class CreateEngineSessionRequest(
 )
 
 /**
+ * Changing a **live** session's settings — `PATCH /session/{id}`.
+ *
+ * Only `permission` is modelled, because only it is used: the conversation's connector chips write
+ * through here. It replaces the whole ruleset rather than merging, which is what makes unticking a
+ * connector revoke it rather than merely stop asking for it.
+ *
+ * That this route exists is what lets the tab offer connectors on a running session at all —
+ * permissions are not frozen at creation, so a mission launched with memory alone can be handed the
+ * mail connector without being restarted and losing its transcript.
+ */
+@Serializable
+data class EngineSessionPatch(
+    val permission: List<EnginePermissionRule>? = null,
+)
+
+/**
  * Sending the objective. The route is `prompt_async`, which returns immediately — that is what lets
  * a caller watch the ceilings *while* the mission runs instead of discovering them afterwards.
  * There is no `message/async`; asking for one returns 404.

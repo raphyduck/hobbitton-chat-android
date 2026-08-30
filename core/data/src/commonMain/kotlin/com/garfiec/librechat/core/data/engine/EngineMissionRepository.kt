@@ -13,7 +13,9 @@ import com.garfiec.librechat.core.model.engine.EngineStreamEvent
 import com.garfiec.librechat.core.model.engine.MissionState
 import com.garfiec.librechat.core.model.engine.engineHistoryEvents
 import com.garfiec.librechat.core.model.engine.judgeMission
+import com.garfiec.librechat.core.model.scheduler.ConnectorCatalogue
 import com.garfiec.librechat.core.network.api.AgentEngineApi
+import com.garfiec.librechat.core.network.api.SchedulerApi
 import com.garfiec.librechat.core.network.engine.EngineEventTransport
 import com.garfiec.librechat.core.network.engine.EngineStreamClient
 import kotlinx.coroutines.flow.Flow
@@ -49,6 +51,7 @@ data class EngineModelChoice(
  */
 class EngineMissionRepository(
     private val api: AgentEngineApi,
+    private val scheduler: SchedulerApi,
     private val streamClient: EngineStreamClient,
     private val eventTransport: EngineEventTransport,
 ) {
@@ -155,7 +158,7 @@ class EngineMissionRepository(
             CreateEngineSessionRequest(
                 agent = profile,
                 title = title ?: objective.take(TITLE_LENGTH),
-                permission = permissionsFor(connectors, autonomous),
+                permission = permissionsFor(connectors(), connectors, autonomous),
             ),
         )
         api.prompt(
@@ -193,8 +196,39 @@ class EngineMissionRepository(
      * call is in flight, so the screen fills in token by token and this return value is the
      * reconciliation rather than the first thing the user sees.
      */
-    suspend fun sendMessage(sessionId: String, text: String): List<EngineStreamEvent> =
-        engineHistoryEvents(listOf(api.sendMessage(sessionId, text)))
+    suspend fun sendMessage(
+        sessionId: String,
+        text: String,
+        model: EngineModelRef? = null,
+    ): List<EngineStreamEvent> =
+        engineHistoryEvents(listOf(api.sendMessage(sessionId, text, model = model)))
+
+    /**
+     * The connectors a mission may be given, as the scheduler declares them.
+     *
+     * Cached for the process: the catalogue is a constant of the deployment, it changes when the
+     * platform is reconfigured and not while a phone is open. Fetching it per picker opening would
+     * be a round trip for an answer that cannot have changed — and one more thing to fail while
+     * someone is mid-tick.
+     */
+    suspend fun connectors(): ConnectorCatalogue =
+        cachedConnectors ?: scheduler.connectors().also { cachedConnectors = it }
+
+    /**
+     * Re-grants a **live** session's connectors, replacing its whole ruleset.
+     *
+     * Unticking therefore revokes. That the engine takes this at all is what lets the conversation
+     * offer connector chips: a mission launched with memory alone can be handed the mail connector
+     * without a restart, and without losing the transcript that is its only record.
+     */
+    suspend fun setConnectors(sessionId: String, connectors: List<String>) {
+        // Never autonomous here: someone is looking at the screen, which is the whole premise of
+        // §4.2's ban — an approval prompt nobody answers is not a safeguard, but one they *do*
+        // answer is exactly the supervision the rule asks for.
+        api.setPermissions(sessionId, permissionsFor(connectors(), connectors, autonomous = false))
+    }
+
+    private var cachedConnectors: ConnectorCatalogue? = null
 
     private companion object {
         const val TITLE_LENGTH = 60
@@ -209,32 +243,62 @@ class EngineMissionRepository(
 }
 
 /**
- * What the mission is allowed to touch.
+ * What the mission is allowed to touch, built from the scheduler's own catalogue.
  *
- * Two rules, both from the brief (§4) and both easy to get backwards:
+ * Three rules, and the first is why this function takes a [catalogue] instead of holding a table:
  *
- *  * the list **opens with a `*` deny**. A profile is a ceiling of capabilities, and the checkboxes
- *    narrow it for this mission only — never widen it. Starting from « allow everything » and
- *    subtracting would make a forgotten connector a granted one.
- *  * `shell` is refused outright to an autonomous mission. Nobody is watching one, and an approval
- *    prompt nobody answers is not a safeguard — the mission would simply hang until the watchdog
- *    kills it, which is the good case.
+ *  * **nothing is copied.** This module used to carry its own map of four connectors — out of the
+ *    platform's nineteen — and for `fichiers` it named tools that do not exist (`read`, `write`,
+ *    `edit`, `glob`, `grep`, `list`, where the engine offers `fichiers_list_roots`,
+ *    `fichiers_read_text`…). A rule allowing a tool nobody serves is accepted in silence, so the
+ *    mission simply launched with an empty toolbox and said so mid-run. Reported 30/08/2026. The
+ *    catalogue comes from `moteur.py`'s `CONNECTEURS`, the same table the scheduler's own missions
+ *    run on, so the two cannot drift.
+ *  * the list **opens with a `*` deny**, then re-opens by name. A profile is a ceiling of
+ *    capabilities and the checkboxes narrow it for this mission only — never widen it. Starting
+ *    from « allow everything » and subtracting would make a forgotten connector a granted one.
+ *    Order matters: the engine keeps the **last** rule that matches.
+ *  * the catalogue's `socle` is granted **on top**. It is what a session gets besides its
+ *    connectors (`todowrite`); dropping it builds rules that are incomplete, and silently so.
+ *
+ * `shell` is refused outright to an autonomous mission — but that verdict comes from the catalogue
+ * (`refusedWhenAutonomous`), not from a constant here. Nobody watches an autonomous mission, and an
+ * approval prompt nobody answers is not a safeguard.
  */
-internal fun permissionsFor(connectors: List<String>, autonomous: Boolean): List<EnginePermissionRule> {
-    val allowed = connectors.filterNot { autonomous && it in FORBIDDEN_WHEN_AUTONOMOUS }
+fun permissionsFor(
+    catalogue: ConnectorCatalogue,
+    connectors: List<String>,
+    autonomous: Boolean,
+): List<EnginePermissionRule> {
+    val granted = connectors
+        .mapNotNull { name -> catalogue.connecteurs[name]?.let { name to it } }
+        .filterNot { (_, grant) -> autonomous && grant.refusedWhenAutonomous }
+
     val rules = mutableListOf(EnginePermissionRule(permission = "*", action = "deny"))
-    allowed.flatMap { CONNECTOR_PATTERNS[it].orEmpty() }
+    catalogue.socle.forEach { (tool, action) ->
+        rules += EnginePermissionRule(permission = tool, action = action)
+    }
+    granted.flatMap { (_, grant) -> grant.outils }
         .distinct()
-        .forEach { pattern -> rules += EnginePermissionRule(permission = pattern, action = "allow") }
+        .forEach { tool -> rules += EnginePermissionRule(permission = tool, action = "allow") }
     return rules
 }
 
-/** Mirrors the server's `scheduler/moteur.py`; the two must not drift. */
-private val CONNECTOR_PATTERNS = mapOf(
-    "memoire" to listOf("memoire_lire", "memoire_rechercher", "memoire_lister", "memoire_retroliens"),
-    "memoire-ecriture" to listOf("memoire_ecrire", "memoire_journaliser", "memoire_reindexer"),
-    "fichiers" to listOf("read", "write", "edit", "glob", "grep", "list"),
-    "shell" to listOf("bash"),
-)
+/** The connectors this catalogue offers a mission, in the order the picker should show them. */
+fun ConnectorCatalogue.offered(autonomous: Boolean): List<ConnectorOption> =
+    connecteurs.entries.sortedBy { it.key }.map { (name, grant) ->
+        ConnectorOption(
+            name = name,
+            toolCount = grant.outils.size,
+            // Disabled rather than hidden: someone who wonders where shell went gets an answer,
+            // instead of a missing row to puzzle over.
+            enabled = !(autonomous && grant.refusedWhenAutonomous),
+        )
+    }
 
-private val FORBIDDEN_WHEN_AUTONOMOUS = setOf("shell")
+/** One tickable connector, as a picker needs it. */
+data class ConnectorOption(
+    val name: String,
+    val toolCount: Int,
+    val enabled: Boolean,
+)

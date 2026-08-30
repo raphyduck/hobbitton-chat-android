@@ -100,4 +100,11 @@
     <string name="tasks_sign_in_refused">Le portail a refusé : consentement décliné, second facteur abandonné, ou demande expirée. Recommencer ne coûte rien.</string>
     <string name="tasks_sign_in_interrupted">L\'aller-retour ne s\'est pas terminé — navigateur fermé, ou plus de cinq minutes écoulées. Réessayez.</string>
     <string name="tasks_sign_in_missing_scope">Connexion faite, et le jeton n\'ouvre toujours pas le moteur : le portail ne lui a pas accordé la portée d\'autorisation. Celle-là se corrige côté serveur, pas ici.</string>
+    <string name="tasks_chat_no_connector">Aucun connecteur</string>
+    <string name="tasks_chat_connector_count">%1$d connecteur(s)</string>
+    <string name="tasks_chat_tool_count">%1$d outil(s)</string>
+    <string name="tasks_model_default_short">Modèle de la session</string>
+    <string name="tasks_chat_catalogue_failed">Connecteurs et modèles n\'ont pas pu être chargés.</string>
+    <string name="tasks_connectors_failed">Le catalogue des connecteurs n\'a pas pu être chargé. Lancer maintenant donnerait une mission sans aucun outil.</string>
+    <string name="tasks_connectors_loading">Chargement des connecteurs…</string>
 </resources>

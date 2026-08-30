@@ -28,11 +28,16 @@ import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.garfiec.librechat.core.data.engine.offered
 import com.garfiec.librechat.core.model.engine.EngineModelRef
 import com.garfiec.librechat.core.model.engine.EngineSelectableModel
+import com.garfiec.librechat.core.model.scheduler.ConnectorCatalogue
 import com.garfiec.librechat.feature.tasks.resources.Res
 import com.garfiec.librechat.feature.tasks.resources.tasks_cancel
+import com.garfiec.librechat.feature.tasks.resources.tasks_chat_tool_count
 import com.garfiec.librechat.feature.tasks.resources.tasks_connectors
+import com.garfiec.librechat.feature.tasks.resources.tasks_connectors_failed
+import com.garfiec.librechat.feature.tasks.resources.tasks_connectors_loading
 import com.garfiec.librechat.feature.tasks.resources.tasks_launch
 import com.garfiec.librechat.feature.tasks.resources.tasks_mode_autonomous
 import com.garfiec.librechat.feature.tasks.resources.tasks_mode_hint_autonomous
@@ -44,15 +49,6 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_model_none
 import com.garfiec.librechat.feature.tasks.resources.tasks_new
 import com.garfiec.librechat.feature.tasks.resources.tasks_objective
 import org.jetbrains.compose.resources.stringResource
-
-/**
- * The connectors a mission can be given, in the order they are least to most dangerous.
- *
- * Read-only memory first, writing next, files after that, shell last — because that is the order in
- * which someone ticking boxes should meet them. The names mirror the server's
- * `scheduler/moteur.py`; the two must not drift.
- */
-private val CONNECTORS = listOf("memoire", "memoire-ecriture", "fichiers", "shell")
 
 /**
  * Creating a mission: an objective, the connectors it may use, and how it is watched.
@@ -84,6 +80,8 @@ fun NewMissionSheet(
     ) -> Unit,
     models: List<EngineSelectableModel> = emptyList(),
     preselectedModel: EngineSelectableModel? = null,
+    catalogue: ConnectorCatalogue = ConnectorCatalogue(),
+    catalogueFailed: Boolean = false,
 ) {
     var objective by remember { mutableStateOf("") }
     var autonomous by remember { mutableStateOf(true) }
@@ -168,19 +166,53 @@ fun NewMissionSheet(
             }
 
             Text(stringResource(Res.string.tasks_connectors), style = MaterialTheme.typography.titleSmall)
-            CONNECTORS.forEach { connector ->
-                val enabled = !(autonomous && connector == "shell")
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(
-                        checked = connector in ticked,
-                        // Disabled rather than hidden: someone who wonders where shell went gets an
-                        // answer from the mode hint below, instead of a missing row to puzzle over.
-                        enabled = enabled,
-                        onCheckedChange = { checked ->
-                            if (checked) ticked += connector else ticked -= connector
-                        },
-                    )
-                    Text(connector, color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline)
+            // Fetched, never copied. This sheet used to hold its own list of four names — out of the
+            // platform's nineteen — and the tool patterns behind « fichiers » named tools the engine
+            // does not serve. A permission rule for a tool nobody offers is accepted in silence, so
+            // the mission launched with an empty toolbox and said so mid-run (30/08/2026). The
+            // catalogue now comes from the scheduler's own `CONNECTEURS`.
+            val offered = catalogue.offered(autonomous)
+            when {
+                catalogueFailed -> Text(
+                    stringResource(Res.string.tasks_connectors_failed),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+                offered.isEmpty() -> Text(
+                    stringResource(Res.string.tasks_connectors_loading),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                else -> offered.forEach { option ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(
+                            checked = option.name in ticked,
+                            // Disabled rather than hidden: someone who wonders where shell went gets
+                            // an answer from the mode hint below, not a missing row to puzzle over.
+                            enabled = option.enabled,
+                            onCheckedChange = { checked ->
+                                if (checked) ticked += option.name else ticked -= option.name
+                            },
+                        )
+                        Column {
+                            Text(
+                                option.name,
+                                color = if (option.enabled) {
+                                    MaterialTheme.colorScheme.onSurface
+                                } else {
+                                    MaterialTheme.colorScheme.outline
+                                },
+                            )
+                            // What the connector costs: every tool a session declares is re-sent to
+                            // the model on every turn, and a mission has spent the bulk of its budget
+                            // on a catalogue it never called (server-side D-040).
+                            Text(
+                                stringResource(Res.string.tasks_chat_tool_count, option.toolCount),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
                 }
             }
 
@@ -192,10 +224,13 @@ fun NewMissionSheet(
                     selected = autonomous,
                     onClick = {
                         autonomous = true
-                        // Ticking shell then switching to autonomous would otherwise carry a
+                        // Ticking a connector then switching to autonomous would otherwise carry a
                         // permission the server is about to refuse — better to clear it here, where
-                        // the person can see it happen.
-                        ticked -= "shell"
+                        // the person can see it happen. Which ones those are is the catalogue's
+                        // answer, not a name written down here.
+                        catalogue.offered(autonomous = true)
+                            .filterNot { it.enabled }
+                            .forEach { ticked -= it.name }
                     },
                     label = { Text(stringResource(Res.string.tasks_mode_autonomous)) },
                 )
