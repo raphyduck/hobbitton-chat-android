@@ -47,10 +47,13 @@ data class MissionChatUiState(
     val models: List<EngineSelectableModel> = emptyList(),
     val model: EngineSelectableModel? = null,
     /**
-     * The catalogue would not load. The picker says so instead of offering an empty list — an empty
-     * connector sheet reads as « this mission can have nothing », which is a different claim.
+     * The connector catalogue would not load. The chip says so instead of offering an empty list —
+     * an empty connector sheet reads as « this mission can have nothing », which is a different
+     * claim, and the very outcome this screen exists to have fixed.
      */
-    val catalogueError: EngineFailureKind? = null,
+    val connectorsError: EngineFailureKind? = null,
+    /** The model list would not load. Independent of [connectorsError]: different host. */
+    val modelsError: EngineFailureKind? = null,
 )
 
 class MissionChatViewModel(
@@ -72,40 +75,71 @@ class MissionChatViewModel(
 
     /**
      * What the composer needs to offer: the connectors this deployment has, and the models a
-     * message can be sent on. Both are fetched — the connector table in particular, because the
-     * hand-written copy this app used to carry is what left missions with no tools at all
-     * (30/08/2026); see `ConnectorCatalogue`.
+     * message can be sent on.
      *
-     * A failure here costs the pickers, not the conversation: the transcript and the send box work
-     * without either.
+     * **Two fetches, two failures, on purpose.** They come from two different hosts — the connector
+     * catalogue from the scheduler, the model list from the engine — so one being unreachable must
+     * not take the other's picker down with it. Folding them into a single `try` did exactly that
+     * on 30/08/2026: the scheduler had not yet been redeployed with its `connecteurs` tool, and the
+     * model chip vanished along with the connector chip, on an engine that was answering fine.
+     *
+     * Either failure costs its own picker and nothing else: the transcript and the send box work
+     * without both.
      */
     private fun loadCatalogue() {
+        loadConnectors()
+        loadModels()
+    }
+
+    private fun loadConnectors() {
         viewModelScope.launch {
             try {
-                val (catalogue, choice) = withContext(ioDispatcher) {
-                    repository.connectors() to repository.models()
-                }
+                val catalogue = withContext(ioDispatcher) { repository.connectors() }
                 _uiState.update {
                     it.copy(
                         // Someone is watching this conversation, so nothing is barred as it would be
                         // for an unattended mission (brief §4.2).
                         connectors = catalogue.offered(autonomous = false),
-                        models = choice.models,
-                        model = it.model ?: choice.preselected,
-                        catalogueError = null,
+                        connectorsError = null,
                     )
                 }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                _uiState.update { it.copy(catalogueError = e.engineFailureKind()) }
+                _uiState.update { it.copy(connectorsError = e.engineFailureKind()) }
             }
         }
     }
 
+    private fun loadModels() {
+        viewModelScope.launch {
+            try {
+                val choice = withContext(ioDispatcher) { repository.models() }
+                _uiState.update {
+                    it.copy(
+                        models = choice.models,
+                        model = it.model ?: choice.preselected,
+                        modelsError = null,
+                    )
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _uiState.update { it.copy(modelsError = e.engineFailureKind()) }
+            }
+        }
+    }
+
+    /** Retries only what failed — a working picker is not re-fetched to heal a broken one. */
     fun retryCatalogue() {
-        _uiState.update { it.copy(catalogueError = null) }
-        loadCatalogue()
+        if (_uiState.value.connectorsError != null) {
+            _uiState.update { it.copy(connectorsError = null) }
+            loadConnectors()
+        }
+        if (_uiState.value.modelsError != null) {
+            _uiState.update { it.copy(modelsError = null) }
+            loadModels()
+        }
     }
 
     /**

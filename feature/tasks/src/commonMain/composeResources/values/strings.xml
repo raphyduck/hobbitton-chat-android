@@ -104,7 +104,8 @@
     <string name="tasks_chat_connector_count">%1$d connector(s)</string>
     <string name="tasks_chat_tool_count">%1$d tool(s)</string>
     <string name="tasks_model_default_short">Session model</string>
-    <string name="tasks_chat_catalogue_failed">Connectors and models could not be loaded.</string>
+    <string name="tasks_chat_connectors_failed">Connectors unavailable</string>
+    <string name="tasks_chat_models_failed">Models unavailable</string>
     <string name="tasks_connectors_failed">The connector catalogue could not be loaded. Launching now would give the mission no tools.</string>
     <string name="tasks_connectors_loading">Loading the connectors…</string>
 </resources>
