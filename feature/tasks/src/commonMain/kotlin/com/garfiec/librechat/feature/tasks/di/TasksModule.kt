@@ -16,7 +16,14 @@ import org.koin.dsl.module
  * startup, which is the worst place to find out.
  */
 val tasksModule = module {
-    single { EngineMissionRepository(api = get(), streamClient = get(), eventTransport = get()) }
+    single {
+        EngineMissionRepository(
+            api = get(),
+            scheduler = get(),
+            streamClient = get(),
+            eventTransport = get(),
+        )
+    }
     viewModelOf(::TasksViewModel)
     viewModelOf(::EngineSettingsViewModel)
     // sessionId arrives from the navigation layer via parametersOf, so the lambda-form viewModel is

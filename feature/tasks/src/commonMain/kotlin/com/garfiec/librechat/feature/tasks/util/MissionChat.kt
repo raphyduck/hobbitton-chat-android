@@ -10,6 +10,9 @@ import com.garfiec.librechat.core.model.engine.EngineStreamEvent
  * events a live turn emits (`engineHistoryEvents`), so opening a session and watching it answer go
  * through identical code and cannot drift apart.
  *
+ * [MissionChatState.streaming] is driven by **deltas alone**, never by a message appearing: history
+ * and a live turn deliver the same `MessageStarted`, and only one of them means « it is talking ».
+ *
  * Parts are addressed by id, which is what makes the fold total: a snapshot
  * ([EngineStreamEvent.PartUpdated]) is authoritative and overwrites, a delta appends. The engine
  * sends an empty text part first, fills it with deltas, then closes it with a snapshot — so a
@@ -68,8 +71,13 @@ fun MissionChatState.reduce(event: EngineStreamEvent): MissionChatState = when (
             known -> this
             event.role == ROLE_USER ->
                 copy(turns = turns + ChatTurn.User(event.messageId), error = null)
+            // Ne marque PAS le tour comme en cours. Un transcript rejoué émet un
+            // `MessageStarted` par message d'assistant, sans `Idle` derrière : le faire
+            // ici laissait le bouton Stop allumé en permanence sur une session terminée
+            // depuis des heures. Constaté le 30/08/2026. Seul un delta prouve qu'un tour
+            // parle maintenant — et seul le flux vivant en émet.
             else ->
-                copy(turns = turns + ChatTurn.Assistant(event.messageId), streaming = true, error = null)
+                copy(turns = turns + ChatTurn.Assistant(event.messageId), error = null)
         }
     }
 

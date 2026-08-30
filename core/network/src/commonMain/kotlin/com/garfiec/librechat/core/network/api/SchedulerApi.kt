@@ -1,5 +1,6 @@
 package com.garfiec.librechat.core.network.api
 
+import com.garfiec.librechat.core.model.scheduler.ConnectorCatalogue
 import com.garfiec.librechat.core.model.scheduler.Consumption
 import com.garfiec.librechat.core.model.scheduler.ProviderHealth
 import com.garfiec.librechat.core.model.scheduler.SchedulerState
@@ -90,6 +91,17 @@ class SchedulerApi(
     suspend fun providers(): ProviderHealth = decode(
         callTool("fournisseurs", buildJsonObject { put("json_brut", true) }),
         "fournisseurs",
+    )
+
+    /**
+     * The connectors a mission may be given, and the exact tool names each one opens.
+     *
+     * Fetched rather than copied — see [ConnectorCatalogue] for the bug that cost. Cheap and
+     * side-effect free: the scheduler builds it from a table it already holds in memory.
+     */
+    suspend fun connectors(): ConnectorCatalogue = decode(
+        callTool("connecteurs", buildJsonObject { put("json_brut", true) }),
+        "connecteurs",
     )
 
     /**

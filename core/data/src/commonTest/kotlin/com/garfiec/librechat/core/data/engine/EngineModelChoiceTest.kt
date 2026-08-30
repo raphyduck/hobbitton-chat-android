@@ -2,6 +2,7 @@ package com.garfiec.librechat.core.data.engine
 
 import com.garfiec.librechat.core.model.engine.EngineModelRef
 import com.garfiec.librechat.core.network.api.AgentEngineApi
+import com.garfiec.librechat.core.network.api.SchedulerApi
 import com.garfiec.librechat.core.network.di.librechatJson
 import com.garfiec.librechat.core.network.engine.EngineEventParser
 import com.garfiec.librechat.core.network.engine.EngineEventTransport
@@ -72,8 +73,16 @@ class EngineModelChoiceTest {
                 defaultRequest { contentType(ContentType.Application.Json) }
             },
         ),
-        // The chat's live feed is not exercised here — this suite is about the model catalogue — so
-        // the stream side is stubbed: a real parser and an event transport that never emits.
+        // Neither the chat's live feed nor the connector catalogue is exercised here — this suite is
+        // about the model list — so both are stubbed: a real parser, an event transport that never
+        // emits, and a scheduler client pointed at the same mock engine.
+        scheduler = SchedulerApi(
+            HttpClient(engine) {
+                install(ContentNegotiation) { json(librechatJson) }
+                defaultRequest { contentType(ContentType.Application.Json) }
+            },
+            librechatJson,
+        ),
         streamClient = EngineStreamClient(EngineEventParser(librechatJson)),
         eventTransport = object : EngineEventTransport {
             override fun stream(): Flow<ByteArray> = emptyFlow()
@@ -133,7 +142,11 @@ class EngineModelChoiceTest {
         val bodies = mutableMapOf<String, String>()
         val engine = MockEngine { request ->
             bodies[request.url.encodedPath] = request.textBody()
-            respond("""{"id":"ses_abc"}""", HttpStatusCode.OK, jsonHeaders())
+            if (request.url.encodedPath == "/mcp") {
+                respond(connectorCatalogueFrame(), HttpStatusCode.OK, jsonHeaders())
+            } else {
+                respond("""{"id":"ses_abc"}""", HttpStatusCode.OK, jsonHeaders())
+            }
         }
 
         repository(engine).launch(
@@ -157,7 +170,11 @@ class EngineModelChoiceTest {
         var promptBody = ""
         val engine = MockEngine { request ->
             if (request.url.encodedPath.endsWith("prompt_async")) promptBody = request.textBody()
-            respond("""{"id":"ses_abc"}""", HttpStatusCode.OK, jsonHeaders())
+            if (request.url.encodedPath == "/mcp") {
+                respond(connectorCatalogueFrame(), HttpStatusCode.OK, jsonHeaders())
+            } else {
+                respond("""{"id":"ses_abc"}""", HttpStatusCode.OK, jsonHeaders())
+            }
         }
 
         repository(engine).launch("mission", "fais le point", listOf("memoire"))
@@ -166,6 +183,20 @@ class EngineModelChoiceTest {
         // « I did not choose » has to mean.
         assertFalse("model" in promptBody)
     }
+}
+
+/**
+ * What the scheduler answers when asked for the connector catalogue, wrapped as MCP returns it.
+ *
+ * `launch` reads the catalogue to build the session's permission rules — it no longer holds a table
+ * of its own — so any mock engine that serves a launch has to answer this too.
+ */
+private fun connectorCatalogueFrame(): String {
+    val payload = """{"connecteurs":{"memoire":{"outils":["memoire_lire"],""" +
+        """"refuse_si_autonome":false}},"socle":{"todowrite":"allow"}}"""
+    return """{"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":${
+        kotlinx.serialization.json.JsonPrimitive(payload)
+    }}]}}"""
 }
 
 private fun HttpRequestData.textBody(): String = when (val content = body) {

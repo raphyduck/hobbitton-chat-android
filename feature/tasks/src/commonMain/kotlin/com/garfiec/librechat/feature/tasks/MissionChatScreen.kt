@@ -7,6 +7,7 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,21 +20,28 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.Build
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -42,21 +50,32 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.garfiec.librechat.core.model.engine.EngineFailureKind
+import com.garfiec.librechat.core.data.engine.ConnectorOption
+import com.garfiec.librechat.core.model.engine.EngineSelectableModel
 import com.garfiec.librechat.core.ui.input.ChatInputDefaults
 import com.garfiec.librechat.feature.tasks.components.MissionMarkdown
 import com.garfiec.librechat.feature.tasks.resources.Res
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_back
+import com.garfiec.librechat.feature.tasks.resources.tasks_chat_catalogue_failed
+import com.garfiec.librechat.feature.tasks.resources.tasks_chat_connector_count
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_empty
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_hint
+import com.garfiec.librechat.feature.tasks.resources.tasks_chat_no_connector
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_send
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_title
+import com.garfiec.librechat.feature.tasks.resources.tasks_chat_tool_count
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_working
+import com.garfiec.librechat.feature.tasks.resources.tasks_connectors
+import com.garfiec.librechat.feature.tasks.resources.tasks_model
+import com.garfiec.librechat.feature.tasks.resources.tasks_model_default_short
 import com.garfiec.librechat.feature.tasks.resources.tasks_retry
 import com.garfiec.librechat.feature.tasks.resources.tasks_stop
 import com.garfiec.librechat.feature.tasks.util.ChatPart
@@ -99,14 +118,14 @@ fun MissionChatScreen(
         },
         bottomBar = {
             MissionChatInput(
-                input = state.input,
-                streaming = state.chat.streaming,
-                sending = state.sending,
-                sendError = state.sendError,
+                state = state,
                 onInput = viewModel::onInputChange,
                 onSend = viewModel::send,
                 onStop = viewModel::stop,
                 onDismissError = viewModel::dismissSendError,
+                onToggleConnector = viewModel::toggleConnector,
+                onSelectModel = viewModel::selectModel,
+                onRetryCatalogue = viewModel::retryCatalogue,
             )
         },
     ) { padding ->
@@ -272,27 +291,31 @@ private fun ToolRow(tool: ChatPart.Tool) {
  * The composer, wearing the chat's clothes.
  *
  * Shape, fill, border and keyboard behaviour come from `:core:ui`'s [ChatInputDefaults] — the same
- * object the chat's own composer reads — so the two controls cannot drift apart the way they had by
- * 29/08/2026, when this screen shipped a bare `OutlinedTextField`. What is *not* shared is the
- * chat's composer itself: attachments, MCP pickers, voice, queueing and steering are all chat
- * concepts a mission session has none of, and a feature module cannot see another's code anyway.
- * Sharing the vocabulary is what is genuinely common; sharing the control would mean importing
- * machinery with no data behind it.
+ * object the chat's own composer reads — so the two controls cannot drift apart. Above the box sits
+ * the chips row the chat has: the connectors this session carries, and the model the next message
+ * runs on. Both write straight through to the engine (`PATCH /session/{id}` for the rules,
+ * `model` on the message for the call), so they are controls and not decoration.
+ *
+ * What is *not* shared is the chat's composer itself: attachments, MCP pickers, voice, queueing and
+ * steering are chat concepts a mission session has none of, and a feature module cannot see
+ * another's code anyway. Sharing the vocabulary is what is genuinely common.
  */
 @Composable
 private fun MissionChatInput(
-    input: String,
-    streaming: Boolean,
-    sending: Boolean,
-    sendError: EngineFailureKind?,
+    state: MissionChatUiState,
     onInput: (String) -> Unit,
     onSend: () -> Unit,
     onStop: () -> Unit,
     onDismissError: () -> Unit,
+    onToggleConnector: (String) -> Unit,
+    onSelectModel: (EngineSelectableModel?) -> Unit,
+    onRetryCatalogue: () -> Unit,
 ) {
+    var picker by remember { mutableStateOf(Picker.NONE) }
+
     Surface(tonalElevation = 2.dp) {
         Column(Modifier.navigationBarsPadding()) {
-            sendError?.let { kind ->
+            state.sendError?.let { kind ->
                 // The send failed and the text was put back — say why, once, dismissible on tap.
                 Text(
                     text = stringResource(kind.title()),
@@ -304,13 +327,21 @@ private fun MissionChatInput(
                         .padding(horizontal = 14.dp, vertical = 8.dp),
                 )
             }
+
+            ComposerChips(
+                state = state,
+                onOpenConnectors = { picker = Picker.CONNECTORS },
+                onOpenModels = { picker = Picker.MODELS },
+                onRetryCatalogue = onRetryCatalogue,
+            )
+
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.Bottom,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 OutlinedTextField(
-                    value = input,
+                    value = state.input,
                     onValueChange = onInput,
                     modifier = Modifier.weight(1f),
                     placeholder = { Text(stringResource(Res.string.tasks_chat_hint)) },
@@ -320,13 +351,213 @@ private fun MissionChatInput(
                     maxLines = MAX_INPUT_LINES,
                 )
                 MissionSendButton(
-                    streaming = streaming,
-                    canSend = input.isNotBlank() && !sending,
+                    // `sending` counts as running: the gap between the POST and the answer's first
+                    // token is exactly when someone wants to be able to call it off.
+                    running = state.chat.streaming || state.sending,
+                    canSend = state.input.isNotBlank(),
                     onSend = onSend,
                     onStop = onStop,
                 )
             }
         }
+    }
+
+    when (picker) {
+        Picker.CONNECTORS -> ConnectorSheet(
+            options = state.connectors,
+            enabled = state.enabledConnectors,
+            onToggle = onToggleConnector,
+            onDismiss = { picker = Picker.NONE },
+        )
+        Picker.MODELS -> ModelSheet(
+            models = state.models,
+            selected = state.model,
+            onSelect = {
+                onSelectModel(it)
+                picker = Picker.NONE
+            },
+            onDismiss = { picker = Picker.NONE },
+        )
+        Picker.NONE -> Unit
+    }
+}
+
+private enum class Picker { NONE, CONNECTORS, MODELS }
+
+/**
+ * The row above the box: what this session can reach, and what it answers on.
+ *
+ * Both chips carry their current value in the label rather than opening onto it — « 3 connecteurs »
+ * and the model's name — because the answer to « what is this mission allowed to do » should not
+ * require opening a sheet to find out.
+ */
+@Composable
+private fun ComposerChips(
+    state: MissionChatUiState,
+    onOpenConnectors: () -> Unit,
+    onOpenModels: () -> Unit,
+    onRetryCatalogue: () -> Unit,
+) {
+    // The catalogue is what both chips are made of; without it there is nothing honest to show, and
+    // an empty connector sheet would read as « this mission can have nothing » — a different claim.
+    if (state.catalogueError != null) {
+        Row(
+            Modifier.fillMaxWidth().clickable(onClick = onRetryCatalogue)
+                .padding(horizontal = 14.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                stringResource(Res.string.tasks_chat_catalogue_failed),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                stringResource(Res.string.tasks_retry),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
+        return
+    }
+    if (state.connectors.isEmpty() && state.models.isEmpty()) return
+
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(start = 12.dp, end = 12.dp, top = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        if (state.connectors.isNotEmpty()) {
+            AssistChip(
+                onClick = onOpenConnectors,
+                leadingIcon = {
+                    Icon(Icons.Outlined.Build, null, Modifier.size(16.dp))
+                },
+                label = {
+                    Text(
+                        if (state.enabledConnectors.isEmpty()) {
+                            stringResource(Res.string.tasks_chat_no_connector)
+                        } else {
+                            stringResource(
+                                Res.string.tasks_chat_connector_count,
+                                state.enabledConnectors.size,
+                            )
+                        },
+                    )
+                },
+            )
+        }
+        if (state.models.isNotEmpty()) {
+            AssistChip(
+                onClick = onOpenModels,
+                leadingIcon = { Icon(Icons.Outlined.Bolt, null, Modifier.size(16.dp)) },
+                label = {
+                    Text(state.model?.label ?: stringResource(Res.string.tasks_model_default_short))
+                },
+            )
+        }
+    }
+}
+
+/**
+ * Ticking a connector re-grants the **live** session — it does not wait for the next launch.
+ *
+ * The tool count is shown because it is what a connector costs: every tool a session declares is
+ * re-sent to the model on every turn, and the platform has measured a mission spend the bulk of its
+ * budget on a catalogue it never called (server-side D-040). « imap, 10 outils » is that price, in
+ * the one place where someone is choosing to pay it.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ConnectorSheet(
+    options: List<ConnectorOption>,
+    enabled: Set<String>,
+    onToggle: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(bottom = 32.dp),
+        ) {
+            Text(
+                stringResource(Res.string.tasks_connectors),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+            )
+            options.forEach { option ->
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable(enabled = option.enabled) { onToggle(option.name) }
+                        .padding(horizontal = 24.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Checkbox(
+                        checked = option.name in enabled,
+                        enabled = option.enabled,
+                        onCheckedChange = { onToggle(option.name) },
+                    )
+                    Column(Modifier.padding(start = 4.dp)) {
+                        Text(option.name, style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            stringResource(Res.string.tasks_chat_tool_count, option.toolCount),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Which model the next message runs on. Per message, which is how the engine takes it. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ModelSheet(
+    models: List<EngineSelectableModel>,
+    selected: EngineSelectableModel?,
+    onSelect: (EngineSelectableModel?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(bottom = 32.dp),
+        ) {
+            Text(
+                stringResource(Res.string.tasks_model),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+            )
+            // « Whatever the session already runs on » stays reachable: an unpicked model is not a
+            // missing setting, it is the engine's own choice, and taking it back should be possible.
+            ModelRow(
+                label = stringResource(Res.string.tasks_model_default_short),
+                selected = selected == null,
+                onClick = { onSelect(null) },
+            )
+            models.forEach { candidate ->
+                ModelRow(
+                    label = candidate.label,
+                    selected = candidate == selected,
+                    onClick = { onSelect(candidate) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ModelRow(label: String, selected: Boolean, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 24.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        RadioButton(selected = selected, onClick = onClick)
+        Text(label, style = MaterialTheme.typography.bodyLarge)
     }
 }
 
@@ -337,17 +568,17 @@ private fun MissionChatInput(
  */
 @Composable
 private fun MissionSendButton(
-    streaming: Boolean,
+    running: Boolean,
     canSend: Boolean,
     onSend: () -> Unit,
     onStop: () -> Unit,
 ) {
     AnimatedContent(
-        targetState = streaming,
+        targetState = running,
         transitionSpec = { (fadeIn() + scaleIn()).togetherWith(fadeOut() + scaleOut()) },
         label = "mission_send_stop_toggle",
-    ) { running ->
-        if (running) {
+    ) { showStop ->
+        if (showStop) {
             IconButton(
                 onClick = onStop,
                 modifier = Modifier.size(SEND_BUTTON_SIZE),

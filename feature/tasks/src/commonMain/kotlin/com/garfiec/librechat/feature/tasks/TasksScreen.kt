@@ -326,7 +326,10 @@ fun TasksScreen(
         // 11,8 kB for something that changes about once a month, and it is useless anywhere else.
         // `LaunchedEffect(Unit)` rather than a call in the composition — a body that runs on every
         // recomposition would re-ask on each keystroke in the objective field.
-        LaunchedEffect(Unit) { viewModel.loadModels() }
+        LaunchedEffect(Unit) {
+            viewModel.loadModels()
+            viewModel.loadConnectors()
+        }
         NewMissionSheet(
             onDismiss = { composing = false },
             onLaunch = { objective, connectors, autonomous, model ->
@@ -335,6 +338,8 @@ fun TasksScreen(
             },
             models = state.models,
             preselectedModel = state.preselectedModel,
+            catalogue = state.catalogue,
+            catalogueFailed = state.connectorsFailed,
         )
     }
 }

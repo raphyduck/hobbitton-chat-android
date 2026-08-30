@@ -100,4 +100,11 @@
     <string name="tasks_sign_in_refused">The portal refused: consent declined, second factor abandoned, or the request expired. Starting again is safe.</string>
     <string name="tasks_sign_in_interrupted">The round trip did not finish — the browser was closed, or it took more than five minutes. Try again.</string>
     <string name="tasks_sign_in_missing_scope">Signed in, and the token still does not open the engine: the portal did not grant it authorization scope. That one is fixed on the server, not here.</string>
+    <string name="tasks_chat_no_connector">No connector</string>
+    <string name="tasks_chat_connector_count">%1$d connector(s)</string>
+    <string name="tasks_chat_tool_count">%1$d tool(s)</string>
+    <string name="tasks_model_default_short">Session model</string>
+    <string name="tasks_chat_catalogue_failed">Connectors and models could not be loaded.</string>
+    <string name="tasks_connectors_failed">The connector catalogue could not be loaded. Launching now would give the mission no tools.</string>
+    <string name="tasks_connectors_loading">Loading the connectors…</string>
 </resources>

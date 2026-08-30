@@ -15,6 +15,7 @@ import com.garfiec.librechat.core.model.engine.EngineAgentProfile
 import com.garfiec.librechat.core.model.engine.EngineFailureKind
 import com.garfiec.librechat.core.model.engine.EngineModelRef
 import com.garfiec.librechat.core.model.engine.EngineSelectableModel
+import com.garfiec.librechat.core.model.scheduler.ConnectorCatalogue
 import com.garfiec.librechat.core.model.scheduler.Consumption
 import com.garfiec.librechat.core.model.scheduler.ProviderHealth
 import com.garfiec.librechat.core.model.scheduler.ScheduledMission
@@ -73,6 +74,10 @@ data class TasksUiState(
      * runs on the profile's own model, exactly as it did before this existed.
      */
     val models: List<EngineSelectableModel> = emptyList(),
+    /** The connectors this deployment offers — fetched from the scheduler, never a local copy. */
+    val catalogue: ConnectorCatalogue = ConnectorCatalogue(),
+    /** The catalogue would not load: the sheet says so rather than offering an empty list. */
+    val connectorsFailed: Boolean = false,
     val preselectedModel: EngineSelectableModel? = null,
     /** The portal round trip is in flight: the browser is open, the person is proving who they are. */
     val signingIn: Boolean = false,
@@ -301,6 +306,28 @@ class TasksViewModel(
                 }
                 .onFailure { failure ->
                     Logger.w(failure, tag = "Tasks") { "Could not list the engine's models" }
+                }
+        }
+    }
+
+    /**
+     * Fetches the connector catalogue, once, when the New-mission sheet opens.
+     *
+     * Unlike the models, a failure here is **not** swallowed into an empty list. The sheet used to
+     * offer four connectors from a table written by hand here — out of the platform's nineteen —
+     * naming tools that do not exist for `fichiers`. Nothing failed and the mission launched with an
+     * empty toolbox (30/08/2026). An empty picker would reproduce exactly that outcome from a
+     * different cause, so the sheet says the catalogue is missing instead of pretending the
+     * platform has nothing to offer.
+     */
+    fun loadConnectors() {
+        if (_state.value.catalogue.connecteurs.isNotEmpty()) return
+        viewModelScope.launch {
+            runCatching { repository.connectors() }
+                .onSuccess { catalogue -> _state.update { it.copy(catalogue = catalogue) } }
+                .onFailure { failure ->
+                    Logger.w(failure, tag = "Tasks") { "Could not list the engine's connectors" }
+                    _state.update { it.copy(connectorsFailed = true) }
                 }
         }
     }
