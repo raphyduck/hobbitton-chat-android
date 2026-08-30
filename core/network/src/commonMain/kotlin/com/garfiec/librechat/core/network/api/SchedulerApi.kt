@@ -17,11 +17,13 @@ import io.ktor.http.isSuccess
 import io.ktor.http.path
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
 
 /**
@@ -115,6 +117,51 @@ class SchedulerApi(
 
     suspend fun disable(name: String): String =
         callTool("desactiver", buildJsonObject { put("nom", name) })
+
+    /**
+     * Changes one or two fields of a scheduled mission, leaving the rest untouched.
+     *
+     * `modifier`, deliberately **not** `planifier`: the latter replaces the whole mission, so
+     * changing an hour would mean resending everything — including the prompt and the tool list,
+     * which `etat` does not publish. This app would therefore wipe the prompt on the first
+     * reschedule, silently. Server-side `modifier` merges instead.
+     *
+     * Null means « leave it alone ». Setting `cron` clears a one-shot's date and vice versa: a
+     * mission is recurring or one-shot, never both.
+     */
+    suspend fun updateMission(
+        name: String,
+        cron: String? = null,
+        runAt: String? = null,
+        timeZone: String? = null,
+        model: String? = null,
+        connectors: List<String>? = null,
+        toolCallCeiling: Int? = null,
+        timeoutSeconds: Int? = null,
+        tokenBudget: Int? = null,
+        notifies: Boolean? = null,
+    ): String = callTool(
+        "modifier",
+        buildJsonObject {
+            put("nom", name)
+            cron?.let { put("cron", it) }
+            runAt?.let { put("quand", it) }
+            timeZone?.let { put("fuseau", it) }
+            model?.let { put("modele", it) }
+            connectors?.let { list -> putJsonArray("connecteurs") { list.forEach { add(it) } } }
+            toolCallCeiling?.let { put("plafond_appels", it) }
+            timeoutSeconds?.let { put("timeout_s", it) }
+            tokenBudget?.let { put("budget_tokens", it) }
+            notifies?.let { put("notifier", it) }
+        },
+    )
+
+    /**
+     * Removes a scheduled mission. **Its history survives** — that is the record of what ran, and
+     * it must not disappear with the schedule.
+     */
+    suspend fun deleteMission(name: String): String =
+        callTool("supprimer", buildJsonObject { put("nom", name) })
 
     private suspend fun callTool(tool: String, arguments: JsonObject?): String {
         val envelope = buildJsonObject {

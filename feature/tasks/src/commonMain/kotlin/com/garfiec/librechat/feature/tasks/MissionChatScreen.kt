@@ -32,6 +32,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.Build
@@ -57,9 +59,11 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -69,12 +73,15 @@ import com.garfiec.librechat.core.ui.input.ChatInputDefaults
 import com.garfiec.librechat.feature.tasks.components.MissionMarkdown
 import com.garfiec.librechat.feature.tasks.resources.Res
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_back
+import com.garfiec.librechat.feature.tasks.resources.tasks_chat_collapse
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_connector_count
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_connectors_failed
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_empty
+import com.garfiec.librechat.feature.tasks.resources.tasks_chat_expand
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_hint
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_models_failed
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_no_connector
+import com.garfiec.librechat.feature.tasks.resources.tasks_chat_reasoning
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_send
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_title
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_tool_count
@@ -84,10 +91,16 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_model
 import com.garfiec.librechat.feature.tasks.resources.tasks_model_default_short
 import com.garfiec.librechat.feature.tasks.resources.tasks_retry
 import com.garfiec.librechat.feature.tasks.resources.tasks_stop
+import com.garfiec.librechat.feature.tasks.util.ChatBlock
 import com.garfiec.librechat.feature.tasks.util.ChatPart
 import com.garfiec.librechat.feature.tasks.util.ChatTurn
 import com.garfiec.librechat.feature.tasks.util.MissionChatState
 import com.garfiec.librechat.feature.tasks.util.ToolState
+import com.garfiec.librechat.feature.tasks.util.asBlocks
+import com.garfiec.librechat.feature.tasks.util.hasFailure
+import com.garfiec.librechat.feature.tasks.util.hasReasoning
+import com.garfiec.librechat.feature.tasks.util.isRunning
+import com.garfiec.librechat.feature.tasks.util.toolCount
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -242,29 +255,29 @@ private fun UserBubble(turn: ChatTurn.User) {
 }
 
 /**
- * The assistant's turn, rendered flat rather than in a bubble — the chat does the same: a long answer
- * inside a coloured box is harder to read than one that owns the width.
+ * The assistant's turn: the answer at full width, the work that produced it folded away.
+ *
+ * Flat rather than in a bubble — the chat does the same: a long answer inside a coloured box is
+ * harder to read than one that owns the width.
+ *
+ * Reasoning and tool calls arrive folded, like the chat's activity blocks. A mission's turn is
+ * mostly process — nine tool calls and a paragraph of thinking around two sentences — and shipping
+ * it flat on 30/08/2026 buried the part anyone actually reads.
  */
 @Composable
 private fun AssistantTurn(turn: ChatTurn.Assistant, streaming: Boolean) {
+    val blocks = remember(turn.parts) { turn.parts.asBlocks() }
     Column(
         Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        turn.parts.forEach { part ->
-            when (part) {
-                is ChatPart.Text -> if (part.text.isNotBlank()) MissionMarkdown(part.text)
-                is ChatPart.Reasoning -> if (part.text.isNotBlank()) {
-                    Text(
-                        text = part.text,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = MUTED_ALPHA),
-                    )
-                }
-                is ChatPart.Tool -> ToolRow(part)
+        blocks.forEach { block ->
+            when (block) {
+                is ChatBlock.Prose -> MissionMarkdown(block.part.text)
+                is ChatBlock.Activity -> ActivityBlock(block)
             }
         }
-        val silent = turn.parts.none { it is ChatPart.Text && it.text.isNotBlank() }
+        val silent = blocks.none { it is ChatBlock.Prose }
         if (streaming && silent) {
             Text(
                 text = stringResource(Res.string.tasks_chat_working),
@@ -273,6 +286,99 @@ private fun AssistantTurn(turn: ChatTurn.Assistant, streaming: Boolean) {
             )
         }
     }
+}
+
+/**
+ * The work behind an answer, folded.
+ *
+ * Two states are **never** hidden by the fold, and they are the reason the header says more than a
+ * count: a tool still running (a mission waiting on one looks exactly like a mission that stopped)
+ * and a tool that failed (a failure folded away is a failure nobody reads). Both surface on the
+ * closed header — spinner and error colour — so folding costs no information one would act on.
+ *
+ * `rememberSaveable` keyed on the block, so a fold the reader opened survives a recomposition, and
+ * a delta appending to the turn does not snap it shut under their thumb.
+ */
+@Composable
+private fun ActivityBlock(block: ChatBlock.Activity) {
+    var expanded by rememberSaveable(block.key) { mutableStateOf(false) }
+    val failed = block.hasFailure()
+    val running = block.isRunning()
+
+    Column(Modifier.fillMaxWidth()) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(8.dp))
+                .clickable { expanded = !expanded }
+                .padding(vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            when {
+                running -> CircularProgressIndicator(Modifier.size(12.dp), strokeWidth = 2.dp)
+                failed -> Icon(
+                    Icons.Filled.Close,
+                    null,
+                    Modifier.size(14.dp),
+                    tint = MaterialTheme.colorScheme.error,
+                )
+                else -> Icon(
+                    Icons.Outlined.Build,
+                    null,
+                    Modifier.size(14.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = MUTED_ALPHA),
+                )
+            }
+            Text(
+                text = activityLabel(block),
+                style = MaterialTheme.typography.labelMedium,
+                color = if (failed) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                modifier = Modifier.weight(1f),
+            )
+            Icon(
+                imageVector = if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                contentDescription = stringResource(
+                    if (expanded) Res.string.tasks_chat_collapse else Res.string.tasks_chat_expand,
+                ),
+                modifier = Modifier.size(18.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (expanded) {
+            Column(
+                Modifier.padding(start = 20.dp, bottom = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                block.parts.forEach { part ->
+                    when (part) {
+                        is ChatPart.Tool -> ToolRow(part)
+                        is ChatPart.Reasoning -> Text(
+                            text = part.text,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = MUTED_ALPHA),
+                        )
+                        is ChatPart.Text -> Unit
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** « 3 outils · réflexion » — enough to decide whether opening it is worth it. */
+@Composable
+private fun activityLabel(block: ChatBlock.Activity): String {
+    val tools = block.toolCount()
+    val parts = buildList {
+        if (tools > 0) add(stringResource(Res.string.tasks_chat_tool_count, tools))
+        if (block.hasReasoning()) add(stringResource(Res.string.tasks_chat_reasoning))
+    }
+    return parts.joinToString(" · ").ifEmpty { stringResource(Res.string.tasks_chat_reasoning) }
 }
 
 @Composable

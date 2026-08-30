@@ -1,5 +1,6 @@
 package com.garfiec.librechat.feature.tasks
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -7,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenuItem
@@ -27,15 +29,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import com.garfiec.librechat.core.data.engine.ConnectorOption
 import com.garfiec.librechat.core.data.engine.offered
 import com.garfiec.librechat.core.model.engine.EngineModelRef
 import com.garfiec.librechat.core.model.engine.EngineSelectableModel
 import com.garfiec.librechat.core.model.scheduler.ConnectorCatalogue
 import com.garfiec.librechat.feature.tasks.resources.Res
 import com.garfiec.librechat.feature.tasks.resources.tasks_cancel
+import com.garfiec.librechat.feature.tasks.resources.tasks_chat_no_connector
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_tool_count
 import com.garfiec.librechat.feature.tasks.resources.tasks_connectors
+import com.garfiec.librechat.feature.tasks.resources.tasks_connectors_count
 import com.garfiec.librechat.feature.tasks.resources.tasks_connectors_failed
 import com.garfiec.librechat.feature.tasks.resources.tasks_connectors_loading
 import com.garfiec.librechat.feature.tasks.resources.tasks_launch
@@ -68,6 +74,122 @@ import org.jetbrains.compose.resources.stringResource
  * therefore what the engine would have picked anyway, which is also what makes the picker safe to
  * ignore.
  */
+/**
+ * Le décompte, et de quoi ouvrir la liste. Rien de plus : la feuille de création doit tenir sur un
+ * écran, bouton « Lancer » compris.
+ */
+@Composable
+private fun ConnectorField(
+    offered: List<ConnectorOption>,
+    ticked: List<String>,
+    failed: Boolean,
+    loading: Boolean,
+    onOpen: () -> Unit,
+) {
+    val enabled = !failed && !loading
+    Column {
+        Text(stringResource(Res.string.tasks_connectors), style = MaterialTheme.typography.titleSmall)
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(8.dp))
+                .clickable(enabled = enabled, onClick = onOpen)
+                .padding(vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = when {
+                    // Une liste vide se lirait « cette mission ne peut rien avoir », ce qui est une
+                    // autre affirmation — et le résultat qu'on vient justement de corriger.
+                    failed -> stringResource(Res.string.tasks_connectors_failed)
+                    loading -> stringResource(Res.string.tasks_connectors_loading)
+                    ticked.isEmpty() -> stringResource(Res.string.tasks_chat_no_connector)
+                    else -> ticked.sorted().joinToString(", ")
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = when {
+                    failed -> MaterialTheme.colorScheme.error
+                    ticked.isEmpty() || loading -> MaterialTheme.colorScheme.onSurfaceVariant
+                    else -> MaterialTheme.colorScheme.onSurface
+                },
+                modifier = Modifier.weight(1f),
+            )
+            if (enabled) {
+                Text(
+                    stringResource(
+                        Res.string.tasks_connectors_count,
+                        ticked.size,
+                        offered.size,
+                    ),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Le choix des connecteurs, dans sa propre feuille.
+ *
+ * Chaque ligne porte son nombre d'outils, parce que c'est son prix : tout outil déclaré repart au
+ * modèle à chaque tour, et une mission a déjà brûlé l'essentiel de son budget sur un catalogue
+ * qu'elle n'appelait pas (D-040 côté serveur).
+ */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+private fun ConnectorPickerSheet(
+    offered: List<ConnectorOption>,
+    ticked: List<String>,
+    onToggle: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(bottom = 32.dp),
+        ) {
+            Text(
+                stringResource(Res.string.tasks_connectors),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+            )
+            offered.forEach { option ->
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable(enabled = option.enabled) { onToggle(option.name) }
+                        .padding(horizontal = 24.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Checkbox(
+                        checked = option.name in ticked,
+                        // Grisé plutôt que masqué : qui se demande où est passé shell obtient une
+                        // réponse, au lieu d'une ligne manquante sur laquelle s'interroger.
+                        enabled = option.enabled,
+                        onCheckedChange = { onToggle(option.name) },
+                    )
+                    Column(Modifier.padding(start = 4.dp)) {
+                        Text(
+                            option.name,
+                            color = if (option.enabled) {
+                                MaterialTheme.colorScheme.onSurface
+                            } else {
+                                MaterialTheme.colorScheme.outline
+                            },
+                        )
+                        Text(
+                            stringResource(Res.string.tasks_chat_tool_count, option.toolCount),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun NewMissionSheet(
@@ -90,6 +212,10 @@ fun NewMissionSheet(
     // default arrives a moment late. Without the key the selection would stay null through that
     // arrival and the sheet would offer a list with nothing ticked.
     var model by remember(preselectedModel) { mutableStateOf(preselectedModel) }
+    var picking by remember { mutableStateOf(false) }
+
+    // Recalculé sur le mode : ce qu'une mission autonome ne peut pas cocher en dépend.
+    val offered = catalogue.offered(autonomous)
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
@@ -165,56 +291,20 @@ fun NewMissionSheet(
                 }
             }
 
-            Text(stringResource(Res.string.tasks_connectors), style = MaterialTheme.typography.titleSmall)
-            // Fetched, never copied. This sheet used to hold its own list of four names — out of the
-            // platform's nineteen — and the tool patterns behind « fichiers » named tools the engine
-            // does not serve. A permission rule for a tool nobody offers is accepted in silence, so
-            // the mission launched with an empty toolbox and said so mid-run (30/08/2026). The
-            // catalogue now comes from the scheduler's own `CONNECTEURS`.
-            val offered = catalogue.offered(autonomous)
-            when {
-                catalogueFailed -> Text(
-                    stringResource(Res.string.tasks_connectors_failed),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                )
-                offered.isEmpty() -> Text(
-                    stringResource(Res.string.tasks_connectors_loading),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                else -> offered.forEach { option ->
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(
-                            checked = option.name in ticked,
-                            // Disabled rather than hidden: someone who wonders where shell went gets
-                            // an answer from the mode hint below, not a missing row to puzzle over.
-                            enabled = option.enabled,
-                            onCheckedChange = { checked ->
-                                if (checked) ticked += option.name else ticked -= option.name
-                            },
-                        )
-                        Column {
-                            Text(
-                                option.name,
-                                color = if (option.enabled) {
-                                    MaterialTheme.colorScheme.onSurface
-                                } else {
-                                    MaterialTheme.colorScheme.outline
-                                },
-                            )
-                            // What the connector costs: every tool a session declares is re-sent to
-                            // the model on every turn, and a mission has spent the bulk of its budget
-                            // on a catalogue it never called (server-side D-040).
-                            Text(
-                                stringResource(Res.string.tasks_chat_tool_count, option.toolCount),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                }
-            }
+            // Un CHAMP, pas dix-neuf cases.
+            //
+            // Le catalogue est passé de quatre connecteurs à dix-neuf le 30/08 : la liste faisait
+            // alors défiler la feuille sur trois écrans et repoussait « Lancer » hors de vue — la
+            // panne exacte que le sélecteur de modèle avait eue le 25/08, et pour laquelle il était
+            // déjà devenu un champ. Le choix vit donc dans sa propre feuille, et celle-ci ne montre
+            // que le décompte.
+            ConnectorField(
+                offered = offered,
+                ticked = ticked,
+                failed = catalogueFailed,
+                loading = offered.isEmpty() && !catalogueFailed,
+                onOpen = { picking = true },
+            )
 
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -259,5 +349,14 @@ fun NewMissionSheet(
                 ) { Text(stringResource(Res.string.tasks_launch)) }
             }
         }
+    }
+
+    if (picking) {
+        ConnectorPickerSheet(
+            offered = offered,
+            ticked = ticked,
+            onToggle = { name -> if (name in ticked) ticked -= name else ticked += name },
+            onDismiss = { picking = false },
+        )
     }
 }

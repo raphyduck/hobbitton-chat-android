@@ -155,6 +155,69 @@ private inline fun ChatTurn.mapParts(transform: (List<ChatPart>) -> List<ChatPar
     is ChatTurn.Assistant -> copy(parts = transform(parts))
 }
 
+/**
+ * A turn's parts, cut into what one reads and what one merely checks.
+ *
+ * The chat draws the same line and for the same reason: an answer is prose, and the reasoning and
+ * tool calls that produced it are the *process*. Left flat, a run of nine tool calls and a paragraph
+ * of thinking buries the two sentences that were the point — which is what the tab shipped with on
+ * 30/08/2026.
+ *
+ * Only **consecutive** activity groups. A tool call that comes back between two paragraphs belongs
+ * to what follows it, not to the block above; merging across prose would reorder the turn.
+ */
+sealed interface ChatBlock {
+    /** A block of prose, rendered as markdown at the message's own level. */
+    data class Prose(val part: ChatPart.Text) : ChatBlock
+
+    /** Reasoning and tool calls, folded away by default. [key] is stable for remembering state. */
+    data class Activity(val key: String, val parts: List<ChatPart>) : ChatBlock
+}
+
+/** Cut a turn's parts into readable blocks. Empty prose is dropped; empty activity never appears. */
+fun List<ChatPart>.asBlocks(): List<ChatBlock> {
+    val blocks = mutableListOf<ChatBlock>()
+    val pending = mutableListOf<ChatPart>()
+
+    fun flush() {
+        if (pending.isNotEmpty()) {
+            blocks += ChatBlock.Activity(key = pending.first().id, parts = pending.toList())
+            pending.clear()
+        }
+    }
+
+    forEach { part ->
+        if (part is ChatPart.Text) {
+            // A text part that is still empty is a part awaiting its deltas, not a paragraph. It
+            // would otherwise cut the activity run in two and open a second block mid-thought.
+            if (part.text.isNotBlank()) {
+                flush()
+                blocks += ChatBlock.Prose(part)
+            }
+        } else {
+            pending += part
+        }
+    }
+    flush()
+    return blocks
+}
+
+/** What the folded header says a block contains: « 2 outils · réflexion ». */
+fun ChatBlock.Activity.toolCount(): Int = parts.count { it is ChatPart.Tool }
+
+fun ChatBlock.Activity.hasReasoning(): Boolean = parts.any { it is ChatPart.Reasoning }
+
+/**
+ * True while any tool in the block is still running — the one case the fold must not hide, because
+ * a mission that is waiting on a tool looks identical to one that has stopped.
+ */
+fun ChatBlock.Activity.isRunning(): Boolean =
+    parts.any { it is ChatPart.Tool && it.state == ToolState.RUNNING }
+
+/** True when a tool in the block failed. A failure folded away is a failure nobody reads. */
+fun ChatBlock.Activity.hasFailure(): Boolean =
+    parts.any { it is ChatPart.Tool && it.state == ToolState.FAILED }
+
 /** The visible text of a turn — what a bubble renders, and what an empty turn has none of. */
 fun ChatTurn.text(): String = when (this) {
     is ChatTurn.User -> parts

@@ -108,4 +108,20 @@
     <string name="tasks_chat_models_failed">Models unavailable</string>
     <string name="tasks_connectors_failed">The connector catalogue could not be loaded. Launching now would give the mission no tools.</string>
     <string name="tasks_connectors_loading">Loading the connectors…</string>
+    <string name="tasks_chat_reasoning">reasoning</string>
+    <string name="tasks_chat_expand">Show the steps</string>
+    <string name="tasks_chat_collapse">Hide the steps</string>
+    <string name="tasks_connectors_count">%1$d / %2$d</string>
+    <string name="tasks_scheduled_edit">Reschedule</string>
+    <string name="tasks_scheduled_delete">Delete</string>
+    <string name="tasks_scheduled_delete_title">Delete “%1$s”?</string>
+    <string name="tasks_scheduled_delete_body">The schedule goes; its run history stays. This cannot be undone from here.</string>
+    <string name="tasks_scheduled_recurring">Recurring</string>
+    <string name="tasks_scheduled_once">One-shot</string>
+    <string name="tasks_scheduled_cron">Schedule (cron)</string>
+    <string name="tasks_scheduled_cron_hint">Five fields, like a crontab: “0 5 * * *” is every day at 5am.</string>
+    <string name="tasks_scheduled_runat">Date and time</string>
+    <string name="tasks_scheduled_runat_hint">ISO 8601, e.g. “2027-01-15T09:00”. It fires once, then suspends itself.</string>
+    <string name="tasks_scheduled_timezone">Read in %1$s — the mission\'s time zone, not this phone\'s.</string>
+    <string name="tasks_scheduled_save">Save</string>
 </resources>
