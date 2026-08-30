@@ -123,7 +123,7 @@ class ConnectorOptionsTest {
     private val catalogue = ConnectorCatalogue(
         connecteurs = mapOf(
             "shell" to ConnectorGrant(outils = listOf("bash", "lsp"), refusedWhenAutonomous = true),
-            "memoire" to ConnectorGrant(outils = listOf("memoire_lire")),
+            "memoire" to ConnectorGrant(outils = listOf("memoire_lire"), tickedByDefault = true),
         ),
     )
 
@@ -146,6 +146,27 @@ class ConnectorOptionsTest {
         // Every tool a session declares is re-sent to the model on every turn (server-side D-040),
         // so the count is the price, shown where someone chooses to pay it.
         assertEquals(2, catalogue.offered(autonomous = false).single { it.name == "shell" }.toolCount)
+    }
+
+    @Test
+    fun `an option carries whether the scheduler ticks it by default`() {
+        val offered = catalogue.offered(autonomous = false)
+
+        // The socle is the SERVER's call, so the option only relays it — an app-side list of names
+        // is exactly the copy that had the picker offering tools nobody serves.
+        assertTrue(offered.single { it.name == "memoire" }.tickedByDefault)
+        assertTrue(!offered.single { it.name == "shell" }.tickedByDefault)
+    }
+
+    @Test
+    fun `a scheduler that predates the socle ticks nothing rather than everything`() {
+        // The field defaults to false: an older scheduler serves no `defaut`, and the sheet must
+        // open empty rather than pre-ticking the whole catalogue.
+        val older = ConnectorCatalogue(
+            connecteurs = mapOf("memoire" to ConnectorGrant(outils = listOf("memoire_lire"))),
+        )
+
+        assertTrue(older.offered(autonomous = false).none { it.tickedByDefault })
     }
 
     @Test

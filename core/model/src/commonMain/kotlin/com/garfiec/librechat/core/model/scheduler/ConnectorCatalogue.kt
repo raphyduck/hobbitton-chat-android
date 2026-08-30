@@ -37,4 +37,17 @@ data class ConnectorGrant(
      */
     @SerialName("refuse_si_autonome")
     val refusedWhenAutonomous: Boolean = false,
+    /**
+     * Ticked when the new-mission sheet opens.
+     *
+     * The scheduler decides which ones, and it decides on cost: every ticked connector reloads its
+     * catalogue to the model on **every turn** (~700 tokens per tool), so ticking all thirty would
+     * spend a mission's budget before it did anything. The server's socle is reading only — memory,
+     * files, web search, bank accounts, the schedule's state — and never anything that acts.
+     *
+     * Defaults to false, so a scheduler that does not serve the field yet ticks nothing rather than
+     * everything.
+     */
+    @SerialName("defaut")
+    val tickedByDefault: Boolean = false,
 )
