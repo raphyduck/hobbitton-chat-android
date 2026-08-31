@@ -34,6 +34,7 @@ val tasksModule = module {
             sessionId = params.get(),
             repository = get(),
             settings = get(),
+            positions = get(),
             ioDispatcher = get(KoinQualifiers.IO),
         )
     }

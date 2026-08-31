@@ -48,9 +48,9 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.garfiec.librechat.core.ui.util.copyToClipboard
 import com.garfiec.librechat.feature.chat.resources.*
 import com.garfiec.librechat.feature.chat.resources.Res
-import com.garfiec.librechat.feature.chat.util.copyToClipboard
 import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.stringResource
 

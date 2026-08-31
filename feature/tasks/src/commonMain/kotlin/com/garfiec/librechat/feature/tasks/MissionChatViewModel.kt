@@ -2,6 +2,8 @@ package com.garfiec.librechat.feature.tasks
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.garfiec.librechat.core.data.datastore.MissionReadingPosition
+import com.garfiec.librechat.core.data.datastore.MissionReadingPositions
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.engine.ConnectorOption
 import com.garfiec.librechat.core.data.engine.EngineMissionRepository
@@ -75,6 +77,16 @@ data class MissionChatUiState(
      * a reader on LARGE was getting normal-size text in this tab only.
      */
     val fontScale: Float = 1f,
+    /**
+     * Where this transcript was left last time, once the answer is known — see [positionKnown].
+     *
+     * Null means « never left mid-transcript », and the screen then opens at the tail as it always
+     * did. The screen must not restore before this has been read, or it would race the read and
+     * land at the bottom anyway.
+     */
+    val restoredPosition: MissionReadingPosition? = null,
+    /** False until the stored position has been read. Distinguishes « none » from « not yet ». */
+    val positionKnown: Boolean = false,
 ) {
     /**
      * What the model chip says, and what the picker shows as current.
@@ -99,6 +111,7 @@ class MissionChatViewModel(
     private val sessionId: String,
     private val repository: EngineMissionRepository,
     private val settings: SettingsDataStore,
+    private val positions: MissionReadingPositions,
     private val ioDispatcher: CoroutineDispatcher,
 ) : ViewModel() {
 
@@ -111,6 +124,10 @@ class MissionChatViewModel(
         loadHistory()
         openStream()
         loadCatalogue()
+        viewModelScope.launch {
+            val saved = runCatching { positions.positionOf(sessionId) }.getOrNull()
+            _uiState.update { it.copy(restoredPosition = saved, positionKnown = true) }
+        }
         viewModelScope.launch {
             settings.chatFontSize.collect { size ->
                 _uiState.update { it.copy(fontScale = size.multiplier) }
@@ -324,6 +341,19 @@ class MissionChatViewModel(
     fun retryHistory() {
         _uiState.update { it.copy(loadingHistory = true, historyError = null) }
         loadHistory()
+    }
+
+    /**
+     * Records where the reader is, so the next visit opens there.
+     *
+     * Fire-and-forget on purpose: this is called as the list scrolls, and a failed write costs the
+     * accuracy of one position, never the scroll. `runCatching` rather than a `try` inside the
+     * launch because a store that cannot be written must not tear the screen's scope down.
+     */
+    fun rememberPosition(index: Int, offset: Int) {
+        viewModelScope.launch {
+            runCatching { positions.remember(sessionId, MissionReadingPosition(index, offset)) }
+        }
     }
 
     fun dismissSendError() {

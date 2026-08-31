@@ -31,6 +31,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
@@ -60,8 +61,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -69,6 +72,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.garfiec.librechat.core.data.datastore.MissionReadingPosition
 import com.garfiec.librechat.core.model.engine.EngineSelectableModel
 import com.garfiec.librechat.core.ui.input.ChatInputDefaults
 import com.garfiec.librechat.core.ui.markdown.StreamingWaitIndicator
@@ -108,6 +112,8 @@ import com.garfiec.librechat.feature.tasks.util.hint
 import com.garfiec.librechat.feature.tasks.util.isRunning
 import com.garfiec.librechat.feature.tasks.util.title
 import com.garfiec.librechat.feature.tasks.util.toolCount
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -159,6 +165,7 @@ fun MissionChatScreen(
             state = state,
             contentPadding = padding,
             onRetryHistory = viewModel::retryHistory,
+            onRememberPosition = viewModel::rememberPosition,
         )
     }
 }
@@ -168,6 +175,7 @@ private fun MissionChatBody(
     state: MissionChatUiState,
     contentPadding: PaddingValues,
     onRetryHistory: () -> Unit,
+    onRememberPosition: (index: Int, offset: Int) -> Unit,
 ) {
     Box(Modifier.padding(contentPadding).fillMaxSize()) {
         val historyFailure = state.historyError
@@ -191,18 +199,64 @@ private fun MissionChatBody(
                 modifier = Modifier.align(Alignment.Center).padding(32.dp),
             )
 
-            else -> MissionTurns(state.chat, state.fontScale)
+            else -> MissionTurns(
+                chat = state.chat,
+                fontScale = state.fontScale,
+                restoredPosition = state.restoredPosition,
+                positionKnown = state.positionKnown,
+                onRememberPosition = onRememberPosition,
+            )
         }
     }
 }
 
 @Composable
-private fun MissionTurns(chat: MissionChatState, fontScale: Float) {
+private fun MissionTurns(
+    chat: MissionChatState,
+    fontScale: Float,
+    restoredPosition: MissionReadingPosition?,
+    positionKnown: Boolean,
+    onRememberPosition: (index: Int, offset: Int) -> Unit,
+) {
     val listState = rememberLazyListState()
+    // Open where the reader left off. Once — hence the flag, saved across rotation: a second
+    // restore would yank the list back out from under someone who has since scrolled.
+    //
+    // It waits on BOTH the stored position having been read and the transcript having landed,
+    // because scrolling to item 40 of an empty list is a no-op the follow effect below then
+    // finishes by dropping to the tail. Without a saved position the tail IS the right place, and
+    // that is what this screen did for everyone before 31/08/2026.
+    var restored by rememberSaveable(chat.turns.isNotEmpty()) { mutableStateOf(false) }
+    LaunchedEffect(positionKnown, chat.turns.isNotEmpty()) {
+        if (restored || !positionKnown || chat.turns.isEmpty()) return@LaunchedEffect
+        restoredPosition?.let { listState.scrollToItem(it.index, it.offset) }
+        restored = true
+    }
+    // Remember where they are, debounced: the position is written as they scroll, and a store write
+    // per frame would be one per pixel. `collectLatest` cancels the pending delay on the next
+    // change, so only a pause writes.
+    //
+    // `rememberUpdatedState` because the effect restarts on `restored` alone: capturing the lambda
+    // directly would pin whichever instance was current when the effect started, and a recomposed
+    // parent would then be writing through a stale reference.
+    val remember by rememberUpdatedState(onRememberPosition)
+    LaunchedEffect(listState, restored) {
+        if (!restored) return@LaunchedEffect
+        snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
+            .collectLatest { (index, offset) ->
+                delay(POSITION_SETTLE_MS)
+                remember(index, offset)
+            }
+    }
     // Follow the answer as it grows — but only while the reader is already at the tail. An
     // unconditional scroll stole the list from anyone reading back through a streaming mission:
     // every token snapped the screen to the bottom. The chat gates its follow the same way.
-    LaunchedEffect(chat.turns.size, tailLength(chat)) {
+    //
+    // Gated on `restored` too, or the very first emission would scroll to the bottom before the
+    // saved position has been applied — the follow reads an empty `visibleItemsInfo` as « at the
+    // tail », which is exactly the state a list that has not drawn yet is in.
+    LaunchedEffect(chat.turns.size, tailLength(chat), restored) {
+        if (!restored) return@LaunchedEffect
         val info = listState.layoutInfo
         val nearTail = info.visibleItemsInfo.lastOrNull()
             ?.let { it.index >= info.totalItemsCount - 2 } ?: true
@@ -224,9 +278,16 @@ private fun MissionTurns(chat: MissionChatState, fontScale: Float) {
         ) { index ->
             val turn = chat.turns[index]
             val live = chat.streaming && index == chat.turns.lastIndex
-            when (turn) {
-                is ChatTurn.User -> UserBubble(turn, fontScale)
-                is ChatTurn.Assistant -> AssistantTurn(turn, streaming = live, fontScale = fontScale)
+            // Per TURN, not around the LazyColumn. A SelectionContainer only tracks what is
+            // composed, and a lazy list recycles: one container around the whole list loses the
+            // selection the moment a scroll drops its anchor off screen. The chat scopes its own
+            // the same way — one per message. A transcript that could not be selected at all is
+            // what shipped until 31/08/2026.
+            SelectionContainer {
+                when (turn) {
+                    is ChatTurn.User -> UserBubble(turn, fontScale)
+                    is ChatTurn.Assistant -> AssistantTurn(turn, streaming = live, fontScale = fontScale)
+                }
             }
         }
     }
@@ -764,3 +825,6 @@ private const val MAX_INPUT_LINES = 6
 /** The chat's 56 dp touch target, so the two composers line up when you switch between them. */
 private val SEND_BUTTON_SIZE = 56.dp
 private val SEND_ICON_SIZE = 28.dp
+
+/** A pause long enough to mean « stopped here », short enough to survive a quick exit. */
+private const val POSITION_SETTLE_MS = 400L
