@@ -45,6 +45,7 @@ import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.outlined.AddPhotoAlternate
 import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.Build
+import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.CircularProgressIndicator
@@ -86,7 +87,9 @@ import com.garfiec.librechat.feature.tasks.components.Explanation
 import com.garfiec.librechat.feature.tasks.components.MissionMarkdown
 import com.garfiec.librechat.feature.tasks.components.ModelPickerSheet
 import com.garfiec.librechat.feature.tasks.components.rememberMissionAttachmentPicker
+import com.garfiec.librechat.feature.tasks.components.rememberMissionAudioPicker
 import com.garfiec.librechat.feature.tasks.resources.Res
+import com.garfiec.librechat.feature.tasks.resources.tasks_attach_audio
 import com.garfiec.librechat.feature.tasks.resources.tasks_attach_photo
 import com.garfiec.librechat.feature.tasks.resources.tasks_attached_photo
 import com.garfiec.librechat.feature.tasks.resources.tasks_attachment_remove
@@ -108,6 +111,7 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_connectors
 import com.garfiec.librechat.feature.tasks.resources.tasks_model_default_short
 import com.garfiec.librechat.feature.tasks.resources.tasks_retry
 import com.garfiec.librechat.feature.tasks.resources.tasks_stop
+import com.garfiec.librechat.feature.tasks.resources.tasks_transcription_failed
 import com.garfiec.librechat.feature.tasks.util.ChatBlock
 import com.garfiec.librechat.feature.tasks.util.ChatPart
 import com.garfiec.librechat.feature.tasks.util.ChatTurn
@@ -169,6 +173,8 @@ fun MissionChatScreen(
                 onRetryCatalogue = viewModel::retryCatalogue,
                 onAddAttachments = viewModel::addAttachments,
                 onRemoveAttachment = viewModel::removeAttachment,
+                onTranscribeAudio = viewModel::transcribeAudio,
+                onDismissTranscriptionError = viewModel::dismissTranscriptionError,
             )
         },
     ) { padding ->
@@ -606,6 +612,8 @@ private fun MissionChatInput(
     onRetryCatalogue: () -> Unit,
     onAddAttachments: (List<StagedAttachment>) -> Unit,
     onRemoveAttachment: (String) -> Unit,
+    onTranscribeAudio: (ByteArray, String) -> Unit,
+    onDismissTranscriptionError: () -> Unit,
 ) {
     var picker by remember { mutableStateOf(Picker.NONE) }
 
@@ -620,6 +628,17 @@ private fun MissionChatInput(
         // the screen » actually means. The chat reaches the same place differently — its composer
         // is an overlay inside the body, under a Scaffold that carries `imePadding()` itself.
         Column(Modifier.windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime))) {
+            if (state.transcriptionFailed) {
+                Text(
+                    text = stringResource(Res.string.tasks_transcription_failed),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onDismissTranscriptionError)
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                )
+            }
             state.sendError?.let { kind ->
                 // The send failed and the text was put back — say why, once, dismissible on tap.
                 Text(
@@ -658,6 +677,25 @@ private fun MissionChatInput(
                             contentDescription = stringResource(Res.string.tasks_attach_photo),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                    }
+                }
+                // An audio file becomes words in the box, via the server's Whisper — no model on
+                // the gateway hears audio, and the words are what the mission can actually read.
+                val openAudio = rememberMissionAudioPicker(onPick = { onTranscribeAudio(it.bytes, it.mime) })
+                if (openAudio != null) {
+                    if (state.transcribing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.padding(12.dp).size(24.dp),
+                            strokeWidth = 2.dp,
+                        )
+                    } else {
+                        IconButton(onClick = openAudio) {
+                            Icon(
+                                Icons.Outlined.Mic,
+                                contentDescription = stringResource(Res.string.tasks_attach_audio),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                 }
                 OutlinedTextField(

@@ -2,6 +2,7 @@ package com.garfiec.librechat.feature.tasks
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.garfiec.librechat.core.common.result.Result
 import com.garfiec.librechat.core.data.datastore.MissionReadingPosition
 import com.garfiec.librechat.core.data.datastore.MissionReadingPositions
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
@@ -9,6 +10,7 @@ import com.garfiec.librechat.core.data.engine.ConnectorOption
 import com.garfiec.librechat.core.data.engine.EngineMissionRepository
 import com.garfiec.librechat.core.data.engine.engineFailureKind
 import com.garfiec.librechat.core.data.engine.offered
+import com.garfiec.librechat.core.data.repository.SpeechRepository
 import com.garfiec.librechat.core.model.engine.EngineFailureKind
 import com.garfiec.librechat.core.model.engine.EngineSelectableModel
 import com.garfiec.librechat.feature.tasks.util.MissionChatState
@@ -42,6 +44,10 @@ data class MissionChatUiState(
     val sending: Boolean = false,
     /** Photos staged for the next message, already downscaled by the picker's platform side. */
     val attachments: List<StagedAttachment> = emptyList(),
+    /** An audio file is at the server's Whisper right now; its words land in [input] when it answers. */
+    val transcribing: Boolean = false,
+    /** The transcription failed — the one error here that is not the engine's. */
+    val transcriptionFailed: Boolean = false,
     /** Why the transcript would not load, or null. */
     val historyError: EngineFailureKind? = null,
     /** Why the last send did not reach the engine, or null. The text is put back when this is set. */
@@ -116,6 +122,7 @@ class MissionChatViewModel(
     private val repository: EngineMissionRepository,
     private val settings: SettingsDataStore,
     private val positions: MissionReadingPositions,
+    private val speech: SpeechRepository,
     private val ioDispatcher: CoroutineDispatcher,
 ) : ViewModel() {
 
@@ -304,6 +311,37 @@ class MissionChatViewModel(
      * So the fold of the transcript is the arbiter: unchanged means nothing happened, changed means
      * the engine took it and only the reconciliation was lost.
      */
+    /**
+     * An audio file becomes words in the composer, not a part of the message.
+     *
+     * Honest by construction: no model on the gateway hears audio, so what a mission can actually
+     * read is the transcription. It goes into the **input box** rather than straight onto the wire
+     * — the speaker sees what Whisper heard and can fix it before it becomes an instruction, which
+     * is the same contract as the chat's dictation.
+     */
+    fun transcribeAudio(bytes: ByteArray, mime: String) {
+        if (_uiState.value.transcribing) return
+        _uiState.update { it.copy(transcribing = true, transcriptionFailed = false) }
+        viewModelScope.launch {
+            val transcribed = withContext(ioDispatcher) { speech.transcribeAudio(bytes, mime) }
+            _uiState.update { current ->
+                when (transcribed) {
+                    is Result.Success -> current.copy(
+                        transcribing = false,
+                        input = listOf(current.input.trimEnd(), transcribed.data.text.trim())
+                            .filter { it.isNotEmpty() }
+                            .joinToString(" "),
+                    )
+                    else -> current.copy(transcribing = false, transcriptionFailed = true)
+                }
+            }
+        }
+    }
+
+    fun dismissTranscriptionError() {
+        _uiState.update { it.copy(transcriptionFailed = false) }
+    }
+
     fun addAttachments(staged: List<StagedAttachment>) {
         _uiState.update { it.copy(attachments = it.attachments + staged) }
     }
