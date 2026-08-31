@@ -1,4 +1,4 @@
-package com.garfiec.librechat.feature.chat.util
+package com.garfiec.librechat.core.ui.util
 
 import android.content.ClipData
 import android.content.ClipboardManager

@@ -7,12 +7,24 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.DisableSelection
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
@@ -28,7 +40,13 @@ import com.garfiec.librechat.core.ui.markdown.chatMarkdownTypography
 import com.garfiec.librechat.core.ui.markdown.parseMarkdownSegments
 import com.garfiec.librechat.core.ui.markdown.rememberStreamingCursorInlineContent
 import com.garfiec.librechat.core.ui.markdown.withStreamingCursor
+import com.garfiec.librechat.core.ui.util.copyToClipboard
+import com.garfiec.librechat.feature.tasks.resources.Res
+import com.garfiec.librechat.feature.tasks.resources.tasks_copied
+import com.garfiec.librechat.feature.tasks.resources.tasks_copy_code
 import com.mikepenz.markdown.m3.Markdown
+import kotlinx.coroutines.delay
+import org.jetbrains.compose.resources.stringResource
 
 /**
  * A mission's prose, rendered exactly the way the chat renders its own.
@@ -101,9 +119,28 @@ private fun Prose(content: String, color: Color, fontScale: Float, trailingCurso
     )
 }
 
-/** A fenced block: monospace on a raised surface, with its language named when the model gave one. */
+/**
+ * A fenced block: monospace on a raised surface, with its language named when the model gave one,
+ * and a button that puts it on the clipboard.
+ *
+ * The button exists because the fingers cannot do what the mouse can. A transcript is selectable
+ * now, but aiming the start and the end of a twenty-line block on a phone is a fight; one tap is
+ * not. It copies the code **alone** — no fence, no language line — which is what someone pasting
+ * into a terminal wants, and it is the same gesture the chat's own code blocks have always had.
+ *
+ * `DisableSelection` around the header: without it, « select all » sweeps up the language label and
+ * the button's own description along with the code, and the paste comes out with « kotlin » on the
+ * first line.
+ */
 @Composable
 private fun MissionCodeBlock(code: String, language: String?) {
+    var copied by remember { mutableStateOf(false) }
+    LaunchedEffect(copied) {
+        if (copied) {
+            delay(COPIED_FEEDBACK_MS)
+            copied = false
+        }
+    }
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -111,12 +148,39 @@ private fun MissionCodeBlock(code: String, language: String?) {
             .padding(10.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        if (!language.isNullOrBlank()) {
-            Text(
-                language,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+        DisableSelection {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    language?.takeIf { it.isNotBlank() }.orEmpty(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
+                )
+                IconButton(
+                    onClick = {
+                        copyToClipboard(code.trimEnd(), "Code")
+                        copied = true
+                    },
+                    modifier = Modifier.size(COPY_BUTTON_SIZE),
+                ) {
+                    Icon(
+                        if (copied) Icons.Default.Check else Icons.Default.ContentCopy,
+                        contentDescription = stringResource(
+                            if (copied) Res.string.tasks_copied else Res.string.tasks_copy_code,
+                        ),
+                        modifier = Modifier.size(COPY_ICON_SIZE),
+                        tint = if (copied) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                    )
+                }
+            }
         }
         Text(
             code.trimEnd(),
@@ -156,3 +220,8 @@ private fun MissionTable(table: MarkdownSegment.Table) {
         }
     }
 }
+
+/** Long enough to be seen, short enough that the tick is gone before the next glance. */
+private const val COPIED_FEEDBACK_MS = 2_000L
+private val COPY_BUTTON_SIZE = 28.dp
+private val COPY_ICON_SIZE = 16.dp

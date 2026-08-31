@@ -34,6 +34,11 @@ kotlin {
             // Runtime-permission launcher for saving images to the gallery (API < 29).
             implementation(libs.activity.compose)
             implementation(libs.kermit)
+            // The ONLY Koin here, and not a module: `copyToClipboard` needs the application
+            // `Context` to reach the system clipboard, and a global lookup is what the chat's copy
+            // button already did before this moved up. No Koin module is declared in this module
+            // and nothing is injected into a class — see this module's CLAUDE.md.
+            implementation(libs.koin.core)
         }
         named("androidInstrumentedTest").dependencies {
             implementation(libs.junit)

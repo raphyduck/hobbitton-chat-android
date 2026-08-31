@@ -93,7 +93,11 @@ voice, queueing and steering are chat concepts a mission session does not have.
   PDF holder). **Not `:core:data`** — the font-size multiplier is passed in as a `Float`, never read
   from `SettingsDataStore` here (`ChatFontSize.multiplier` lives beside the enum in `:core:data`).
 - Convention plugins: `librechat.kmp.library` + `librechat.kmp.compose` (this module is KMP: Android + both iOS targets).
-- No DI in this module (no Koin modules, no injected classes).
+- No DI in this module (no Koin modules, no injected classes). **One exception**, and it is a
+  lookup rather than an injection: `util/PlatformClipboard.android.kt` reaches the application
+  `Context` through `GlobalContext` to touch the system clipboard. It moved up from
+  `feature/chat` on 31/08/2026 when a mission transcript gained a copy button too — two
+  features copy, and feature modules cannot see each other.
 - Use `@Preview` annotations on all components for Android Studio preview support.
 - During SSE streaming, buffer markdown re-renders to ~100ms intervals to avoid frame drops.
 

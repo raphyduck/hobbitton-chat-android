@@ -31,6 +31,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
@@ -224,9 +225,16 @@ private fun MissionTurns(chat: MissionChatState, fontScale: Float) {
         ) { index ->
             val turn = chat.turns[index]
             val live = chat.streaming && index == chat.turns.lastIndex
-            when (turn) {
-                is ChatTurn.User -> UserBubble(turn, fontScale)
-                is ChatTurn.Assistant -> AssistantTurn(turn, streaming = live, fontScale = fontScale)
+            // Per TURN, not around the LazyColumn. A SelectionContainer only tracks what is
+            // composed, and a lazy list recycles: one container around the whole list loses the
+            // selection the moment a scroll drops its anchor off screen. The chat scopes its own
+            // the same way — one per message. A transcript that could not be selected at all is
+            // what shipped until 31/08/2026.
+            SelectionContainer {
+                when (turn) {
+                    is ChatTurn.User -> UserBubble(turn, fontScale)
+                    is ChatTurn.Assistant -> AssistantTurn(turn, streaming = live, fontScale = fontScale)
+                }
             }
         }
     }
