@@ -106,6 +106,7 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_spend_header
 import com.garfiec.librechat.feature.tasks.resources.tasks_spend_tiny
 import com.garfiec.librechat.feature.tasks.resources.tasks_spend_total
 import com.garfiec.librechat.feature.tasks.resources.tasks_spend_total_partial
+import com.garfiec.librechat.feature.tasks.resources.tasks_spend_unit_price
 import com.garfiec.librechat.feature.tasks.resources.tasks_spend_unpriced
 import com.garfiec.librechat.feature.tasks.resources.tasks_spend_unpriced_note
 import com.garfiec.librechat.feature.tasks.resources.tasks_state_failed
@@ -114,10 +115,12 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_state_running
 import com.garfiec.librechat.feature.tasks.resources.tasks_state_succeeded
 import com.garfiec.librechat.feature.tasks.resources.tasks_stop
 import com.garfiec.librechat.feature.tasks.resources.tasks_title
+import com.garfiec.librechat.feature.tasks.util.byCostDescending
 import com.garfiec.librechat.feature.tasks.util.groupThousands
 import com.garfiec.librechat.feature.tasks.util.hint
 import com.garfiec.librechat.feature.tasks.util.missionAge
 import com.garfiec.librechat.feature.tasks.util.money
+import com.garfiec.librechat.feature.tasks.util.observedPricePerMillion
 import com.garfiec.librechat.feature.tasks.util.sentence
 import com.garfiec.librechat.feature.tasks.util.title
 import org.jetbrains.compose.resources.stringResource
@@ -530,7 +533,7 @@ private fun SpendSection(report: Consumption) {
                     labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 if (detailShown) {
-                    report.models.forEach { model ->
+                    report.models.byCostDescending().forEach { model ->
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -538,8 +541,16 @@ private fun SpendSection(report: Consumption) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(model.model, style = MaterialTheme.typography.bodyMedium)
                                 Text(
-                                    groupThousands(model.tokens) + " · " +
+                                    listOfNotNull(
+                                        groupThousands(model.tokens),
                                         stringResource(Res.string.tasks_spend_calls, model.calls),
+                                        // What the million actually cost: the figure that explains
+                                        // why the row above it is ranked where it is. Absent rather
+                                        // than guessed when the spend is unknown or partial.
+                                        model.observedPricePerMillion()?.let { rate ->
+                                            stringResource(Res.string.tasks_spend_unit_price, money(rate))
+                                        },
+                                    ).joinToString(" · "),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
