@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
@@ -41,6 +42,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.outlined.AddPhotoAlternate
 import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.Build
 import androidx.compose.material.icons.outlined.Refresh
@@ -68,10 +70,12 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil3.compose.AsyncImage
 import com.garfiec.librechat.core.data.datastore.MissionReadingPosition
 import com.garfiec.librechat.core.model.engine.EngineSelectableModel
 import com.garfiec.librechat.core.ui.input.ChatInputDefaults
@@ -81,7 +85,11 @@ import com.garfiec.librechat.feature.tasks.components.DisclosureRow
 import com.garfiec.librechat.feature.tasks.components.Explanation
 import com.garfiec.librechat.feature.tasks.components.MissionMarkdown
 import com.garfiec.librechat.feature.tasks.components.ModelPickerSheet
+import com.garfiec.librechat.feature.tasks.components.rememberMissionAttachmentPicker
 import com.garfiec.librechat.feature.tasks.resources.Res
+import com.garfiec.librechat.feature.tasks.resources.tasks_attach_photo
+import com.garfiec.librechat.feature.tasks.resources.tasks_attached_photo
+import com.garfiec.librechat.feature.tasks.resources.tasks_attachment_remove
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_back
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_collapse
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_connector_count
@@ -104,6 +112,7 @@ import com.garfiec.librechat.feature.tasks.util.ChatBlock
 import com.garfiec.librechat.feature.tasks.util.ChatPart
 import com.garfiec.librechat.feature.tasks.util.ChatTurn
 import com.garfiec.librechat.feature.tasks.util.MissionChatState
+import com.garfiec.librechat.feature.tasks.util.StagedAttachment
 import com.garfiec.librechat.feature.tasks.util.ToolState
 import com.garfiec.librechat.feature.tasks.util.asBlocks
 import com.garfiec.librechat.feature.tasks.util.hasFailure
@@ -158,6 +167,8 @@ fun MissionChatScreen(
                 onToggleConnector = viewModel::toggleConnector,
                 onSelectModel = viewModel::selectModel,
                 onRetryCatalogue = viewModel::retryCatalogue,
+                onAddAttachments = viewModel::addAttachments,
+                onRemoveAttachment = viewModel::removeAttachment,
             )
         },
     ) { padding ->
@@ -316,14 +327,19 @@ private fun UserBubble(turn: ChatTurn.User, fontScale: Float) {
             // in a bubble 85 % of the screen wide.
             modifier = Modifier.weight(1f, fill = false),
         ) {
-            Column(Modifier.padding(12.dp)) {
-                turn.parts.filterIsInstance<ChatPart.Text>().forEach { part ->
-                    if (part.text.isNotBlank()) {
-                        MissionMarkdown(
-                            part.text,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
-                            fontScale = fontScale,
-                        )
+            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                turn.parts.forEach { part ->
+                    when (part) {
+                        is ChatPart.Attachment -> AttachmentContent(part)
+                        is ChatPart.Text ->
+                            if (part.text.isNotBlank()) {
+                                MissionMarkdown(
+                                    part.text,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    fontScale = fontScale,
+                                )
+                            }
+                        else -> Unit
                     }
                 }
             }
@@ -354,6 +370,7 @@ private fun AssistantTurn(turn: ChatTurn.Assistant, streaming: Boolean, fontScal
         val lastProse = blocks.indexOfLast { it is ChatBlock.Prose }
         blocks.forEachIndexed { index, block ->
             when (block) {
+                is ChatBlock.Media -> AttachmentContent(block.part)
                 is ChatBlock.Prose -> MissionMarkdown(
                     text = block.part.text,
                     fontScale = fontScale,
@@ -433,7 +450,10 @@ private fun ActivityBlock(block: ChatBlock.Activity) {
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                        // Neither ever reaches an activity group: prose and attachments open
+                        // their own blocks in asBlocks.
                         is ChatPart.Text -> Unit
+                        is ChatPart.Attachment -> Unit
                     }
                 }
             }
@@ -584,6 +604,8 @@ private fun MissionChatInput(
     onToggleConnector: (String) -> Unit,
     onSelectModel: (EngineSelectableModel?) -> Unit,
     onRetryCatalogue: () -> Unit,
+    onAddAttachments: (List<StagedAttachment>) -> Unit,
+    onRemoveAttachment: (String) -> Unit,
 ) {
     var picker by remember { mutableStateOf(Picker.NONE) }
 
@@ -618,11 +640,26 @@ private fun MissionChatInput(
                 onRetryCatalogue = onRetryCatalogue,
             )
 
+            if (state.attachments.isNotEmpty()) {
+                StagedAttachmentsRow(state.attachments, onRemoveAttachment)
+            }
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.Bottom,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
+                // Null where the platform has no picker to offer (iOS today) — then no button,
+                // rather than a button that does nothing.
+                val openPicker = rememberMissionAttachmentPicker(onPick = onAddAttachments)
+                if (openPicker != null) {
+                    IconButton(onClick = openPicker) {
+                        Icon(
+                            Icons.Outlined.AddPhotoAlternate,
+                            contentDescription = stringResource(Res.string.tasks_attach_photo),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
                 OutlinedTextField(
                     value = state.input,
                     onValueChange = onInput,
@@ -637,7 +674,8 @@ private fun MissionChatInput(
                     // `sending` counts as running: the gap between the POST and the answer's first
                     // token is exactly when someone wants to be able to call it off.
                     running = state.chat.streaming || state.sending,
-                    canSend = state.input.isNotBlank(),
+                    // A photo can be the whole message.
+                    canSend = state.input.isNotBlank() || state.attachments.isNotEmpty(),
                     onSend = onSend,
                     onStop = onStop,
                 )
@@ -828,3 +866,69 @@ private val SEND_ICON_SIZE = 28.dp
 
 /** A pause long enough to mean « stopped here », short enough to survive a quick exit. */
 private const val POSITION_SETTLE_MS = 400L
+
+/**
+ * One attachment in the transcript. An image draws as the picture — bounded, clipped like a bubble;
+ * anything else names itself, because rendering raw base64 helps nobody.
+ */
+@Composable
+private fun AttachmentContent(part: ChatPart.Attachment) {
+    if (part.mime.startsWith("image/")) {
+        AsyncImage(
+            model = part.dataUrl,
+            contentDescription = part.filename ?: stringResource(Res.string.tasks_attached_photo),
+            modifier = Modifier
+                .heightIn(max = ATTACHMENT_MAX_HEIGHT)
+                .clip(RoundedCornerShape(12.dp)),
+            contentScale = ContentScale.Fit,
+        )
+    } else {
+        Text(
+            part.filename ?: part.mime,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/** The photos staged for the next message: thumbnails, each with its remove cross. */
+@Composable
+private fun StagedAttachmentsRow(
+    attachments: List<StagedAttachment>,
+    onRemove: (String) -> Unit,
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        attachments.forEach { staged ->
+            Box {
+                AsyncImage(
+                    model = staged.bytes,
+                    contentDescription = staged.filename,
+                    modifier = Modifier
+                        .size(STAGED_THUMBNAIL_SIZE)
+                        .clip(RoundedCornerShape(8.dp)),
+                    contentScale = ContentScale.Crop,
+                )
+                IconButton(
+                    onClick = { onRemove(staged.id) },
+                    modifier = Modifier.align(Alignment.TopEnd).size(24.dp),
+                ) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = stringResource(Res.string.tasks_attachment_remove),
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+            }
+        }
+    }
+}
+
+private val ATTACHMENT_MAX_HEIGHT = 280.dp
+private val STAGED_THUMBNAIL_SIZE = 72.dp

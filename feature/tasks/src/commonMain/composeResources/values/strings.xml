@@ -77,6 +77,9 @@
     <string name="tasks_spend_tiny">&lt; 0.0001 $</string>
     <string name="tasks_spend_at_least">at least %1$s</string>
     <string name="tasks_spend_unit_price">%1$s/M</string>
+    <string name="tasks_attach_photo">Attach a photo</string>
+    <string name="tasks_attached_photo">Attached photo</string>
+    <string name="tasks_attachment_remove">Remove this photo</string>
     <string name="tasks_copy_code">Copy the code</string>
     <string name="tasks_copied">Copied</string>
     <string name="tasks_spend_calls">%1$d calls</string>

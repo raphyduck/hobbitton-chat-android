@@ -12,6 +12,8 @@ import com.garfiec.librechat.core.data.engine.offered
 import com.garfiec.librechat.core.model.engine.EngineFailureKind
 import com.garfiec.librechat.core.model.engine.EngineSelectableModel
 import com.garfiec.librechat.feature.tasks.util.MissionChatState
+import com.garfiec.librechat.feature.tasks.util.StagedAttachment
+import com.garfiec.librechat.feature.tasks.util.asPromptPart
 import com.garfiec.librechat.feature.tasks.util.reduce
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
@@ -38,6 +40,8 @@ data class MissionChatUiState(
     val loadingHistory: Boolean = true,
     /** A send is in flight — the gap between the POST and the answer's first token. */
     val sending: Boolean = false,
+    /** Photos staged for the next message, already downscaled by the picker's platform side. */
+    val attachments: List<StagedAttachment> = emptyList(),
     /** Why the transcript would not load, or null. */
     val historyError: EngineFailureKind? = null,
     /** Why the last send did not reach the engine, or null. The text is put back when this is set. */
@@ -300,17 +304,33 @@ class MissionChatViewModel(
      * So the fold of the transcript is the arbiter: unchanged means nothing happened, changed means
      * the engine took it and only the reconciliation was lost.
      */
+    fun addAttachments(staged: List<StagedAttachment>) {
+        _uiState.update { it.copy(attachments = it.attachments + staged) }
+    }
+
+    fun removeAttachment(id: String) {
+        _uiState.update { state -> state.copy(attachments = state.attachments.filterNot { it.id == id }) }
+    }
+
     fun send() {
         val text = _uiState.value.input.trim()
-        if (text.isEmpty() || _uiState.value.sending) return
+        val attachments = _uiState.value.attachments
+        if ((text.isEmpty() && attachments.isEmpty()) || _uiState.value.sending) return
         val before = _uiState.value.chat
-        _uiState.update { it.copy(input = "", sending = true, sendError = null) }
+        _uiState.update { it.copy(input = "", attachments = emptyList(), sending = true, sendError = null) }
         viewModelScope.launch {
             try {
                 // The answer streams in over the feed while this call is in flight; what it returns is
                 // the finished turn, folded in to reconcile anything the feed missed.
                 val model = _uiState.value.model?.ref
-                val settled = withContext(ioDispatcher) { repository.sendMessage(sessionId, text, model) }
+                val settled = withContext(ioDispatcher) {
+                    repository.sendMessage(
+                        sessionId,
+                        text,
+                        model,
+                        files = attachments.map { it.asPromptPart() },
+                    )
+                }
                 _uiState.update { current ->
                     current.copy(chat = settled.fold(current.chat) { state, event -> state.reduce(event) })
                 }
@@ -319,8 +339,8 @@ class MissionChatViewModel(
             } catch (e: Exception) {
                 _uiState.update { current ->
                     if (current.chat == before) {
-                        // Never swallow the words: put them back in the box and name what went wrong.
-                        current.copy(input = text, sendError = e.engineFailureKind())
+                        // Never swallow the words — nor the photos: both go back in the composer.
+                        current.copy(input = text, attachments = attachments, sendError = e.engineFailureKind())
                     } else {
                         current
                     }

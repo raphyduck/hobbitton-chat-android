@@ -206,8 +206,9 @@ class EngineMissionRepository(
         sessionId: String,
         text: String,
         model: EngineModelRef? = null,
+        files: List<EnginePromptPart> = emptyList(),
     ): List<EngineStreamEvent> =
-        engineHistoryEvents(listOf(api.sendMessage(sessionId, text, model = model)))
+        engineHistoryEvents(listOf(api.sendMessage(sessionId, text, model = model, files = files)))
 
     /**
      * The connectors a mission may be given, as the scheduler declares them.
