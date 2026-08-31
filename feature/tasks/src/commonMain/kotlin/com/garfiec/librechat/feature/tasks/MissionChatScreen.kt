@@ -43,8 +43,10 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.outlined.AddPhotoAlternate
+import androidx.compose.material.icons.outlined.AudioFile
 import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.Build
+import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.CircularProgressIndicator
@@ -86,7 +88,10 @@ import com.garfiec.librechat.feature.tasks.components.Explanation
 import com.garfiec.librechat.feature.tasks.components.MissionMarkdown
 import com.garfiec.librechat.feature.tasks.components.ModelPickerSheet
 import com.garfiec.librechat.feature.tasks.components.rememberMissionAttachmentPicker
+import com.garfiec.librechat.feature.tasks.components.rememberMissionAudioPicker
+import com.garfiec.librechat.feature.tasks.components.rememberMissionDictation
 import com.garfiec.librechat.feature.tasks.resources.Res
+import com.garfiec.librechat.feature.tasks.resources.tasks_attach_audio
 import com.garfiec.librechat.feature.tasks.resources.tasks_attach_photo
 import com.garfiec.librechat.feature.tasks.resources.tasks_attached_photo
 import com.garfiec.librechat.feature.tasks.resources.tasks_attachment_remove
@@ -105,9 +110,13 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_chat_send
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_title
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_tool_count
 import com.garfiec.librechat.feature.tasks.resources.tasks_connectors
+import com.garfiec.librechat.feature.tasks.resources.tasks_dictate
+import com.garfiec.librechat.feature.tasks.resources.tasks_dictate_stop
 import com.garfiec.librechat.feature.tasks.resources.tasks_model_default_short
 import com.garfiec.librechat.feature.tasks.resources.tasks_retry
 import com.garfiec.librechat.feature.tasks.resources.tasks_stop
+import com.garfiec.librechat.feature.tasks.resources.tasks_transcription_failed
+import com.garfiec.librechat.feature.tasks.util.AudioNote
 import com.garfiec.librechat.feature.tasks.util.ChatBlock
 import com.garfiec.librechat.feature.tasks.util.ChatPart
 import com.garfiec.librechat.feature.tasks.util.ChatTurn
@@ -169,6 +178,10 @@ fun MissionChatScreen(
                 onRetryCatalogue = viewModel::retryCatalogue,
                 onAddAttachments = viewModel::addAttachments,
                 onRemoveAttachment = viewModel::removeAttachment,
+                onTranscribeAudio = viewModel::transcribeAudio,
+                onAttachAudio = viewModel::attachAudio,
+                onRemoveAudioNote = viewModel::removeAudioNote,
+                onDismissTranscriptionError = viewModel::dismissTranscriptionError,
             )
         },
     ) { padding ->
@@ -606,6 +619,10 @@ private fun MissionChatInput(
     onRetryCatalogue: () -> Unit,
     onAddAttachments: (List<StagedAttachment>) -> Unit,
     onRemoveAttachment: (String) -> Unit,
+    onTranscribeAudio: (ByteArray, String) -> Unit,
+    onAttachAudio: (bytes: ByteArray, mime: String, filename: String) -> Unit,
+    onRemoveAudioNote: (String) -> Unit,
+    onDismissTranscriptionError: () -> Unit,
 ) {
     var picker by remember { mutableStateOf(Picker.NONE) }
 
@@ -620,6 +637,17 @@ private fun MissionChatInput(
         // the screen » actually means. The chat reaches the same place differently — its composer
         // is an overlay inside the body, under a Scaffold that carries `imePadding()` itself.
         Column(Modifier.windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime))) {
+            if (state.transcriptionFailed) {
+                Text(
+                    text = stringResource(Res.string.tasks_transcription_failed),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onDismissTranscriptionError)
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                )
+            }
             state.sendError?.let { kind ->
                 // The send failed and the text was put back — say why, once, dismissible on tap.
                 Text(
@@ -640,8 +668,8 @@ private fun MissionChatInput(
                 onRetryCatalogue = onRetryCatalogue,
             )
 
-            if (state.attachments.isNotEmpty()) {
-                StagedAttachmentsRow(state.attachments, onRemoveAttachment)
+            if (state.attachments.isNotEmpty() || state.audioNotes.isNotEmpty()) {
+                StagedAttachmentsRow(state.attachments, state.audioNotes, onRemoveAttachment, onRemoveAudioNote)
             }
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
@@ -660,6 +688,52 @@ private fun MissionChatInput(
                         )
                     }
                 }
+                // A deposited audio file goes to the THREAD: transcribed on pick, staged as a
+                // quoted note, sent with the message. Whisper because no model on the gateway
+                // hears audio — the words are what the mission can actually read.
+                val openAudio = rememberMissionAudioPicker(
+                    onPick = { onAttachAudio(it.bytes, it.mime, it.filename) },
+                )
+                if (openAudio != null) {
+                    IconButton(onClick = openAudio, enabled = !state.transcribing) {
+                        Icon(
+                            Icons.Outlined.AudioFile,
+                            contentDescription = stringResource(Res.string.tasks_attach_audio),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                // The mic DICTATES: tap to record, tap to stop, and the words land in the box —
+                // where the speaker reads what Whisper heard before it becomes an instruction.
+                // Asked for in exactly these terms on 31/08/2026, after the first cut wired the
+                // mic to a file picker instead.
+                val dictation = rememberMissionDictation(
+                    onCapture = { onTranscribeAudio(it.bytes, it.mime) },
+                )
+                if (dictation != null) {
+                    if (state.transcribing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.padding(12.dp).size(24.dp),
+                            strokeWidth = 2.dp,
+                        )
+                    } else {
+                        IconButton(onClick = dictation.toggle) {
+                            if (dictation.recording) {
+                                Icon(
+                                    Icons.Filled.Stop,
+                                    contentDescription = stringResource(Res.string.tasks_dictate_stop),
+                                    tint = MaterialTheme.colorScheme.error,
+                                )
+                            } else {
+                                Icon(
+                                    Icons.Outlined.Mic,
+                                    contentDescription = stringResource(Res.string.tasks_dictate),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
+                }
                 OutlinedTextField(
                     value = state.input,
                     onValueChange = onInput,
@@ -674,8 +748,10 @@ private fun MissionChatInput(
                     // `sending` counts as running: the gap between the POST and the answer's first
                     // token is exactly when someone wants to be able to call it off.
                     running = state.chat.streaming || state.sending,
-                    // A photo can be the whole message.
-                    canSend = state.input.isNotBlank() || state.attachments.isNotEmpty(),
+                    // A photo — or a transcribed audio — can be the whole message.
+                    canSend = state.input.isNotBlank() ||
+                        state.attachments.isNotEmpty() ||
+                        state.audioNotes.isNotEmpty(),
                     onSend = onSend,
                     onStop = onStop,
                 )
@@ -891,11 +967,17 @@ private fun AttachmentContent(part: ChatPart.Attachment) {
     }
 }
 
-/** The photos staged for the next message: thumbnails, each with its remove cross. */
+/**
+ * What is staged for the next message: photo thumbnails, and one chip per transcribed audio —
+ * each with its remove cross. The chip names the file, because that name is what the thread will
+ * quote above the words.
+ */
 @Composable
 private fun StagedAttachmentsRow(
     attachments: List<StagedAttachment>,
-    onRemove: (String) -> Unit,
+    audioNotes: List<AudioNote>,
+    onRemoveAttachment: (String) -> Unit,
+    onRemoveAudioNote: (String) -> Unit,
 ) {
     Row(
         Modifier
@@ -903,6 +985,7 @@ private fun StagedAttachmentsRow(
             .horizontalScroll(rememberScrollState())
             .padding(horizontal = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         attachments.forEach { staged ->
             Box {
@@ -915,7 +998,7 @@ private fun StagedAttachmentsRow(
                     contentScale = ContentScale.Crop,
                 )
                 IconButton(
-                    onClick = { onRemove(staged.id) },
+                    onClick = { onRemoveAttachment(staged.id) },
                     modifier = Modifier.align(Alignment.TopEnd).size(24.dp),
                 ) {
                     Icon(
@@ -926,6 +1009,20 @@ private fun StagedAttachmentsRow(
                     )
                 }
             }
+        }
+        audioNotes.forEach { note ->
+            AssistChip(
+                onClick = { onRemoveAudioNote(note.id) },
+                leadingIcon = { Icon(Icons.Outlined.AudioFile, null, Modifier.size(16.dp)) },
+                label = { Text(note.filename) },
+                trailingIcon = {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = stringResource(Res.string.tasks_attachment_remove),
+                        modifier = Modifier.size(16.dp),
+                    )
+                },
+            )
         }
     }
 }

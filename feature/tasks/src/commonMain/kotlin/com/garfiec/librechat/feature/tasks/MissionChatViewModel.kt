@@ -2,6 +2,7 @@ package com.garfiec.librechat.feature.tasks
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.garfiec.librechat.core.common.result.Result
 import com.garfiec.librechat.core.data.datastore.MissionReadingPosition
 import com.garfiec.librechat.core.data.datastore.MissionReadingPositions
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
@@ -9,11 +10,14 @@ import com.garfiec.librechat.core.data.engine.ConnectorOption
 import com.garfiec.librechat.core.data.engine.EngineMissionRepository
 import com.garfiec.librechat.core.data.engine.engineFailureKind
 import com.garfiec.librechat.core.data.engine.offered
+import com.garfiec.librechat.core.data.repository.SpeechRepository
 import com.garfiec.librechat.core.model.engine.EngineFailureKind
 import com.garfiec.librechat.core.model.engine.EngineSelectableModel
+import com.garfiec.librechat.feature.tasks.util.AudioNote
 import com.garfiec.librechat.feature.tasks.util.MissionChatState
 import com.garfiec.librechat.feature.tasks.util.StagedAttachment
 import com.garfiec.librechat.feature.tasks.util.asPromptPart
+import com.garfiec.librechat.feature.tasks.util.outgoingMessageText
 import com.garfiec.librechat.feature.tasks.util.reduce
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
@@ -42,6 +46,15 @@ data class MissionChatUiState(
     val sending: Boolean = false,
     /** Photos staged for the next message, already downscaled by the picker's platform side. */
     val attachments: List<StagedAttachment> = emptyList(),
+    /** Audio files already transcribed, leaving with the next message as quoted blocks in the thread. */
+    val audioNotes: List<AudioNote> = emptyList(),
+    /**
+     * Some audio is at the server's Whisper right now — a dictation about to land in [input], or a
+     * deposited file about to join [audioNotes]. One flag for both: Whisper takes one at a time here.
+     */
+    val transcribing: Boolean = false,
+    /** The transcription failed — the one error here that is not the engine's. */
+    val transcriptionFailed: Boolean = false,
     /** Why the transcript would not load, or null. */
     val historyError: EngineFailureKind? = null,
     /** Why the last send did not reach the engine, or null. The text is put back when this is set. */
@@ -116,6 +129,7 @@ class MissionChatViewModel(
     private val repository: EngineMissionRepository,
     private val settings: SettingsDataStore,
     private val positions: MissionReadingPositions,
+    private val speech: SpeechRepository,
     private val ioDispatcher: CoroutineDispatcher,
 ) : ViewModel() {
 
@@ -123,6 +137,7 @@ class MissionChatViewModel(
     val uiState: StateFlow<MissionChatUiState> = _uiState.asStateFlow()
 
     private var streamJob: Job? = null
+    private var audioNoteSeq = 0
 
     init {
         loadHistory()
@@ -304,6 +319,68 @@ class MissionChatViewModel(
      * So the fold of the transcript is the arbiter: unchanged means nothing happened, changed means
      * the engine took it and only the reconciliation was lost.
      */
+    /**
+     * The dictation: a voice recording becomes words in the **composer**.
+     *
+     * The speaker sees what Whisper heard and can fix it before it becomes an instruction — the
+     * chat's dictation contract, applied here. Demanded as such on 31/08/2026: the composer is
+     * where a *dictation* lands; a deposited file goes to the thread instead ([attachAudio]).
+     */
+    fun transcribeAudio(bytes: ByteArray, mime: String) {
+        if (_uiState.value.transcribing) return
+        _uiState.update { it.copy(transcribing = true, transcriptionFailed = false) }
+        viewModelScope.launch {
+            val transcribed = withContext(ioDispatcher) { speech.transcribeAudio(bytes, mime) }
+            _uiState.update { current ->
+                when (transcribed) {
+                    is Result.Success -> current.copy(
+                        transcribing = false,
+                        input = listOf(current.input.trimEnd(), transcribed.data.text.trim())
+                            .filter { it.isNotEmpty() }
+                            .joinToString(" "),
+                    )
+                    else -> current.copy(transcribing = false, transcriptionFailed = true)
+                }
+            }
+        }
+    }
+
+    /**
+     * A deposited audio file becomes a quoted transcription in the **thread**.
+     *
+     * Transcribed on pick, not on send: a failure surfaces while the person is still here to see
+     * it, and the send itself stays instant. What is staged is the *words* ([AudioNote]) — the
+     * bytes are dropped once Whisper has answered, because no model on the gateway could read
+     * them and the transcript should not carry megabytes nobody can open.
+     */
+    fun attachAudio(bytes: ByteArray, mime: String, filename: String) {
+        if (_uiState.value.transcribing) return
+        _uiState.update { it.copy(transcribing = true, transcriptionFailed = false) }
+        // Minted outside the update: an `update` block is a CAS loop and may re-run.
+        val id = "audio-${audioNoteSeq++}"
+        viewModelScope.launch {
+            val transcribed = withContext(ioDispatcher) { speech.transcribeAudio(bytes, mime) }
+            _uiState.update { current ->
+                when (transcribed) {
+                    is Result.Success -> current.copy(
+                        transcribing = false,
+                        audioNotes = current.audioNotes +
+                            AudioNote(id, filename, transcribed.data.text.trim()),
+                    )
+                    else -> current.copy(transcribing = false, transcriptionFailed = true)
+                }
+            }
+        }
+    }
+
+    fun removeAudioNote(id: String) {
+        _uiState.update { state -> state.copy(audioNotes = state.audioNotes.filterNot { it.id == id }) }
+    }
+
+    fun dismissTranscriptionError() {
+        _uiState.update { it.copy(transcriptionFailed = false) }
+    }
+
     fun addAttachments(staged: List<StagedAttachment>) {
         _uiState.update { it.copy(attachments = it.attachments + staged) }
     }
@@ -313,11 +390,17 @@ class MissionChatViewModel(
     }
 
     fun send() {
-        val text = _uiState.value.input.trim()
-        val attachments = _uiState.value.attachments
-        if ((text.isEmpty() && attachments.isEmpty()) || _uiState.value.sending) return
-        val before = _uiState.value.chat
-        _uiState.update { it.copy(input = "", attachments = emptyList(), sending = true, sendError = null) }
+        val staged = _uiState.value
+        // The typed words plus each audio note as a quoted block — what the thread will show.
+        val text = outgoingMessageText(staged.input, staged.audioNotes)
+        val attachments = staged.attachments
+        if ((text.isEmpty() && attachments.isEmpty()) || staged.sending) return
+        val input = staged.input
+        val notes = staged.audioNotes
+        val before = staged.chat
+        _uiState.update {
+            it.copy(input = "", attachments = emptyList(), audioNotes = emptyList(), sending = true, sendError = null)
+        }
         viewModelScope.launch {
             try {
                 // The answer streams in over the feed while this call is in flight; what it returns is
@@ -339,8 +422,14 @@ class MissionChatViewModel(
             } catch (e: Exception) {
                 _uiState.update { current ->
                     if (current.chat == before) {
-                        // Never swallow the words — nor the photos: both go back in the composer.
-                        current.copy(input = text, attachments = attachments, sendError = e.engineFailureKind())
+                        // Never swallow the words — nor the photos, nor the audio notes: everything
+                        // goes back in the composer as it was, not as the flattened outgoing text.
+                        current.copy(
+                            input = input,
+                            attachments = attachments,
+                            audioNotes = notes,
+                            sendError = e.engineFailureKind(),
+                        )
                     } else {
                         current
                     }
