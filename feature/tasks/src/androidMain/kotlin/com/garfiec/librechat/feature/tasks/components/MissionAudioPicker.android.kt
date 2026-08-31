@@ -1,5 +1,8 @@
 package com.garfiec.librechat.feature.tasks.components
 
+import android.content.Context
+import android.net.Uri
+import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
@@ -31,7 +34,7 @@ internal actual fun rememberMissionAudioPicker(
                     val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
                     val mime = context.contentResolver.getType(uri) ?: FALLBACK_MIME
                     bytes?.takeIf { it.isNotEmpty() && it.size <= MAX_AUDIO_BYTES }
-                        ?.let { PickedAudio(it, mime) }
+                        ?.let { PickedAudio(it, mime, context.displayNameOf(uri)) }
                 }.getOrNull()
             }
             picked?.let(onPick)
@@ -40,5 +43,13 @@ internal actual fun rememberMissionAudioPicker(
     return { launcher.launch(arrayOf("audio/*")) }
 }
 
+/** The name the thread will quote. The provider's display name, or a neutral stand-in — never a URI. */
+private fun Context.displayNameOf(uri: Uri): String = runCatching {
+    contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+        if (cursor.moveToFirst()) cursor.getString(0) else null
+    }
+}.getOrNull() ?: FALLBACK_NAME
+
 private const val FALLBACK_MIME = "audio/mpeg"
+private const val FALLBACK_NAME = "audio"
 private const val MAX_AUDIO_BYTES = 25 * 1024 * 1024

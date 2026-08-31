@@ -79,8 +79,10 @@
     <string name="tasks_spend_unit_price">%1$s/M</string>
     <string name="tasks_attach_photo">Attach a photo</string>
     <string name="tasks_attached_photo">Attached photo</string>
-    <string name="tasks_attachment_remove">Remove this photo</string>
-    <string name="tasks_attach_audio">Transcribe an audio file</string>
+    <string name="tasks_attachment_remove">Remove this attachment</string>
+    <string name="tasks_attach_audio">Attach an audio file — its transcription goes with the message</string>
+    <string name="tasks_dictate">Dictate</string>
+    <string name="tasks_dictate_stop">Stop dictation</string>
     <string name="tasks_transcription_failed">The audio could not be transcribed. Check that the server has speech-to-text configured, then try again.</string>
     <string name="tasks_copy_code">Copy the code</string>
     <string name="tasks_copied">Copied</string>

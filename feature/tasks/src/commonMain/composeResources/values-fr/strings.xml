@@ -79,8 +79,10 @@
     <string name="tasks_spend_unit_price">%1$s/M</string>
     <string name="tasks_attach_photo">Joindre une photo</string>
     <string name="tasks_attached_photo">Photo jointe</string>
-    <string name="tasks_attachment_remove">Retirer cette photo</string>
-    <string name="tasks_attach_audio">Transcrire un fichier audio</string>
+    <string name="tasks_attachment_remove">Retirer cette pièce jointe</string>
+    <string name="tasks_attach_audio">Joindre un fichier audio — sa transcription part avec le message</string>
+    <string name="tasks_dictate">Dicter</string>
+    <string name="tasks_dictate_stop">Arrêter la dictée</string>
     <string name="tasks_transcription_failed">L\'audio n\'a pas pu être transcrit. Vérifiez que le serveur a la reconnaissance vocale configurée, puis réessayez.</string>
     <string name="tasks_copy_code">Copier le code</string>
     <string name="tasks_copied">Copié</string>
