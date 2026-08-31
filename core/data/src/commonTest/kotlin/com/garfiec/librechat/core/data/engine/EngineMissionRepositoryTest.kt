@@ -138,6 +138,25 @@ class PermissionsForTest {
     }
 
     @Test
+    fun `only the last block is read, because PATCH appends`() {
+        // Mesuré le 31/08/2026 : `PATCH /session/{id}` EMPILE ses règles. Une session vivante en
+        // portait 1 016, en 21 blocs. Chercher un `allow` n'importe où rendait « accordé » tout
+        // connecteur jamais coché — c'est ce que faisait la première version, livrée le matin même.
+        val rules = permissionsFor(catalogue, listOf("memoire", "fichiers"), autonomous = false) +
+            permissionsFor(catalogue, listOf("memoire"), autonomous = false)
+
+        assertEquals(setOf("memoire"), connectorsGranted(catalogue, rules))
+    }
+
+    @Test
+    fun `the last block counts whether it narrows or widens`() {
+        val rules = permissionsFor(catalogue, listOf("memoire"), autonomous = false) +
+            permissionsFor(catalogue, listOf("memoire", "fichiers"), autonomous = false)
+
+        assertEquals(setOf("memoire", "fichiers"), connectorsGranted(catalogue, rules))
+    }
+
+    @Test
     fun `a connector that declares no tool is never on`() {
         // `containsAll` of an empty list is vacuously true, so without the guard every empty entry
         // in the catalogue would report as granted on a session that holds nothing at all.

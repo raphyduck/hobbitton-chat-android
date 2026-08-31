@@ -330,11 +330,29 @@ fun permissionsFor(
 /**
  * [permissionsFor] read backwards: which connectors a ruleset actually grants.
  *
- * Strict on purpose — a connector counts as on only when **every** tool it declares is allowed.
+ * **The ruleset accumulates.** `PATCH /session/{id}` appends its rules; it does not replace them.
+ * Measured 31/08/2026 on a live mission: **1 016 rules in 21 blocks**, each block a whole ruleset
+ * opening with its own `*` → `deny`, growing 14 → 3 → 13 → 23 → … → 112 tools as connectors were
+ * ticked one after another. A rule found anywhere in that list is therefore not a fact about the
+ * session — reading it that way, as this did when it shipped that morning, reported every connector
+ * ever ticked, including any since unticked.
+ *
+ * So only the **last block** is read: the rules after the final `*` → `deny`, which is precisely
+ * the ruleset the last `PATCH` sent.
+ *
+ * **This is the cautious reading, and deliberately so, because the engine's own rule is not
+ * settled.** Two places in this project describe it and they disagree: the server's `moteur.py`
+ * says the last matching rule wins, [EnginePermissionRule] says the most specific match wins. Under
+ * the first, the last block is exactly the standing grant. Under the second, a tool allowed only by
+ * an earlier block would still be allowed and this reports it as off — understating what the
+ * session can reach rather than overstating it, which is the only direction a capability chip may
+ * err in. Settling it needs a measurement nobody has made: revoke a tool, then call it.
+ *
+ * Strict beyond that — a connector counts as on only when **every** tool it declares is allowed.
  * `permissionsFor` writes exactly that, one `allow` per tool, so a ruleset this app or the scheduler
- * produced round-trips exactly. A hand-written one that opens half a connector reads as off, which
- * understates what the session can do rather than overstating it; the alternative reading (any tool
- * allowed ⇒ connector on) would report `shell` as granted from a lone `bash` rule.
+ * produced round-trips exactly. A hand-written one that opens half a connector reads as off; the
+ * alternative reading (any tool allowed ⇒ connector on) would report `shell` as granted from a lone
+ * `bash` rule.
  *
  * `ask` and `deny` are not grants. A connector that declares no tool is never on: `containsAll` of
  * an empty list is vacuously true, and that would light up every empty entry the catalogue carries.
@@ -343,14 +361,22 @@ fun connectorsGranted(
     catalogue: ConnectorCatalogue,
     rules: List<EnginePermissionRule>,
 ): Set<String> {
-    val allowed = rules.filter { it.action == ACTION_ALLOW }.map { it.permission }.toSet()
+    val lastBlock = rules.indexOfLast { it.permission == ANY_TOOL && it.action == ACTION_DENY }
+    val standing = rules.drop(lastBlock + 1)
+        .filter { it.action == ACTION_ALLOW }
+        .map { it.permission }
+        .toSet()
     return catalogue.connecteurs
-        .filterValues { grant -> grant.outils.isNotEmpty() && allowed.containsAll(grant.outils) }
+        .filterValues { grant -> grant.outils.isNotEmpty() && standing.containsAll(grant.outils) }
         .keys
 }
 
 /** The one rule action that grants. */
 private const val ACTION_ALLOW = "allow"
+
+/** The catch-all every ruleset opens with, and so the marker of where the last one begins. */
+private const val ACTION_DENY = "deny"
+private const val ANY_TOOL = "*"
 
 /** The connectors this catalogue offers a mission, in the order the picker should show them. */
 fun ConnectorCatalogue.offered(autonomous: Boolean): List<ConnectorOption> =
