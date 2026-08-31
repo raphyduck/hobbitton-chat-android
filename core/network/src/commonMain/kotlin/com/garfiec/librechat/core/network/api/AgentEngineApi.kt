@@ -134,11 +134,21 @@ class AgentEngineApi(
     /**
      * Changes what a **live** session is allowed to touch.
      *
-     * `PATCH /session/{id}` takes a whole `PermissionRuleset`, so this replaces the rules rather
-     * than adding to them — which is what makes unticking a connector actually revoke it. That the
-     * engine accepts this at all is what lets the conversation offer connector chips: permissions
-     * are not frozen at creation, and a session that was launched with memory alone can be handed
-     * the mail connector without being restarted and losing its transcript.
+     * `PATCH /session/{id}` takes a whole `PermissionRuleset` and **appends** it — it does not
+     * replace what the session already carries. Measured 31/08/2026 on a live mission: 1 016 rules
+     * in 21 stacked blocks, one per call, and the list grows without bound over a long-lived
+     * session. **Whether unticking actually revokes is therefore unverified**: a narrower block
+     * omits the tool rather than denying it, so the answer hangs on which rule the engine keeps —
+     * the last that matches, or the most specific — and this project asserts both in different
+     * places. Settling it needs a measurement nobody has made: revoke a tool, then call it. Until
+     * then a reader takes only the last block (`connectorsGranted`), which errs towards reporting
+     * less than the session may hold.
+     *
+     * That the engine accepts this at all is what lets the conversation offer connector chips:
+     * permissions are not frozen at creation, and a session that was launched with memory alone can
+     * be handed the mail connector without being restarted and losing its transcript. The other
+     * face of the same coin, seen the same day: a mission the scheduler had capped at 14 tools was
+     * carrying 112 by the time someone had finished ticking boxes in front of it.
      *
      * The rules are the caller's to build, from the scheduler's catalogue — this class copies no
      * tool table of its own.
