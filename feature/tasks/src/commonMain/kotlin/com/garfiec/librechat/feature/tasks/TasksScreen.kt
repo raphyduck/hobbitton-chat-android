@@ -3,6 +3,7 @@ package com.garfiec.librechat.feature.tasks
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -603,6 +604,7 @@ private fun SectionHeader(label: String) {
  * multiplied by the turns, that decides whether a mission fits its budget (server-side D-040), and
  * seeing it is what makes an expensive mission obvious before the bill does.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ScheduledMissionRow(
     mission: ScheduledMission,
@@ -652,7 +654,12 @@ private fun ScheduledMissionRow(
 
             LastRunLine(mission)
 
-            Row(
+            // FlowRow, not Row: the four labels do not fit a phone's width, and a Row divides the
+            // shortfall among them rather than admitting it. The last button was left a handful of
+            // pixels and rendered « Delete » as a column of single letters (reported 30/08/2026).
+            // Wrapping onto a second line costs a row of height and keeps every action readable —
+            // including the destructive one, the worst of the four to leave illegible.
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
@@ -660,10 +667,10 @@ private fun ScheduledMissionRow(
                 // (server-side D-041), and offering the button would make that refusal look like a
                 // bug rather than a rule.
                 TextButton(onClick = onRun, enabled = !mission.running) {
-                    Text(stringResource(Res.string.tasks_scheduled_run))
+                    ActionLabel(stringResource(Res.string.tasks_scheduled_run))
                 }
                 TextButton(onClick = onToggle) {
-                    Text(
+                    ActionLabel(
                         stringResource(
                             if (mission.enabled) {
                                 Res.string.tasks_scheduled_disable
@@ -674,7 +681,7 @@ private fun ScheduledMissionRow(
                     )
                 }
                 TextButton(onClick = { editing = true }) {
-                    Text(stringResource(Res.string.tasks_scheduled_edit))
+                    ActionLabel(stringResource(Res.string.tasks_scheduled_edit))
                 }
                 TextButton(
                     onClick = { confirmingDelete = true },
@@ -682,7 +689,7 @@ private fun ScheduledMissionRow(
                         contentColor = MaterialTheme.colorScheme.error,
                     ),
                 ) {
-                    Text(stringResource(Res.string.tasks_scheduled_delete))
+                    ActionLabel(stringResource(Res.string.tasks_scheduled_delete))
                 }
             }
         }
@@ -805,6 +812,16 @@ private fun RescheduleSheet(
             ) { Text(stringResource(Res.string.tasks_scheduled_save)) }
         }
     }
+}
+
+/**
+ * One action's caption. Single line and unwrappable on purpose: a caption that wraps inside a button
+ * is the symptom of a row that does not fit, and letting it wrap hides the overflow instead of
+ * letting the layout resolve it.
+ */
+@Composable
+private fun ActionLabel(text: String) {
+    Text(text, maxLines = 1, softWrap = false)
 }
 
 /**

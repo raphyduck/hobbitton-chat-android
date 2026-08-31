@@ -212,6 +212,22 @@ class EngineMissionRepository(
         cachedConnectors ?: scheduler.connectors().also { cachedConnectors = it }
 
     /**
+     * Which connectors a **live** session currently carries, read off the engine.
+     *
+     * The screen had no way of knowing: it started from an empty set and only ever learned what the
+     * user ticked in front of it, so a mission launched with nine connectors — by the scheduler, or
+     * from the New-mission sheet — opened its conversation labelled « No connector » while its own
+     * transcript showed it reading mail. Reported 30/08/2026.
+     *
+     * The reading is deliberately strict: a connector counts as granted only when **every** tool it
+     * declares is allowed. [permissionsFor] writes exactly that — one `allow` rule per tool — so a
+     * ruleset this app or the scheduler produced round-trips exactly; a hand-written one that opens
+     * half a connector reads as off, which understates rather than overstates what the session can do.
+     */
+    suspend fun sessionConnectors(sessionId: String): Set<String> =
+        connectorsGranted(connectors(), api.session(sessionId).permission)
+
+    /**
      * Re-grants a **live** session's connectors, replacing its whole ruleset.
      *
      * Unticking therefore revokes. That the engine takes this at all is what lets the conversation
@@ -280,6 +296,31 @@ fun permissionsFor(
         .forEach { tool -> rules += EnginePermissionRule(permission = tool, action = "allow") }
     return rules
 }
+
+/**
+ * [permissionsFor] read backwards: which connectors a ruleset actually grants.
+ *
+ * Strict on purpose — a connector counts as on only when **every** tool it declares is allowed.
+ * `permissionsFor` writes exactly that, one `allow` per tool, so a ruleset this app or the scheduler
+ * produced round-trips exactly. A hand-written one that opens half a connector reads as off, which
+ * understates what the session can do rather than overstating it; the alternative reading (any tool
+ * allowed ⇒ connector on) would report `shell` as granted from a lone `bash` rule.
+ *
+ * `ask` and `deny` are not grants. A connector that declares no tool is never on: `containsAll` of
+ * an empty list is vacuously true, and that would light up every empty entry the catalogue carries.
+ */
+fun connectorsGranted(
+    catalogue: ConnectorCatalogue,
+    rules: List<EnginePermissionRule>,
+): Set<String> {
+    val allowed = rules.filter { it.action == ACTION_ALLOW }.map { it.permission }.toSet()
+    return catalogue.connecteurs
+        .filterValues { grant -> grant.outils.isNotEmpty() && allowed.containsAll(grant.outils) }
+        .keys
+}
+
+/** The one rule action that grants. */
+private const val ACTION_ALLOW = "allow"
 
 /** The connectors this catalogue offers a mission, in the order the picker should show them. */
 fun ConnectorCatalogue.offered(autonomous: Boolean): List<ConnectorOption> =

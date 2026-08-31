@@ -27,6 +27,17 @@ data class EngineSession(
     val title: String? = null,
     val version: String? = null,
     val time: EngineTime? = null,
+    /**
+     * What this session is currently allowed to touch — the same ruleset `PATCH /session/{id}`
+     * takes, read back.
+     *
+     * `GET /session` (the list) does not carry it in practice, hence the default: only
+     * `GET /session/{id}` is worth asking. It is the **only** place a live session's grants are
+     * written, which is what lets the conversation say how many connectors it has instead of
+     * assuming none — the chip read « No connector » on every session until 30/08/2026, because the
+     * screen had nothing but its own empty set to go on.
+     */
+    val permission: List<EnginePermissionRule> = emptyList(),
 )
 
 @Serializable

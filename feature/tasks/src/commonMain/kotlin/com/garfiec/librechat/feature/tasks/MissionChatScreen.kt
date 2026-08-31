@@ -92,6 +92,7 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_chat_reasoning
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_send
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_title
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_tool_count
+import com.garfiec.librechat.feature.tasks.resources.tasks_connectors
 import com.garfiec.librechat.feature.tasks.resources.tasks_model_default_short
 import com.garfiec.librechat.feature.tasks.resources.tasks_retry
 import com.garfiec.librechat.feature.tasks.resources.tasks_stop
@@ -586,7 +587,7 @@ private fun MissionChatInput(
     when (picker) {
         Picker.CONNECTORS -> ConnectorPickerSheet(
             options = state.connectors,
-            ticked = state.enabledConnectors,
+            ticked = state.enabledConnectors.orEmpty(),
             onToggle = onToggleConnector,
             onDismiss = { picker = Picker.NONE },
         )
@@ -647,13 +648,16 @@ private fun ComposerChips(
                 onClick = onOpenConnectors,
                 leadingIcon = { Icon(Icons.Outlined.Build, null, Modifier.size(16.dp)) },
                 label = {
+                    val granted = state.enabledConnectors
                     Text(
-                        if (state.enabledConnectors.isEmpty()) {
-                            stringResource(Res.string.tasks_chat_no_connector)
-                        } else {
-                            stringResource(
+                        when {
+                            // Not read back yet. « No connector » here was a claim the screen had no
+                            // grounds for, and it was wrong on every mission the scheduler launched.
+                            granted == null -> stringResource(Res.string.tasks_connectors)
+                            granted.isEmpty() -> stringResource(Res.string.tasks_chat_no_connector)
+                            else -> stringResource(
                                 Res.string.tasks_chat_connector_count,
-                                state.enabledConnectors.size,
+                                granted.size,
                             )
                         },
                     )
