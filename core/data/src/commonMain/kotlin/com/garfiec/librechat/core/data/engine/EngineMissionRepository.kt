@@ -2,12 +2,14 @@ package com.garfiec.librechat.core.data.engine
 
 import com.garfiec.librechat.core.model.engine.CreateEngineSessionRequest
 import com.garfiec.librechat.core.model.engine.EngineAgentProfile
+import com.garfiec.librechat.core.model.engine.EngineMessage
 import com.garfiec.librechat.core.model.engine.EngineModelRef
 import com.garfiec.librechat.core.model.engine.EnginePermissionRule
 import com.garfiec.librechat.core.model.engine.EnginePromptPart
 import com.garfiec.librechat.core.model.engine.EnginePromptRequest
 import com.garfiec.librechat.core.model.engine.EngineProviderModel
 import com.garfiec.librechat.core.model.engine.EngineSelectableModel
+import com.garfiec.librechat.core.model.engine.EngineSession
 import com.garfiec.librechat.core.model.engine.EngineStreamEvent
 import com.garfiec.librechat.core.model.engine.MissionState
 import com.garfiec.librechat.core.model.engine.engineHistoryEvents
@@ -29,7 +31,14 @@ data class Mission(
     val sessionId: String,
     val title: String,
     val state: MissionState,
-    val createdAtMillis: Long?,
+    /**
+     * When this mission last said something — the timestamp the list is sorted and stamped by.
+     *
+     * **Not the creation date**, which is what the tab used until 31/08/2026 and which put a
+     * mission that answered five minutes ago below one launched an hour earlier and silent since.
+     * A conversation list is read the way a messaging app's is: the one that just moved goes on top.
+     */
+    val lastActivityMillis: Long?,
 )
 
 /**
@@ -119,7 +128,7 @@ class EngineMissionRepository(
                 sessionId = session.id,
                 title = session.title.orEmpty().ifBlank { session.id },
                 state = judgeMission(active, messages),
-                createdAtMillis = session.time?.created,
+                lastActivityMillis = lastActivityOf(session, messages),
             )
         }
     }
@@ -253,6 +262,27 @@ class EngineMissionRepository(
          */
         const val DECLARED_PROVIDER = "config"
     }
+}
+
+/**
+ * When a session last moved: the latest of its messages, or the session's own `updated` when there
+ * are none to read.
+ *
+ * The messages are the exact answer and they cost nothing extra — [EngineMissionRepository.missions]
+ * already fetches them to judge a finished mission. A **running** one is the case with no messages:
+ * they are deliberately not fetched (a mission in flight needs no verdict, and pulling its whole
+ * transcript on every refresh would download the history of the tab). `time.updated` stands in
+ * there; it is the engine's own field and the only one available without a second round trip.
+ *
+ * A message's `completed` is preferred over its `created`: an assistant turn is created when it
+ * starts and completed when it stops, and a ten-minute turn that began at 03:00 last spoke at 03:10.
+ * Falling back to `created` and finally to the session's own dates means the list still sorts when
+ * the engine omits a field, rather than dropping a row to the bottom.
+ */
+internal fun lastActivityOf(session: EngineSession, messages: List<EngineMessage>): Long? {
+    val lastMessage = messages.mapNotNull { it.info.time?.let { time -> time.completed ?: time.created } }
+        .maxOrNull()
+    return lastMessage ?: session.time?.updated ?: session.time?.created
 }
 
 /**

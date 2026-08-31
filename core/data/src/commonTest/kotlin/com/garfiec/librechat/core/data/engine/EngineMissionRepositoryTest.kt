@@ -1,12 +1,17 @@
 package com.garfiec.librechat.core.data.engine
 
+import com.garfiec.librechat.core.model.engine.EngineMessage
+import com.garfiec.librechat.core.model.engine.EngineMessageInfo
 import com.garfiec.librechat.core.model.engine.EnginePermissionRule
+import com.garfiec.librechat.core.model.engine.EngineSession
+import com.garfiec.librechat.core.model.engine.EngineTime
 import com.garfiec.librechat.core.model.engine.MissionState
 import com.garfiec.librechat.core.model.scheduler.ConnectorCatalogue
 import com.garfiec.librechat.core.model.scheduler.ConnectorGrant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -218,5 +223,63 @@ class ConnectorOptionsTest {
     fun `the options are ordered so the picker does not reshuffle between two openings`() {
         val names = catalogue.offered(autonomous = false).map { it.name }
         assertEquals(names.sorted(), names)
+    }
+}
+
+/** Quand une mission a « bougé » pour la dernière fois — la clef de tri de la liste. */
+class LastActivityTest {
+
+    private fun session(created: Long? = null, updated: Long? = null) = EngineSession(
+        id = "ses_1",
+        time = if (created == null && updated == null) null else EngineTime(created = created, updated = updated),
+    )
+
+    private fun message(created: Long? = null, completed: Long? = null) = EngineMessage(
+        info = EngineMessageInfo(
+            id = "msg",
+            role = "assistant",
+            time = EngineTime(created = created, completed = completed),
+        ),
+    )
+
+    @Test
+    fun `the last message wins over the session's own dates`() {
+        // C'est la demande : trier sur le dernier message, pas sur la naissance de la session.
+        val activity = lastActivityOf(
+            session(created = 1_000, updated = 2_000),
+            listOf(message(created = 5_000), message(created = 9_000)),
+        )
+
+        assertEquals(9_000, activity)
+    }
+
+    @Test
+    fun `a turn is dated by its end, not by its start`() {
+        // Un tour d'assistant est créé quand il commence et complété quand il s'arrête : une mission
+        // de dix minutes lancée à 03h00 a parlé pour la dernière fois à 03h10.
+        assertEquals(600_000, lastActivityOf(session(created = 1), listOf(message(created = 1, completed = 600_000))))
+    }
+
+    @Test
+    fun `an unfinished turn falls back to when it started`() {
+        assertEquals(4_000, lastActivityOf(session(created = 1), listOf(message(created = 4_000))))
+    }
+
+    @Test
+    fun `a running mission has no messages fetched and leans on the session`() {
+        // Les messages d'une mission en cours ne sont délibérément pas récupérés (ils coûteraient
+        // tout l'historique de l'onglet à chaque rafraîchissement) : `updated` prend le relais.
+        assertEquals(2_000, lastActivityOf(session(created = 1_000, updated = 2_000), emptyList()))
+    }
+
+    @Test
+    fun `without an updated date the creation date still sorts the row`() {
+        // Mieux vaut une rangée mal datée qu'une rangée qui tombe au fond de la liste.
+        assertEquals(1_000, lastActivityOf(session(created = 1_000), emptyList()))
+    }
+
+    @Test
+    fun `a session the engine dates not at all is null rather than zero`() {
+        assertNull(lastActivityOf(session(), emptyList()))
     }
 }
