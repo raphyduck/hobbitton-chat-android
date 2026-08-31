@@ -78,6 +78,9 @@ class EngineEventParser(private val json: Json) {
                             // what it did.
                             input = state?.get("input"),
                             output = state?.str("output"),
+                            mime = part.str("mime"),
+                            url = part.str("url"),
+                            filename = part.str("filename"),
                         )
                     },
                 )

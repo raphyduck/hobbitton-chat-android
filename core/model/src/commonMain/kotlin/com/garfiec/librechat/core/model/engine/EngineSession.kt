@@ -180,6 +180,10 @@ data class EnginePart(
      * legitimately show a tool with no status, and why the chat must not read that as a success.
      */
     val state: EngineToolState? = null,
+    /** A `type = "file"` part: what kind of file, its bytes as a data URL, and its name if any. */
+    val mime: String? = null,
+    val url: String? = null,
+    val filename: String? = null,
 )
 
 /**

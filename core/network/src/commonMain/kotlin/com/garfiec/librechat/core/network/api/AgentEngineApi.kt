@@ -106,6 +106,11 @@ class AgentEngineApi(
         sessionId: String,
         text: String,
         model: EngineModelRef? = null,
+        // Attached files ride as sibling parts of the same message — the engine has no upload
+        // route, each part carries its bytes as a data URL. Files FIRST, text last: that is the
+        // order OpenCode's own web UI sends, and the prose reads as commentary on the images
+        // rather than the other way round.
+        files: List<EnginePromptPart> = emptyList(),
     ): EngineMessage =
         client.post {
             url { path("session/${sessionId.encodeURLPathPart()}/message") }
@@ -122,7 +127,11 @@ class AgentEngineApi(
             }
             setBody(
                 EnginePromptRequest(
-                    parts = listOf(EnginePromptPart(text = text)),
+                    // The text part is omitted when there is nothing to say: a photo can be the
+                    // whole message, and an empty text part is a shape the engine may well reject.
+                    parts = files + listOfNotNull(
+                        text.takeIf { it.isNotBlank() }?.let { EnginePromptPart.text(it) },
+                    ),
                     // Per message, not per session: the route takes `{providerID, modelID}` and the
                     // engine has no « set the session's model » on the classic surface. Null means
                     // « whatever the session already runs on » — an absent key, not an empty one.

@@ -55,6 +55,20 @@ sealed interface ChatPart {
     /** The model's thinking, shown muted. */
     data class Reasoning(override val id: String, val text: String) : ChatPart
 
+    /**
+     * A file sent with a message — the attachment itself, bytes included.
+     *
+     * [dataUrl] is the part's own `url`: the engine has no upload route, so the file travels as a
+     * `data:` URL and the transcript carries it whole. An image mime renders as the picture;
+     * anything else renders as a named chip, because showing raw base64 helps nobody.
+     */
+    data class Attachment(
+        override val id: String,
+        val mime: String,
+        val dataUrl: String,
+        val filename: String?,
+    ) : ChatPart
+
     /** A tool the assistant reached for, how it ended, and what passed through it. */
     data class Tool(
         override val id: String,
@@ -118,6 +132,7 @@ fun MissionChatState.reduce(event: EngineStreamEvent): MissionChatState = when (
 
 private const val ROLE_USER = "user"
 private const val FIELD_TEXT = "text"
+private const val DEFAULT_MIME = "application/octet-stream"
 
 /**
  * The parts worth rendering. `step-start` and `step-finish` are the run's own bookkeeping — nobody
@@ -126,6 +141,9 @@ private const val FIELD_TEXT = "text"
  */
 private fun EnginePartSnapshot.asChatPart(partId: String): ChatPart? = when (type) {
     "text" -> ChatPart.Text(partId, text.orEmpty())
+    // Dropped silently until 31/08/2026 — a message sent with a photo showed only its prose, and
+    // nothing on screen said the photo had gone with it.
+    "file" -> url?.let { ChatPart.Attachment(partId, mime ?: DEFAULT_MIME, it, filename) }
     "reasoning" -> ChatPart.Reasoning(partId, text.orEmpty())
     "tool" -> ChatPart.Tool(
         id = partId,
@@ -208,6 +226,9 @@ sealed interface ChatBlock {
     /** A block of prose, rendered as markdown at the message's own level. */
     data class Prose(val part: ChatPart.Text) : ChatBlock
 
+    /** An attachment, shown in place — never folded into an activity group: it is content, not process. */
+    data class Media(val part: ChatPart.Attachment) : ChatBlock
+
     /** Reasoning and tool calls, folded away by default. [key] is stable for remembering state. */
     data class Activity(val key: String, val parts: List<ChatPart>) : ChatBlock
 }
@@ -225,15 +246,19 @@ fun List<ChatPart>.asBlocks(): List<ChatBlock> {
     }
 
     forEach { part ->
-        if (part is ChatPart.Text) {
-            // A text part that is still empty is a part awaiting its deltas, not a paragraph. It
-            // would otherwise cut the activity run in two and open a second block mid-thought.
-            if (part.text.isNotBlank()) {
+        when (part) {
+            is ChatPart.Text ->
+                // A text part that is still empty is a part awaiting its deltas, not a paragraph. It
+                // would otherwise cut the activity run in two and open a second block mid-thought.
+                if (part.text.isNotBlank()) {
+                    flush()
+                    blocks += ChatBlock.Prose(part)
+                }
+            is ChatPart.Attachment -> {
                 flush()
-                blocks += ChatBlock.Prose(part)
+                blocks += ChatBlock.Media(part)
             }
-        } else {
-            pending += part
+            else -> pending += part
         }
     }
     flush()

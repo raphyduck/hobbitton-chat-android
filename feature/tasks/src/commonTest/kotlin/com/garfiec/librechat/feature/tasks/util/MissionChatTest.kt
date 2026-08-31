@@ -12,6 +12,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -257,6 +258,40 @@ class MissionChatTest {
         assertEquals(null, tool.output)
         assertTrue(tool.arguments.isEmpty())
     }
+
+    @Test
+    fun `une part fichier devient la piece jointe du tour`() {
+        // Ignorée en silence jusqu'au 31/08/2026 : un message envoyé avec une photo n'affichait
+        // que sa prose, et rien à l'écran ne disait que la photo était partie avec.
+        val state = missionChatFrom(
+            listOf(
+                EngineStreamEvent.MessageStarted("m1", "user"),
+                EngineStreamEvent.PartUpdated(
+                    "m1",
+                    "p1",
+                    EnginePartSnapshot(type = "file", mime = "image/jpeg", url = "data:image/jpeg;base64,AAAA"),
+                ),
+            ),
+        )
+
+        val part = state.turns.single().let { (it as ChatTurn.User).parts.single() }
+        assertEquals(
+            ChatPart.Attachment("p1", "image/jpeg", "data:image/jpeg;base64,AAAA", null),
+            part,
+        )
+    }
+
+    @Test
+    fun `une part fichier sans url est ignoree plutot que rendue vide`() {
+        val state = missionChatFrom(
+            listOf(
+                EngineStreamEvent.MessageStarted("m1", "user"),
+                EngineStreamEvent.PartUpdated("m1", "p1", EnginePartSnapshot(type = "file", mime = "image/jpeg")),
+            ),
+        )
+
+        assertEquals(emptyList(), (state.turns.single() as ChatTurn.User).parts)
+    }
 }
 
 /**
@@ -341,4 +376,19 @@ class ChatBlockTest {
         assertEquals(before.key, after.key)
     }
 
+
+    @Test
+    fun `une piece jointe fait son propre bloc, jamais plie dans l'activite`() {
+        // C'est du contenu, pas du processus : la plier avec les outils la cacherait par défaut.
+        val blocks = listOf(
+            ChatPart.Tool("t1", "memoire_lire", ToolState.OK),
+            ChatPart.Attachment("a1", "image/jpeg", "data:image/jpeg;base64,AAAA", null),
+            ChatPart.Text("x1", "voila"),
+        ).asBlocks()
+
+        assertEquals(3, blocks.size)
+        assertIs<ChatBlock.Activity>(blocks[0])
+        assertIs<ChatBlock.Media>(blocks[1])
+        assertIs<ChatBlock.Prose>(blocks[2])
+    }
 }

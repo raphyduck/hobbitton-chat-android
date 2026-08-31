@@ -52,6 +52,14 @@ data class EnginePromptRequest(
     val model: EngineModelRef? = null,
 )
 
+/**
+ * One part of a prompt: prose (`type = "text"`), or an attached file (`type = "file"`).
+ *
+ * One class rather than a sealed pair, because the wire is a discriminated union keyed on `type`
+ * and the two shapes share their envelope: a text part carries [text], a file part carries [mime],
+ * [url] and [filename]. The engine's `FilePartInput` requires only `type`, `mime` and `url`, and
+ * takes the file's bytes as a data URL — which is how OpenCode's own web UI attaches an image.
+ */
 @Serializable
 @OptIn(ExperimentalSerializationApi::class)
 data class EnginePromptPart(
@@ -61,5 +69,16 @@ data class EnginePromptPart(
     // objective would be rejected — the twin of the createSession bug, one call further on (verified
     // against the live engine 28/08/2026).
     @EncodeDefault(EncodeDefault.Mode.ALWAYS) val type: String = "text",
-    val text: String,
-)
+    val text: String? = null,
+    val mime: String? = null,
+    /** The file's content as a `data:<mime>;base64,…` URL — the engine takes no upload route. */
+    val url: String? = null,
+    val filename: String? = null,
+) {
+    companion object {
+        fun text(text: String) = EnginePromptPart(type = "text", text = text)
+
+        fun file(mime: String, dataUrl: String, filename: String?) =
+            EnginePromptPart(type = "file", mime = mime, url = dataUrl, filename = filename)
+    }
+}
