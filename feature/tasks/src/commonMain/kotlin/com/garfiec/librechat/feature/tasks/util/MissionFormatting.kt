@@ -19,10 +19,16 @@ internal fun money(value: Double): String {
 internal fun groupThousands(value: Long): String =
     value.toString().reversed().chunked(3).joinToString("\u202f").reversed()
 
-/** A row's age, compact like a messaging list: minutes under an hour, hours under a day, then days. */
+/**
+ * How long ago a row last moved, compact like a messaging list: minutes under an hour, hours under
+ * a day, then days.
+ *
+ * It stamps the mission's **last activity**, not its birth — the same value the list is sorted by,
+ * so the order on screen reads as the order of the timestamps rather than as an accident.
+ */
 @Composable
-internal fun missionAge(createdAtMillis: Long): String {
-    val minutes = ((Clock.System.now().toEpochMilliseconds() - createdAtMillis) / MILLIS_PER_MINUTE)
+internal fun missionAge(lastActivityMillis: Long): String {
+    val minutes = ((Clock.System.now().toEpochMilliseconds() - lastActivityMillis) / MILLIS_PER_MINUTE)
         .coerceAtLeast(0)
     return when {
         minutes < MINUTES_PER_HOUR -> stringResource(Res.string.tasks_age_minutes, minutes)

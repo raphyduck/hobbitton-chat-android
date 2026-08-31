@@ -882,9 +882,9 @@ private fun MissionRow(
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f),
                 )
-                mission.createdAtMillis?.let { created ->
+                mission.lastActivityMillis?.let { lastActivity ->
                     Text(
-                        missionAge(created),
+                        missionAge(lastActivity),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

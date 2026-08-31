@@ -195,7 +195,11 @@ class TasksViewModel(
                             loading = false,
                             // Newest first: the mission someone just launched is the one they are
                             // looking for, and the engine returns them oldest first.
-                            missions = missions.sortedByDescending { mission -> mission.createdAtMillis ?: 0 },
+                            // Par dernière activité, comme une liste de conversations : celle qui vient de
+                            // parler passe devant. Trier par date de création laissait une mission
+                            // qui a répondu il y a cinq minutes sous une autre lancée il y a une
+                            // heure et muette depuis (demandé le 31/08/2026).
+                            missions = missions.sortedByDescending { mission -> mission.lastActivityMillis ?: 0 },
                         )
                     }
                 }
