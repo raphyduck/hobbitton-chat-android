@@ -109,6 +109,19 @@ fun GeneralSettingsContent(
             modifier = Modifier.fillMaxSize(),
         ) {
             // Appearance section
+            // The global profile comes FIRST, and it lives in General rather than under Chat:
+            // since 02/09/2026 it governs both surfaces — every conversation and every task —
+            // so filing it under one of the two would say the opposite of what it does.
+            item(key = "profile_header") {
+                SectionHeader(stringResource(Res.string.profile_section))
+            }
+            item(key = "profile_section") {
+                GlobalProfileSection()
+            }
+            item(key = "profile_divider") {
+                HorizontalDivider()
+            }
+
             item(key = "appearance_header") {
                 SectionHeader(stringResource(Res.string.section_appearance))
             }

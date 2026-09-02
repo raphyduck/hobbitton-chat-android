@@ -1,6 +1,6 @@
 package com.garfiec.librechat.core.data.repository
 
-import com.garfiec.librechat.core.model.chat.ChatProfile
+import com.garfiec.librechat.core.model.chat.GlobalProfile
 import com.garfiec.librechat.core.model.request.EphemeralAgent
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -11,7 +11,7 @@ import kotlin.test.assertTrue
 /**
  * What the global profile adds to a request, and — more importantly — what it never takes away.
  */
-class ChatProfileMergeTest {
+class GlobalProfileMergeTest {
 
     private fun request(
         agentId: String? = null,
@@ -26,7 +26,7 @@ class ChatProfileMergeTest {
         ephemeralAgent = ephemeralAgent,
     ).copy(promptPrefix = promptPrefix)
 
-    private val profile = ChatProfile(
+    private val profile = GlobalProfile(
         instructions = "Lis index.md avant d'agir.",
         mcpServers = setOf("memoire"),
     )
@@ -100,7 +100,7 @@ class ChatProfileMergeTest {
     fun `an empty profile changes nothing`() {
         val original = request()
 
-        assertSame(original, ChatPayloadBuilder.withProfile(original, ChatProfile()))
+        assertSame(original, ChatPayloadBuilder.withProfile(original, GlobalProfile()))
     }
 
     @Test
@@ -108,7 +108,7 @@ class ChatProfileMergeTest {
         // "" as promptPrefix is an empty system message, not the absence of one.
         val merged = ChatPayloadBuilder.withProfile(
             request(),
-            ChatProfile(instructions = "   ", mcpServers = setOf("memoire")),
+            GlobalProfile(instructions = "   ", mcpServers = setOf("memoire")),
         )
 
         assertNull(merged.promptPrefix)

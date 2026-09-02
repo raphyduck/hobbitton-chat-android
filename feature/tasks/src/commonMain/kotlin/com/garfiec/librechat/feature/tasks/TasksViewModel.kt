@@ -11,7 +11,6 @@ import com.garfiec.librechat.core.data.engine.EngineSignInResult
 import com.garfiec.librechat.core.data.engine.Mission
 import com.garfiec.librechat.core.data.engine.engineFailureKind
 import com.garfiec.librechat.core.data.scheduler.SchedulerRepository
-import com.garfiec.librechat.core.model.engine.EngineAgentProfile
 import com.garfiec.librechat.core.model.engine.EngineFailureKind
 import com.garfiec.librechat.core.model.engine.EngineModelRef
 import com.garfiec.librechat.core.model.engine.EngineSelectableModel
@@ -187,9 +186,8 @@ class TasksViewModel(
             }
             _state.update { it.copy(engineConfigured = true, loading = true, error = null) }
             refreshScheduled()
-            runCatching { repository.missions() to repository.profiles() }
-                .onSuccess { (missions, profiles) ->
-                    profils = profiles
+            runCatching { repository.missions() }
+                .onSuccess { missions ->
                     _state.update {
                         it.copy(
                             loading = false,
@@ -315,9 +313,6 @@ class TasksViewModel(
         }
     }
 
-    /** Ce que le moteur a répondu à `GET /agent` — gardé pour résoudre le profil au lancement. */
-    private var profils: List<EngineAgentProfile> = emptyList()
-
     /**
      * Fetches the model catalogue, once.
      *
@@ -372,7 +367,6 @@ class TasksViewModel(
             _state.update { it.copy(loading = true, error = null) }
             runCatching {
                 repository.launch(
-                    missionProfile(profils),
                     objective,
                     connectors,
                     autonomous = autonomous,
@@ -403,28 +397,3 @@ private fun EngineSignInResult.asProblem(): EngineSignInProblem? = when (this) {
     is EngineSignInResult.Interrupted -> EngineSignInProblem.INTERRUPTED
     is EngineSignInResult.MissingAuthorizationScope -> EngineSignInProblem.MISSING_SCOPE
 }
-
-/** Le profil du moteur sur lequel toute mission de l'application tourne. Déclaré côté serveur dans
- * `config/opencode/opencode.json` ; les deux noms ne doivent pas dériver. */
-internal const val MISSION_PROFILE = "mission"
-
-/**
- * Le profil à utiliser, sans demander à la personne.
- *
- * Décision du 25/08 : le choix de profil disparaît de la feuille « nouvelle mission ». Ce qu'une
- * mission FAIT est son objectif ; ce qu'elle PEUT faire est la liste de connecteurs cochés — les
- * règles de permission par session priment sur celles du profil, donc le choix ne décidait ni de
- * l'un ni de l'autre. Il offrait en revanche `compaction`, le résumeur interne d'OpenCode, comme
- * profil de mission.
- *
- * L'ordre des replis compte :
- *  1. le profil générique [MISSION_PROFILE], s'il est déployé ;
- *  2. sinon le premier profil DÉCLARÉ — ni natif, ni caché, ni sous-agent — pour qu'un moteur pas
- *     encore à jour continue de lancer des missions au lieu d'échouer sur un nom inconnu ;
- *  3. sinon [MISSION_PROFILE] quand même : le moteur refusera avec une erreur que l'écran sait
- *     déjà montrer, ce qui vaut mieux qu'un lancement silencieusement impossible.
- */
-internal fun missionProfile(profiles: List<EngineAgentProfile>): String =
-    profiles.firstOrNull { it.name == MISSION_PROFILE }?.name
-        ?: profiles.firstOrNull { !it.native && !it.hidden && it.mode != "subagent" }?.name
-        ?: MISSION_PROFILE

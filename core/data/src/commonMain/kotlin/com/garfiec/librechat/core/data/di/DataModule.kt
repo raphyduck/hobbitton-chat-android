@@ -7,8 +7,9 @@ import com.garfiec.librechat.core.common.identity.SessionManager
 import com.garfiec.librechat.core.data.datastore.AccountRegistry
 import com.garfiec.librechat.core.data.datastore.AccountRoster
 import com.garfiec.librechat.core.data.datastore.AccountScopedPrefsPurger
-import com.garfiec.librechat.core.data.datastore.ChatProfileStore
 import com.garfiec.librechat.core.data.datastore.ConfigCacheDataStore
+import com.garfiec.librechat.core.data.datastore.GlobalProfileSource
+import com.garfiec.librechat.core.data.datastore.GlobalProfileStore
 import com.garfiec.librechat.core.data.datastore.MissionReadingPositions
 import com.garfiec.librechat.core.data.datastore.RoleCacheDataStore
 import com.garfiec.librechat.core.data.datastore.ServerDataStore
@@ -380,11 +381,14 @@ val dataModule = module {
     }
 
     single {
-        ChatProfileStore(
+        GlobalProfileStore(
             dataStore = get(),
             activeAccountProvider = get(),
         )
     }
+    // The store IS the source; the binding exists so a send path can ask for the value without
+    // taking a DataStore with it.
+    single<GlobalProfileSource> { get<GlobalProfileStore>() }
 
     single<ChatRepository> {
         ChatRepositoryImpl(

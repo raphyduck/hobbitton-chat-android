@@ -28,24 +28,25 @@ import com.garfiec.librechat.feature.settings.resources.profile_servers
 import com.garfiec.librechat.feature.settings.resources.profile_servers_desc
 import com.garfiec.librechat.feature.settings.resources.profile_servers_empty
 import com.garfiec.librechat.feature.settings.resources.profile_servers_unavailable
-import com.garfiec.librechat.feature.settings.viewmodel.ChatProfileViewModel
+import com.garfiec.librechat.feature.settings.viewmodel.GlobalProfileViewModel
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
- * The one place a profile is configured, instead of once per model.
+ * The one place a profile is configured — for every model, and for both surfaces.
  *
- * LibreChat attaches instructions and tools to an agent, and an agent pins a model — so the same
- * setup would otherwise be repeated for each of the catalogue's models. Here it is written once and
- * folded into every send.
+ * LibreChat attaches instructions and tools to an agent, and an agent pins a model, so the same
+ * setup would otherwise be repeated for each of the catalogue's models. The Agent engine attaches a
+ * charter to a métier profile decided server-side. Written here once, it is folded into every send
+ * of both: `promptPrefix` in a conversation, `system` on a mission's turn.
  *
  * Everything saves as it is edited: there is no invalid state to guard against, and a settings pane
  * that loses what was typed because it was left without a tap is the likelier failure.
  */
 @Composable
-fun ChatProfileSection(
+fun GlobalProfileSection(
     modifier: Modifier = Modifier,
-    viewModel: ChatProfileViewModel = koinViewModel(),
+    viewModel: GlobalProfileViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 

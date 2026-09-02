@@ -1,7 +1,7 @@
 package com.garfiec.librechat.core.data.repository
 
 import com.garfiec.librechat.core.model.FileReference
-import com.garfiec.librechat.core.model.chat.ChatProfile
+import com.garfiec.librechat.core.model.chat.GlobalProfile
 import com.garfiec.librechat.core.model.request.AddedConversation
 import com.garfiec.librechat.core.model.request.ChatRequest
 import com.garfiec.librechat.core.model.request.EphemeralAgent
@@ -90,7 +90,7 @@ object ChatPayloadBuilder {
      *   chosen when it was built. Layering a global prompt on top would put two systems of
      *   instruction in the same run, and the loser would be whichever the server reads second.
      */
-    fun withProfile(request: ChatRequest, profile: ChatProfile): ChatRequest {
+    fun withProfile(request: ChatRequest, profile: GlobalProfile): ChatRequest {
         if (profile.isEmpty || request.agentId != null) return request
 
         val servers = (request.ephemeralAgent?.mcp.orEmpty() + profile.mcpServers).distinct()

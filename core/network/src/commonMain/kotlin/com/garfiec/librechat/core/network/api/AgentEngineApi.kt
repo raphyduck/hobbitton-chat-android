@@ -1,7 +1,6 @@
 package com.garfiec.librechat.core.network.api
 
 import com.garfiec.librechat.core.model.engine.CreateEngineSessionRequest
-import com.garfiec.librechat.core.model.engine.EngineAgentProfile
 import com.garfiec.librechat.core.model.engine.EngineMessage
 import com.garfiec.librechat.core.model.engine.EngineModelRef
 import com.garfiec.librechat.core.model.engine.EnginePermissionRule
@@ -61,10 +60,6 @@ class AgentEngineApi(
     suspend fun session(sessionId: String): EngineSession =
         client.get { url { path("session/${sessionId.encodeURLPathPart()}") } }.decoded()
 
-    /** The profiles the engine is configured with — `cerveau`, `work-compta`… */
-    suspend fun profiles(): List<EngineAgentProfile> =
-        client.get { url { path("agent") } }.decoded()
-
     /**
      * The providers this engine is wired to, and the models each one offers.
      *
@@ -111,6 +106,11 @@ class AgentEngineApi(
         // order OpenCode's own web UI sends, and the prose reads as commentary on the images
         // rather than the other way round.
         files: List<EnginePromptPart> = emptyList(),
+        // The global profile's instructions. Sent on EVERY turn, not just the first: the engine
+        // records the string on the user message it creates, so a turn without it is a turn that
+        // did not hear the profile — and the profile can change between two messages of the same
+        // session. See `EnginePromptRequest.system` for where it lands in the engine's prompt.
+        system: String? = null,
     ): EngineMessage =
         client.post {
             url { path("session/${sessionId.encodeURLPathPart()}/message") }
@@ -136,6 +136,7 @@ class AgentEngineApi(
                     // engine has no « set the session's model » on the classic surface. Null means
                     // « whatever the session already runs on » — an absent key, not an empty one.
                     model = model,
+                    system = system,
                 ),
             )
         }.decoded()

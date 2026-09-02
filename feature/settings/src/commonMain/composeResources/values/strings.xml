@@ -71,13 +71,13 @@
     <string name="section_mcp_servers">MCP Servers</string>
     <string name="section_prefetch">Background prefetch</string>
     <string name="profile_section">Global profile</string>
-    <string name="profile_enabled">Apply to every conversation</string>
-    <string name="profile_enabled_desc">The instructions and tools below ride on every model, so there is nothing to set up per model. Turning this off parks the profile without erasing it.</string>
+    <string name="profile_enabled">Apply to conversations and tasks</string>
+    <string name="profile_enabled_desc">The instructions below ride on every model and on every mission, so there is nothing to set up per model or per task. Turning this off parks the profile without erasing it.</string>
     <string name="profile_instructions">Instructions</string>
-    <string name="profile_instructions_desc">Sent as the system prompt of every new message.</string>
+    <string name="profile_instructions_desc">Sent as the system prompt of every new message — in a conversation, and in a task. A mission keeps the rules the server gives it and adds these.</string>
     <string name="profile_instructions_placeholder">Read index.md before acting.</string>
     <string name="profile_servers">Tools (MCP servers)</string>
-    <string name="profile_servers_desc">Equipped on every conversation, whatever the model.</string>
+    <string name="profile_servers_desc">Equipped on every conversation, whatever the model. A task takes its tools from its own connectors instead.</string>
     <string name="profile_servers_empty">No MCP server is configured on this server.</string>
     <string name="profile_servers_unavailable">Server list unavailable — showing what the profile already had.</string>
     <string name="profile_server_unreachable">not connected</string>
