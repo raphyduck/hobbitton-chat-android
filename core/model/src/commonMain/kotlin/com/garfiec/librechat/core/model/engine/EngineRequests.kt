@@ -44,12 +44,27 @@ data class EngineSessionPatch(
  * Sending the objective. The route is `prompt_async`, which returns immediately — that is what lets
  * a caller watch the ceilings *while* the mission runs instead of discovering them afterwards.
  * There is no `message/async`; asking for one returns 404.
+ *
+ * [system] is the global profile's instructions, and it **adds to** the engine's own prompt rather
+ * than replacing it. Read in the running engine's code (1.18.21, `LLMRequestPrep.prepare`) rather
+ * than assumed, because the whole design hangs on it:
+ *
+ * ```js
+ * [...agent.prompt ? [agent.prompt] : …, ...system, ...user.system ? [user.system] : []]
+ * ```
+ *
+ * The agent's charter comes first, then the deployment's common instructions (`AGENTS.md`, MCP,
+ * skills), then this — the same last-word position custom instructions hold in a chat. So a
+ * mission keeps every rule the server gives it AND hears what its owner asks of everything.
+ * The engine records the string on the user message, so it applies to that turn and each turn
+ * carries its own: editing the profile changes the next message, never the transcript.
  */
 @Serializable
 data class EnginePromptRequest(
     val parts: List<EnginePromptPart>,
     val agent: String? = null,
     val model: EngineModelRef? = null,
+    val system: String? = null,
 )
 
 /**

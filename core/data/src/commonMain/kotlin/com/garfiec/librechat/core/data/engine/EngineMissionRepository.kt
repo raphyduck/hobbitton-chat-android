@@ -1,7 +1,7 @@
 package com.garfiec.librechat.core.data.engine
 
+import com.garfiec.librechat.core.data.datastore.GlobalProfileSource
 import com.garfiec.librechat.core.model.engine.CreateEngineSessionRequest
-import com.garfiec.librechat.core.model.engine.EngineAgentProfile
 import com.garfiec.librechat.core.model.engine.EngineMessage
 import com.garfiec.librechat.core.model.engine.EngineModelRef
 import com.garfiec.librechat.core.model.engine.EnginePermissionRule
@@ -62,9 +62,22 @@ class EngineMissionRepository(
     private val scheduler: SchedulerApi,
     private val streamClient: EngineStreamClient,
     private val eventTransport: EngineEventTransport,
+    private val globalProfile: GlobalProfileSource,
 ) {
 
-    suspend fun profiles(): List<EngineAgentProfile> = api.profiles()
+    /**
+     * The global profile's instructions, as the engine's `system`, or null when there is nothing
+     * to say.
+     *
+     * **Read here rather than passed in, on purpose.** Every route that puts words in front of a
+     * model goes through this class, so reading the profile here is what makes « the instructions
+     * apply everywhere » structural instead of a convention each caller must remember. A ViewModel
+     * that forgets to thread it would silently produce a mission that never heard its owner — the
+     * failure would look like the model ignoring the instructions, which is a much longer thing to
+     * diagnose than a compile error.
+     */
+    private suspend fun instructions(): String? =
+        globalProfile.current().takeIf { it.enabled }?.instructions?.takeIf { it.isNotBlank() }
 
     /**
      * The models a mission may be launched on, and the one the engine would pick itself.
@@ -153,7 +166,6 @@ class EngineMissionRepository(
      * the engine's own default applies untouched.
      */
     suspend fun launch(
-        profile: String,
         objective: String,
         connectors: List<String>,
         title: String? = null,
@@ -162,7 +174,7 @@ class EngineMissionRepository(
     ): String {
         val session = api.createSession(
             CreateEngineSessionRequest(
-                agent = profile,
+                agent = MISSION_AGENT,
                 title = title ?: objective.take(TITLE_LENGTH),
                 permission = permissionsFor(connectors(), connectors, autonomous),
             ),
@@ -171,8 +183,9 @@ class EngineMissionRepository(
             sessionId = session.id,
             request = EnginePromptRequest(
                 parts = listOf(EnginePromptPart(text = objective)),
-                agent = profile,
+                agent = MISSION_AGENT,
                 model = model,
+                system = instructions(),
             ),
         )
         return session.id
@@ -208,7 +221,11 @@ class EngineMissionRepository(
         model: EngineModelRef? = null,
         files: List<EnginePromptPart> = emptyList(),
     ): List<EngineStreamEvent> =
-        engineHistoryEvents(listOf(api.sendMessage(sessionId, text, model = model, files = files)))
+        engineHistoryEvents(
+            listOf(
+                api.sendMessage(sessionId, text, model = model, files = files, system = instructions()),
+            ),
+        )
 
     /**
      * The connectors a mission may be given, as the scheduler declares them.
@@ -255,6 +272,22 @@ class EngineMissionRepository(
 
     private companion object {
         const val TITLE_LENGTH = 60
+
+        /**
+         * The single engine agent every mission launched from this app runs on.
+         *
+         * There is no profile choice here and there is no longer a profile *notion* either: what a
+         * mission may do is its ticked connectors, what it must do is its objective, and how it
+         * should behave is the global profile — three answers, three mechanisms, none of them a
+         * name to pick from a list. The app used to read `GET /agent` and resolve one of the
+         * deployment's métier profiles; that reading only ever returned `mission`, and every
+         * fallback it carried was a way of guessing which stranger to hand the objective to.
+         *
+         * The server's other profiles still exist and still matter — they are what the **scheduled**
+         * missions run on, bound to a métier in the scheduler's own configuration. They are simply
+         * not this app's to choose.
+         */
+        const val MISSION_AGENT = "mission"
 
         /**
          * `source` of a provider this deployment declared in its own `opencode.json`, as opposed

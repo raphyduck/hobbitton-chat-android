@@ -22,6 +22,7 @@ val tasksModule = module {
             scheduler = get(),
             streamClient = get(),
             eventTransport = get(),
+            globalProfile = get(),
         )
     }
     viewModelOf(::TasksViewModel)

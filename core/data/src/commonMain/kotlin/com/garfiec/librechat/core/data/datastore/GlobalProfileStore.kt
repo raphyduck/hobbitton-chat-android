@@ -6,7 +6,7 @@ import androidx.datastore.preferences.core.edit
 import com.garfiec.librechat.core.common.identity.AccountState
 import com.garfiec.librechat.core.common.identity.ActiveAccountProvider
 import com.garfiec.librechat.core.common.identity.currentAccountId
-import com.garfiec.librechat.core.model.chat.ChatProfile
+import com.garfiec.librechat.core.model.chat.GlobalProfile
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
@@ -23,10 +23,22 @@ import kotlinx.coroutines.flow.map
  * riding on a personal one. The `acct:` prefix also means the logout purge sweeps them with
  * everything else, without this file having to remember to.
  */
-class ChatProfileStore(
+/**
+ * The profile as one value, for whoever is about to put words in front of a model.
+ *
+ * A seam rather than the store itself: what a send path needs is « what does the profile say right
+ * now », not a DataStore. It keeps [com.garfiec.librechat.core.data.engine.EngineMissionRepository]
+ * testable without a filesystem, and says in its own signature that the read is a snapshot and not
+ * a subscription.
+ */
+fun interface GlobalProfileSource {
+    suspend fun current(): GlobalProfile
+}
+
+class GlobalProfileStore(
     private val dataStore: DataStore<Preferences>,
     private val activeAccountProvider: ActiveAccountProvider,
-) {
+) : GlobalProfileSource {
 
     /**
      * The profile of the signed-in account. Emits nothing while the identity is still resolving —
@@ -34,12 +46,12 @@ class ChatProfileStore(
      * without one.
      */
     @OptIn(ExperimentalCoroutinesApi::class)
-    val profile: Flow<ChatProfile> = activeAccountProvider.state.flatMapLatest { state ->
+    val profile: Flow<GlobalProfile> = activeAccountProvider.state.flatMapLatest { state ->
         when (state) {
             AccountState.Warming -> emptyFlow()
             is AccountState.Resolved ->
                 state.id?.let { id -> dataStore.data.map { prefs -> prefs.readProfile(id.value) } }
-                    ?: flowOf(ChatProfile.NONE)
+                    ?: flowOf(GlobalProfile.NONE)
         }
     }
 
@@ -49,12 +61,12 @@ class ChatProfileStore(
      * Reads rather than collects: a chat request needs one value now, and a `Flow` there would mean
      * a subscription per message.
      */
-    suspend fun current(): ChatProfile {
-        val accountId = activeAccountProvider.currentAccountId()?.value ?: return ChatProfile.NONE
+    override suspend fun current(): GlobalProfile {
+        val accountId = activeAccountProvider.currentAccountId()?.value ?: return GlobalProfile.NONE
         return dataStore.data.first().readProfile(accountId)
     }
 
-    suspend fun save(profile: ChatProfile) {
+    suspend fun save(profile: GlobalProfile) {
         val accountId = activeAccountProvider.currentAccountId()?.value ?: return
         dataStore.edit { prefs ->
             prefs[accountScopedKey(accountId, ENABLED)] = profile.enabled.toString()
@@ -65,7 +77,7 @@ class ChatProfileStore(
         }
     }
 
-    private fun Preferences.readProfile(accountId: String) = ChatProfile(
+    private fun Preferences.readProfile(accountId: String) = GlobalProfile(
         // Absent means ON. A profile someone filled in and never switched on would be the most
         // confusing possible default — it would look configured and do nothing.
         enabled = this[accountScopedKey(accountId, ENABLED)]?.toBooleanStrictOrNull() ?: true,

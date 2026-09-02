@@ -4,9 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.common.result.Result
-import com.garfiec.librechat.core.data.datastore.ChatProfileStore
+import com.garfiec.librechat.core.data.datastore.GlobalProfileStore
 import com.garfiec.librechat.core.data.repository.McpRepository
-import com.garfiec.librechat.core.model.chat.ChatProfile
+import com.garfiec.librechat.core.model.chat.GlobalProfile
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,7 +29,7 @@ data class ProfileServer(
     val reachable: Boolean,
 )
 
-data class ChatProfileUiState(
+data class GlobalProfileUiState(
     val loading: Boolean = true,
     val enabled: Boolean = true,
     val instructions: String = "",
@@ -47,13 +47,13 @@ data class ChatProfileUiState(
  * blank prompt and no server is simply « no profile » — and a settings screen that loses what was
  * typed because it was left without a tap is the more likely failure by far.
  */
-class ChatProfileViewModel(
-    private val store: ChatProfileStore,
+class GlobalProfileViewModel(
+    private val store: GlobalProfileStore,
     private val mcpRepository: McpRepository,
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(ChatProfileUiState())
-    val state: StateFlow<ChatProfileUiState> = _state.asStateFlow()
+    private val _state = MutableStateFlow(GlobalProfileUiState())
+    val state: StateFlow<GlobalProfileUiState> = _state.asStateFlow()
 
     init {
         load()
@@ -79,7 +79,7 @@ class ChatProfileViewModel(
                 }
             }
             val known = servers.map { it.name }.toSet()
-            _state.value = ChatProfileUiState(
+            _state.value = GlobalProfileUiState(
                 loading = false,
                 enabled = profile.enabled,
                 instructions = profile.instructions,
@@ -120,7 +120,7 @@ class ChatProfileViewModel(
             _state.update { it.copy(saving = true) }
             runCatching {
                 store.save(
-                    ChatProfile(
+                    GlobalProfile(
                         enabled = current.enabled,
                         instructions = current.instructions,
                         mcpServers = current.servers.filter { it.selected }.map { it.name }.toSet(),

@@ -1,5 +1,6 @@
 package com.garfiec.librechat.core.data.engine
 
+import com.garfiec.librechat.core.model.chat.GlobalProfile
 import com.garfiec.librechat.core.model.engine.EngineModelRef
 import com.garfiec.librechat.core.network.api.AgentEngineApi
 import com.garfiec.librechat.core.network.api.SchedulerApi
@@ -87,6 +88,7 @@ class EngineModelChoiceTest {
         eventTransport = object : EngineEventTransport {
             override fun stream(): Flow<ByteArray> = emptyFlow()
         },
+        globalProfile = { GlobalProfile.NONE },
     )
 
     private fun jsonHeaders() = headersOf(HttpHeaders.ContentType, "application/json")
@@ -150,7 +152,6 @@ class EngineModelChoiceTest {
         }
 
         repository(engine).launch(
-            profile = "mission",
             objective = "fais le point",
             connectors = listOf("memoire"),
             model = EngineModelRef(providerId = "hobbitton-gateway", modelId = "claude-sonnet-5"),
@@ -177,7 +178,7 @@ class EngineModelChoiceTest {
             }
         }
 
-        repository(engine).launch("mission", "fais le point", listOf("memoire"))
+        repository(engine).launch("fais le point", listOf("memoire"))
 
         // An absent key, not a null one: the engine's own default applies untouched, which is what
         // « I did not choose » has to mean.
