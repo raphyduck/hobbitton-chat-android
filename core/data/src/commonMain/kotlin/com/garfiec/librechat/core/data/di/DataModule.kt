@@ -24,6 +24,7 @@ import com.garfiec.librechat.core.data.prefetch.PrefetchGate
 import com.garfiec.librechat.core.data.prefetch.PrefetchPolicy
 import com.garfiec.librechat.core.data.prefetch.PrefetchScheduleCoordinator
 import com.garfiec.librechat.core.data.prefetch.PrefetchStatusReporter
+import com.garfiec.librechat.core.data.pricing.ModelPriceCache
 import com.garfiec.librechat.core.data.repository.AccountClaimReconciler
 import com.garfiec.librechat.core.data.repository.AccountDataPurger
 import com.garfiec.librechat.core.data.repository.AccountSessionEstablisher
@@ -469,5 +470,13 @@ val dataModule = module {
     singleOf(::BannerRepositoryImpl) bind BannerRepository::class
     singleOf(::FavoritesRepositoryImpl) bind FavoritesRepository::class
     singleOf(::ToolFavoritesRepositoryImpl) bind ToolFavoritesRepository::class
+    /**
+     * The gateway's price table, shared by the chat's model picker and the tasks tab's.
+     *
+     * `getOrNull` and not `get`: its source is bound by `engineModule`, which is Android-only
+     * (D-034). On iOS the cache resolves with no source and answers an empty table without ever
+     * reaching the network — a picker with no prices, rather than a graph that fails to build.
+     */
+    single { ModelPriceCache(source = getOrNull()) }
     singleOf(::ResumePinStore)
 }

@@ -5,6 +5,7 @@ import com.garfiec.librechat.core.common.EndpointConstants
 import com.garfiec.librechat.core.model.Agent
 import com.garfiec.librechat.core.model.EndpointConfig
 import com.garfiec.librechat.core.model.endpoint.KeyState
+import com.garfiec.librechat.core.model.scheduler.ModelPrices
 import com.garfiec.librechat.core.ui.components.ModelParameters
 import com.garfiec.librechat.feature.chat.model.McpServerDisplayData
 
@@ -27,6 +28,14 @@ data class ModelSelectionState(
      */
     val endpointKeyStates: Map<String, KeyState> = emptyMap(),
     val availableModels: Map<String, List<String>> = emptyMap(),
+    /**
+     * What each of those models costs, in dollars per million tokens, as the gateway knows it.
+     *
+     * Empty until the price table arrives, and empty is a valid state — every row then renders
+     * exactly as it did before prices existed. A model the table has no price for is shown as
+     * such in words; nothing here ever becomes a « 0,00 $ » next to a model that charges.
+     */
+    val modelPrices: ModelPrices = ModelPrices.NONE,
     val agents: List<Agent> = emptyList(),
     /**
      * The selected agent's LLM provider, resolved by [ModelSelectionDelegate] from

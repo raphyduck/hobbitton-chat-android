@@ -40,6 +40,7 @@ import com.garfiec.librechat.core.data.datastore.StarredModelsDisplay
 import com.garfiec.librechat.core.model.Agent
 import com.garfiec.librechat.core.model.EndpointConfig
 import com.garfiec.librechat.core.model.endpoint.KeyState
+import com.garfiec.librechat.core.model.scheduler.ModelPrices
 import com.garfiec.librechat.core.model.usage.ContextUsage
 import com.garfiec.librechat.core.model.usage.TokenUsage
 import com.garfiec.librechat.core.ui.components.LowProfileDragHandle
@@ -101,6 +102,8 @@ data class ModelSelectorPageParams(
     val selectedModel: String?,
     val onModelSelect: (endpoint: String, model: String) -> Unit,
     val onSetApiKey: (endpointName: String) -> Unit,
+    /** What each model costs, per million tokens. Empty renders the page as it did before. */
+    val modelPrices: ModelPrices = ModelPrices.NONE,
     /** Fired on each surfacing; hosts route it to `ChatViewModel.prepareModelSelector()`. */
     val onSurfaced: () -> Unit = {},
     /** Inline error; required because the Scaffold snackbar draws behind the sheet scrim. */
@@ -258,6 +261,7 @@ fun ChatOptionsBottomSheet(
                         },
                         onSetApiKey = selector.onSetApiKey,
                         modifier = Modifier.height(subPageHeight),
+                        modelPrices = selector.modelPrices,
                         serverUrl = selector.serverUrl,
                         errorMessage = selector.errorMessage,
                         onErrorDismiss = selector.onErrorDismiss,

@@ -34,6 +34,7 @@ val tasksModule = module {
         MissionChatViewModel(
             sessionId = params.get(),
             repository = get(),
+            modelPrices = get(),
             settings = get(),
             positions = get(),
             speech = get(),

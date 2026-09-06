@@ -20,4 +20,7 @@
     <string name="server_headers_error_value">Cette valeur contient des caractères qui ne peuvent pas être envoyés.</string>
     <string name="server_headers_error_reserved">Cet en-tête est défini par l'application et ne peut pas être remplacé.</string>
     <string name="cd_generating_response">Génération de la réponse</string>
+    <string name="model_price_per_million">(%1$s / %2$s $/M)</string>
+    <string name="model_price_unknown">(prix inconnu)</string>
+    <string name="model_price_legend">Prix par million de jetons : entrée / sortie</string>
 </resources>

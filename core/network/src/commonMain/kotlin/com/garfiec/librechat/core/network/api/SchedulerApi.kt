@@ -2,6 +2,7 @@ package com.garfiec.librechat.core.network.api
 
 import com.garfiec.librechat.core.model.scheduler.ConnectorCatalogue
 import com.garfiec.librechat.core.model.scheduler.Consumption
+import com.garfiec.librechat.core.model.scheduler.ModelPrices
 import com.garfiec.librechat.core.model.scheduler.ProviderHealth
 import com.garfiec.librechat.core.model.scheduler.SchedulerState
 import com.garfiec.librechat.core.network.engine.EngineHttpException
@@ -93,6 +94,20 @@ class SchedulerApi(
     suspend fun providers(): ProviderHealth = decode(
         callTool("fournisseurs", buildJsonObject { put("json_brut", true) }),
         "fournisseurs",
+    )
+
+    /**
+     * What each model costs, in dollars per million tokens.
+     *
+     * **Free and instant, unlike [providers]** — the scheduler reads the price table the gateway
+     * already holds in memory and calls no model. A picker may therefore ask for it as it opens.
+     *
+     * `json_brut` for the same reason as everywhere else here: without it the tool answers the
+     * prose a person wants in a chat.
+     */
+    suspend fun prices(): ModelPrices = decode(
+        callTool("tarifs", buildJsonObject { put("json_brut", true) }),
+        "tarifs",
     )
 
     /**

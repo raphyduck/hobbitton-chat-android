@@ -13,6 +13,7 @@ import com.garfiec.librechat.core.data.datastore.DuringRunAction
 import com.garfiec.librechat.core.data.datastore.ServerDataStore
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.datastore.StarredModelsDisplay
+import com.garfiec.librechat.core.data.pricing.ModelPriceCache
 import com.garfiec.librechat.core.data.repository.AgentRepository
 import com.garfiec.librechat.core.data.repository.ChatRepository
 import com.garfiec.librechat.core.data.repository.ConfigRepository
@@ -152,5 +153,8 @@ internal class ChatViewModelTestFixture {
         serverFileSelectionHandoff = serverFileSelectionHandoff,
         promptInsertionHandoff = PromptInsertionHandoff(),
         activeAccountProvider = activeAccountProvider,
+        // No source: these tests never assert on prices, and a cache with nowhere to ask
+        // answers an empty table without touching the network.
+        modelPrices = ModelPriceCache(source = null),
     )
 }

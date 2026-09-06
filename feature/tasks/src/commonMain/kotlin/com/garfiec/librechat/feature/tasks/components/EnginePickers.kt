@@ -16,6 +16,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.garfiec.librechat.core.data.engine.ConnectorOption
 import com.garfiec.librechat.core.model.engine.EngineSelectableModel
+import com.garfiec.librechat.core.model.scheduler.ModelPrice
+import com.garfiec.librechat.core.model.scheduler.ModelPrices
+import com.garfiec.librechat.core.ui.components.modelPriceLabel
+import com.garfiec.librechat.core.ui.resources.model_price_legend
 import com.garfiec.librechat.feature.tasks.resources.Res
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_tool_count
 import com.garfiec.librechat.feature.tasks.resources.tasks_connector_default
@@ -23,6 +27,7 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_connectors
 import com.garfiec.librechat.feature.tasks.resources.tasks_model
 import com.garfiec.librechat.feature.tasks.resources.tasks_model_default_short
 import org.jetbrains.compose.resources.stringResource
+import com.garfiec.librechat.core.ui.resources.Res as CoreRes
 
 /**
  * The connector choice, in its own sheet — the module's ONE copy.
@@ -104,6 +109,7 @@ internal fun ConnectorPickerSheet(
 internal fun ModelPickerSheet(
     models: List<EngineSelectableModel>,
     selected: EngineSelectableModel?,
+    prices: ModelPrices,
     onSelect: (EngineSelectableModel?) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -113,14 +119,29 @@ internal fun ModelPickerSheet(
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
         )
+        if (prices.models.isNotEmpty()) {
+            // What the figure in each row means, said once. « 3 / 15 $/M » is unreadable without
+            // it, and repeating « input / output per million » on every row would drown the names.
+            Text(
+                stringResource(CoreRes.string.model_price_legend),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
+            )
+        }
         ModelRow(
             label = stringResource(Res.string.tasks_model_default_short),
+            price = null,
             selected = selected == null,
             onClick = { onSelect(null) },
         )
         models.forEach { candidate ->
             ModelRow(
                 label = candidate.label,
+                // Keyed on the model id, not on the label: the engine's label is « Claude Opus 5 »
+                // where the gateway prices « claude-opus-5 », and matching on prose would find
+                // nothing while looking exactly like a model the gateway has no price for.
+                price = prices.byModel[candidate.modelId.lowercase()],
                 selected = candidate == selected,
                 onClick = { onSelect(candidate) },
             )
@@ -129,7 +150,12 @@ internal fun ModelPickerSheet(
 }
 
 @Composable
-private fun ModelRow(label: String, selected: Boolean, onClick: () -> Unit) {
+private fun ModelRow(
+    label: String,
+    price: ModelPrice?,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
     Row(
         Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 24.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -137,5 +163,12 @@ private fun ModelRow(label: String, selected: Boolean, onClick: () -> Unit) {
     ) {
         RadioButton(selected = selected, onClick = onClick)
         Text(label, style = MaterialTheme.typography.bodyLarge)
+        modelPriceLabel(price)?.let { tag ->
+            Text(
+                tag,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }

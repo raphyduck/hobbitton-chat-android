@@ -31,6 +31,7 @@ import com.garfiec.librechat.core.data.engine.offered
 import com.garfiec.librechat.core.model.engine.EngineModelRef
 import com.garfiec.librechat.core.model.engine.EngineSelectableModel
 import com.garfiec.librechat.core.model.scheduler.ConnectorCatalogue
+import com.garfiec.librechat.core.model.scheduler.ModelPrices
 import com.garfiec.librechat.feature.tasks.components.ConnectorPickerSheet
 import com.garfiec.librechat.feature.tasks.components.ModelPickerSheet
 import com.garfiec.librechat.feature.tasks.components.TasksBottomSheet
@@ -91,6 +92,7 @@ fun NewMissionSheet(
     ) -> Unit,
     modifier: Modifier = Modifier,
     models: List<EngineSelectableModel> = emptyList(),
+    prices: ModelPrices = ModelPrices.NONE,
     preselectedModel: EngineSelectableModel? = null,
     catalogue: ConnectorCatalogue = ConnectorCatalogue(),
     catalogueFailed: Boolean = false,
@@ -223,6 +225,7 @@ fun NewMissionSheet(
         ModelPickerSheet(
             models = models,
             selected = model,
+            prices = prices,
             onSelect = {
                 model = it
                 pickingModel = false
