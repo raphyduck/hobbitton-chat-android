@@ -10,9 +10,11 @@ import com.garfiec.librechat.core.data.engine.ConnectorOption
 import com.garfiec.librechat.core.data.engine.EngineMissionRepository
 import com.garfiec.librechat.core.data.engine.engineFailureKind
 import com.garfiec.librechat.core.data.engine.offered
+import com.garfiec.librechat.core.data.pricing.ModelPriceCache
 import com.garfiec.librechat.core.data.repository.SpeechRepository
 import com.garfiec.librechat.core.model.engine.EngineFailureKind
 import com.garfiec.librechat.core.model.engine.EngineSelectableModel
+import com.garfiec.librechat.core.model.scheduler.ModelPrices
 import com.garfiec.librechat.feature.tasks.util.AudioNote
 import com.garfiec.librechat.feature.tasks.util.MissionChatState
 import com.garfiec.librechat.feature.tasks.util.StagedAttachment
@@ -73,6 +75,11 @@ data class MissionChatUiState(
     /** The models a message may be sent on. */
     val models: List<EngineSelectableModel> = emptyList(),
     /**
+     * What each of them costs, in dollars per million tokens — the same table the chat's picker
+     * shows, so one model reads the same price on both screens.
+     */
+    val prices: ModelPrices = ModelPrices.NONE,
+    /**
      * The model the user picked for the next message, or null to leave the session on its own.
      *
      * Deliberately NOT seeded from the deployment's catalogue default. That seeding is what made the
@@ -127,6 +134,7 @@ data class MissionChatUiState(
 class MissionChatViewModel(
     private val sessionId: String,
     private val repository: EngineMissionRepository,
+    private val modelPrices: ModelPriceCache,
     private val settings: SettingsDataStore,
     private val positions: MissionReadingPositions,
     private val speech: SpeechRepository,
@@ -214,6 +222,9 @@ class MissionChatViewModel(
             try {
                 val choice = withContext(ioDispatcher) { repository.models() }
                 _uiState.update { it.copy(models = choice.models, modelsError = null) }
+                // After the models and never instead of them: the price table comes from another
+                // service, and its absence must cost the prices, not the picker.
+                _uiState.update { it.copy(prices = withContext(ioDispatcher) { modelPrices.prices() }) }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

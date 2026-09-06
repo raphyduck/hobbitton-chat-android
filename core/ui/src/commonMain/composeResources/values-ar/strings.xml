@@ -20,4 +20,7 @@
     <string name="server_headers_error_value">تحتوي هذه القيمة على أحرف لا يمكن إرسالها.</string>
     <string name="server_headers_error_reserved">يضبط التطبيق هذه الترويسة ولا يمكن تجاوزها.</string>
     <string name="cd_generating_response">جارٍ إنشاء الرد</string>
+    <string name="model_price_per_million">(%1$s / %2$s $/M)</string>
+    <string name="model_price_unknown">(السعر غير معروف)</string>
+    <string name="model_price_legend">السعر لكل مليون رمز: الإدخال / الإخراج</string>
 </resources>

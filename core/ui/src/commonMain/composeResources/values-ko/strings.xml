@@ -20,4 +20,7 @@
     <string name="server_headers_error_value">이 값에는 보낼 수 없는 문자가 있습니다.</string>
     <string name="server_headers_error_reserved">이 헤더는 앱이 설정하므로 덮어쓸 수 없습니다.</string>
     <string name="cd_generating_response">응답 생성 중</string>
+    <string name="model_price_per_million">(%1$s / %2$s $/M)</string>
+    <string name="model_price_unknown">(가격 정보 없음)</string>
+    <string name="model_price_legend">100만 토큰당 가격: 입력 / 출력</string>
 </resources>

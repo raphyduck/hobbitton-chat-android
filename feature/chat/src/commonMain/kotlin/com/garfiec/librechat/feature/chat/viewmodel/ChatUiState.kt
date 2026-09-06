@@ -21,6 +21,7 @@ import com.garfiec.librechat.core.model.response.isProviderCapable
 import com.garfiec.librechat.core.model.response.isProviderUnknown
 import com.garfiec.librechat.core.model.response.isTextExtractable
 import com.garfiec.librechat.core.model.response.resolveUploadRoute
+import com.garfiec.librechat.core.model.scheduler.ModelPrices
 import com.garfiec.librechat.core.model.usage.ContextUsage
 import com.garfiec.librechat.core.model.usage.TokenUsage
 import com.garfiec.librechat.core.ui.components.ModelParameters
@@ -92,6 +93,7 @@ data class ChatUiState(
     val endpointConfigs: Map<String, EndpointConfig> get() = selection.endpointConfigs
     val endpointKeyStates: Map<String, KeyState> get() = selection.endpointKeyStates
     val availableModels: Map<String, List<String>> get() = selection.availableModels
+    val modelPrices: ModelPrices get() = selection.modelPrices
     val agents: List<Agent> get() = selection.agents
     val selectedAgentProvider: String? get() = selection.selectedAgentProvider
     val modelParameters: ModelParameters get() = selection.modelParameters

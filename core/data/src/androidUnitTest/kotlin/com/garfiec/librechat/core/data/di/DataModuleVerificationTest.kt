@@ -10,6 +10,7 @@ import com.garfiec.librechat.core.common.network.ConnectivityObserver
 import com.garfiec.librechat.core.common.network.NetworkConditionObserver
 import com.garfiec.librechat.core.common.network.RequestActivityTracker
 import com.garfiec.librechat.core.common.power.PowerStateObserver
+import com.garfiec.librechat.core.data.pricing.ModelPriceSource
 import com.garfiec.librechat.core.network.api.AgentToolsApi
 import com.garfiec.librechat.core.network.api.AgentsApi
 import com.garfiec.librechat.core.network.api.ApiKeysApi
@@ -59,6 +60,11 @@ class DataModuleVerificationTest {
                 CoroutineDispatcher::class,
                 CoroutineScope::class,
                 ConnectivityObserver::class,
+                // Optional, and resolved with `getOrNull`: the price table's source is bound by
+                // `engineModule`, which is Android-only (D-034). Koin's verifier reads the
+                // constructor's declared types and cannot see that the lookup tolerates absence,
+                // so it is named here — on iOS nothing binds it and the cache answers empty.
+                ModelPriceSource::class,
                 // The prefetcher's inputs, all bound in :core:common.
                 NetworkConditionObserver::class,
                 PowerStateObserver::class,

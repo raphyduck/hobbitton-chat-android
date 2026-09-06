@@ -10,12 +10,14 @@ import com.garfiec.librechat.core.data.engine.EngineSignInProgress
 import com.garfiec.librechat.core.data.engine.EngineSignInResult
 import com.garfiec.librechat.core.data.engine.Mission
 import com.garfiec.librechat.core.data.engine.engineFailureKind
+import com.garfiec.librechat.core.data.pricing.ModelPriceCache
 import com.garfiec.librechat.core.data.scheduler.SchedulerRepository
 import com.garfiec.librechat.core.model.engine.EngineFailureKind
 import com.garfiec.librechat.core.model.engine.EngineModelRef
 import com.garfiec.librechat.core.model.engine.EngineSelectableModel
 import com.garfiec.librechat.core.model.scheduler.ConnectorCatalogue
 import com.garfiec.librechat.core.model.scheduler.Consumption
+import com.garfiec.librechat.core.model.scheduler.ModelPrices
 import com.garfiec.librechat.core.model.scheduler.ProviderHealth
 import com.garfiec.librechat.core.model.scheduler.ScheduledMission
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -78,6 +80,14 @@ data class TasksUiState(
     /** The catalogue would not load: the sheet says so rather than offering an empty list. */
     val connectorsFailed: Boolean = false,
     val preselectedModel: EngineSelectableModel? = null,
+    /**
+     * What each of those models costs, so the choice is not made blind.
+     *
+     * Empty until the sheet opens, and empty is a valid state: a price is decoration on a list
+     * that works without it. Nothing here is ever rendered as a zero — an unknown price says so
+     * in words, because « 0,00 $ » beside a model that charges is the one reading worth avoiding.
+     */
+    val prices: ModelPrices = ModelPrices.NONE,
     /** The portal round trip is in flight: the browser is open, the person is proving who they are. */
     val signingIn: Boolean = false,
     /**
@@ -122,6 +132,7 @@ enum class EngineSignInProblem {
 
 class TasksViewModel(
     private val repository: EngineMissionRepository,
+    private val modelPrices: ModelPriceCache,
     private val scheduler: SchedulerRepository,
     private val settings: EngineSettingsStore,
     private val portal: EngineSignInLauncher,
@@ -332,6 +343,9 @@ class TasksViewModel(
                 .onFailure { failure ->
                     Logger.w(failure, tag = "Tasks") { "Could not list the engine's models" }
                 }
+            // Prices come from the scheduler, the models from the engine: a picker that showed no
+            // model because a price was missing would trade the feature for its decoration.
+            _state.update { it.copy(prices = modelPrices.prices()) }
         }
     }
 

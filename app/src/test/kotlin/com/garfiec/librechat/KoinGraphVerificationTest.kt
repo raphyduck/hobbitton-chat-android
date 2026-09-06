@@ -20,6 +20,8 @@ import com.garfiec.librechat.core.data.datastore.ThemeDataStore
 import com.garfiec.librechat.core.data.prefetch.AttachmentWarmer
 import com.garfiec.librechat.core.data.prefetch.PrefetchController
 import com.garfiec.librechat.core.data.prefetch.PrefetchStatusReporter
+import com.garfiec.librechat.core.data.pricing.ModelPriceCache
+import com.garfiec.librechat.core.data.pricing.ModelPriceSource
 import com.garfiec.librechat.core.data.repository.AccountSwitcher
 import com.garfiec.librechat.core.data.repository.AgentRepository
 import com.garfiec.librechat.core.data.repository.AgentToolsRepository
@@ -222,6 +224,12 @@ class KoinGraphVerificationTest {
             FileReader::class,
             // feature:conversations provides (consumed cross-module by shared NavHostViewModel)
             ConversationExporter::class,
+            // Bound by `engineModule`, which is Android-only and NOT part of sharedKoinModules
+            // (D-034). `ModelPriceCache` resolves it with `getOrNull` precisely because it may be
+            // absent — the verifier reads the constructor's declared type and cannot see that.
+            ModelPriceSource::class,
+            // Provided by :core:data's own module; verify() resolves one module at a time.
+            ModelPriceCache::class,
             // Wrappers/DSL types that verify can't resolve via constructor
             Lazy::class,
             File::class,

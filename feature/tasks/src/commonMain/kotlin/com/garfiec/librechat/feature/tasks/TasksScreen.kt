@@ -360,6 +360,7 @@ fun TasksScreen(
                 viewModel.launch(objective, connectors, autonomous, model)
             },
             models = state.models,
+            prices = state.prices,
             preselectedModel = state.preselectedModel,
             catalogue = state.catalogue,
             catalogueFailed = state.connectorsFailed,

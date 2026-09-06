@@ -88,6 +88,7 @@ internal fun ChatOptionsSheetHost(
         selector = ModelSelectorPageParams(
             endpointConfigs = uiState.endpointConfigs,
             availableModels = uiState.availableModels,
+            modelPrices = uiState.modelPrices,
             agents = uiState.agents,
             selectedEndpoint = if (isSecondaryTab) {
                 uiState.comparisonState.secondaryEndpoint

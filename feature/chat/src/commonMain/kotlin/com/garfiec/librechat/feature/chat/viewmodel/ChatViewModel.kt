@@ -16,6 +16,7 @@ import com.garfiec.librechat.core.data.datastore.LatexRenderer
 import com.garfiec.librechat.core.data.datastore.ServerDataStore
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.datastore.UploadRoutingMode
+import com.garfiec.librechat.core.data.pricing.ModelPriceCache
 import com.garfiec.librechat.core.data.repository.AgentRepository
 import com.garfiec.librechat.core.data.repository.ChatRepository
 import com.garfiec.librechat.core.data.repository.ConfigRepository
@@ -133,6 +134,7 @@ class ChatViewModel(
     private val conversationRepository: ConversationRepository,
     private val endpointTokenRepository: EndpointTokenRepository,
     private val draftRepository: DraftRepository,
+    private val modelPrices: ModelPriceCache,
     favoritesRepository: FavoritesRepository,
     private val keyRepository: KeyRepository,
     presetRepository: PresetRepository,
@@ -1821,6 +1823,27 @@ class ChatViewModel(
     fun prepareModelSelector() {
         modelDelegate.retryAgentsIfFailed(isNewConversation)
         favoritesDelegate.refresh()
+        loadModelPrices()
+    }
+
+    /**
+     * Fetches what each model costs, on the way to opening a picker.
+     *
+     * Here rather than in `init` because a price is only ever read in a picker, and every path to
+     * one goes through [prepareModelSelector]. The table itself is shared process-wide and cached
+     * for hours, so opening ten conversations asks once.
+     *
+     * A failure is silent by design: the picker works without prices, and an error banner over a
+     * model list because a price could not be read would cost more than it explains. What is never
+     * silent is a wrong price — an unknown one renders as words, never as a zero.
+     */
+    private fun loadModelPrices() {
+        if (_uiState.value.modelPrices.models.isNotEmpty()) return
+        viewModelScope.launch {
+            val prices = modelPrices.prices()
+            if (prices.models.isEmpty()) return@launch
+            _uiState.update { it.copy(selection = it.selection.copy(modelPrices = prices)) }
+        }
     }
 
     /**

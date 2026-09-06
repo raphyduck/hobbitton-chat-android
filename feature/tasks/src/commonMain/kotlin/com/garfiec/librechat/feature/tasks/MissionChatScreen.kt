@@ -769,6 +769,7 @@ private fun MissionChatInput(
         Picker.MODELS -> ModelPickerSheet(
             models = state.models,
             selected = state.effectiveModel,
+            prices = state.prices,
             onSelect = {
                 onSelectModel(it)
                 picker = Picker.NONE

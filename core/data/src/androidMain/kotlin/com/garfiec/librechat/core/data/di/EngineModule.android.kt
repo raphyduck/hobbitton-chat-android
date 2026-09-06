@@ -10,6 +10,7 @@ import com.garfiec.librechat.core.data.engine.EngineSignIn
 import com.garfiec.librechat.core.data.engine.EngineSignInCoordinator
 import com.garfiec.librechat.core.data.engine.EngineSignInLauncher
 import com.garfiec.librechat.core.data.engine.EngineSettingsStore
+import com.garfiec.librechat.core.data.pricing.ModelPriceSource
 import com.garfiec.librechat.core.data.scheduler.SchedulerRepository
 import com.garfiec.librechat.core.network.api.AgentEngineApi
 import com.garfiec.librechat.core.network.api.SchedulerApi
@@ -148,6 +149,15 @@ val engineModule: Module = module {
     single { SchedulerApi(client = get(KoinQualifiers.Scheduler), json = get()) }
 
     single { SchedulerRepository(api = get(), settings = get()) }
+
+    /**
+     * The price table's one supplier, bound where the scheduler is — Android only (D-034).
+     *
+     * The cache itself lives in the shared graph, because the chat holds it on every platform; here
+     * is where it is told there is somewhere to fetch from. On iOS nothing binds this, the cache
+     * receives null, and every picker renders without prices rather than crashing at first open.
+     */
+    single<ModelPriceSource> { get<SchedulerRepository>() }
 
     /**
      * The OAuth client talks to the **portal**, not the engine, and carries none of the engine's

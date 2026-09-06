@@ -29,6 +29,7 @@ internal fun PrimaryModelSelectorSheet(
         agents = uiState.agents,
         selectedEndpoint = uiState.selectedEndpoint,
         selectedModel = uiState.selectedModel,
+        modelPrices = uiState.modelPrices,
         onModelSelect = { endpoint, model ->
             viewModel.onModelSelected(endpoint, model)
             // Clear a pending snackbar for the same error so it doesn't flash behind the close.
@@ -80,6 +81,7 @@ internal fun SecondaryModelSelectorSheet(
         agents = uiState.agents,
         selectedEndpoint = uiState.comparisonState.secondaryEndpoint,
         selectedModel = uiState.comparisonState.secondaryModel,
+        modelPrices = uiState.modelPrices,
         onModelSelect = { endpoint, model ->
             viewModel.setSecondaryModel(endpoint, model)
             onDismiss()

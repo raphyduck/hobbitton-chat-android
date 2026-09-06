@@ -6,6 +6,7 @@ import com.garfiec.librechat.core.common.identity.ActiveAccountProvider
 import com.garfiec.librechat.core.common.network.ConnectivityObserver
 import com.garfiec.librechat.core.data.datastore.ServerDataStore
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
+import com.garfiec.librechat.core.data.pricing.ModelPriceCache
 import com.garfiec.librechat.core.data.repository.AgentRepository
 import com.garfiec.librechat.core.data.repository.ChatRepository
 import com.garfiec.librechat.core.data.repository.ConfigRepository
@@ -48,6 +49,7 @@ class ChatModuleVerificationTest {
                 FileRepository::class,
                 KeyRepository::class,
                 PresetRepository::class,
+                ModelPriceCache::class,
                 ResumePinStore::class,
                 PromptRepository::class,
                 RoleRepository::class,

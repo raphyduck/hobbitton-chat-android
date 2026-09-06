@@ -56,15 +56,20 @@ import com.garfiec.librechat.core.data.datastore.StarredModelsDisplay
 import com.garfiec.librechat.core.model.Agent
 import com.garfiec.librechat.core.model.EndpointConfig
 import com.garfiec.librechat.core.model.endpoint.KeyState
+import com.garfiec.librechat.core.model.scheduler.ModelPrice
+import com.garfiec.librechat.core.model.scheduler.ModelPrices
 import com.garfiec.librechat.core.ui.components.EndpointIcon
 import com.garfiec.librechat.core.ui.components.ErrorBanner
 import com.garfiec.librechat.core.ui.components.LowProfileDragHandle
+import com.garfiec.librechat.core.ui.components.modelPriceLabel
+import com.garfiec.librechat.core.ui.resources.model_price_legend
 import com.garfiec.librechat.feature.chat.resources.*
 import com.garfiec.librechat.feature.chat.resources.Res
 import com.garfiec.librechat.feature.chat.util.FuzzyMatch
 import com.garfiec.librechat.feature.chat.viewmodel.delegate.FavoritesDelegate
 import com.garfiec.librechat.feature.chat.viewmodel.delegate.filterModelsByEndpoint
 import org.jetbrains.compose.resources.stringResource
+import com.garfiec.librechat.core.ui.resources.Res as CoreRes
 
 private val IconSize = 20.dp
 private const val FUZZY_MATCH_THRESHOLD = 55
@@ -104,6 +109,8 @@ fun ModelSelectorSheet(
     onModelSelect: (endpoint: String, model: String) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
+    /** What each model costs. Empty renders exactly as the sheet did before prices existed. */
+    modelPrices: ModelPrices = ModelPrices.NONE,
     serverUrl: String = "",
     errorMessage: String? = null,
     onErrorDismiss: () -> Unit = {},
@@ -147,6 +154,7 @@ fun ModelSelectorSheet(
             onModelSelect = onModelSelect,
             onSetApiKey = onSetApiKey,
             modifier = Modifier.fillMaxSize(),
+            modelPrices = modelPrices,
             serverUrl = serverUrl,
             errorMessage = errorMessage,
             onErrorDismiss = onErrorDismiss,
@@ -179,6 +187,11 @@ fun ModelSelectorSheetContent(
      */
     onSetApiKey: (endpointName: String) -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * What each model costs, in dollars per million tokens, keyed by model name. Empty until the
+     * table arrives — and empty is a normal state, not a failure to report.
+     */
+    modelPrices: ModelPrices = ModelPrices.NONE,
     serverUrl: String = "",
     errorMessage: String? = null,
     onErrorDismiss: () -> Unit = {},
@@ -279,8 +292,20 @@ fun ModelSelectorSheetContent(
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier
                 .padding(horizontal = 16.dp)
-                .padding(bottom = 16.dp),
+                .padding(bottom = if (modelPrices.models.isEmpty()) 16.dp else 4.dp),
         )
+        if (modelPrices.models.isNotEmpty()) {
+            // Says once what the figure beside each name means. Spelling « input / output per
+            // million » on every row would bury the names it is supposed to help choose between.
+            Text(
+                text = stringResource(CoreRes.string.model_price_legend),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 16.dp),
+            )
+        }
 
         OutlinedTextField(
             value = searchQuery,
@@ -357,6 +382,7 @@ fun ModelSelectorSheetContent(
                     ) { (endpoint, model) ->
                         ModelListItem(
                             model = model,
+                            price = modelPrices.byModel[model.lowercase()],
                             isSelected = endpoint == selectedEndpoint && model == selectedModel,
                             isFavorite = true,
                             onClick = { onModelSelect(endpoint, model) },
@@ -444,6 +470,7 @@ fun ModelSelectorSheetContent(
                         items(filteredModels, key = { "${endpointName}_$it" }, contentType = { "model" }) { model ->
                             ModelListItem(
                                 model = model,
+                                price = modelPrices.byModel[model.lowercase()],
                                 isSelected = endpointName == selectedEndpoint && model == selectedModel,
                                 isFavorite = "$endpointName::$model" in favoriteModelKeys,
                                 onClick = { onModelSelect(endpointName, model) },
@@ -566,6 +593,7 @@ private fun SetApiKeyChip(
 @Composable
 private fun LazyItemScope.ModelListItem(
     model: String,
+    price: ModelPrice?,
     isSelected: Boolean,
     isFavorite: Boolean,
     onClick: () -> Unit,
@@ -584,8 +612,16 @@ private fun LazyItemScope.ModelListItem(
         Text(
             text = model,
             style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.weight(1f),
         )
+        modelPriceLabel(price)?.let { tag ->
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = tag,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Spacer(modifier = Modifier.weight(1f))
         if (isSelected) {
             Spacer(modifier = Modifier.width(8.dp))
             Icon(
