@@ -2,16 +2,13 @@ package com.garfiec.librechat.feature.auth.screen
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -29,19 +26,17 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.garfiec.librechat.core.ui.components.OTP_LENGTH
+import com.garfiec.librechat.core.ui.components.OtpCodeInput
 import com.garfiec.librechat.feature.auth.resources.*
 import com.garfiec.librechat.feature.auth.resources.Res
 import com.garfiec.librechat.feature.auth.viewmodel.TwoFactorViewModel
@@ -123,11 +118,11 @@ fun TwoFactorScreen(
                     enabled = !uiState.isLoading,
                 )
             } else {
-                DigitBoxes(
-                    digits = uiState.digits,
-                    onDigitChange = viewModel::onDigitChanged,
+                OtpCodeInput(
+                    value = uiState.code,
+                    onValueChange = viewModel::onCodeChanged,
                     enabled = !uiState.isLoading,
-                    focusResetKey = uiState.codeAttempt,
+                    modifier = Modifier.testTag("twofa_code"),
                 )
             }
 
@@ -151,7 +146,7 @@ fun TwoFactorScreen(
                 enabled = !uiState.isLoading && if (uiState.isBackupMode) {
                     uiState.backupCode.isNotBlank()
                 } else {
-                    uiState.digits.all { it.isNotEmpty() }
+                    uiState.code.length == OTP_LENGTH
                 },
             ) {
                 if (uiState.isLoading) {
@@ -180,51 +175,6 @@ fun TwoFactorScreen(
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun DigitBoxes(
-    digits: List<String>,
-    onDigitChange: (Int, String) -> Unit,
-    enabled: Boolean,
-    focusResetKey: Int,
-    modifier: Modifier = Modifier,
-) {
-    val focusRequesters = remember { List(6) { FocusRequester() } }
-
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.Center,
-    ) {
-        digits.forEachIndexed { index, digit ->
-            if (index > 0) Spacer(modifier = Modifier.width(8.dp))
-            OutlinedTextField(
-                value = digit,
-                onValueChange = { value ->
-                    val filtered = value.filter { it.isDigit() }.take(1)
-                    onDigitChange(index, filtered)
-                    if (filtered.isNotEmpty() && index < 5) {
-                        focusRequesters[index + 1].requestFocus()
-                    }
-                },
-                modifier = Modifier
-                    .weight(1f)
-                    .testTag("twofa_digit_$index")
-                    .focusRequester(focusRequesters[index]),
-                enabled = enabled,
-                singleLine = true,
-                textStyle = MaterialTheme.typography.headlineMedium.copy(
-                    textAlign = TextAlign.Center,
-                ),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            )
-        }
-    }
-
-    // Re-focus the first box on each rejected code: disabled boxes drop focus while the request runs.
-    LaunchedEffect(focusResetKey) {
-        focusRequesters[0].requestFocus()
     }
 }
 

@@ -12,7 +12,14 @@ import kotlinx.coroutines.launch
 
 @Immutable
 data class TwoFactorUiState(
-    val digits: List<String> = List(6) { "" },
+    /**
+     * The whole code, as ONE string — not six.
+     *
+     * It used to be six independent boxes, which made the screen structurally impossible to paste
+     * into: each box kept a single character, so a pasted six-digit code lost five of them. The
+     * entry is one field behind six drawn boxes, and this is its value.
+     */
+    val code: String = "",
     val isBackupMode: Boolean = false,
     val backupCode: String = "",
     val isLoading: Boolean = false,
@@ -22,6 +29,8 @@ data class TwoFactorUiState(
     // with an unusable session); the digit row keys its focus-reset effect on this.
     val codeAttempt: Int = 0,
 )
+
+private const val CODE_LENGTH = 6
 
 class TwoFactorViewModel(
     private val authRepository: AuthRepository,
@@ -40,14 +49,16 @@ class TwoFactorViewModel(
     // suppressing it would strand an authenticated user on this screen.
     private var submitGeneration = 0
 
-    fun onDigitChanged(index: Int, value: String) {
-        if (value.length > 1) return
-        val newDigits = _uiState.value.digits.toMutableList()
-        newDigits[index] = value
-        _uiState.value = _uiState.value.copy(digits = newDigits, error = null)
+    fun onCodeChanged(value: String) {
+        // The field sanitizes to digits and caps the length, so nothing is re-validated here.
+        if (value == _uiState.value.code) return
+        _uiState.value = _uiState.value.copy(code = value, error = null)
 
-        // Auto-submit when all 6 digits are entered
-        if (newDigits.all { it.isNotEmpty() }) {
+        // Auto-submit on the complete code — typed in, or pasted in one action. Guarded on
+        // `isLoading` because composition can deliver the terminal value more than once, and the
+        // code is single-use: a second submit spends it and the first attempt fails on a code the
+        // server has already consumed.
+        if (value.length == CODE_LENGTH && !_uiState.value.isLoading) {
             submit()
         }
     }
@@ -66,7 +77,7 @@ class TwoFactorViewModel(
             isLoading = false,
             isBackupMode = !_uiState.value.isBackupMode,
             error = null,
-            digits = List(6) { "" },
+            code = "",
             backupCode = "",
         )
     }
@@ -76,7 +87,7 @@ class TwoFactorViewModel(
         val code = if (state.isBackupMode) {
             state.backupCode.trim()
         } else {
-            state.digits.joinToString("")
+            state.code
         }
 
         if (code.isBlank()) return
@@ -125,7 +136,7 @@ class TwoFactorViewModel(
         _uiState.value = state.copy(
             isLoading = false,
             error = message,
-            digits = if (clearEntry) List(6) { "" } else state.digits,
+            code = if (clearEntry) "" else state.code,
             backupCode = if (clearEntry) "" else state.backupCode,
             codeAttempt = if (clearEntry) state.codeAttempt + 1 else state.codeAttempt,
         )

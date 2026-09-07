@@ -24,11 +24,16 @@ import androidx.compose.ui.unit.dp
  * Six-box numeric OTP entry: one [BasicTextField] behind a row of digit boxes.
  *
  * A single field (rather than six) is what makes the whole code pasteable in one action and keeps
- * focus handling trivial; the boxes are only a decoration.
+ * focus handling trivial; the boxes are only a decoration. Six real fields cannot be pasted into at
+ * all — each one keeps a single character, so a pasted code loses five digits.
  *
- * [onValueChange] is filtered to digits and capped at [length], so callers can auto-submit on
- * `value.length == length` without re-validating. Callers that auto-submit must guard against a
- * second submit, since composition can deliver the terminal value more than once.
+ * [onValueChange] is **sanitized**, not validated: the input is stripped to its digits and cut to
+ * [length]. That distinction is the whole reason a paste works. Authenticator apps put « 123 456 »
+ * on the clipboard, and a clipboard often carries a trailing newline; a filter that REJECTED such
+ * input would drop the paste whole and silently, which is exactly how this screen felt broken.
+ *
+ * Callers can therefore auto-submit on `value.length == length` without re-validating, but must
+ * guard against a second submit — composition can deliver the terminal value more than once.
  */
 @Composable
 fun OtpCodeInput(
@@ -41,7 +46,11 @@ fun OtpCodeInput(
     BasicTextField(
         value = value,
         onValueChange = { new ->
-            if (new.length <= length && new.all { it.isDigit() }) onValueChange(new)
+            val digits = sanitizeOtp(new, length)
+            // Only report a real change: a keystroke that sanitizes away (a space, a letter) would
+            // otherwise re-emit the current value and, on an auto-submitting caller, fire a second
+            // submit of a code the server has already consumed.
+            if (digits != value) onValueChange(digits)
         },
         enabled = enabled,
         keyboardOptions = KeyboardOptions(
@@ -84,6 +93,16 @@ fun OtpCodeInput(
         },
     )
 }
+
+/**
+ * What the field keeps of what was typed or pasted into it.
+ *
+ * Extracted from the composable so the rule can be tested without a Compose harness — it is the
+ * whole fix for a code that could not be pasted, and « the paste works » is not something a reader
+ * should have to take on trust.
+ */
+internal fun sanitizeOtp(input: String, length: Int = OTP_LENGTH): String =
+    input.filter { it.isDigit() }.take(length)
 
 const val OTP_LENGTH = 6
 
