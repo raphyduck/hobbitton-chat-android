@@ -34,8 +34,39 @@ class TwoFactorViewModelTest {
 
     private fun createViewModel() = TwoFactorViewModel(authRepository, initialTempToken = TEMP_TOKEN)
 
+    /** Taps the code in one digit at a time, as a keyboard delivers it to the single field. */
     private fun TwoFactorViewModel.enterDigits(code: String) =
-        code.forEachIndexed { index, digit -> onDigitChanged(index, digit.toString()) }
+        code.indices.forEach { i -> onCodeChanged(code.take(i + 1)) }
+
+    @Test
+    fun `a pasted code verifies in one action`() = runTest {
+        coEvery { authRepository.verifyTwoFactor(any(), any(), any()) } returns
+            VerifyTwoFactorOutcome.Success(USER)
+
+        val viewModel = createViewModel()
+        // What a paste actually delivers: the whole code in a single change. The screen used to be
+        // six one-character fields, so this was impossible to express — five digits were dropped.
+        viewModel.onCodeChanged("123456")
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { authRepository.verifyTwoFactor(TEMP_TOKEN, "123456", false) }
+        assertThat(viewModel.uiState.value.isVerified).isTrue()
+    }
+
+    @Test
+    fun `the same value delivered twice submits once`() = runTest {
+        coEvery { authRepository.verifyTwoFactor(any(), any(), any()) } returns
+            VerifyTwoFactorOutcome.Success(USER)
+
+        val viewModel = createViewModel()
+        viewModel.onCodeChanged("123456")
+        // Composition can re-deliver the terminal value; the code is single-use, so a second submit
+        // would spend it and fail the exchange the user is watching.
+        viewModel.onCodeChanged("123456")
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { authRepository.verifyTwoFactor(TEMP_TOKEN, "123456", false) }
+    }
 
     @Test
     fun `entering six digits verifies the code as TOTP`() = runTest {
@@ -78,7 +109,7 @@ class TwoFactorViewModelTest {
         val state = viewModel.uiState.value
         assertThat(state.error).isEqualTo("Invalid 2FA code or backup code")
         assertThat(state.isVerified).isFalse()
-        assertThat(state.digits).containsExactlyElementsIn(List(6) { "" })
+        assertThat(state.code).isEmpty()
         assertThat(state.codeAttempt).isEqualTo(1)
     }
 
@@ -93,7 +124,7 @@ class TwoFactorViewModelTest {
 
         val state = viewModel.uiState.value
         assertThat(state.error).isEqualTo("Couldn't reach the server. Check your connection and try again.")
-        assertThat(state.digits.joinToString("")).isEqualTo("123456")
+        assertThat(state.code).isEqualTo("123456")
         assertThat(state.codeAttempt).isEqualTo(0)
     }
 
@@ -129,7 +160,7 @@ class TwoFactorViewModelTest {
 
         val state = viewModel.uiState.value
         assertThat(state.error).isEqualTo(message)
-        assertThat(state.digits).containsExactlyElementsIn(List(6) { "" })
+        assertThat(state.code).isEmpty()
         assertThat(state.codeAttempt).isEqualTo(1)
         assertThat(state.isVerified).isFalse()
     }
@@ -146,7 +177,7 @@ class TwoFactorViewModelTest {
 
         val state = viewModel.uiState.value
         assertThat(state.error).isEqualTo("Server error. Please try again.")
-        assertThat(state.digits.joinToString("")).isEqualTo("123456")
+        assertThat(state.code).isEqualTo("123456")
         assertThat(state.codeAttempt).isEqualTo(0)
         assertThat(state.isVerified).isFalse()
     }
@@ -164,7 +195,7 @@ class TwoFactorViewModelTest {
 
         val state = viewModel.uiState.value
         assertThat(state.error).isEqualTo("Too many verification attempts, please try again after 5 minutes.")
-        assertThat(state.digits.joinToString("")).isEqualTo("123456")
+        assertThat(state.code).isEqualTo("123456")
         assertThat(state.codeAttempt).isEqualTo(0)
     }
 
@@ -186,7 +217,7 @@ class TwoFactorViewModelTest {
         val switched = viewModel.uiState.value
         assertThat(switched.isBackupMode).isTrue()
         assertThat(switched.isLoading).isFalse()
-        assertThat(switched.digits).containsExactlyElementsIn(List(6) { "" })
+        assertThat(switched.code).isEmpty()
 
         advanceUntilIdle()
         assertThat(viewModel.uiState.value.isVerified).isTrue()
@@ -212,7 +243,7 @@ class TwoFactorViewModelTest {
         assertThat(settled.isVerified).isFalse()
         assertThat(settled.isBackupMode).isTrue()
         assertThat(settled.error).isNull()
-        assertThat(settled.digits).containsExactlyElementsIn(List(6) { "" })
+        assertThat(settled.code).isEmpty()
         assertThat(settled.isLoading).isFalse()
     }
 
