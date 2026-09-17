@@ -93,16 +93,45 @@ class EngineStreamClient(
                 attempt++
             }
 
-            if (attempt > MAX_RETRIES) return@flow
+            // Les essais rapides sont épuisés. On ne rend PAS la main : un flux qui se termine
+            // laisse l'écran sourd sans un mot, et c'est indiscernable d'un agent qui a cessé de
+            // répondre — la conversation continue côté moteur, l'appareil ne l'entend plus.
+            // Constaté le 17/09/2026 sur une session de mission qui « ne répondait plus » ; elle
+            // répondait, et rouvrir la session suffisait à tout faire apparaître.
+            //
+            // Une panne assez longue pour brûler les cinq essais (~31 s de temporisation cumulée)
+            // est un tunnel, un changement de réseau, une mise en veille — toutes choses qui
+            // passent. On repart donc à zéro après une pause franche, aussi longtemps que l'écran
+            // est ouvert. C'est l'annulation du collecteur, et elle seule, qui arrête ce flux.
+            if (attempt > MAX_RETRIES) {
+                Diag.w("EngineSSE", origin = LogOrigin.NETWORK, attrs = mapOf("attempt" to attempt.toString())) {
+                    "engine event feed exhausted its fast retries, pausing before a fresh attempt"
+                }
+                delay(COOLDOWN_MS)
+                attempt = 0
+                continue
+            }
             val backoff = min(INITIAL_DELAY_MS * (1L shl (attempt - 1).coerceAtLeast(0)), MAX_DELAY_MS)
             delay(backoff)
         }
     }
 
     private companion object {
+        /**
+         * Combien d'essais rapprochés avant de souffler. Ce n'est plus un budget de vie : au-delà
+         * on attend [COOLDOWN_MS] et on recommence, parce qu'abandonner pour de bon est le seul
+         * échec que l'utilisateur ne peut pas voir.
+         */
         const val MAX_RETRIES = 5
         const val INITIAL_DELAY_MS = 1_000L
         const val MAX_DELAY_MS = 30_000L
+
+        /**
+         * La pause entre deux salves. Assez longue pour ne pas marteler un moteur éteint ni vider
+         * la batterie, assez courte pour qu'une sortie de tunnel se rattrape sans que personne
+         * n'ait à toucher l'écran.
+         */
+        const val COOLDOWN_MS = 60_000L
         const val UNAUTHORIZED = 401
         const val FORBIDDEN = 403
     }
