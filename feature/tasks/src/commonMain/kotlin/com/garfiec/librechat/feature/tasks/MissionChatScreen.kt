@@ -50,6 +50,7 @@ import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -133,6 +134,8 @@ import com.garfiec.librechat.feature.tasks.util.toolCount
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import org.jetbrains.compose.resources.stringResource
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
@@ -150,6 +153,16 @@ fun MissionChatScreen(
     viewModel: MissionChatViewModel = koinViewModel { parametersOf(sessionId) },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+
+    // Le cas dominant : le téléphone dort, le flux tombe, la mission continue de parler. Comme le
+    // flux classique reprend à « maintenant » et ne rejoue rien, revenir au premier plan est le
+    // moment où l'écran est le plus sûrement en retard — et celui où personne ne pense à tirer.
+    // La PREMIÈRE reprise est sautée : elle suit l'ouverture, que le ViewModel a déjà servie. Sans
+    // ce garde-fou chaque ouverture d'écran paierait deux fois le transcript pour le même résultat.
+    var dejaRepris by rememberSaveable { mutableStateOf(false) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        if (dejaRepris) viewModel.refresh() else dejaRepris = true
+    }
 
     Scaffold(
         modifier = modifier,
@@ -189,6 +202,7 @@ fun MissionChatScreen(
             state = state,
             contentPadding = padding,
             onRetryHistory = viewModel::retryHistory,
+            onRefresh = viewModel::refresh,
             onRememberPosition = viewModel::rememberPosition,
         )
     }
@@ -199,37 +213,47 @@ private fun MissionChatBody(
     state: MissionChatUiState,
     contentPadding: PaddingValues,
     onRetryHistory: () -> Unit,
+    onRefresh: () -> Unit,
     onRememberPosition: (index: Int, offset: Int) -> Unit,
 ) {
-    Box(Modifier.padding(contentPadding).fillMaxSize()) {
-        val historyFailure = state.historyError
-        when {
-            // The transcript is the conversation's past; while it loads, an empty screen would be a
-            // lie about a session that has been talking for hours.
-            state.loadingHistory && state.chat.turns.isEmpty() ->
-                CircularProgressIndicator(Modifier.align(Alignment.Center))
+    // Le geste que Raphaël a cherché le 21/09/2026 avant de contourner par la liste. Il ne masque
+    // pas le défaut — le flux reprend toujours à « maintenant », voir MissionChatViewModel.refresh —
+    // il rend seulement le rattrapage possible sans quitter l'écran.
+    PullToRefreshBox(
+        isRefreshing = state.refreshing,
+        onRefresh = onRefresh,
+        modifier = Modifier.padding(contentPadding).fillMaxSize(),
+    ) {
+        Box(Modifier.fillMaxSize()) {
+            val historyFailure = state.historyError
+            when {
+                // The transcript is the conversation's past; while it loads, an empty screen would be a
+                // lie about a session that has been talking for hours.
+                state.loadingHistory && state.chat.turns.isEmpty() ->
+                    CircularProgressIndicator(Modifier.align(Alignment.Center))
 
-            historyFailure != null && state.chat.turns.isEmpty() -> Explanation(
-                title = stringResource(historyFailure.title()),
-                hint = historyFailure.hint()?.let { stringResource(it) },
-                action = stringResource(Res.string.tasks_retry) to onRetryHistory,
-            )
+                historyFailure != null && state.chat.turns.isEmpty() -> Explanation(
+                    title = stringResource(historyFailure.title()),
+                    hint = historyFailure.hint()?.let { stringResource(it) },
+                    action = stringResource(Res.string.tasks_retry) to onRetryHistory,
+                )
 
-            state.chat.turns.isEmpty() -> Text(
-                text = stringResource(Res.string.tasks_chat_empty),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.align(Alignment.Center).padding(32.dp),
-            )
+                state.chat.turns.isEmpty() -> Text(
+                    text = stringResource(Res.string.tasks_chat_empty),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.align(Alignment.Center).padding(32.dp),
+                )
 
-            else -> MissionTurns(
-                chat = state.chat,
-                fontScale = state.fontScale,
-                restoredPosition = state.restoredPosition,
-                positionKnown = state.positionKnown,
-                onRememberPosition = onRememberPosition,
-            )
+                else -> MissionTurns(
+                    chat = state.chat,
+                    fontScale = state.fontScale,
+                    restoredPosition = state.restoredPosition,
+                    positionKnown = state.positionKnown,
+                    onRememberPosition = onRememberPosition,
+                )
+            }
         }
     }
 }
