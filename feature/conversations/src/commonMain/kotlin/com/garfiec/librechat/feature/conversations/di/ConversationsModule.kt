@@ -37,8 +37,24 @@ val conversationsModule = module {
     viewModelOf(::ConversationListViewModel)
     viewModelOf(::ArchivedConversationsViewModel)
     viewModelOf(::ProjectsViewModel)
-    // Drawer-data half of the nav shell's NavHostViewModel.
-    viewModelOf(::DrawerViewModel)
+    // Drawer-data half of the nav shell's NavHostViewModel. Spelled out rather than `viewModelOf`
+    // for one argument: the mission source is bound by the Android-only engine graph (D-034), and
+    // `getOrNull` is what lets iOS build a drawer of chats instead of failing to build the graph.
+    @Suppress("DeprecatedKoinApi")
+    viewModel {
+        DrawerViewModel(
+            conversationRepository = get(),
+            roleRepository = get(),
+            tagRepository = get(),
+            projectRepository = get(),
+            configRepository = get(),
+            shareRepository = get(),
+            conversationExporter = get(),
+            activeAccountProvider = get(),
+            settingsDataStore = get(),
+            recentMissionsSource = getOrNull(),
+        )
+    }
     // projectId arrives from the navigation layer via parametersOf.
     @Suppress("DeprecatedKoinApi")
     viewModel { params ->

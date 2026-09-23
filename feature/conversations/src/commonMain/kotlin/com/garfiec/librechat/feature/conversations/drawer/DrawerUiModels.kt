@@ -1,6 +1,7 @@
 package com.garfiec.librechat.feature.conversations.drawer
 
 import androidx.compose.runtime.Immutable
+import com.garfiec.librechat.core.data.engine.RecentMissionStatus
 import com.garfiec.librechat.core.model.ConversationTag
 import kotlin.time.Instant
 
@@ -26,6 +27,41 @@ data class DrawerConversationDisplayData(
     val tags: List<String>,
     val endpointIconUrl: String? = null,
 )
+
+/**
+ * An engine mission as a drawer row, next to the chats (rule « B », 23/09/2026).
+ *
+ * [updatedAt] is kept as an instant for the same reason as [DrawerConversationDisplayData.updatedAt]:
+ * the relative « 5m ago » is formatted at render time, never baked in.
+ */
+@Immutable
+data class DrawerMissionDisplayData(
+    val sessionId: String,
+    val title: String,
+    val updatedAt: Instant?,
+    val status: RecentMissionStatus,
+)
+
+/**
+ * One row of the drawer's recents: a chat or a mission, in a single list ordered by recency.
+ *
+ * A sealed type rather than two parallel lists because the whole point is that they interleave —
+ * « the one that just moved goes on top », whichever kind it is.
+ */
+@Immutable
+sealed interface DrawerRecentRow {
+    val key: String
+
+    @Immutable
+    data class Chat(val data: DrawerConversationDisplayData) : DrawerRecentRow {
+        override val key: String get() = data.conversationId
+    }
+
+    @Immutable
+    data class Mission(val data: DrawerMissionDisplayData) : DrawerRecentRow {
+        override val key: String get() = "mission_${data.sessionId}"
+    }
+}
 
 /**
  * Inline project-chat accordion state for the drawer's Projects tab: which project is expanded
@@ -58,6 +94,11 @@ data class AccountUiModel(
 @Immutable
 data class DrawerUiState(
     val groupedConversations: List<Pair<String, List<DrawerConversationDisplayData>>> = emptyList(),
+    /**
+     * [groupedConversations] with the engine's missions merged in by date — what the recents list
+     * actually renders. Equal to the chats alone wherever no engine is wired (iOS, D-034).
+     */
+    val groupedRecents: List<Pair<String, List<DrawerRecentRow>>> = emptyList(),
     val favoriteConversations: List<DrawerConversationDisplayData> = emptyList(),
     val pinnedConversations: List<DrawerConversationDisplayData> = emptyList(),
     val searchQuery: String = "",

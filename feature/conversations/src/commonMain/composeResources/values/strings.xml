@@ -117,4 +117,9 @@
     <string name="remove_account_message">%1$s and its data will be removed from this device. The account on the server is not affected.</string>
     <string name="remove_account_title">Remove account?</string>
     <string name="tasks">Tasks</string>
+    <!-- A mission among the drawer's recents (rule B, 23/09/2026). -->
+    <string name="drawer_mission">Mission</string>
+    <string name="drawer_mission_failed">Failed</string>
+    <string name="drawer_mission_incomplete">Incomplete</string>
+    <string name="cd_drawer_mission_running">Mission running</string>
 </resources>
