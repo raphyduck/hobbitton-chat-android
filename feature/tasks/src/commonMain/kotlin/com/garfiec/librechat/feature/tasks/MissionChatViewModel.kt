@@ -44,6 +44,14 @@ data class MissionChatUiState(
     val input: String = "",
     /** The transcript is still loading: the screen shows a spinner rather than a false empty state. */
     val loadingHistory: Boolean = true,
+    /**
+     * A re-seed asked for by the user, or by the screen coming back to the foreground.
+     *
+     * Separate from [loadingHistory] because the two draw differently: the first opening shows a
+     * centred spinner over an empty screen, a re-seed shows the pull indicator over the transcript
+     * that is already there.
+     */
+    val refreshing: Boolean = false,
     /** A send is in flight — the gap between the POST and the answer's first token. */
     val sending: Boolean = false,
     /** Photos staged for the next message, already downscaled by the picker's platform side. */
@@ -288,14 +296,44 @@ class MissionChatViewModel(
                     // Fold the past *under* whatever the live feed already delivered, so nothing that
                     // arrived while we were fetching is lost.
                     val seeded = events.fold(current.chat) { state, event -> state.reduce(event) }
-                    current.copy(chat = seeded, loadingHistory = false)
+                    current.copy(chat = seeded, loadingHistory = false, refreshing = false)
                 }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                _uiState.update { it.copy(loadingHistory = false, historyError = e.engineFailureKind()) }
+                _uiState.update {
+                    it.copy(
+                        loadingHistory = false,
+                        refreshing = false,
+                        historyError = e.engineFailureKind(),
+                    )
+                }
             }
         }
+    }
+
+    /**
+     * Re-read the transcript on an open screen.
+     *
+     * WHY THIS HAS TO EXIST. The screen fills from two places that only meet once: [loadHistory] at
+     * open, and the live feed. The engine's classic feed has **no resume cursor** — a reconnect
+     * resumes at « now » (see core/network's CLAUDE.md). So everything a mission emits while the
+     * feed is down is never re-delivered, and the open screen stays amputated: the only way back
+     * was to leave for the list and return, which destroys the ViewModel and re-runs [loadHistory].
+     * Signalé par Raphaël le 21/09/2026, dans ces termes exactement.
+     *
+     * The stuck spinner has the same root. [MissionChatState.streaming] is raised by a delta and
+     * lowered **only** by `Idle`; a feed that drops between the two leaves a turn marked « running »
+     * for good. Re-seeding therefore lowers it: the transcript is the arbiter of what is finished,
+     * and a turn that really is live raises it again on its next delta.
+     *
+     * Safe to replay: the reducer is idempotent — a message or part seen twice is updated in place —
+     * and `engineHistoryEvents` replays full `PartUpdated` parts, never deltas, so nothing is
+     * appended twice.
+     */
+    fun refresh() {
+        _uiState.update { it.copy(refreshing = true, chat = it.chat.copy(streaming = false)) }
+        loadHistory()
     }
 
     /**
