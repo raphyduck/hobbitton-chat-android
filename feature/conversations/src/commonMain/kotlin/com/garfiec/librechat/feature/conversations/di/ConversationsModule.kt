@@ -51,7 +51,6 @@ val conversationsModule = module {
             shareRepository = get(),
             conversationExporter = get(),
             activeAccountProvider = get(),
-            settingsDataStore = get(),
             recentMissionsSource = getOrNull(),
         )
     }

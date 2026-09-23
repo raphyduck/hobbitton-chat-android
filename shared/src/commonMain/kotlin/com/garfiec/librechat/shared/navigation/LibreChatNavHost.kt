@@ -440,10 +440,6 @@ fun PhoneLayout(
                         scope.launch { drawerState.close() }
                         navigator.navigate(Files)
                     },
-                    onSkillsClick = {
-                        scope.launch { drawerState.close() }
-                        navigator.navigate(SkillsList)
-                    },
                     // Null on any platform where the engine's graph is not started, which today
                     // means iOS (D-034). The row then does not exist, rather than existing and
                     // crashing at the tap.
@@ -504,6 +500,10 @@ fun MainNavDisplay(
     drawerViewModel: DrawerViewModel = koinViewModel(),
     serverFileSelectionHandoff: ServerFileSelectionHandoff = koinInject(),
 ) {
+    // Skills left the drawer for Settings on 23/09/2026, and its role gate went with it: the same
+    // SKILLS.USE flag the drawer row was shown under now decides whether Settings offers the row.
+    val skillsEnabled = drawerViewModel.drawerUiState.collectAsStateWithLifecycle().value.skillsEnabled
+
     NavDisplay(
         backStack = navigator.backStack,
         onBack = { navigator.goBack() },
@@ -618,6 +618,11 @@ fun MainNavDisplay(
                 // successor was promoted.
                 onLogout = { navHostViewModel.logout() },
                 onNavigateToArchive = { navigator.navigate(ArchivedConversations) },
+                onNavigateToSkills = if (skillsEnabled) {
+                    { navigator.navigate(SkillsList) }
+                } else {
+                    null
+                },
             )
             memoriesEntry(
                 onBack = { navigator.goBack() },

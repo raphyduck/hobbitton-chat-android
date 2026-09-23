@@ -9,7 +9,6 @@ import com.garfiec.librechat.core.common.identity.AccountTransition
 import com.garfiec.librechat.core.common.identity.ActiveAccountProvider
 import com.garfiec.librechat.core.common.identity.accountTransitions
 import com.garfiec.librechat.core.common.result.Result
-import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.engine.RecentMission
 import com.garfiec.librechat.core.data.engine.RecentMissionsSource
 import com.garfiec.librechat.core.data.repository.ConfigRepository
@@ -30,7 +29,6 @@ import com.garfiec.librechat.feature.conversations.export.ConversationExporter
 import com.garfiec.librechat.feature.conversations.export.ExportFormat
 import com.garfiec.librechat.feature.conversations.viewmodel.ConversationListActionsDelegate
 import com.garfiec.librechat.feature.conversations.viewmodel.ConversationListEvent
-import com.garfiec.librechat.feature.conversations.viewmodel.ProjectActionsDelegate
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -41,7 +39,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -66,7 +63,6 @@ class DrawerViewModel(
     private val shareRepository: ShareRepository,
     private val conversationExporter: ConversationExporter,
     private val activeAccountProvider: ActiveAccountProvider,
-    private val settingsDataStore: SettingsDataStore,
     /**
      * The engine's missions, listed among the chats. Null wherever the engine's graph is not
      * started — iOS today (D-034) — and the recents list is then the chats alone.
@@ -116,28 +112,6 @@ class DrawerViewModel(
     private val _projects = MutableStateFlow<List<ChatProject>>(emptyList())
     val projects: StateFlow<List<ChatProject>> = _projects.asStateFlow()
 
-    // Inline project-chat accordion for the drawer Projects tab. Network-direct per project (Room
-    // can't filter by project — see ProjectChatsViewModel), single-expand: only the open project's
-    // chats are held. Mapped to the drawer row type against the active id + endpoint configs so the
-    // rows match the recents list.
-    private val _expandedProjectId = MutableStateFlow<String?>(null)
-    private val _expandedProjectChats = MutableStateFlow<List<Conversation>>(emptyList())
-    private val _expandedProjectLoading = MutableStateFlow(false)
-
-    val inlineProjectChats: StateFlow<InlineProjectChatsState> = combine(
-        _expandedProjectId,
-        _expandedProjectChats,
-        _expandedProjectLoading,
-        conversationListStateHolder.activeConversationId,
-        configRepository.endpointConfigs,
-    ) { expandedId, convos, loading, activeId, configs ->
-        InlineProjectChatsState(
-            expandedProjectId = expandedId,
-            conversations = convos.map { it.toDrawerDisplayData(activeId, configs) },
-            isLoading = loading,
-        )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), InlineProjectChatsState())
-
     // One-shot events for the drawer action menu (share-link copied, export-ready,
     // navigate-to-duplicate, errors). Reuses the conversation-list event type. extraBufferCapacity
     // lets emit() return immediately instead of suspending if the collector (ConversationActionEffects)
@@ -159,27 +133,6 @@ class DrawerViewModel(
         conversationExporter = conversationExporter,
         onMutated = {},
     )
-
-    // Shared project CRUD (same delegate ProjectsViewModel uses).
-    private val projectActions = ProjectActionsDelegate(
-        scope = viewModelScope,
-        projectRepository = projectRepository,
-        onChanged = { loadProjects() },
-        onDeleted = { loadProjects() },
-        emitError = { _events.emit(ConversationListEvent.ShowError(it)) },
-    )
-
-    // Drawer "Library" tab is optimistic local state (instant toggle) with DataStore as a write-behind
-    // cache: hydrated once in init and written on change. Null = not yet hydrated; the drawer shows
-    // Chats for the brief window until the persisted value loads, and the seed's update { it ?: ... }
-    // lets a tap in that window win over the incoming persisted value.
-    private val _drawerLibraryTab = MutableStateFlow<DrawerTab?>(null)
-    val drawerLibraryTab: StateFlow<DrawerTab?> = _drawerLibraryTab.asStateFlow()
-
-    fun setDrawerLibraryTab(tab: DrawerTab) {
-        _drawerLibraryTab.value = tab
-        viewModelScope.launch { settingsDataStore.setDrawerLibraryTab(tab.toStorageString()) }
-    }
 
     /**
      * Role-permission flags for drawer UI. Permissive-default (`?: true`) until the
@@ -276,10 +229,6 @@ class DrawerViewModel(
 
     init {
         refreshMissions()
-        viewModelScope.launch {
-            val persisted = DrawerTab.fromString(settingsDataStore.drawerLibraryTab.first())
-            _drawerLibraryTab.update { it ?: persisted }
-        }
         // Load the Chat Projects folders once the backend is known to support them (v0.8.7-rc1+).
         // detectedBackendVersion is a StateFlow (already conflated), so no distinctUntilChanged.
         viewModelScope.launch {
@@ -298,9 +247,6 @@ class DrawerViewModel(
         viewModelScope.launch {
             activeAccountProvider.accountTransitions().collect { transition ->
                 _projects.value = emptyList()
-                _expandedProjectId.value = null
-                _expandedProjectChats.value = emptyList()
-                _expandedProjectLoading.value = false
                 conversationListStateHolder.reset()
                 // No tagRepository.clearCache() here: observeTags() is account-scoped, so the
                 // outgoing account's tags never show, and RefreshTagsSessionTask (fired by the nav
@@ -399,33 +345,6 @@ class DrawerViewModel(
         }
     }
 
-    /**
-     * Toggles the inline accordion for [projectId] in the drawer's Projects tab. Expanding loads that
-     * project's chats network-direct (single-expand: the previously open project collapses); tapping
-     * the open project collapses it. [ChatProject.UNASSIGNED] is a valid id (loose chats).
-     */
-    fun toggleProjectExpanded(projectId: String) {
-        if (_expandedProjectId.value == projectId) {
-            _expandedProjectId.value = null
-            _expandedProjectChats.value = emptyList()
-            return
-        }
-        _expandedProjectId.value = projectId
-        _expandedProjectChats.value = emptyList()
-        _expandedProjectLoading.value = true
-        viewModelScope.launch {
-            val result = conversationRepository.getConversationsForProject(projectId = projectId)
-            // The user may have collapsed or opened another folder while this was in flight.
-            if (_expandedProjectId.value != projectId) return@launch
-            when (result) {
-                is Result.Success -> _expandedProjectChats.value = result.data.conversations
-                is Result.Error -> Logger.w(result.exception) { "Failed to load project chats" }
-                is Result.Loading -> Unit
-            }
-            _expandedProjectLoading.value = false
-        }
-    }
-
     /** Loads the user's projects for the move-to-project picker. */
     fun loadProjects() {
         viewModelScope.launch {
@@ -475,24 +394,11 @@ class DrawerViewModel(
     }
 
     /**
-     * Refresh the Projects mode after a conversation's project assignment changes: reload the
+     * Refresh the move-to-project picker after a conversation's project assignment changes: reload the
      * folders, whose conversationCount is now stale.
      */
     private fun onProjectAssignmentChanged() {
         loadProjects()
-    }
-
-    fun createProject(name: String) = projectActions.create(name)
-
-    fun renameProject(projectId: String, name: String) = projectActions.rename(projectId, name)
-
-    fun deleteProject(projectId: String) {
-        // Collapse the inline accordion if the deleted project was open, so its stale chats clear.
-        if (_expandedProjectId.value == projectId) {
-            _expandedProjectId.value = null
-            _expandedProjectChats.value = emptyList()
-        }
-        projectActions.delete(projectId)
     }
 
     fun deleteConversation(id: String) = conversationActions.deleteConversation(
