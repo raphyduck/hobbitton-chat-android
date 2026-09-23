@@ -17,6 +17,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Brush
+import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -51,6 +52,8 @@ import com.garfiec.librechat.core.data.datastore.StarredModelsDisplay
 import com.garfiec.librechat.core.data.datastore.UploadRoutingMode
 import com.garfiec.librechat.feature.settings.resources.*
 import com.garfiec.librechat.feature.settings.resources.Res
+import com.garfiec.librechat.feature.settings.resources.skills_entry
+import com.garfiec.librechat.feature.settings.resources.skills_entry_subtitle
 import com.garfiec.librechat.feature.settings.viewmodel.SettingsViewModel
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
@@ -61,6 +64,7 @@ fun ChatSettingsScreen(
     onNavigateBack: () -> Unit,
     onNavigateToPresets: () -> Unit,
     modifier: Modifier = Modifier,
+    onNavigateToSkills: (() -> Unit)? = null,
 ) {
     Scaffold(
         modifier = modifier,
@@ -80,6 +84,7 @@ fun ChatSettingsScreen(
     ) { innerPadding ->
         ChatSettingsContent(
             onNavigateToPresets = onNavigateToPresets,
+            onNavigateToSkills = onNavigateToSkills,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
@@ -95,6 +100,13 @@ fun ChatSettingsScreen(
 fun ChatSettingsContent(
     onNavigateToPresets: () -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * Opens the Skills list. It lived in the drawer until 23/09/2026; the drawer now keeps only the
+     * destinations used every day, Claude-style, and a library of instructions is something one
+     * sets up rather than visits. Null hides the row: the host passes null when the role is denied
+     * SKILLS.USE — the gate the drawer row used to apply, carried over rather than dropped.
+     */
+    onNavigateToSkills: (() -> Unit)? = null,
     viewModel: SettingsViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -169,6 +181,21 @@ fun ChatSettingsContent(
                     subtitle = stringResource(Res.string.presets_subtitle),
                     onClick = onNavigateToPresets,
                 )
+            }
+
+            // Skills section — only when the role may use them.
+            onNavigateToSkills?.let { openSkills ->
+                item(key = "skills_header") {
+                    SectionHeader(stringResource(Res.string.skills_entry))
+                }
+                item(key = "skills_row") {
+                    ChatSettingsRow(
+                        icon = Icons.Default.Extension,
+                        title = stringResource(Res.string.skills_entry),
+                        subtitle = stringResource(Res.string.skills_entry_subtitle),
+                        onClick = openSkills,
+                    )
+                }
             }
 
             // Advanced section

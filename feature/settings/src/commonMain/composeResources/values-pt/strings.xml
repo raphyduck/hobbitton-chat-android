@@ -544,4 +544,6 @@
     <string name="server_headers_discard_message">Suas alterações de cabeçalho não salvas serão perdidas.</string>
     <string name="server_headers_discard_confirm">Descartar</string>
     <string name="server_headers_keep_editing">Continuar editando</string>
+    <string name="skills_entry">Habilidades</string>
+    <string name="skills_entry_subtitle">Gerenciar suas habilidades</string>
 </resources>

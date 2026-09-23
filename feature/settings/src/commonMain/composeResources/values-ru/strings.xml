@@ -544,4 +544,6 @@
     <string name="server_headers_discard_message">Несохранённые изменения заголовков будут потеряны.</string>
     <string name="server_headers_discard_confirm">Отменить</string>
     <string name="server_headers_keep_editing">Продолжить правку</string>
+    <string name="skills_entry">Навыки</string>
+    <string name="skills_entry_subtitle">Управление навыками</string>
 </resources>
