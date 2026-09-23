@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
@@ -63,6 +64,7 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_empty_hint
 import com.garfiec.librechat.feature.tasks.resources.tasks_new
 import com.garfiec.librechat.feature.tasks.resources.tasks_not_configured
 import com.garfiec.librechat.feature.tasks.resources.tasks_not_configured_hint
+import com.garfiec.librechat.feature.tasks.resources.tasks_open_drawer
 import com.garfiec.librechat.feature.tasks.resources.tasks_providers_all_ok
 import com.garfiec.librechat.feature.tasks.resources.tasks_providers_check
 import com.garfiec.librechat.feature.tasks.resources.tasks_providers_checking
@@ -138,6 +140,11 @@ import org.koin.compose.viewmodel.koinViewModel
 fun TasksScreen(
     modifier: Modifier = Modifier,
     onOpenMissionChat: (sessionId: String, title: String) -> Unit = { _, _ -> },
+    /**
+     * The menu button, as on the chat. Until 23/09/2026 this bar had no leading button at all: the
+     * screen is reached from the drawer, and the only way back to it was the system back gesture.
+     */
+    onOpenDrawer: (() -> Unit)? = null,
     viewModel: TasksViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -164,6 +171,13 @@ fun TasksScreen(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(Res.string.tasks_title)) },
+                navigationIcon = {
+                    onOpenDrawer?.let { open ->
+                        IconButton(onClick = open) {
+                            Icon(Icons.Default.Menu, contentDescription = stringResource(Res.string.tasks_open_drawer))
+                        }
+                    }
+                },
                 actions = {
                     // Reachable whether or not the engine is set up: changing a password or moving
                     // to another host must not require first getting into the « not configured »

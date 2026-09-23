@@ -4,12 +4,14 @@ import com.garfiec.librechat.core.common.di.KoinQualifiers
 import com.garfiec.librechat.core.data.engine.EngineCallbackDelivery
 import com.garfiec.librechat.core.data.engine.EngineCallbackInbox
 import com.garfiec.librechat.core.data.engine.EngineCallbackMailbox
+import com.garfiec.librechat.core.data.engine.EngineRecentMissionsSource
 import com.garfiec.librechat.core.data.engine.EngineSecureStore
 import com.garfiec.librechat.core.data.engine.EngineSessionManager
 import com.garfiec.librechat.core.data.engine.EngineSignIn
 import com.garfiec.librechat.core.data.engine.EngineSignInCoordinator
 import com.garfiec.librechat.core.data.engine.EngineSignInLauncher
 import com.garfiec.librechat.core.data.engine.EngineSettingsStore
+import com.garfiec.librechat.core.data.engine.RecentMissionsSource
 import com.garfiec.librechat.core.data.pricing.ModelPriceSource
 import com.garfiec.librechat.core.data.scheduler.SchedulerRepository
 import com.garfiec.librechat.core.network.api.AgentEngineApi
@@ -158,6 +160,13 @@ val engineModule: Module = module {
      * receives null, and every picker renders without prices rather than crashing at first open.
      */
     single<ModelPriceSource> { get<SchedulerRepository>() }
+
+    /**
+     * The missions the drawer lists among the chats. Same arrangement as the price source above:
+     * bound here, resolved with `getOrNull` by the drawer, so iOS gets a drawer of chats only rather
+     * than a graph that fails to build.
+     */
+    single<RecentMissionsSource> { EngineRecentMissionsSource(api = get(), scheduler = get(), settings = get()) }
 
     /**
      * The OAuth client talks to the **portal**, not the engine, and carries none of the engine's

@@ -82,6 +82,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
@@ -89,6 +90,7 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.garfiec.librechat.core.common.extensions.toRelativeTimeString
+import com.garfiec.librechat.core.data.engine.RecentMissionStatus
 import com.garfiec.librechat.core.model.ChatProject
 import com.garfiec.librechat.core.model.SAVED_TAG
 import com.garfiec.librechat.core.ui.components.EndpointIcon
@@ -110,9 +112,13 @@ import com.garfiec.librechat.feature.conversations.resources.bookmark
 import com.garfiec.librechat.feature.conversations.resources.cd_clear_search
 import com.garfiec.librechat.feature.conversations.resources.cd_collapse_section
 import com.garfiec.librechat.feature.conversations.resources.cd_conversation_actions
+import com.garfiec.librechat.feature.conversations.resources.cd_drawer_mission_running
 import com.garfiec.librechat.feature.conversations.resources.cd_expand_section
 import com.garfiec.librechat.feature.conversations.resources.cd_search
 import com.garfiec.librechat.feature.conversations.resources.chats
+import com.garfiec.librechat.feature.conversations.resources.drawer_mission
+import com.garfiec.librechat.feature.conversations.resources.drawer_mission_failed
+import com.garfiec.librechat.feature.conversations.resources.drawer_mission_incomplete
 import com.garfiec.librechat.feature.conversations.resources.favorites
 import com.garfiec.librechat.feature.conversations.resources.files
 import com.garfiec.librechat.feature.conversations.resources.library
@@ -175,6 +181,8 @@ fun DrawerContent(
     onTasksClick: (() -> Unit)?,
     accounts: List<AccountUiModel>,
     modifier: Modifier = Modifier,
+    /** Opens a mission listed among the recents; see the stateless overload. */
+    onMissionClick: ((sessionId: String, title: String) -> Unit)? = null,
     onOpenProjectsIndex: () -> Unit = {},
     onSwitchAccount: (String) -> Unit = {},
     onAddAccount: () -> Unit = {},
@@ -259,6 +267,7 @@ fun DrawerContent(
         onFilesClick = onFilesClick,
         onSkillsClick = onSkillsClick,
         onTasksClick = onTasksClick,
+        onMissionClick = onMissionClick,
         onToggleFavorite = { data -> viewModel.toggleFavorite(data.conversationId, data.tags) },
         onRefresh = viewModel::refreshConversations,
         onLoadMore = viewModel::loadMoreConversations,
@@ -325,6 +334,9 @@ fun DrawerContent(
     onSkillsClick: () -> Unit,
     onTasksClick: (() -> Unit)?,
     modifier: Modifier = Modifier,
+    // Opens a mission listed among the recents. Null where no engine is wired: no mission row can
+    // exist there, since the list only holds what the engine source returned.
+    onMissionClick: ((sessionId: String, title: String) -> Unit)? = null,
     // Slot below the footer links (Files, Agents, …) — the stateful wrapper puts the Settings row
     // and the account avatar here, at the bottom of the drawer.
     footerContent: (@Composable () -> Unit)? = null,
@@ -724,7 +736,7 @@ fun DrawerContent(
                         }
                     }
 
-                    if (uiState.groupedConversations.isEmpty() && uiState.searchQuery.isNotEmpty()) {
+                    if (uiState.groupedRecents.isEmpty() && uiState.searchQuery.isNotEmpty()) {
                         item(key = "empty_search") {
                             Text(
                                 text = stringResource(Res.string.no_conversations_found),
@@ -735,7 +747,9 @@ fun DrawerContent(
                         }
                     }
 
-                    uiState.groupedConversations.forEach { (dateGroup, displayItems) ->
+                    // groupedRecents: the chats with the engine's missions merged in by date. Where no
+                    // engine is wired it holds exactly the chats, so this loop is the chats' own.
+                    uiState.groupedRecents.forEach { (dateGroup, displayItems) ->
                         stickyHeader(key = "header_$dateGroup") {
                             Text(
                                 text = dateGroup,
@@ -755,10 +769,21 @@ fun DrawerContent(
 
                         items(
                             items = displayItems,
-                            key = { it.conversationId },
-                            contentType = { "conversation" },
-                        ) { data ->
-                            renderConversationItem(data.conversationId, data)
+                            key = { it.key },
+                            contentType = { row ->
+                                when (row) {
+                                    is DrawerRecentRow.Chat -> "conversation"
+                                    is DrawerRecentRow.Mission -> "mission"
+                                }
+                            },
+                        ) { row ->
+                            when (row) {
+                                is DrawerRecentRow.Chat -> renderConversationItem(row.data.conversationId, row.data)
+                                is DrawerRecentRow.Mission -> DrawerMissionItem(
+                                    data = row.data,
+                                    onClick = { onMissionClick?.invoke(row.data.sessionId, row.data.title) },
+                                )
+                            }
                         }
                     }
 
@@ -1351,6 +1376,101 @@ private fun DrawerConversationItem(
         // clamps it within a margin, so it never clips off-screen.
         menuContent(with(density) { DpOffset(x = pressXpx.toDp(), y = MenuVerticalGap) })
     }
+}
+
+/**
+ * A mission among the recents. Built like [DrawerConversationItem] — same insets, same two lines —
+ * so the list reads as one list; the Tasks glyph and the « Mission » subtitle are what tell it apart.
+ *
+ * The trailing slot speaks only when there is something to say: a spinner while the engine reports
+ * the session busy, a word when a scheduled run failed or stopped short. A settled session says
+ * nothing, because the drawer does not read transcripts and so cannot vouch that it went well
+ * (`RecentMissionStatus.Settled`).
+ *
+ * No long-press menu: the chat actions (rename, archive, share, move to project…) are LibreChat's,
+ * and none of them applies to an engine session.
+ */
+@Composable
+private fun DrawerMissionItem(
+    data: DrawerMissionDisplayData,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .padding(horizontal = 4.dp, vertical = 1.dp)
+            .fillMaxWidth()
+            .clip(ItemShape)
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = Icons.Default.PlayArrow,
+            contentDescription = null,
+            modifier = Modifier.size(18.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
+        Spacer(modifier = Modifier.width(10.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = data.title,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            // Same clock discipline as the chat rows: formatted here, keyed on the ticking reference.
+            val reference = LocalRelativeTimeReference.current
+            val kind = stringResource(Res.string.drawer_mission)
+            val subtitle = remember(kind, data.updatedAt, reference) {
+                val relativeTime = data.updatedAt?.toRelativeTimeString(reference)
+                if (relativeTime.isNullOrEmpty()) kind else "$kind \u00B7 $relativeTime"
+            }
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+
+        when (data.status) {
+            RecentMissionStatus.Running -> {
+                val running = stringResource(Res.string.cd_drawer_mission_running)
+                CircularProgressIndicator(
+                    modifier = Modifier
+                        .padding(start = 8.dp)
+                        .size(16.dp)
+                        .semantics { contentDescription = running },
+                    strokeWidth = 2.dp,
+                )
+            }
+            RecentMissionStatus.Failed -> MissionStatusLabel(
+                text = stringResource(Res.string.drawer_mission_failed),
+                color = MaterialTheme.colorScheme.error,
+            )
+            RecentMissionStatus.Incomplete -> MissionStatusLabel(
+                text = stringResource(Res.string.drawer_mission_incomplete),
+                color = MaterialTheme.colorScheme.tertiary,
+            )
+            RecentMissionStatus.Settled -> Unit
+        }
+    }
+}
+
+@Composable
+private fun MissionStatusLabel(text: String, color: Color) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelSmall,
+        color = color,
+        maxLines = 1,
+        modifier = Modifier.padding(start = 8.dp),
+    )
 }
 
 /**

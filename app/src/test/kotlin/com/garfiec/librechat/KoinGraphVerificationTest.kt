@@ -17,6 +17,7 @@ import com.garfiec.librechat.core.data.datastore.GlobalProfileStore
 import com.garfiec.librechat.core.data.datastore.ServerDataStore
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.datastore.ThemeDataStore
+import com.garfiec.librechat.core.data.engine.RecentMissionsSource
 import com.garfiec.librechat.core.data.prefetch.AttachmentWarmer
 import com.garfiec.librechat.core.data.prefetch.PrefetchController
 import com.garfiec.librechat.core.data.prefetch.PrefetchStatusReporter
@@ -228,6 +229,8 @@ class KoinGraphVerificationTest {
             // (D-034). `ModelPriceCache` resolves it with `getOrNull` precisely because it may be
             // absent — the verifier reads the constructor's declared type and cannot see that.
             ModelPriceSource::class,
+            // Same arrangement: bound by `engineModule`, resolved by the drawer with `getOrNull`.
+            RecentMissionsSource::class,
             // Provided by :core:data's own module; verify() resolves one module at a time.
             ModelPriceCache::class,
             // Wrappers/DSL types that verify can't resolve via constructor

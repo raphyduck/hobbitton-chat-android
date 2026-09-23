@@ -41,6 +41,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.outlined.AddPhotoAlternate
 import androidx.compose.material.icons.outlined.AudioFile
@@ -116,6 +117,7 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_connectors
 import com.garfiec.librechat.feature.tasks.resources.tasks_dictate
 import com.garfiec.librechat.feature.tasks.resources.tasks_dictate_stop
 import com.garfiec.librechat.feature.tasks.resources.tasks_model_default_short
+import com.garfiec.librechat.feature.tasks.resources.tasks_open_drawer
 import com.garfiec.librechat.feature.tasks.resources.tasks_retry
 import com.garfiec.librechat.feature.tasks.resources.tasks_stop
 import com.garfiec.librechat.feature.tasks.resources.tasks_transcription_failed
@@ -150,6 +152,8 @@ fun MissionChatScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     title: String = "",
+    /** Non-null when opened from the drawer: the bar then carries the menu, as a chat does. */
+    onOpenDrawer: (() -> Unit)? = null,
     viewModel: MissionChatViewModel = koinViewModel { parametersOf(sessionId) },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -170,11 +174,20 @@ fun MissionChatScreen(
             TopAppBar(
                 title = { Text(title.ifBlank { stringResource(Res.string.tasks_chat_title) }) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(Res.string.tasks_chat_back),
-                        )
+                    if (onOpenDrawer != null) {
+                        IconButton(onClick = onOpenDrawer) {
+                            Icon(
+                                imageVector = Icons.Default.Menu,
+                                contentDescription = stringResource(Res.string.tasks_open_drawer),
+                            )
+                        }
+                    } else {
+                        IconButton(onClick = onBack) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(Res.string.tasks_chat_back),
+                            )
+                        }
                     }
                 },
             )

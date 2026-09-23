@@ -53,6 +53,15 @@ data class MissionRun(
     /** Why it stopped, in the scheduler's words: « terminée », « BUDGET DÉPASSÉ (…) », … */
     @SerialName("arret") val stopReason: String? = null,
     @SerialName("succes") val succeeded: Boolean? = null,
+    /**
+     * Stopped cleanly but short of the end — out of time or out of calls, with a report handed in.
+     *
+     * The scheduler's own verdict, and the only place it exists: the engine sees a session that
+     * spoke and consumed tokens, which it cannot tell apart from one that finished. A field of its
+     * own rather than a third value of `succes` — the server kept that one a boolean so older
+     * clients still decode (`vue.py`) — so `succes` alone never says whether the job got done.
+     */
+    @SerialName("incomplet") val incomplete: Boolean = false,
     @SerialName("session") val sessionId: String? = null,
 )
 

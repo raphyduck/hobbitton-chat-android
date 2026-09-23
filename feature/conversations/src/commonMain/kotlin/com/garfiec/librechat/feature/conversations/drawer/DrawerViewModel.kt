@@ -4,11 +4,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.common.BackendVersion
+import com.garfiec.librechat.core.common.extensions.RelativeTimeReference
 import com.garfiec.librechat.core.common.identity.AccountTransition
 import com.garfiec.librechat.core.common.identity.ActiveAccountProvider
 import com.garfiec.librechat.core.common.identity.accountTransitions
 import com.garfiec.librechat.core.common.result.Result
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
+import com.garfiec.librechat.core.data.engine.RecentMission
+import com.garfiec.librechat.core.data.engine.RecentMissionsSource
 import com.garfiec.librechat.core.data.repository.ConfigRepository
 import com.garfiec.librechat.core.data.repository.ConversationRepository
 import com.garfiec.librechat.core.data.repository.ProjectRepository
@@ -28,6 +31,7 @@ import com.garfiec.librechat.feature.conversations.export.ExportFormat
 import com.garfiec.librechat.feature.conversations.viewmodel.ConversationListActionsDelegate
 import com.garfiec.librechat.feature.conversations.viewmodel.ConversationListEvent
 import com.garfiec.librechat.feature.conversations.viewmodel.ProjectActionsDelegate
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -42,6 +46,9 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TimeMark
+import kotlin.time.TimeSource
 
 /**
  * Drawer-data half of the navigation shell, split out of `NavHostViewModel` so `:shared` stays nav
@@ -60,9 +67,18 @@ class DrawerViewModel(
     private val conversationExporter: ConversationExporter,
     private val activeAccountProvider: ActiveAccountProvider,
     private val settingsDataStore: SettingsDataStore,
+    /**
+     * The engine's missions, listed among the chats. Null wherever the engine's graph is not
+     * started — iOS today (D-034) — and the recents list is then the chats alone.
+     */
+    private val recentMissionsSource: RecentMissionsSource? = null,
 ) : ViewModel() {
 
     private val conversationListStateHolder = ConversationListStateHolder(conversationRepository, viewModelScope)
+
+    private val missions = MutableStateFlow<List<RecentMission>>(emptyList())
+    private var missionsFetchedAt: TimeMark? = null
+    private var missionsJob: Job? = null
 
     private val favoriteConversations: StateFlow<List<Conversation>> =
         conversationListStateHolder.recentConversations
@@ -209,7 +225,7 @@ class DrawerViewModel(
     }
 
     val drawerUiState: StateFlow<DrawerUiState> = combine(
-        displayConversations,
+        combine(displayConversations, missions) { display, recent -> display to recent },
         conversationListStateHolder.searchQuery,
         combine(
             conversationListStateHolder.isRefreshing,
@@ -220,10 +236,15 @@ class DrawerViewModel(
         },
         drawerPermissionFlags,
         drawerActionMenuState,
-    ) { display, query, refreshState, perms, actionMenu ->
+    ) { (display, recentMissions), query, refreshState, perms, actionMenu ->
         val (refreshing, loadingMore, hasMore) = refreshState
         DrawerUiState(
             groupedConversations = display.grouped,
+            groupedRecents = mergeRecents(
+                grouped = display.grouped,
+                missions = recentMissions.toDrawerMissions(query),
+                reference = RelativeTimeReference.current(),
+            ),
             favoriteConversations = display.favorites,
             pinnedConversations = display.pinned,
             searchQuery = query,
@@ -254,6 +275,7 @@ class DrawerViewModel(
     )
 
     init {
+        refreshMissions()
         viewModelScope.launch {
             val persisted = DrawerTab.fromString(settingsDataStore.drawerLibraryTab.first())
             _drawerLibraryTab.update { it ?: persisted }
@@ -308,6 +330,26 @@ class DrawerViewModel(
     fun refreshConversations() {
         conversationListStateHolder.refreshConversations()
         viewModelScope.launch { tagRepository.refreshTags() }
+        refreshMissions(force = true)
+    }
+
+    /**
+     * Re-reads the engine's missions. Called when the drawer opens, so what it shows is at most one
+     * opening old — a mission's state moves while nobody looks, which a chat list mostly does not.
+     *
+     * Throttled unless [force]d: opening and closing the drawer three times in ten seconds is a
+     * gesture, not three requests for news. Three round trips each time (the source's contract),
+     * never a transcript.
+     */
+    fun refreshMissions(force: Boolean = false) {
+        val source = recentMissionsSource ?: return
+        if (missionsJob?.isActive == true) return
+        val fetchedAt = missionsFetchedAt
+        if (!force && fetchedAt != null && fetchedAt.elapsedNow() < MISSIONS_MIN_INTERVAL) return
+        missionsJob = viewModelScope.launch {
+            missions.value = source.recentMissions()
+            missionsFetchedAt = TimeSource.Monotonic.markNow()
+        }
     }
 
     /**
@@ -488,3 +530,6 @@ class DrawerViewModel(
         }
     }
 }
+
+/** See [DrawerViewModel.refreshMissions]. */
+private val MISSIONS_MIN_INTERVAL = 15.seconds

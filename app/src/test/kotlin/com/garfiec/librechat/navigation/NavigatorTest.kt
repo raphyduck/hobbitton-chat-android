@@ -12,6 +12,8 @@ import com.garfiec.librechat.feature.chat.navigation.Chat
 import com.garfiec.librechat.feature.chat.navigation.NewChat
 import com.garfiec.librechat.feature.settings.navigation.ProviderKeys
 import com.garfiec.librechat.feature.settings.navigation.SettingsTabbed
+import com.garfiec.librechat.feature.tasks.navigation.MissionChat
+import com.garfiec.librechat.feature.tasks.navigation.TasksList
 import com.garfiec.librechat.shared.navigation.Navigator
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -226,6 +228,47 @@ class NavigatorTest {
         navigator.navigateToProviderKeys(null)
         assertEquals(
             listOf(NewChat(), ProviderKeys(pendingDialogEndpoint = null)),
+            navigator.backStack.toList(),
+        )
+    }
+
+    @Test
+    fun `navigateToTasks pushes the Tasks screen over the chat`() {
+        val navigator = createNavigator(NewChat())
+        navigator.navigateToTasks()
+        assertEquals(listOf(NewChat(), TasksList), navigator.backStack.toList())
+    }
+
+    @Test
+    fun `navigateToTasks unwinds to an existing Tasks screen instead of stacking another`() {
+        val navigator = createNavigator(NewChat(), TasksList, MissionChat("ses_1", "brief"))
+        navigator.navigateToTasks()
+        assertEquals(listOf(NewChat(), TasksList), navigator.backStack.toList())
+    }
+
+    @Test
+    fun `navigateToTasks is a no-op when Tasks is already on top`() {
+        val navigator = createNavigator(NewChat(), TasksList)
+        navigator.navigateToTasks()
+        assertEquals(listOf(NewChat(), TasksList), navigator.backStack.toList())
+    }
+
+    @Test
+    fun `a mission opened from the drawer carries the drawer flag`() {
+        val navigator = createNavigator(NewChat())
+        navigator.navigateToMissionFromDrawer("ses_1", "brief")
+        assertEquals(
+            listOf(NewChat(), MissionChat("ses_1", "brief", fromDrawer = true)),
+            navigator.backStack.toList(),
+        )
+    }
+
+    @Test
+    fun `a mission opened from the drawer replaces the mission on top`() {
+        val navigator = createNavigator(NewChat(), MissionChat("ses_1", "brief", fromDrawer = true))
+        navigator.navigateToMissionFromDrawer("ses_2", "qonto")
+        assertEquals(
+            listOf(NewChat(), MissionChat("ses_2", "qonto", fromDrawer = true)),
             navigator.backStack.toList(),
         )
     }
