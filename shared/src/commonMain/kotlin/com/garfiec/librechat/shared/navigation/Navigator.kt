@@ -8,6 +8,8 @@ import com.garfiec.librechat.feature.auth.navigation.isAddAccountFlowRoute
 import com.garfiec.librechat.feature.chat.navigation.Chat
 import com.garfiec.librechat.feature.chat.navigation.NewChat
 import com.garfiec.librechat.feature.settings.navigation.ProviderKeys
+import com.garfiec.librechat.feature.tasks.navigation.MissionChat
+import com.garfiec.librechat.feature.tasks.navigation.TasksList
 
 /**
  * Encapsulates all back stack mutations for Nav 3 navigation.
@@ -37,6 +39,33 @@ class Navigator(val backStack: NavBackStack<NavKey>) {
             backStack.removeLastOrNull()
         }
         backStack.add(Chat(conversationId, isTemporary))
+    }
+
+    /**
+     * The Tasks screen, from the drawer. Pushed, not made top-level: backing out of it returns to
+     * the chat it was opened over, the way the drawer's other destinations behave. But if a Tasks
+     * screen is already on the stack, the stack is unwound to it instead of stacking a second one —
+     * otherwise every trip Tasks → mission → drawer → Tasks would leave one more copy behind, each
+     * costing one more back press.
+     */
+    fun navigateToTasks() {
+        if (TasksList !in backStack) {
+            backStack.add(TasksList)
+            return
+        }
+        while (backStack.lastOrNull() != TasksList) backStack.removeLastOrNull()
+    }
+
+    /**
+     * A mission opened from the drawer's recents. Mirrors [navigateToChat]: one mission replaces
+     * another on top rather than piling up. [MissionChat.fromDrawer] is what gives it the menu
+     * button a chat opened the same way has.
+     */
+    fun navigateToMissionFromDrawer(sessionId: String, title: String) {
+        if (backStack.lastOrNull() is MissionChat) {
+            backStack.removeLastOrNull()
+        }
+        backStack.add(MissionChat(sessionId = sessionId, title = title, fromDrawer = true))
     }
 
     /**

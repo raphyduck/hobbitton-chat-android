@@ -77,7 +77,6 @@ import com.garfiec.librechat.feature.settings.navigation.settingsEntries
 import com.garfiec.librechat.feature.skills.navigation.SkillsList
 import com.garfiec.librechat.feature.skills.navigation.skillsEntries
 import com.garfiec.librechat.feature.tasks.navigation.MissionChat
-import com.garfiec.librechat.feature.tasks.navigation.TasksList
 import com.garfiec.librechat.feature.tasks.navigation.tasksEntries
 import com.garfiec.librechat.shared.resources.Res
 import com.garfiec.librechat.shared.resources.dismiss
@@ -384,16 +383,20 @@ fun PhoneLayout(
     tasksAvailable: Boolean,
     modifier: Modifier = Modifier,
     navHostViewModel: NavHostViewModel = koinViewModel(),
+    drawerViewModel: DrawerViewModel = koinViewModel(),
 ) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val isLoggedIn by navHostViewModel.isLoggedIn.collectAsStateWithLifecycle()
     val banner by navHostViewModel.banner.collectAsStateWithLifecycle()
 
-    // Reset sidebar mode to Conversations when the drawer closes
+    // Reset sidebar mode to Conversations when the drawer closes. On opening, re-read the engine's
+    // missions: unlike a chat, a mission changes state while nobody is looking (throttled inside).
     LaunchedEffect(drawerState.isClosed) {
         if (drawerState.isClosed) {
             navHostViewModel.setSidebarMode(SidebarMode.Conversations)
+        } else {
+            drawerViewModel.refreshMissions()
         }
     }
 
@@ -447,7 +450,15 @@ fun PhoneLayout(
                     onTasksClick = if (tasksAvailable) {
                         {
                             scope.launch { drawerState.close() }
-                            navigator.navigate(TasksList)
+                            navigator.navigateToTasks()
+                        }
+                    } else {
+                        null
+                    },
+                    onMissionClick = if (tasksAvailable) {
+                        { sessionId, title ->
+                            scope.launch { drawerState.close() }
+                            navigator.navigateToMissionFromDrawer(sessionId, title)
                         }
                     } else {
                         null
@@ -581,6 +592,8 @@ fun MainNavDisplay(
                     navigator.navigate(MissionChat(sessionId, title))
                 },
                 onBack = { navigator.goBack() },
+                // The Tasks screen is a drawer destination: it carries the menu, as the chat does.
+                onOpenDrawer = onMenuClick,
             )
             skillsEntries(
                 onNavigate = { navigator.navigate(it) },

@@ -32,6 +32,8 @@ fun SidebarScaffold(
     /** Null hides the Tasks row: the engine's graph is Android-only for now (D-034). */
     onTasksClick: (() -> Unit)?,
     modifier: Modifier = Modifier,
+    /** Opens a mission listed among the recents. Null where the engine's graph is absent (D-034). */
+    onMissionClick: ((sessionId: String, title: String) -> Unit)? = null,
     onOpenProjectsIndex: () -> Unit = {},
     onSwitchAccount: (String) -> Unit = {},
     onAddAccount: () -> Unit = {},
@@ -81,6 +83,7 @@ fun SidebarScaffold(
                     onFilesClick = onFilesClick,
                     onSkillsClick = onSkillsClick,
                     onTasksClick = onTasksClick,
+                    onMissionClick = onMissionClick,
                     accounts = accounts,
                     onOpenProjectsIndex = onOpenProjectsIndex,
                     onSwitchAccount = onSwitchAccount,

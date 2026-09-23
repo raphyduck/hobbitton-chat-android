@@ -13,6 +13,7 @@
     <string name="tasks_chat_hint">Message…</string>
     <string name="tasks_chat_send">Envoyer</string>
     <string name="tasks_chat_back">Retour</string>
+    <string name="tasks_open_drawer">Ouvrir le menu</string>
     <string name="tasks_chat_empty">Aucun message — envoyez-en un pour parler à la session.</string>
     <string name="tasks_not_configured">Le moteur n\'est pas encore configuré</string>
     <string name="tasks_not_configured_hint">Renseignez son adresse et ses identifiants dans les réglages, puis revenez.</string>

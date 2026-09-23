@@ -32,11 +32,11 @@ import com.garfiec.librechat.core.ui.components.BannerDisplay
 import com.garfiec.librechat.feature.agents.navigation.AgentMarketplace
 import com.garfiec.librechat.feature.auth.navigation.AddAccountServerUrl
 import com.garfiec.librechat.feature.chat.navigation.NewChat
+import com.garfiec.librechat.feature.conversations.drawer.DrawerViewModel
 import com.garfiec.librechat.feature.conversations.navigation.Projects
 import com.garfiec.librechat.feature.files.navigation.Files
 import com.garfiec.librechat.feature.settings.navigation.SettingsTabbed
 import com.garfiec.librechat.feature.skills.navigation.SkillsList
-import com.garfiec.librechat.feature.tasks.navigation.TasksList
 import com.garfiec.librechat.shared.navigation.MainNavDisplay
 import com.garfiec.librechat.shared.navigation.NavHostViewModel
 import com.garfiec.librechat.shared.navigation.Navigator
@@ -44,6 +44,7 @@ import com.garfiec.librechat.shared.navigation.SidebarMode
 import com.garfiec.librechat.shared.navigation.SidebarScaffold
 import com.garfiec.librechat.shared.navigation.toRoute
 import kotlinx.coroutines.launch
+import org.koin.compose.viewmodel.koinViewModel
 
 private val SidebarWidth = 320.dp
 
@@ -55,6 +56,7 @@ fun TabletLayout(
     navigator: Navigator,
     navHostViewModel: NavHostViewModel,
     modifier: Modifier = Modifier,
+    drawerViewModel: DrawerViewModel = koinViewModel(),
 ) {
     // Banner state only -- drawer state is collected inside DrawerContent itself
     val banner by navHostViewModel.banner.collectAsStateWithLifecycle()
@@ -63,6 +65,12 @@ fun TabletLayout(
     // Null until the persisted value resolves; treat unknown as closed for boolean callers.
     val resolvedSidebarOpen by navHostViewModel.tabletSidebarOpen.collectAsStateWithLifecycle()
     val isSidebarOpen = resolvedSidebarOpen == true
+
+    // The phone re-reads the engine's missions when its drawer opens; the tablet's sidebar is
+    // usually left open, so it re-reads them on each navigation instead (throttled inside).
+    LaunchedEffect(isSidebarOpen, navigator.currentRoute) {
+        if (isSidebarOpen) drawerViewModel.refreshMissions()
+    }
 
     // Whether swipe gesture is enabled (from settings)
     val gestureEnabled by navHostViewModel.tabletSidebarGestureEnabled.collectAsStateWithLifecycle()
@@ -197,7 +205,10 @@ fun TabletLayout(
                         // Non-null here: this layout only ever runs on Android, where the engine's
                         // graph is started (D-034).
                         onTasksClick = {
-                            navigator.navigate(TasksList)
+                            navigator.navigateToTasks()
+                        },
+                        onMissionClick = { sessionId, title ->
+                            navigator.navigateToMissionFromDrawer(sessionId, title)
                         },
                         onOpenProjectsIndex = {
                             navigator.navigate(Projects)
