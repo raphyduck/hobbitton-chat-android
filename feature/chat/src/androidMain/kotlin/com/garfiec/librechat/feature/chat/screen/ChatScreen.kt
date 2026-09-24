@@ -485,6 +485,8 @@ actual fun ChatScreen(
                 },
                 onStop = viewModel::stopGeneration,
                 onOpenTools = { optionsController.open() },
+                // The pill opens the same selector page the « + » sheet's Model row does.
+                onOpenModelSelector = { optionsController.open(ChatOptionsPage.ModelSelector) },
                 // The mid-stream send button: the ViewModel resolves steer-vs-queue from the
                 // user's preference and what this run can actually take, so the composer never
                 // has to. `onQueue` stays the picker's explicit "add to queue".

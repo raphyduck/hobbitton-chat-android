@@ -1,21 +1,17 @@
 package com.garfiec.librechat.feature.chat.components
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -50,6 +46,8 @@ fun IosChatInput(
      */
     onOpenTools: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Opens the model selector from the composer's pill; null hides the pill. */
+    onOpenModelSelector: (() -> Unit)? = null,
     onQueue: () -> Unit = {},
     canQueue: Boolean = false,
     onDuringRunSend: () -> Unit = {},
@@ -145,6 +143,7 @@ fun IosChatInput(
         fontSizeMultiplier = fontSizeMultiplier,
         onRemoveFile = onRemoveFile,
         modifier = modifier,
+        onOpenModelSelector = onOpenModelSelector,
         leadingButtons = {
             // "+" button to open tools bottom sheet, with the active-tool count (same as Android).
             ToolsButton(
@@ -157,7 +156,7 @@ fun IosChatInput(
             if (hasClipboardImage && onPasteImage != null) {
                 IconButton(
                     onClick = onPasteImage,
-                    modifier = Modifier.size(40.dp),
+                    modifier = Modifier.size(ChatInputDefaults.controlSize),
                 ) {
                     Icon(
                         imageVector = Icons.Default.ContentPaste,
@@ -167,64 +166,46 @@ fun IosChatInput(
                 }
             }
 
-            Spacer(modifier = Modifier.width(4.dp))
         },
         textFieldContent = {
-            // Text field with mic button overlaid at trailing edge.
-            // The mic is a separate composable (not trailingIcon) to
-            // avoid iOS text-magnifier gesture conflicts, but visually
-            // it sits inside the field's rounded border.
-            Box(
-                modifier = Modifier.weight(1f),
-            ) {
-                OutlinedTextField(
-                    value = inputText,
-                    onValueChange = onInputChanged,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 48.dp, max = 160.dp),
-                    placeholder = {
-                        ChatInputPlaceholder(
-                            isRecording = isRecording,
-                            selectedModelDisplay = selectedModelDisplay,
-                        )
-                    },
-                    textStyle = MaterialTheme.typography.bodyLarge,
-                    shape = ChatInputDefaults.shape,
-                    colors = ChatInputDefaults.textFieldColors(),
-                    keyboardOptions = ChatInputDefaults.keyboardOptions,
-                    keyboardActions = KeyboardActions.Default,
-                    maxLines = 6,
-                    // Invisible spacer reserves room for the overlaid mic button
-                    trailingIcon = {
-                        Spacer(modifier = Modifier.width(36.dp))
-                    },
-                )
-
-                // Mic button overlaid at trailing edge of the text field
-                IconButton(
-                    onClick = {
-                        if (isRecording) {
-                            onStopRecording()
-                        } else {
-                            onStartRecording()
-                        }
-                    },
-                    modifier = Modifier
-                        .size(40.dp)
-                        .align(Alignment.CenterEnd)
-                        .padding(end = 4.dp),
-                    enabled = !isTranscribing,
-                ) {
-                    VoiceMicIndicator(
+            // Nothing overlays the field any more: the mic lives in the controls row, so the old
+            // iOS text-magnifier conflict with an overlaid button is gone with the overlay.
+            TextField(
+                value = inputText,
+                onValueChange = onInputChanged,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp, max = 160.dp),
+                placeholder = {
+                    ChatInputPlaceholder(
                         isRecording = isRecording,
-                        isTranscribing = isTranscribing,
+                        selectedModelDisplay = selectedModelDisplay,
                     )
-                }
-            }
+                },
+                textStyle = MaterialTheme.typography.bodyLarge,
+                colors = ChatInputDefaults.embeddedTextFieldColors(),
+                keyboardOptions = ChatInputDefaults.keyboardOptions,
+                keyboardActions = KeyboardActions.Default,
+                maxLines = 6,
+            )
         },
-        trailingSpacer = {
-            Spacer(modifier = Modifier.width(4.dp))
+        micButton = {
+            IconButton(
+                onClick = {
+                    if (isRecording) {
+                        onStopRecording()
+                    } else {
+                        onStartRecording()
+                    }
+                },
+                modifier = Modifier.size(ChatInputDefaults.controlSize),
+                enabled = !isTranscribing,
+            ) {
+                VoiceMicIndicator(
+                    isRecording = isRecording,
+                    isTranscribing = isTranscribing,
+                )
+            }
         },
         bottomContent = {
             // Snackbar for file attachment toast

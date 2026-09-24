@@ -10,7 +10,6 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -32,7 +31,6 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.DisableSelection
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -67,7 +65,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
@@ -82,7 +79,6 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontFamily
@@ -94,7 +90,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.garfiec.librechat.core.data.datastore.MissionReadingPosition
 import com.garfiec.librechat.core.model.engine.EngineSelectableModel
+import com.garfiec.librechat.core.ui.input.ChatInputBox
 import com.garfiec.librechat.core.ui.input.ChatInputDefaults
+import com.garfiec.librechat.core.ui.input.ChatInputPill
 import com.garfiec.librechat.core.ui.markdown.StreamingWaitIndicator
 import com.garfiec.librechat.core.ui.util.copyToClipboard
 import com.garfiec.librechat.feature.tasks.components.ConnectorPickerSheet
@@ -740,16 +738,7 @@ private fun MissionChatInput(
                 ComposerNotice(stringResource(kind.title()), onDismissError)
             }
 
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
-                    .clip(ChatInputDefaults.shape)
-                    .background(ChatInputDefaults.containerColor)
-                    .border(1.dp, ChatInputDefaults.borderColor, ChatInputDefaults.shape)
-                    .padding(8.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
+            ChatInputBox(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
                 if (state.attachments.isNotEmpty() || state.audioNotes.isNotEmpty()) {
                     StagedAttachmentsRow(state.attachments, state.audioNotes, onRemoveAttachment, onRemoveAudioNote)
                 }
@@ -758,15 +747,7 @@ private fun MissionChatInput(
                     onValueChange = onInput,
                     modifier = Modifier.fillMaxWidth(),
                     placeholder = { Text(stringResource(Res.string.tasks_chat_hint)) },
-                    // The box draws the frame; the field inside it draws nothing of its own.
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent,
-                        disabledContainerColor = Color.Transparent,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent,
-                        disabledIndicatorColor = Color.Transparent,
-                    ),
+                    colors = ChatInputDefaults.embeddedTextFieldColors(),
                     keyboardOptions = ChatInputDefaults.keyboardOptions,
                     maxLines = MAX_INPUT_LINES,
                 )
@@ -792,11 +773,11 @@ private fun MissionChatInput(
                     }
                     if (dictation != null) {
                         if (state.transcribing) {
-                            Box(Modifier.size(COMPOSER_BUTTON_SIZE), contentAlignment = Alignment.Center) {
+                            Box(Modifier.size(ChatInputDefaults.controlSize), contentAlignment = Alignment.Center) {
                                 CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                             }
                         } else {
-                            IconButton(onClick = dictation.toggle, modifier = Modifier.size(COMPOSER_BUTTON_SIZE)) {
+                            IconButton(onClick = dictation.toggle, modifier = Modifier.size(ChatInputDefaults.controlSize)) {
                                 if (dictation.recording) {
                                     Icon(
                                         Icons.Filled.Stop,
@@ -875,7 +856,7 @@ private fun AddButton(openPhoto: (() -> Unit)?, openAudio: (() -> Unit)?, audioE
     if (openPhoto == null && openAudio == null) return
     var open by remember { mutableStateOf(false) }
     Box {
-        FilledTonalIconButton(onClick = { open = true }, modifier = Modifier.size(COMPOSER_BUTTON_SIZE)) {
+        FilledTonalIconButton(onClick = { open = true }, modifier = Modifier.size(ChatInputDefaults.controlSize)) {
             Icon(Icons.Default.Add, contentDescription = stringResource(Res.string.tasks_chat_add))
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
@@ -959,25 +940,16 @@ private fun ComposerChips(
     }
 }
 
-/** A rounded, filled pill — the look of Claude's model and mode buttons. */
+/** [ChatInputPill] with this screen's optional leading icon. */
 @Composable
 private fun ComposerPill(label: String, onClick: () -> Unit, icon: ImageVector? = null) {
-    Surface(
+    ChatInputPill(
+        label = label,
         onClick = onClick,
-        shape = CircleShape,
-        color = MaterialTheme.colorScheme.surfaceContainerHighest,
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        modifier = Modifier.heightIn(min = COMPOSER_BUTTON_SIZE),
-    ) {
-        Row(
-            Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            icon?.let { Icon(it, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant) }
-            Text(label, style = MaterialTheme.typography.labelLarge, maxLines = 1)
-        }
-    }
+        leadingIcon = icon?.let {
+            { Icon(it, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+        },
+    )
 }
 
 /**
@@ -999,7 +971,7 @@ private fun MissionSendButton(
         if (showStop) {
             IconButton(
                 onClick = onStop,
-                modifier = Modifier.size(COMPOSER_BUTTON_SIZE),
+                modifier = Modifier.size(ChatInputDefaults.controlSize),
                 colors = IconButtonDefaults.iconButtonColors(
                     containerColor = MaterialTheme.colorScheme.error,
                     contentColor = MaterialTheme.colorScheme.onError,
@@ -1010,7 +982,7 @@ private fun MissionSendButton(
         } else {
             IconButton(
                 onClick = onSend,
-                modifier = Modifier.size(COMPOSER_BUTTON_SIZE),
+                modifier = Modifier.size(ChatInputDefaults.controlSize),
                 enabled = canSend,
                 colors = IconButtonDefaults.iconButtonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
@@ -1029,9 +1001,6 @@ private fun MissionSendButton(
 }
 
 private const val MAX_INPUT_LINES = 6
-
-/** Every round control in the composer's row: « + », pills, mic, send. 44 dp keeps it a thumb's. */
-private val COMPOSER_BUTTON_SIZE = 44.dp
 
 /** A pause long enough to mean « stopped here », short enough to survive a quick exit. */
 private const val POSITION_SETTLE_MS = 400L

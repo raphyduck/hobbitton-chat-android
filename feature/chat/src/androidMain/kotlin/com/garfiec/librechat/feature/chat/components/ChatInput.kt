@@ -1,19 +1,16 @@
 package com.garfiec.librechat.feature.chat.components
 
 import android.net.Uri
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -57,6 +54,8 @@ fun ChatInput(
      */
     onOpenTools: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Opens the model selector from the composer's pill; null hides the pill. */
+    onOpenModelSelector: (() -> Unit)? = null,
     onQueue: () -> Unit = {},
     canQueue: Boolean = false,
     onDuringRunSend: () -> Unit = {},
@@ -167,6 +166,7 @@ fun ChatInput(
         fontSizeMultiplier = fontSizeMultiplier,
         onRemoveFile = onRemoveFile,
         modifier = modifier,
+        onOpenModelSelector = onOpenModelSelector,
         leadingButtons = {
             // "+" button to open tools bottom sheet, with the number of active tools on it. The
             // count is zero on the agents endpoint (retained state restores on concrete models).
@@ -184,7 +184,7 @@ fun ChatInput(
                         onImagePasted(Uri.EMPTY)
                     },
                     modifier = Modifier
-                        .size(48.dp)
+                        .size(ChatInputDefaults.controlSize)
                         .semantics {
                             contentDescription = cdPasteImage
                             role = Role.Button
@@ -197,69 +197,60 @@ fun ChatInput(
                     )
                 }
             }
-
-            Spacer(modifier = Modifier.width(8.dp))
         },
         textFieldContent = {
-            Box(modifier = Modifier.weight(1f)) {
-                OutlinedTextField(
-                    value = textFieldValue,
-                    onValueChange = { newValue ->
-                        textFieldValue = newValue
-                        onInputChanged(newValue.text)
+            TextField(
+                value = textFieldValue,
+                onValueChange = { newValue ->
+                    textFieldValue = newValue
+                    onInputChanged(newValue.text)
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp, max = 160.dp)
+                    .focusRequester(focusRequester)
+                    .semantics {
+                        contentDescription = cdMessageInput
                     },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 48.dp, max = 160.dp)
-                        .focusRequester(focusRequester)
-                        .semantics {
-                            contentDescription = cdMessageInput
-                        },
-                    placeholder = {
-                        ChatInputPlaceholder(
-                            isRecording = isRecording,
-                            selectedModelDisplay = selectedModelDisplay,
-                        )
-                    },
-                    textStyle = MaterialTheme.typography.bodyLarge,
-                    shape = ChatInputDefaults.shape,
-                    colors = ChatInputDefaults.textFieldColors(),
-                    keyboardOptions = ChatInputDefaults.keyboardOptions,
-                    keyboardActions = KeyboardActions.Default,
-                    maxLines = 6,
-                    trailingIcon = {
-                        IconButton(
-                            onClick = {
-                                if (isRecording) {
-                                    onStopRecording()
-                                } else {
-                                    onStartRecording()
-                                }
-                            },
-                            modifier = Modifier
-                                .size(40.dp)
-                                .semantics {
-                                    contentDescription = if (isRecording) {
-                                        cdStopVoiceRec
-                                    } else {
-                                        cdStartVoiceRec
-                                    }
-                                    role = Role.Button
-                                },
-                            enabled = !isTranscribing,
-                        ) {
-                            VoiceMicIndicator(
-                                isRecording = isRecording,
-                                isTranscribing = isTranscribing,
-                            )
-                        }
-                    },
-                )
-
-            }
+                placeholder = {
+                    ChatInputPlaceholder(
+                        isRecording = isRecording,
+                        selectedModelDisplay = selectedModelDisplay,
+                    )
+                },
+                textStyle = MaterialTheme.typography.bodyLarge,
+                colors = ChatInputDefaults.embeddedTextFieldColors(),
+                keyboardOptions = ChatInputDefaults.keyboardOptions,
+                keyboardActions = KeyboardActions.Default,
+                maxLines = 6,
+            )
         },
-        trailingSpacer = {
-            Spacer(modifier = Modifier.width(8.dp))
+        micButton = {
+            IconButton(
+                onClick = {
+                    if (isRecording) {
+                        onStopRecording()
+                    } else {
+                        onStartRecording()
+                    }
+                },
+                modifier = Modifier
+                    .size(ChatInputDefaults.controlSize)
+                    .semantics {
+                        contentDescription = if (isRecording) {
+                            cdStopVoiceRec
+                        } else {
+                            cdStartVoiceRec
+                        }
+                        role = Role.Button
+                    },
+                enabled = !isTranscribing,
+            ) {
+                VoiceMicIndicator(
+                    isRecording = isRecording,
+                    isTranscribing = isTranscribing,
+                )
+            }
         },
     )
 }
