@@ -24,11 +24,7 @@ import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.automirrored.filled.Notes
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.ErrorOutline
-import androidx.compose.material.icons.filled.Extension
-import androidx.compose.material.icons.filled.FindInPage
-import androidx.compose.material.icons.filled.TravelExplore
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -47,7 +43,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -56,55 +51,27 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
-import com.garfiec.librechat.core.common.ToolConstants
 import com.garfiec.librechat.core.model.response.UploadRoute
-import com.garfiec.librechat.feature.chat.model.McpServerDisplayData
 import com.garfiec.librechat.feature.chat.resources.*
 import com.garfiec.librechat.feature.chat.resources.Res
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Floating row of Material 3 chips above the chat input field.
- * Shows indicator chips for attached files, enabled tools (Web Search, Code, File Search),
- * and selected MCP servers. Only visible when there is at least one chip to display.
+ * Floating row above the chat input field for **attached files** — one chip with their count,
+ * tapping it reveals the thumbnails. Only visible when files are attached.
+ *
+ * It used to carry display-only chips for every enabled tool and MCP server too. Those moved
+ * behind the « + » on 23/09/2026, which now wears a count ([ToolsButton]), the way Claude's app
+ * does it: a tool is a setting of the conversation, not something the person is about to send,
+ * and three of them filled a whole line above the field. Files stay here because they are.
  */
 @Composable
 fun AttachmentChipsRow(
     attachedFiles: List<AttachedFile>,
-    enabledTools: Set<String>,
     onRemoveFile: (AttachedFile) -> Unit,
     modifier: Modifier = Modifier,
-    mcpServers: List<McpServerDisplayData> = emptyList(),
-    selectedMcpServerNames: Set<String> = emptySet(),
-    /**
-     * Whether ephemeral tool selections (web search / code / file search / MCP) should be
-     * shown as chips. False for the agents endpoint, where the underlying selections are
-     * retained but not sent (see [ChatUiState.showEphemeralTools]); only the display is
-     * suppressed so switching back to a concrete model restores the chips. File chips are
-     * unaffected — files aren't ephemeral tools.
-     */
-    showEphemeralTools: Boolean = true,
 ) {
     val hasFiles = attachedFiles.isNotEmpty()
-    // Memoize ephemeral state once to avoid repeated guards and per-recomposition MCP filtering when tools are hidden.
-    val ephemeral = remember(showEphemeralTools, enabledTools, mcpServers, selectedMcpServerNames) {
-        if (!showEphemeralTools) {
-            EphemeralChips()
-        } else {
-            EphemeralChips(
-                hasWebSearch = ToolConstants.WEB_SEARCH in enabledTools,
-                hasCode = ToolConstants.CODE_INTERPRETER in enabledTools,
-                hasFileSearch = ToolConstants.FILE_SEARCH in enabledTools,
-                selectedMcpServers = mcpServers.filter { it.name in selectedMcpServerNames },
-            )
-        }
-    }
-    val hasWebSearch = ephemeral.hasWebSearch
-    val hasCode = ephemeral.hasCode
-    val hasFileSearch = ephemeral.hasFileSearch
-    val selectedMcpServers = ephemeral.selectedMcpServers
-    val hasMcp = selectedMcpServers.isNotEmpty()
-    val hasAnyChip = hasFiles || hasWebSearch || hasCode || hasFileSearch || hasMcp
 
     var showFilePreview by remember { mutableStateOf(false) }
 
@@ -114,7 +81,7 @@ fun AttachmentChipsRow(
     }
 
     AnimatedVisibility(
-        visible = hasAnyChip,
+        visible = hasFiles,
         enter = expandVertically(expandFrom = Alignment.Bottom) + fadeIn(),
         exit = shrinkVertically(shrinkTowards = Alignment.Bottom) + fadeOut(),
         modifier = modifier,
@@ -146,42 +113,6 @@ fun AttachmentChipsRow(
                     FilesChip(
                         files = attachedFiles,
                         onClick = { showFilePreview = !showFilePreview },
-                    )
-                }
-
-                // Web Search chip
-                if (hasWebSearch) {
-                    ToolIndicatorChip(
-                        label = stringResource(Res.string.tool_web_search),
-                        icon = Icons.Default.TravelExplore,
-                        semanticDescription = stringResource(Res.string.cd_web_search_enabled),
-                    )
-                }
-
-                // Code chip
-                if (hasCode) {
-                    ToolIndicatorChip(
-                        label = stringResource(Res.string.tool_code),
-                        icon = Icons.Default.Code,
-                        semanticDescription = stringResource(Res.string.cd_code_enabled),
-                    )
-                }
-
-                // File Search chip
-                if (hasFileSearch) {
-                    ToolIndicatorChip(
-                        label = stringResource(Res.string.tool_file_search),
-                        icon = Icons.Default.FindInPage,
-                        semanticDescription = stringResource(Res.string.cd_file_search_enabled),
-                    )
-                }
-
-                // MCP server chips — one chip per selected server
-                selectedMcpServers.forEach { server ->
-                    ToolIndicatorChip(
-                        label = server.title ?: server.name,
-                        icon = Icons.Default.Extension,
-                        semanticDescription = "${server.title ?: server.name} MCP server enabled",
                     )
                 }
             }
@@ -233,42 +164,6 @@ private fun FilesChip(
         modifier = Modifier.semantics {
             contentDescription = chipCd
             role = Role.Button
-        },
-    )
-}
-
-/**
- * Display-only tool indicator chip. Shows that a tool or MCP server is enabled.
- * Not interactive — users manage tools via the tools bottom sheet.
- */
-@Composable
-private fun ToolIndicatorChip(
-    label: String,
-    icon: ImageVector,
-    semanticDescription: String,
-) {
-    AssistChip(
-        onClick = {},
-        label = {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelMedium,
-            )
-        },
-        leadingIcon = {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                modifier = Modifier.size(16.dp),
-            )
-        },
-        colors = AssistChipDefaults.assistChipColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-            labelColor = MaterialTheme.colorScheme.onSecondaryContainer,
-            leadingIconContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-        ),
-        modifier = Modifier.semantics {
-            contentDescription = semanticDescription
         },
     )
 }
@@ -453,10 +348,3 @@ private fun FilePreviewItem(
         }
     }
 }
-
-private data class EphemeralChips(
-    val hasWebSearch: Boolean = false,
-    val hasCode: Boolean = false,
-    val hasFileSearch: Boolean = false,
-    val selectedMcpServers: List<McpServerDisplayData> = emptyList(),
-)

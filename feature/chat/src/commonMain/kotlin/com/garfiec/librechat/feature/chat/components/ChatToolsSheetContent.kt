@@ -95,6 +95,11 @@ fun ChatToolsSheetContent(
     memoryEnabled: Boolean = false,
     mcpServersEnabled: Boolean = true,
     /**
+     * The server's pinned tools (v0.8.7 `defaultPinnedTools`, already mapped and gated), listed
+     * first. They were one-tap chips on the composer until 23/09/2026; see [pinnedFirst].
+     */
+    pinnedToolKeys: List<String> = emptyList(),
+    /**
      * Server/endpoint feature gates for the sheet: model-select row, parameters row,
      * ephemeral tool controls (web search / code / file search / MCP), and the
      * Camera / Photos / Files attach controls. See [ChatInputGates].
@@ -280,14 +285,15 @@ fun ChatToolsSheetContent(
         // Each tool's icon/label comes from the shared [ephemeralToolMeta]; the per-tool
         // enable gate stays inline (they differ per tool).
         if (gates.showEphemeralTools) {
-            val toolRows = listOf(
+            val toolGates = mapOf(
                 ToolConstants.WEB_SEARCH to webSearchEnabled,
                 ToolConstants.URL_CONTEXT to urlContextEnabled,
                 ToolConstants.CODE_INTERPRETER to (isCodeInterpreterAvailable && runCodeEnabled),
                 ToolConstants.FILE_SEARCH to fileSearchEnabled,
                 ToolConstants.MEMORY to memoryEnabled,
             )
-            toolRows.forEach { (toolKey, enabled) ->
+            pinnedFirst(toolGates.keys.toList(), pinnedToolKeys).forEach { toolKey ->
+                val enabled = toolGates.getValue(toolKey)
                 val meta = ephemeralToolMeta(toolKey)
                 if (enabled && meta != null) {
                     ToolToggleRow(

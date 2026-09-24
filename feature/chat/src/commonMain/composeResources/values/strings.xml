@@ -153,10 +153,7 @@
     <string name="tool_file_search_desc">Search through uploaded files</string>
     <string name="tool_mcp">MCP</string>
     <string name="tool_mcp_desc">Model Context Protocol servers</string>
-    <string name="cd_web_search_enabled">Web Search enabled</string>
     <string name="cd_quoted_excerpt">Quoted excerpt</string>
-    <string name="cd_code_enabled">Code interpreter enabled</string>
-    <string name="cd_file_search_enabled">File Search enabled</string>
 
     <!-- Attachments -->
     <string name="cd_attach_file">Attach file</string>
@@ -483,4 +480,5 @@
     <string name="during_run_queue">Add to queue</string>
     <string name="during_run_always_steer">Always steer while generating</string>
     <string name="during_run_always_queue">Always queue while generating</string>
+    <string name="cd_tools_active">%1$d active</string>
 </resources>

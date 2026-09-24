@@ -138,9 +138,6 @@
     <string name="tool_file_search_desc">Поиск по загруженным файлам</string>
     <string name="tool_mcp">MCP</string>
     <string name="tool_mcp_desc">Серверы Model Context Protocol</string>
-    <string name="cd_web_search_enabled">Веб-поиск включён</string>
-    <string name="cd_code_enabled">Интерпретатор кода включён</string>
-    <string name="cd_file_search_enabled">Поиск по файлам включён</string>
 
     <!-- Attachments -->
     <string name="cd_attach_file">Прикрепить файл</string>
@@ -320,4 +317,5 @@
     <string name="send_block_agent_not_available">Выбранный агент недоступен на этом сервере. Выберите другого агента.</string>
     <string name="send_block_model_not_available">Выбранная модель недоступна на этом сервере. Выберите другую модель.</string>
     <string name="send_block_model_load_failed">Пока не удалось загрузить выбранную модель. Попробуйте снова или выберите другую модель.</string>
+    <string name="cd_tools_active">активно: %1$d</string>
 </resources>

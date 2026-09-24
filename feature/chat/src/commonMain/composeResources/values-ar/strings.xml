@@ -138,9 +138,6 @@
     <string name="tool_file_search_desc">البحث في الملفات المرفوعة</string>
     <string name="tool_mcp">MCP</string>
     <string name="tool_mcp_desc">خوادم بروتوكول سياق النموذج (MCP)</string>
-    <string name="cd_web_search_enabled">البحث على الويب مُفعّل</string>
-    <string name="cd_code_enabled">مفسّر الكود مُفعّل</string>
-    <string name="cd_file_search_enabled">البحث في الملفات مُفعّل</string>
 
     <!-- Attachments -->
     <string name="cd_attach_file">إرفاق ملف</string>
@@ -320,4 +317,5 @@
     <string name="send_block_agent_not_available">الوكيل المحدد غير متاح على هذا الخادم. يرجى اختيار وكيل مختلف.</string>
     <string name="send_block_model_not_available">النموذج المحدد غير متاح على هذا الخادم. يرجى اختيار نموذج مختلف.</string>
     <string name="send_block_model_load_failed">تعذّر تحميل النموذج المحدد بعد. يرجى المحاولة مرة أخرى أو اختيار نموذج مختلف.</string>
+    <string name="cd_tools_active">%1$d مفعّلة</string>
 </resources>

@@ -138,9 +138,6 @@
     <string name="tool_file_search_desc">アップロード済みのファイルを検索</string>
     <string name="tool_mcp">MCP</string>
     <string name="tool_mcp_desc">Model Context Protocolサーバー</string>
-    <string name="cd_web_search_enabled">ウェブ検索が有効</string>
-    <string name="cd_code_enabled">コードインタープリターが有効</string>
-    <string name="cd_file_search_enabled">ファイル検索が有効</string>
 
     <!-- Attachments -->
     <string name="cd_attach_file">ファイルを添付</string>
@@ -320,4 +317,5 @@
     <string name="send_block_agent_not_available">選択したエージェントはこのサーバーで利用できません。別のエージェントを選択してください。</string>
     <string name="send_block_model_not_available">選択したモデルはこのサーバーで利用できません。別のモデルを選択してください。</string>
     <string name="send_block_model_load_failed">選択したモデルをまだ読み込めませんでした。もう一度お試しいただくか、別のモデルを選択してください。</string>
+    <string name="cd_tools_active">%1$d 件有効</string>
 </resources>

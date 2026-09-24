@@ -138,9 +138,6 @@
     <string name="tool_file_search_desc">Pesquise nos arquivos enviados</string>
     <string name="tool_mcp">MCP</string>
     <string name="tool_mcp_desc">Servidores Model Context Protocol</string>
-    <string name="cd_web_search_enabled">Busca na web ativada</string>
-    <string name="cd_code_enabled">Interpretador de código ativado</string>
-    <string name="cd_file_search_enabled">Busca em arquivos ativada</string>
 
     <!-- Attachments -->
     <string name="cd_attach_file">Anexar arquivo</string>
@@ -320,4 +317,5 @@
     <string name="send_block_agent_not_available">O agente selecionado não está disponível neste servidor. Escolha um agente diferente.</string>
     <string name="send_block_model_not_available">O modelo selecionado não está disponível neste servidor. Escolha um modelo diferente.</string>
     <string name="send_block_model_load_failed">Ainda não foi possível carregar o modelo selecionado. Tente novamente ou escolha um modelo diferente.</string>
+    <string name="cd_tools_active">%1$d ativo(s)</string>
 </resources>

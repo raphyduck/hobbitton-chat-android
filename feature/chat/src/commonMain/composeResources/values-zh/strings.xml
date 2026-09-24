@@ -138,9 +138,6 @@
     <string name="tool_file_search_desc">在已上传的文件中搜索</string>
     <string name="tool_mcp">MCP</string>
     <string name="tool_mcp_desc">Model Context Protocol 服务器</string>
-    <string name="cd_web_search_enabled">已启用网络搜索</string>
-    <string name="cd_code_enabled">已启用代码解释器</string>
-    <string name="cd_file_search_enabled">已启用文件搜索</string>
 
     <!-- Attachments -->
     <string name="cd_attach_file">附加文件</string>
@@ -320,4 +317,5 @@
     <string name="send_block_agent_not_available">所选智能体在此服务器上不可用。请选择其他智能体。</string>
     <string name="send_block_model_not_available">所选模型在此服务器上不可用。请选择其他模型。</string>
     <string name="send_block_model_load_failed">尚无法加载所选模型。请重试或选择其他模型。</string>
+    <string name="cd_tools_active">%1$d 个已启用</string>
 </resources>

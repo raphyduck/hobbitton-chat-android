@@ -278,8 +278,6 @@ actual fun ChatScreen(
                 onCancelSteer = viewModel::cancelSteer,
                 onSetDuringRunAction = viewModel::setDuringRunAction,
                 enabledTools = uiState.effectiveEnabledTools,
-                pinnedToolKeys = uiState.pinnedToolChips,
-                onToggleTool = viewModel::toggleTool,
                 mcpServers = uiState.mcpServers,
                 selectedMcpServerNames = uiState.selectedMcpServerNames,
                 isRecording = uiState.isRecording,
