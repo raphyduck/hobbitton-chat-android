@@ -86,11 +86,13 @@
     <string name="tasks_attach_photo">Joindre une photo</string>
     <string name="tasks_attached_photo">Photo jointe</string>
     <string name="tasks_attachment_remove">Retirer cette pièce jointe</string>
-    <string name="tasks_attach_audio">Joindre un fichier audio — sa transcription part avec le message</string>
+    <string name="tasks_attach_audio">Fichier audio (transcrit)</string>
     <string name="tasks_dictate">Dicter</string>
     <string name="tasks_dictate_stop">Arrêter la dictée</string>
     <string name="tasks_transcription_failed">L\'audio n\'a pas pu être transcrit. Vérifiez que le serveur a la reconnaissance vocale configurée, puis réessayez.</string>
     <string name="tasks_copy_code">Copier le code</string>
+    <string name="tasks_chat_add">Ajouter au message</string>
+    <string name="tasks_chat_copy">Copier la réponse</string>
     <string name="tasks_copied">Copié</string>
     <string name="tasks_spend_calls">%1$d appels</string>
     <string name="tasks_spend_by_model">Détail par modèle (%1$d)</string>

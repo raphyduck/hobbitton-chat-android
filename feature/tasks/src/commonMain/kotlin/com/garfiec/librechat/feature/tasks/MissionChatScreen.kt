@@ -10,6 +10,7 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -31,11 +32,14 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.DisableSelection
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
@@ -45,21 +49,25 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.outlined.AddPhotoAlternate
 import androidx.compose.material.icons.outlined.AudioFile
-import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.Build
+import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
@@ -74,6 +82,8 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
@@ -86,6 +96,7 @@ import com.garfiec.librechat.core.data.datastore.MissionReadingPosition
 import com.garfiec.librechat.core.model.engine.EngineSelectableModel
 import com.garfiec.librechat.core.ui.input.ChatInputDefaults
 import com.garfiec.librechat.core.ui.markdown.StreamingWaitIndicator
+import com.garfiec.librechat.core.ui.util.copyToClipboard
 import com.garfiec.librechat.feature.tasks.components.ConnectorPickerSheet
 import com.garfiec.librechat.feature.tasks.components.DisclosureRow
 import com.garfiec.librechat.feature.tasks.components.Explanation
@@ -99,10 +110,12 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_attach_audio
 import com.garfiec.librechat.feature.tasks.resources.tasks_attach_photo
 import com.garfiec.librechat.feature.tasks.resources.tasks_attached_photo
 import com.garfiec.librechat.feature.tasks.resources.tasks_attachment_remove
+import com.garfiec.librechat.feature.tasks.resources.tasks_chat_add
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_back
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_collapse
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_connector_count
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_connectors_failed
+import com.garfiec.librechat.feature.tasks.resources.tasks_chat_copy
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_empty
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_expand
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_hint
@@ -114,6 +127,7 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_chat_send
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_title
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_tool_count
 import com.garfiec.librechat.feature.tasks.resources.tasks_connectors
+import com.garfiec.librechat.feature.tasks.resources.tasks_copied
 import com.garfiec.librechat.feature.tasks.resources.tasks_dictate
 import com.garfiec.librechat.feature.tasks.resources.tasks_dictate_stop
 import com.garfiec.librechat.feature.tasks.resources.tasks_model_default_short
@@ -434,8 +448,46 @@ private fun AssistantTurn(turn: ChatTurn.Assistant, streaming: Boolean, fontScal
         if (streaming && lastProse < 0) {
             StreamingWaitIndicator()
         }
+        // Under a finished answer, the action row the chat and Claude both have. Only « copy » for
+        // now: a mission has no regenerate, and its feedback would reach nobody.
+        if (!streaming && lastProse >= 0) {
+            val prose = blocks.filterIsInstance<ChatBlock.Prose>().joinToString("\n\n") { it.part.text }
+            CopyTurnButton(prose)
+        }
     }
 }
+
+/** Copies an answer's prose — without its folded work — and says so for two seconds. */
+@Composable
+private fun CopyTurnButton(text: String) {
+    var copied by remember { mutableStateOf(false) }
+    LaunchedEffect(copied) {
+        if (copied) {
+            delay(COPIED_FEEDBACK_MS)
+            copied = false
+        }
+    }
+    // Outside the turn's selection: a button is not text anyone meant to select.
+    DisableSelection {
+        IconButton(
+            onClick = {
+                copyToClipboard(text.trim(), "Mission")
+                copied = true
+            },
+            modifier = Modifier.size(COPY_BUTTON_SIZE),
+        ) {
+            Icon(
+                if (copied) Icons.Default.Check else Icons.Outlined.ContentCopy,
+                contentDescription = stringResource(if (copied) Res.string.tasks_copied else Res.string.tasks_chat_copy),
+                modifier = Modifier.size(18.dp),
+                tint = if (copied) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+private const val COPIED_FEEDBACK_MS = 2_000L
+private val COPY_BUTTON_SIZE = 36.dp
 
 /**
  * The work behind an answer, folded.
@@ -632,17 +684,18 @@ private fun ToolOutput(output: String) {
 private const val TOOL_OUTPUT_LIMIT = 2_000
 
 /**
- * The composer, wearing the chat's clothes.
+ * The composer, laid out as Claude's (capture of 24/09/2026): one rounded box, the text on top, and
+ * under it a single row — « + » for what can be attached, the model and the connectors as pills,
+ * then the mic and send at the far end.
  *
- * Shape, fill, border and keyboard behaviour come from `:core:ui`'s [ChatInputDefaults] — the same
- * object the chat's own composer reads — so the two controls cannot drift apart. Above the box sits
- * the chips row the chat has: the connectors this session carries, and the model the next message
- * runs on. Both write straight through to the engine (`PATCH /session/{id}` for the rules,
- * `model` on the message for the call), so they are controls and not decoration.
+ * It replaced a chips row floating above the box and a line of four icons beside it (photo, audio
+ * file, mic, text, send), which left the text field a third of a phone's width. Everything is still
+ * one tap from the box; the two attachment kinds, used far less than the rest, moved behind the
+ * « + » — the same trade the chat made with its tools in lot 3.
  *
- * What is *not* shared is the chat's composer itself: attachments, MCP pickers, voice, queueing and
- * steering are chat concepts a mission session has none of, and a feature module cannot see
- * another's code anyway. Sharing the vocabulary is what is genuinely common.
+ * Shape, fill and border still come from `:core:ui`'s [ChatInputDefaults], so this box and the chat's
+ * cannot drift apart in the colours they share. The model and connectors write straight through to
+ * the engine (`model` on the message, `PATCH /session/{id}` for the rules): controls, not decoration.
  */
 @Composable
 private fun MissionChatInput(
@@ -662,136 +715,116 @@ private fun MissionChatInput(
     onDismissTranscriptionError: () -> Unit,
 ) {
     var picker by remember { mutableStateOf(Picker.NONE) }
+    // Null where the platform has nothing to offer (iOS today) — then no menu entry, rather than an
+    // entry that does nothing. Called here, unconditionally: they remember launchers.
+    val openPhoto = rememberMissionAttachmentPicker(onPick = onAddAttachments)
+    // A deposited audio file goes to the THREAD: transcribed on pick, staged as a quoted note, sent
+    // with the message. Whisper because no model on the gateway hears audio.
+    val openAudio = rememberMissionAudioPicker(onPick = { onAttachAudio(it.bytes, it.mime, it.filename) })
+    // The mic DICTATES: tap to record, tap to stop, and the words land in the box — where the
+    // speaker reads what Whisper heard before it becomes an instruction (asked for on 31/08/2026).
+    val dictation = rememberMissionDictation(onCapture = { onTranscribeAudio(it.bytes, it.mime) })
 
-    Surface(tonalElevation = 2.dp) {
+    Surface {
         // The keyboard, then the navigation bar — whichever is taller, never both stacked.
         //
         // `navigationBarsPadding()` alone left the composer *behind* the keyboard: it is the
-        // Scaffold's bottomBar, so nothing lifts it on its own, and the nav-bar inset says nothing
-        // about the IME. Reported 30/08/2026 — the box was unreachable the moment it was tapped.
-        // Adding `imePadding()` on top would stack the two and leave a nav-bar-high gap under the
-        // keyboard; `union` takes the larger, which is what « above whatever is at the bottom of
-        // the screen » actually means. The chat reaches the same place differently — its composer
-        // is an overlay inside the body, under a Scaffold that carries `imePadding()` itself.
+        // Scaffold's bottomBar, so nothing lifts it on its own (reported 30/08/2026). Adding
+        // `imePadding()` on top would stack the two; `union` takes the larger.
         Column(Modifier.windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime))) {
             if (state.transcriptionFailed) {
-                Text(
-                    text = stringResource(Res.string.tasks_transcription_failed),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(onClick = onDismissTranscriptionError)
-                        .padding(horizontal = 14.dp, vertical = 8.dp),
-                )
+                ComposerNotice(stringResource(Res.string.tasks_transcription_failed), onDismissTranscriptionError)
             }
             state.sendError?.let { kind ->
                 // The send failed and the text was put back — say why, once, dismissible on tap.
-                Text(
-                    text = stringResource(kind.title()),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(onClick = onDismissError)
-                        .padding(horizontal = 14.dp, vertical = 8.dp),
-                )
+                ComposerNotice(stringResource(kind.title()), onDismissError)
             }
 
-            ComposerChips(
-                state = state,
-                onOpenConnectors = { picker = Picker.CONNECTORS },
-                onOpenModels = { picker = Picker.MODELS },
-                onRetryCatalogue = onRetryCatalogue,
-            )
-
-            if (state.attachments.isNotEmpty() || state.audioNotes.isNotEmpty()) {
-                StagedAttachmentsRow(state.attachments, state.audioNotes, onRemoveAttachment, onRemoveAudioNote)
-            }
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.Bottom,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                    .clip(ChatInputDefaults.shape)
+                    .background(ChatInputDefaults.containerColor)
+                    .border(1.dp, ChatInputDefaults.borderColor, ChatInputDefaults.shape)
+                    .padding(8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                // Null where the platform has no picker to offer (iOS today) — then no button,
-                // rather than a button that does nothing.
-                val openPicker = rememberMissionAttachmentPicker(onPick = onAddAttachments)
-                if (openPicker != null) {
-                    IconButton(onClick = openPicker) {
-                        Icon(
-                            Icons.Outlined.AddPhotoAlternate,
-                            contentDescription = stringResource(Res.string.tasks_attach_photo),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+                if (state.attachments.isNotEmpty() || state.audioNotes.isNotEmpty()) {
+                    StagedAttachmentsRow(state.attachments, state.audioNotes, onRemoveAttachment, onRemoveAudioNote)
                 }
-                // A deposited audio file goes to the THREAD: transcribed on pick, staged as a
-                // quoted note, sent with the message. Whisper because no model on the gateway
-                // hears audio — the words are what the mission can actually read.
-                val openAudio = rememberMissionAudioPicker(
-                    onPick = { onAttachAudio(it.bytes, it.mime, it.filename) },
-                )
-                if (openAudio != null) {
-                    IconButton(onClick = openAudio, enabled = !state.transcribing) {
-                        Icon(
-                            Icons.Outlined.AudioFile,
-                            contentDescription = stringResource(Res.string.tasks_attach_audio),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-                // The mic DICTATES: tap to record, tap to stop, and the words land in the box —
-                // where the speaker reads what Whisper heard before it becomes an instruction.
-                // Asked for in exactly these terms on 31/08/2026, after the first cut wired the
-                // mic to a file picker instead.
-                val dictation = rememberMissionDictation(
-                    onCapture = { onTranscribeAudio(it.bytes, it.mime) },
-                )
-                if (dictation != null) {
-                    if (state.transcribing) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.padding(12.dp).size(24.dp),
-                            strokeWidth = 2.dp,
-                        )
-                    } else {
-                        IconButton(onClick = dictation.toggle) {
-                            if (dictation.recording) {
-                                Icon(
-                                    Icons.Filled.Stop,
-                                    contentDescription = stringResource(Res.string.tasks_dictate_stop),
-                                    tint = MaterialTheme.colorScheme.error,
-                                )
-                            } else {
-                                Icon(
-                                    Icons.Outlined.Mic,
-                                    contentDescription = stringResource(Res.string.tasks_dictate),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                        }
-                    }
-                }
-                OutlinedTextField(
+                TextField(
                     value = state.input,
                     onValueChange = onInput,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.fillMaxWidth(),
                     placeholder = { Text(stringResource(Res.string.tasks_chat_hint)) },
-                    shape = ChatInputDefaults.shape,
-                    colors = ChatInputDefaults.textFieldColors(),
+                    // The box draws the frame; the field inside it draws nothing of its own.
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        disabledContainerColor = Color.Transparent,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent,
+                        disabledIndicatorColor = Color.Transparent,
+                    ),
                     keyboardOptions = ChatInputDefaults.keyboardOptions,
                     maxLines = MAX_INPUT_LINES,
                 )
-                MissionSendButton(
-                    // `sending` counts as running: the gap between the POST and the answer's first
-                    // token is exactly when someone wants to be able to call it off.
-                    running = state.chat.streaming || state.sending,
-                    // A photo — or a transcribed audio — can be the whole message.
-                    canSend = state.input.isNotBlank() ||
-                        state.attachments.isNotEmpty() ||
-                        state.audioNotes.isNotEmpty(),
-                    onSend = onSend,
-                    onStop = onStop,
-                )
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    AddButton(openPhoto = openPhoto, openAudio = openAudio, audioEnabled = !state.transcribing)
+                    // The pills scroll among themselves, so a long model name never pushes send
+                    // off the row.
+                    Row(
+                        Modifier.weight(1f).horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        ComposerChips(
+                            state = state,
+                            onOpenConnectors = { picker = Picker.CONNECTORS },
+                            onOpenModels = { picker = Picker.MODELS },
+                            onRetryCatalogue = onRetryCatalogue,
+                        )
+                    }
+                    if (dictation != null) {
+                        if (state.transcribing) {
+                            Box(Modifier.size(COMPOSER_BUTTON_SIZE), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                            }
+                        } else {
+                            IconButton(onClick = dictation.toggle, modifier = Modifier.size(COMPOSER_BUTTON_SIZE)) {
+                                if (dictation.recording) {
+                                    Icon(
+                                        Icons.Filled.Stop,
+                                        contentDescription = stringResource(Res.string.tasks_dictate_stop),
+                                        tint = MaterialTheme.colorScheme.error,
+                                    )
+                                } else {
+                                    Icon(
+                                        Icons.Outlined.Mic,
+                                        contentDescription = stringResource(Res.string.tasks_dictate),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    MissionSendButton(
+                        // `sending` counts as running: the gap between the POST and the answer's
+                        // first token is exactly when someone wants to be able to call it off.
+                        running = state.chat.streaming || state.sending,
+                        // A photo — or a transcribed audio — can be the whole message.
+                        canSend = state.input.isNotBlank() ||
+                            state.attachments.isNotEmpty() ||
+                            state.audioNotes.isNotEmpty(),
+                        onSend = onSend,
+                        onStop = onStop,
+                    )
+                }
             }
         }
     }
@@ -819,15 +852,67 @@ private fun MissionChatInput(
 
 private enum class Picker { NONE, CONNECTORS, MODELS }
 
+/** One line above the box that says what went wrong, dismissed by a tap on it. */
+@Composable
+private fun ComposerNotice(text: String, onDismiss: () -> Unit) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.error,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onDismiss)
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+    )
+}
+
 /**
- * The row above the box: what this session can reach, and what it answers on.
+ * The « + »: what can be attached to the next message. Absent when the platform offers neither
+ * picker — a button that opens an empty menu is worse than no button.
+ */
+@Composable
+private fun AddButton(openPhoto: (() -> Unit)?, openAudio: (() -> Unit)?, audioEnabled: Boolean) {
+    if (openPhoto == null && openAudio == null) return
+    var open by remember { mutableStateOf(false) }
+    Box {
+        FilledTonalIconButton(onClick = { open = true }, modifier = Modifier.size(COMPOSER_BUTTON_SIZE)) {
+            Icon(Icons.Default.Add, contentDescription = stringResource(Res.string.tasks_chat_add))
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            openPhoto?.let { pick ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(Res.string.tasks_attach_photo)) },
+                    leadingIcon = { Icon(Icons.Outlined.AddPhotoAlternate, null) },
+                    onClick = {
+                        open = false
+                        pick()
+                    },
+                )
+            }
+            openAudio?.let { pick ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(Res.string.tasks_attach_audio)) },
+                    leadingIcon = { Icon(Icons.Outlined.AudioFile, null) },
+                    enabled = audioEnabled,
+                    onClick = {
+                        open = false
+                        pick()
+                    },
+                )
+            }
+        }
+    }
+}
+
+/**
+ * The pills under the text: the model the next message runs on, then what this session can reach.
  *
- * Both chips carry their current value in the label rather than opening onto it — « 3 connecteurs »
- * and the model's name — because the answer to « what is this mission allowed to do » should not
- * require opening a sheet to find out.
+ * Both carry their current value — the model's name, « 3 connecteurs » — because the answer to
+ * « what is this mission allowed to do » should not require opening a sheet. The model leads, as
+ * on Claude's composer.
  *
  * The two are independent: the connectors come from the scheduler and the models from the engine,
- * so one host being unreachable leaves the other's chip standing. A single row that vanished
+ * so one host being unreachable leaves the other's pill standing. A single row that vanished
  * whenever either failed is what hid a working model picker behind a scheduler that was merely not
  * redeployed yet (30/08/2026).
  */
@@ -838,83 +923,66 @@ private fun ComposerChips(
     onOpenModels: () -> Unit,
     onRetryCatalogue: () -> Unit,
 ) {
-    val connectorsFailed = state.connectorsError != null
-    val modelsFailed = state.modelsError != null
-    if (state.connectors.isEmpty() && state.models.isEmpty() && !connectorsFailed && !modelsFailed) return
-
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState())
-            .padding(start = 12.dp, end = 12.dp, top = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        when {
-            // Naming what is missing beats « something did not load »: the two have different
-            // causes and different fixes, and only one of them is ever the engine.
-            connectorsFailed -> RetryChip(
-                label = stringResource(Res.string.tasks_chat_connectors_failed),
-                onClick = onRetryCatalogue,
-            )
-            state.connectors.isNotEmpty() -> AssistChip(
+    when {
+        // Naming what is missing beats « something did not load »: the two have different causes
+        // and different fixes, and only one of them is ever the engine.
+        state.modelsError != null -> ComposerPill(
+            label = stringResource(Res.string.tasks_chat_models_failed),
+            icon = Icons.Outlined.Refresh,
+            onClick = onRetryCatalogue,
+        )
+        state.models.isNotEmpty() -> ComposerPill(
+            label = state.effectiveModel?.label ?: stringResource(Res.string.tasks_model_default_short),
+            onClick = onOpenModels,
+        )
+    }
+    when {
+        state.connectorsError != null -> ComposerPill(
+            label = stringResource(Res.string.tasks_chat_connectors_failed),
+            icon = Icons.Outlined.Refresh,
+            onClick = onRetryCatalogue,
+        )
+        state.connectors.isNotEmpty() -> {
+            val granted = state.enabledConnectors
+            ComposerPill(
+                label = when {
+                    // Not read back yet. « No connector » here was a claim the screen had no
+                    // grounds for, and it was wrong on every mission the scheduler launched.
+                    granted == null -> stringResource(Res.string.tasks_connectors)
+                    granted.isEmpty() -> stringResource(Res.string.tasks_chat_no_connector)
+                    else -> stringResource(Res.string.tasks_chat_connector_count, granted.size)
+                },
+                icon = Icons.Outlined.Build,
                 onClick = onOpenConnectors,
-                leadingIcon = { Icon(Icons.Outlined.Build, null, Modifier.size(16.dp)) },
-                label = {
-                    val granted = state.enabledConnectors
-                    Text(
-                        when {
-                            // Not read back yet. « No connector » here was a claim the screen had no
-                            // grounds for, and it was wrong on every mission the scheduler launched.
-                            granted == null -> stringResource(Res.string.tasks_connectors)
-                            granted.isEmpty() -> stringResource(Res.string.tasks_chat_no_connector)
-                            else -> stringResource(
-                                Res.string.tasks_chat_connector_count,
-                                granted.size,
-                            )
-                        },
-                    )
-                },
-            )
-        }
-
-        when {
-            modelsFailed -> RetryChip(
-                label = stringResource(Res.string.tasks_chat_models_failed),
-                onClick = onRetryCatalogue,
-            )
-            state.models.isNotEmpty() -> AssistChip(
-                onClick = onOpenModels,
-                leadingIcon = { Icon(Icons.Outlined.Bolt, null, Modifier.size(16.dp)) },
-                label = {
-                    Text(state.effectiveModel?.label ?: stringResource(Res.string.tasks_model_default_short))
-                },
             )
         }
     }
 }
 
-/** A chip that says what is missing and offers to go and get it again. */
+/** A rounded, filled pill — the look of Claude's model and mode buttons. */
 @Composable
-private fun RetryChip(label: String, onClick: () -> Unit) {
-    AssistChip(
+private fun ComposerPill(label: String, onClick: () -> Unit, icon: ImageVector? = null) {
+    Surface(
         onClick = onClick,
-        leadingIcon = {
-            Icon(
-                Icons.Outlined.Refresh,
-                null,
-                Modifier.size(16.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        },
-        label = { Text(label, style = MaterialTheme.typography.labelMedium) },
-    )
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        modifier = Modifier.heightIn(min = COMPOSER_BUTTON_SIZE),
+    ) {
+        Row(
+            Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            icon?.let { Icon(it, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+            Text(label, style = MaterialTheme.typography.labelLarge, maxLines = 1)
+        }
+    }
 }
 
 /**
- * Send, or stop what is running — the chat's button, down to the 56 dp target and the error-coloured
- * stop. Animated across the swap for the same reason the chat animates it: the two states occupy the
- * same spot, and a hard cut reads as the button having been replaced rather than having changed.
+ * Send, or stop what is running, in the same round spot at the end of the row. Animated across the
+ * swap: the two states occupy one place, and a hard cut reads as the button having been replaced.
  */
 @Composable
 private fun MissionSendButton(
@@ -931,40 +999,28 @@ private fun MissionSendButton(
         if (showStop) {
             IconButton(
                 onClick = onStop,
-                modifier = Modifier.size(SEND_BUTTON_SIZE),
+                modifier = Modifier.size(COMPOSER_BUTTON_SIZE),
                 colors = IconButtonDefaults.iconButtonColors(
                     containerColor = MaterialTheme.colorScheme.error,
                     contentColor = MaterialTheme.colorScheme.onError,
                 ),
             ) {
-                Icon(
-                    imageVector = Icons.Filled.Stop,
-                    contentDescription = stringResource(Res.string.tasks_stop),
-                    modifier = Modifier.size(SEND_ICON_SIZE),
-                )
+                Icon(imageVector = Icons.Filled.Stop, contentDescription = stringResource(Res.string.tasks_stop))
             }
         } else {
             IconButton(
                 onClick = onSend,
-                modifier = Modifier.size(SEND_BUTTON_SIZE),
+                modifier = Modifier.size(COMPOSER_BUTTON_SIZE),
                 enabled = canSend,
                 colors = IconButtonDefaults.iconButtonColors(
-                    containerColor = if (canSend) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.surfaceContainer
-                    },
-                    contentColor = if (canSend) {
-                        MaterialTheme.colorScheme.onPrimary
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                    disabledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                     disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 ),
             ) {
                 Icon(
-                    imageVector = Icons.AutoMirrored.Filled.Send,
+                    imageVector = Icons.Filled.ArrowUpward,
                     contentDescription = stringResource(Res.string.tasks_chat_send),
                 )
             }
@@ -974,9 +1030,8 @@ private fun MissionSendButton(
 
 private const val MAX_INPUT_LINES = 6
 
-/** The chat's 56 dp touch target, so the two composers line up when you switch between them. */
-private val SEND_BUTTON_SIZE = 56.dp
-private val SEND_ICON_SIZE = 28.dp
+/** Every round control in the composer's row: « + », pills, mic, send. 44 dp keeps it a thumb's. */
+private val COMPOSER_BUTTON_SIZE = 44.dp
 
 /** A pause long enough to mean « stopped here », short enough to survive a quick exit. */
 private const val POSITION_SETTLE_MS = 400L
@@ -1021,7 +1076,7 @@ private fun StagedAttachmentsRow(
         Modifier
             .fillMaxWidth()
             .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 12.dp),
+            .padding(horizontal = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
