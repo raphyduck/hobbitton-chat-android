@@ -546,4 +546,6 @@
     <string name="server_headers_keep_editing">Weiter bearbeiten</string>
     <string name="skills_entry">Skills</string>
     <string name="skills_entry_subtitle">Deine Skills verwalten</string>
+    <string name="usage_entry">Nutzung</string>
+    <string name="usage_entry_subtitle">Ausgaben und Anbieter</string>
 </resources>

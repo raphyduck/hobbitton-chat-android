@@ -68,7 +68,12 @@
     <string name="tasks_scheduled_last_ok">Dernier passage %1$s · %2$s jetons</string>
     <string name="tasks_scheduled_last_failed">Dernier passage en échec : %1$s</string>
     <string name="tasks_scheduled_tools">%1$d outils par tour</string>
-    <string name="tasks_sessions_header">Sessions</string>
+    <string name="tasks_running_header">En cours</string>
+    <string name="usage_title">Utilisation</string>
+    <string name="usage_not_configured">Aucun planificateur configuré</string>
+    <string name="usage_not_configured_hint">La dépense et les fournisseurs sont lus par le planificateur. Son adresse se règle dans les réglages de l\'onglet Tâches.</string>
+    <string name="runs_empty">Aucune exécution pour l\'instant</string>
+    <string name="runs_empty_hint">Les exécutions sont les sessions que le planificateur a lancées pour cette mission. Les 30 dernières sont affichées.</string>
     <string name="tasks_settings_scheduler_url">Adresse du planificateur</string>
     <string name="tasks_settings_scheduler_url_hint">https://sched.example.com — facultatif ; sans elle, les missions récurrentes restent invisibles.</string>
     <string name="tasks_spend_header">Dépense, 7 derniers jours</string>

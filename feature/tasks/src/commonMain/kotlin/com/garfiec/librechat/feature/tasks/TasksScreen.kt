@@ -5,11 +5,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -24,7 +24,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -49,12 +48,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.garfiec.librechat.core.data.engine.Mission
 import com.garfiec.librechat.core.model.engine.EngineFailureKind
 import com.garfiec.librechat.core.model.engine.MissionState
-import com.garfiec.librechat.core.model.scheduler.Consumption
-import com.garfiec.librechat.core.model.scheduler.ModelConsumption
-import com.garfiec.librechat.core.model.scheduler.Provider
-import com.garfiec.librechat.core.model.scheduler.ProviderHealth
 import com.garfiec.librechat.core.model.scheduler.ScheduledMission
-import com.garfiec.librechat.feature.tasks.components.DisclosureRow
 import com.garfiec.librechat.feature.tasks.components.Explanation
 import com.garfiec.librechat.feature.tasks.components.TasksBottomSheet
 import com.garfiec.librechat.feature.tasks.resources.Res
@@ -65,15 +59,8 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_new
 import com.garfiec.librechat.feature.tasks.resources.tasks_not_configured
 import com.garfiec.librechat.feature.tasks.resources.tasks_not_configured_hint
 import com.garfiec.librechat.feature.tasks.resources.tasks_open_drawer
-import com.garfiec.librechat.feature.tasks.resources.tasks_providers_all_ok
-import com.garfiec.librechat.feature.tasks.resources.tasks_providers_check
-import com.garfiec.librechat.feature.tasks.resources.tasks_providers_checking
-import com.garfiec.librechat.feature.tasks.resources.tasks_providers_failed
-import com.garfiec.librechat.feature.tasks.resources.tasks_providers_failing
-import com.garfiec.librechat.feature.tasks.resources.tasks_providers_header
-import com.garfiec.librechat.feature.tasks.resources.tasks_providers_none
-import com.garfiec.librechat.feature.tasks.resources.tasks_providers_unknown
 import com.garfiec.librechat.feature.tasks.resources.tasks_retry
+import com.garfiec.librechat.feature.tasks.resources.tasks_running_header
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_cron
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_cron_hint
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_delete
@@ -96,50 +83,37 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_save
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_suspended
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_timezone
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_tools
-import com.garfiec.librechat.feature.tasks.resources.tasks_sessions_header
 import com.garfiec.librechat.feature.tasks.resources.tasks_settings_open
 import com.garfiec.librechat.feature.tasks.resources.tasks_settings_title
 import com.garfiec.librechat.feature.tasks.resources.tasks_sign_in
-import com.garfiec.librechat.feature.tasks.resources.tasks_spend_at_least
-import com.garfiec.librechat.feature.tasks.resources.tasks_spend_by_model
-import com.garfiec.librechat.feature.tasks.resources.tasks_spend_cache_saved
-import com.garfiec.librechat.feature.tasks.resources.tasks_spend_calls
-import com.garfiec.librechat.feature.tasks.resources.tasks_spend_header
-import com.garfiec.librechat.feature.tasks.resources.tasks_spend_tiny
-import com.garfiec.librechat.feature.tasks.resources.tasks_spend_total
-import com.garfiec.librechat.feature.tasks.resources.tasks_spend_total_partial
-import com.garfiec.librechat.feature.tasks.resources.tasks_spend_unit_price
-import com.garfiec.librechat.feature.tasks.resources.tasks_spend_unpriced
-import com.garfiec.librechat.feature.tasks.resources.tasks_spend_unpriced_note
 import com.garfiec.librechat.feature.tasks.resources.tasks_state_failed
 import com.garfiec.librechat.feature.tasks.resources.tasks_state_idle
 import com.garfiec.librechat.feature.tasks.resources.tasks_state_running
 import com.garfiec.librechat.feature.tasks.resources.tasks_state_succeeded
 import com.garfiec.librechat.feature.tasks.resources.tasks_stop
 import com.garfiec.librechat.feature.tasks.resources.tasks_title
-import com.garfiec.librechat.feature.tasks.util.byCostDescending
-import com.garfiec.librechat.feature.tasks.util.groupThousands
 import com.garfiec.librechat.feature.tasks.util.hint
 import com.garfiec.librechat.feature.tasks.util.missionAge
-import com.garfiec.librechat.feature.tasks.util.money
-import com.garfiec.librechat.feature.tasks.util.observedPricePerMillion
 import com.garfiec.librechat.feature.tasks.util.sentence
 import com.garfiec.librechat.feature.tasks.util.title
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
- * The Tasks tab: every mission the engine knows about, and what each one is doing.
+ * The Tasks tab: the recurring missions, and whatever is running right now.
  *
- * One list, not two. The brief's v9 merged « Tasks » and « Code » because the split was about how a
- * mission is watched, not about what it is — a mission is an objective handed to a profile, and
- * whether a human follows it live is one of its attributes.
+ * Claude-style since 24/09/2026. The tab used to open on the week's spend, the providers, a folded
+ * schedule and every session ever run; the spend and the providers moved to Settings › Usage, the
+ * settled sessions to the drawer's recents (launched by hand) or to their mission's runs (launched
+ * by the scheduler). What remains is what this tab is opened for: the tasks, and what needs a hand.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TasksScreen(
     modifier: Modifier = Modifier,
     onOpenMissionChat: (sessionId: String, title: String) -> Unit = { _, _ -> },
+    /** A scheduled mission's card opens the list of its runs. */
+    onOpenMissionRuns: (name: String) -> Unit = {},
     /**
      * The menu button, as on the chat. Until 23/09/2026 this bar had no leading button at all: the
      * screen is reached from the drawer, and the only way back to it was the system back gesture.
@@ -154,10 +128,6 @@ fun TasksScreen(
     val uriHandler = LocalUriHandler.current
     var composing by remember { mutableStateOf(false) }
     var configuring by remember { mutableStateOf(false) }
-    // Collapsed by default: nine recurring missions push the sessions — what someone opens the tab
-    // to read — below the fold. Hoisted to the screen rather than kept in the header, because it
-    // decides whether the LazyColumn emits the rows at all; a lazy item's own state cannot.
-    var scheduledShown by rememberSaveable { mutableStateOf(false) }
     // Read once into a local: `state` is a delegated property, so the branch below cannot smart-cast
     // through it.
     val failure = state.error
@@ -222,7 +192,7 @@ fun TasksScreen(
                         verticalArrangement = Arrangement.Center,
                     ) { CircularProgressIndicator() }
 
-                failure != null && state.missions.isEmpty() -> Explanation(
+                failure != null && nothingToShow -> Explanation(
                     title = stringResource(failure.title()),
                     // What the last sign-in attempt ran into outranks the generic hint: it is the more
                     // recent and the more specific of the two answers to « why ».
@@ -261,82 +231,57 @@ fun TasksScreen(
 
                 else -> LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
+                    contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    // The week's spend leads, above the schedule: it is the one number that
-                    // answers « where am I », and it fits in two lines. Everything below it is
-                    // detail by comparison.
-                    state.consumption?.let { report ->
-                        item(key = "spend-header") {
-                            SectionHeader(stringResource(Res.string.tasks_spend_header))
-                        }
-                        item(key = "spend-section") { SpendSection(report) }
-                    }
-
-                    // Providers come after the money and before the schedule: knowing a provider is
-                    // dead changes how you read everything below it.
-                    if (state.schedulerConfigured) {
-                        item(key = "providers-header") {
-                            SectionHeader(stringResource(Res.string.tasks_providers_header))
-                        }
-                        item(key = "providers-section") {
-                            ProvidersSection(
-                                health = state.providers,
-                                checking = state.providersChecking,
-                                failure = state.providersError,
-                                onCheck = viewModel::checkProviders,
+                    // The engine failed while the schedule loaded: the list stays, and one line
+                    // says what is missing from it rather than a full-screen error hiding the rest.
+                    if (failure != null) {
+                        item(key = "engine-failure") {
+                            Text(
+                                stringResource(failure.title()),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
                             )
                         }
                     }
 
-                    // The schedule leads among the rest: what runs tonight without anyone watching is
-                    // what someone opens this tab to check. Sessions are the record of what happened.
-                    if (state.scheduled.isNotEmpty()) {
-                        item(key = "scheduled-header") {
-                            // The count rides along so a collapsed section still says how much it
-                            // is hiding — « Missions programmées 9 » reads as a fact, an empty
-                            // heading as a bug.
-                            DisclosureRow(
-                                label = stringResource(Res.string.tasks_scheduled_header),
-                                expanded = scheduledShown,
-                                onToggle = { scheduledShown = !scheduledShown },
-                                labelStyle = MaterialTheme.typography.titleSmall,
-                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                trailing = {
-                                    Text(
-                                        state.scheduled.size.toString(),
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                },
-                            )
-                        }
-                        if (scheduledShown) {
-                            items(state.scheduled, key = { "scheduled-" + it.name }) { mission ->
-                                ScheduledMissionRow(
-                                    mission = mission,
-                                    onRun = { viewModel.runScheduled(mission.name) },
-                                    onToggle = {
-                                        viewModel.setScheduledEnabled(mission.name, !mission.enabled)
-                                    },
-                                    onReschedule = { cron, runAt ->
-                                        viewModel.rescheduleMission(mission.name, cron, runAt)
-                                    },
-                                    onDelete = { viewModel.deleteScheduled(mission.name) },
-                                )
-                            }
-                        }
-                    }
+                    // What is working right now leads, with its Stop: it is the only thing on this
+                    // tab that may need a hand this minute. Settled sessions are not listed any
+                    // more (24/09/2026): one launched by hand is in the drawer's recents, like a
+                    // chat; one the scheduler ran is under its mission, one tap below.
                     if (state.missions.isNotEmpty()) {
-                        item(key = "sessions-header") {
-                            SectionHeader(stringResource(Res.string.tasks_sessions_header))
+                        item(key = "running-header") {
+                            SectionHeader(stringResource(Res.string.tasks_running_header))
                         }
                         items(state.missions, key = { it.sessionId }) { mission ->
                             MissionRow(
                                 mission = mission,
                                 onOpenChat = { onOpenMissionChat(mission.sessionId, mission.title) },
                                 onStop = { viewModel.abort(mission.sessionId) },
+                            )
+                        }
+                    }
+
+                    // The tasks themselves, always shown — Claude's Tasks page is this list. It was
+                    // collapsed until 24/09/2026 because the sessions below it were what one came
+                    // to read; they are gone from here, so nothing competes with it any more.
+                    if (state.scheduled.isNotEmpty()) {
+                        item(key = "scheduled-header") {
+                            SectionHeader(stringResource(Res.string.tasks_scheduled_header))
+                        }
+                        items(state.scheduled, key = { "scheduled-" + it.name }) { mission ->
+                            ScheduledMissionRow(
+                                mission = mission,
+                                onOpen = { onOpenMissionRuns(mission.name) },
+                                onRun = { viewModel.runScheduled(mission.name) },
+                                onToggle = {
+                                    viewModel.setScheduledEnabled(mission.name, !mission.enabled)
+                                },
+                                onReschedule = { cron, runAt ->
+                                    viewModel.rescheduleMission(mission.name, cron, runAt)
+                                },
+                                onDelete = { viewModel.deleteScheduled(mission.name) },
                             )
                         }
                     }
@@ -382,238 +327,8 @@ fun TasksScreen(
     }
 }
 
-/**
- * The week's spend, by model.
- *
- * Three states share this list and must not be confusable, which is the whole reason this screen
- * exists in the form it does:
- *
- * - a real amount — « 13.0373 $ » ;
- * - a real amount too small to print at four decimals — « < 0,0001 $ », never « 0.0000 $ » ;
- * - **no price at all** — « non tarifé », because the gateway writes a literal zero for a model
- *   its price table does not know, and rendering that as free would be a lie about precisely the
- *   cheap models one routes traffic to in order to save money.
- *
- * When any model is unpriced the total is a floor, and the header says « at least ». A total
- * presented as exact when terms are missing is worse than no total.
- */
-/**
- * Which providers still answer — and the reason this one has a button.
- *
- * Every other section on this screen loads itself. This one does not, because obtaining it calls
- * every model in the catalogue for real: about $0.0015 and two to three seconds, measured
- * server-side rather than guessed. An answer that changes roughly once a month has no business
- * being re-bought on every glance at the tab.
- *
- * So the honest default is « unknown », said out loud, with the price of finding out written next
- * to the button. A screen that quietly spends money when it appears is one nobody can reason about.
- */
 @Composable
-private fun ProvidersSection(
-    health: ProviderHealth?,
-    checking: Boolean,
-    failure: String?,
-    onCheck: () -> Unit,
-) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            when {
-                checking -> Text(
-                    stringResource(Res.string.tasks_providers_checking),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-
-                // No figure before the first check, on purpose: the exact cost comes back
-                // *with* the answer, and a number hardcoded here would go stale in silence the
-                // day the catalogue grows. « A few tenths of a cent » is true and stays true.
-                health == null -> Text(
-                    stringResource(Res.string.tasks_providers_unknown),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-
-                health.providers.isEmpty() -> Text(
-                    stringResource(Res.string.tasks_providers_none),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.error,
-                )
-
-                else -> {
-                    Text(
-                        if (health.allHealthy) {
-                            stringResource(
-                                Res.string.tasks_providers_all_ok, health.providers.size,
-                            )
-                        } else {
-                            stringResource(
-                                Res.string.tasks_providers_failing, health.failing.size,
-                            )
-                        },
-                        style = MaterialTheme.typography.titleSmall,
-                        color = if (health.allHealthy) {
-                            MaterialTheme.colorScheme.onSurface
-                        } else {
-                            MaterialTheme.colorScheme.error
-                        },
-                    )
-                    HorizontalDivider()
-                    health.providers.forEach { ProviderRow(it) }
-                }
-            }
-
-            failure?.let {
-                Text(
-                    stringResource(Res.string.tasks_providers_failed, it),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                )
-            }
-
-            TextButton(onClick = onCheck, enabled = !checking) {
-                Text(stringResource(Res.string.tasks_providers_check))
-            }
-        }
-    }
-}
-
-@Composable
-private fun ProviderRow(provider: Provider) {
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(
-            provider.name + (provider.baseUrl?.let { "  ($it)" } ?: ""),
-            style = MaterialTheme.typography.bodyMedium,
-            color = if (provider.isHealthy) {
-                MaterialTheme.colorScheme.onSurface
-            } else {
-                MaterialTheme.colorScheme.error
-            },
-        )
-        provider.models.forEach { model ->
-            Text(
-                if (model.isHealthy) {
-                    model.name
-                } else {
-                    // The provider's own sentence, and its status: « 401 — Invalid API key » says
-                    // what to do next, where a red dot says only that something is wrong.
-                    model.name +
-                        (model.httpStatus?.let { " [$it]" } ?: "") +
-                        " — " + (model.error ?: "")
-                },
-                style = MaterialTheme.typography.bodySmall,
-                color = if (model.isHealthy) {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                } else {
-                    MaterialTheme.colorScheme.error
-                },
-                modifier = Modifier.padding(start = 12.dp),
-            )
-        }
-    }
-}
-
-@Composable
-private fun SpendSection(report: Consumption) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            val tokens = groupThousands(report.totalTokens)
-            Text(
-                if (report.isComplete) {
-                    stringResource(Res.string.tasks_spend_total, money(report.totalSpend), tokens)
-                } else {
-                    stringResource(
-                        Res.string.tasks_spend_total_partial, money(report.totalSpend), tokens,
-                    )
-                },
-                style = MaterialTheme.typography.titleMedium,
-            )
-            if (report.cacheSavings > 0) {
-                Text(
-                    stringResource(Res.string.tasks_spend_cache_saved, money(report.cacheSavings)),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-
-            if (report.models.isNotEmpty()) {
-                // The per-model breakdown is the long part of this card — eight-plus rows that push
-                // the schedule below the fold. Collapsed by default so the week's total, the one
-                // number this section exists to answer, sits alone at the top of the tab. Saveable
-                // so scrolling the card out of the LazyColumn does not re-collapse an opened list.
-                var detailShown by rememberSaveable { mutableStateOf(false) }
-                HorizontalDivider()
-                DisclosureRow(
-                    label = stringResource(Res.string.tasks_spend_by_model, report.models.size),
-                    expanded = detailShown,
-                    onToggle = { detailShown = !detailShown },
-                    labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                if (detailShown) {
-                    report.models.byCostDescending().forEach { model ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(model.model, style = MaterialTheme.typography.bodyMedium)
-                                Text(
-                                    listOfNotNull(
-                                        groupThousands(model.tokens),
-                                        stringResource(Res.string.tasks_spend_calls, model.calls),
-                                        // What the million actually cost: the figure that explains
-                                        // why the row above it is ranked where it is. Absent rather
-                                        // than guessed when the spend is unknown or partial.
-                                        model.observedPricePerMillion()?.let { rate ->
-                                            stringResource(Res.string.tasks_spend_unit_price, money(rate))
-                                        },
-                                    ).joinToString(" · "),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                            Text(
-                                modelAmount(model),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = if (model.isPriced) {
-                                    MaterialTheme.colorScheme.onSurface
-                                } else {
-                                    // Dimmed, not red: « no price » is not an error, it is an unknown.
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                },
-                            )
-                        }
-                    }
-                    if (!report.isComplete) {
-                        Text(
-                            stringResource(Res.string.tasks_spend_unpriced_note),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun modelAmount(model: ModelConsumption): String {
-    val spend = model.spend
-    return when {
-        spend == null -> stringResource(Res.string.tasks_spend_unpriced)
-        // A positive amount that rounds to zero at four decimals: printing « 0.0000 $ » here would
-        // put back the misleading zero the server takes such care to remove. Seen in service on
-        // 23/08 — deepseek/deepseek-chat had cost 0.00000572 $.
-        spend > 0 && money(spend) == money(0.0) -> stringResource(Res.string.tasks_spend_tiny)
-        // « at least », like the header total: part of this model's spend has no price, so the
-        // amount is a floor. Saying the number without the reserve would be the misleading zero
-        // in another costume — a figure that looks complete and is not.
-        model.isPartial -> stringResource(Res.string.tasks_spend_at_least, money(spend))
-        else -> money(spend)
-    }
-}
-
-@Composable
-private fun SectionHeader(label: String) {
+internal fun SectionHeader(label: String) {
     Text(
         label,
         style = MaterialTheme.typography.titleSmall,
@@ -634,6 +349,7 @@ private fun SectionHeader(label: String) {
 @Composable
 private fun ScheduledMissionRow(
     mission: ScheduledMission,
+    onOpen: () -> Unit,
     onRun: () -> Unit,
     onToggle: () -> Unit,
     onReschedule: (cron: String?, runAt: String?) -> Unit,
@@ -641,7 +357,9 @@ private fun ScheduledMissionRow(
 ) {
     var editing by rememberSaveable(mission.name) { mutableStateOf(false) }
     var confirmingDelete by rememberSaveable(mission.name) { mutableStateOf(false) }
-    Card(modifier = Modifier.fillMaxWidth()) {
+    // The card opens the mission's runs, as a task opens its history in Claude; the buttons keep
+    // their own gestures on top of it.
+    Card(onClick = onOpen, modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(mission.name, style = MaterialTheme.typography.titleMedium)
 
@@ -888,7 +606,7 @@ private fun LastRunLine(mission: ScheduledMission) {
 }
 
 @Composable
-private fun MissionRow(
+internal fun MissionRow(
     mission: Mission,
     onOpenChat: () -> Unit,
     onStop: () -> Unit,

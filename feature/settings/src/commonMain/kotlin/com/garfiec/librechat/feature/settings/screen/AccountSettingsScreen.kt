@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Star
@@ -74,6 +75,8 @@ fun AccountSettingsScreen(
     onNavigateToProviderKeys: () -> Unit,
     onNavigateToRoleSkillsAdmin: () -> Unit,
     modifier: Modifier = Modifier,
+    /** See [AccountSettingsContent]: null hides the Usage row. */
+    onNavigateToUsage: (() -> Unit)? = null,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -100,6 +103,7 @@ fun AccountSettingsScreen(
             onNavigateToFavorites = onNavigateToFavorites,
             onNavigateToProviderKeys = onNavigateToProviderKeys,
             onNavigateToRoleSkillsAdmin = onNavigateToRoleSkillsAdmin,
+            onNavigateToUsage = onNavigateToUsage,
             snackbarHostState = snackbarHostState,
             modifier = Modifier
                 .fillMaxSize()
@@ -120,6 +124,14 @@ fun AccountSettingsContent(
     onNavigateToProviderKeys: () -> Unit,
     onNavigateToRoleSkillsAdmin: () -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * Opens the Usage screen — the week's spend by model and the providers' health. It sat at the
+     * top of the Tasks tab until 24/09/2026 and moved here, where Claude keeps its own usage: money
+     * is checked now and then, the tasks are what one opens that tab for. It lives in the tasks
+     * feature, which this module cannot name, so the host passes it — null where the engine is not
+     * available (iOS, D-034), and the row is then absent.
+     */
+    onNavigateToUsage: (() -> Unit)? = null,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
     viewModel: SettingsViewModel = koinViewModel(),
     // Hoisted rather than resolved inside the dialog: the save confirmation has to outlive the
@@ -216,6 +228,17 @@ fun AccountSettingsContent(
                     BalanceSection(
                         tokenCredits = uiState.tokenCredits,
                         isLoading = uiState.isBalanceLoading,
+                    )
+                }
+            }
+
+            onNavigateToUsage?.let { openUsage ->
+                item(key = "usage_row") {
+                    AccountSettingsRow(
+                        icon = Icons.Default.BarChart,
+                        title = stringResource(Res.string.usage_entry),
+                        subtitle = stringResource(Res.string.usage_entry_subtitle),
+                        onClick = openUsage,
                     )
                 }
             }

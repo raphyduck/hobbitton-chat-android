@@ -8,6 +8,7 @@ import com.garfiec.librechat.core.model.scheduler.ScheduledMission
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -37,6 +38,20 @@ class RecentMissionsTest {
         // A dash in the objective is not enough: what follows it has to be a trigger.
         assertFalse(isScheduledRun("Relance Engie — facture de clôture"))
         assertFalse(isScheduledRun("— manuel"))
+    }
+
+    @Test
+    fun `a scheduled run names its mission, even one whose name holds the separator`() {
+        assertEquals("brief-crypto", scheduledMissionName("brief-crypto — 2026-09-23T06:45+0200"))
+        assertEquals("rapprochement-qonto", scheduledMissionName("rapprochement-qonto — manuel reprise 2"))
+        // The last separator is the scheduler's; any earlier one belongs to the name.
+        assertEquals("Engie — clôture", scheduledMissionName("Engie — clôture — 2026-09-14T08:30+0200"))
+    }
+
+    @Test
+    fun `a session launched by hand names no mission`() {
+        assertNull(scheduledMissionName("Relance Engie — facture de clôture"))
+        assertNull(scheduledMissionName("— manuel"))
     }
 
     @Test

@@ -616,4 +616,6 @@
     <string name="mcp_connection_deferred">Connecting in the background \u2014 tools appear once it is ready.</string>
     <string name="skills_entry">Skills</string>
     <string name="skills_entry_subtitle">Manage your skills</string>
+    <string name="usage_entry">Usage</string>
+    <string name="usage_entry_subtitle">Spend and providers</string>
 </resources>

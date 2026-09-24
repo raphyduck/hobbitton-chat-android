@@ -546,4 +546,6 @@
     <string name="server_headers_keep_editing">계속 편집</string>
     <string name="skills_entry">스킬</string>
     <string name="skills_entry_subtitle">스킬 관리</string>
+    <string name="usage_entry">사용량</string>
+    <string name="usage_entry_subtitle">지출 및 공급자</string>
 </resources>

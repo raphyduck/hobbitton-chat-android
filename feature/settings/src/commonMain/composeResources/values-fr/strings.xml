@@ -558,4 +558,6 @@
     <string name="server_headers_keep_editing">Continuer l'édition</string>
     <string name="skills_entry">Compétences</string>
     <string name="skills_entry_subtitle">Gérer vos compétences</string>
+    <string name="usage_entry">Utilisation</string>
+    <string name="usage_entry_subtitle">Dépenses et fournisseurs</string>
 </resources>

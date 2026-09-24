@@ -10,6 +10,7 @@ import com.garfiec.librechat.core.model.engine.EnginePromptRequest
 import com.garfiec.librechat.core.model.engine.EngineProviderModel
 import com.garfiec.librechat.core.model.engine.EngineSelectableModel
 import com.garfiec.librechat.core.model.engine.EngineSession
+import com.garfiec.librechat.core.model.engine.EngineSessionStatus
 import com.garfiec.librechat.core.model.engine.EngineStreamEvent
 import com.garfiec.librechat.core.model.engine.MissionState
 import com.garfiec.librechat.core.model.engine.engineHistoryEvents
@@ -120,30 +121,65 @@ class EngineMissionRepository(
     }
 
     /**
-     * The list, with each mission's state resolved.
-     *
-     * The status map is fetched **once** for the whole list — there is no per-session status route,
-     * and asking N times would be N identical answers. Messages, on the other hand, are per session
-     * and only fetched for those the status map does not report as active: a running mission needs
-     * no verdict, and pulling every message of every past mission to render a list would download
-     * the entire history on each refresh.
+     * The sessions working right now — what the Tasks tab lists under its schedule since
+     * 24/09/2026. Settled sessions went to the drawer's recents (a manual one) or to their mission's
+     * runs (a scheduled one), so this list judges nothing and downloads no transcript: two round
+     * trips, whatever the history's length, where [missions] paid one per session ever run.
      */
-    suspend fun missions(): List<Mission> {
+    suspend fun runningMissions(): List<Mission> {
         val statuses = api.status()
-        return api.sessions().map { session ->
-            val active = statuses[session.id]
-            val messages = if (active != null && active.type != "idle") {
-                emptyList()
-            } else {
-                runCatching { api.messages(session.id) }.getOrDefault(emptyList())
+        return api.sessions()
+            .filter { session -> statuses[session.id].let { it != null && it.type != IDLE_STATUS } }
+            .map { session ->
+                Mission(
+                    sessionId = session.id,
+                    title = session.title.orEmpty().ifBlank { session.id },
+                    state = judgeMission(statuses[session.id], emptyList()),
+                    lastActivityMillis = session.time?.updated ?: session.time?.created,
+                )
             }
-            Mission(
-                sessionId = session.id,
-                title = session.title.orEmpty().ifBlank { session.id },
-                state = judgeMission(active, messages),
-                lastActivityMillis = lastActivityOf(session, messages),
-            )
+    }
+
+    /**
+     * The runs of one scheduled mission, newest first, each judged — what a tap on its card opens.
+     *
+     * Recognised by title (`scheduledMissionName`), because the scheduler remembers only a
+     * mission's last run. Capped at [RUNS_SHOWN] **before** the transcripts are fetched: a daily
+     * mission accumulates a session a day, and judging each one costs its whole transcript.
+     */
+    suspend fun missionRuns(name: String): List<Mission> {
+        val statuses = api.status()
+        val runs = api.sessions()
+            .filter { session -> session.title?.let(::scheduledMissionName) == name }
+            .sortedByDescending { it.time?.updated ?: it.time?.created ?: Long.MIN_VALUE }
+            .take(RUNS_SHOWN)
+        return judged(statuses, runs)
+    }
+
+    /**
+     * Each session with its state resolved.
+     *
+     * The status map is fetched **once** by the caller — there is no per-session status route, and
+     * asking N times would be N identical answers. Messages, on the other hand, are per session and
+     * only fetched for those the status map does not report as active: a running mission needs no
+     * verdict.
+     */
+    private suspend fun judged(
+        statuses: Map<String, EngineSessionStatus>,
+        sessions: List<EngineSession>,
+    ): List<Mission> = sessions.map { session ->
+        val active = statuses[session.id]
+        val messages = if (active != null && active.type != IDLE_STATUS) {
+            emptyList()
+        } else {
+            runCatching { api.messages(session.id) }.getOrDefault(emptyList())
         }
+        Mission(
+            sessionId = session.id,
+            title = session.title.orEmpty().ifBlank { session.id },
+            state = judgeMission(active, messages),
+            lastActivityMillis = lastActivityOf(session, messages),
+        )
     }
 
     /**
@@ -272,6 +308,12 @@ class EngineMissionRepository(
 
     private companion object {
         const val TITLE_LENGTH = 60
+
+        /** The engine's word for a session that is doing nothing; any other status is work. */
+        const val IDLE_STATUS = "idle"
+
+        /** A month of a daily mission: enough to see a pattern, few enough transcripts to fetch. */
+        const val RUNS_SHOWN = 30
 
         /**
          * The single engine agent every mission launched from this app runs on.

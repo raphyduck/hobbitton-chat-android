@@ -284,6 +284,8 @@ private fun MainContent(
         MainNavDisplay(
             navigator = navigator,
             onMenuClick = onToggleDrawer,
+            // The tablet layout is Android's, where the engine's graph always exists (D-034).
+            tasksAvailable = true,
             modifier = Modifier.fillMaxSize(),
         )
     }

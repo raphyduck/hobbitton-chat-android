@@ -51,6 +51,8 @@ fun TabbedSettingsScreen(
     modifier: Modifier = Modifier,
     /** See [ChatSettingsContent]: null hides the Skills row. */
     onNavigateToSkills: (() -> Unit)? = null,
+    /** See [AccountSettingsContent]: null hides the Usage row. */
+    onNavigateToUsage: (() -> Unit)? = null,
 ) {
     val pagerState = rememberPagerState(pageCount = { SETTINGS_TAB_COUNT })
     val tabTitles = listOf(
@@ -119,6 +121,7 @@ fun TabbedSettingsScreen(
                     onNavigateToFavorites = onNavigateToFavorites,
                     onNavigateToProviderKeys = onNavigateToProviderKeys,
                     onNavigateToRoleSkillsAdmin = onNavigateToRoleSkillsAdmin,
+                    onNavigateToUsage = onNavigateToUsage,
                     snackbarHostState = snackbarHostState,
                     modifier = Modifier.fillMaxSize(),
                 )
