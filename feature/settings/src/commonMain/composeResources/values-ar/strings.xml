@@ -546,4 +546,6 @@
     <string name="server_headers_keep_editing">متابعة التحرير</string>
     <string name="skills_entry">المهارات</string>
     <string name="skills_entry_subtitle">إدارة المهارات</string>
+    <string name="usage_entry">الاستخدام</string>
+    <string name="usage_entry_subtitle">الإنفاق والمزوّدون</string>
 </resources>

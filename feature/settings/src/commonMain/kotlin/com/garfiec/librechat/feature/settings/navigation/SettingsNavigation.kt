@@ -60,6 +60,8 @@ fun EntryProviderScope<NavKey>.settingsEntries(
      * other). Null when the role may not use skills — the row is then absent.
      */
     onNavigateToSkills: (() -> Unit)? = null,
+    /** Opens the tasks feature's Usage screen; null where the engine is not available. */
+    onNavigateToUsage: (() -> Unit)? = null,
 ) {
     // Hoisted: navigation to ProviderKeys() (no pending endpoint) is identical in Tabbed
     // and Account — share the resolver so callers don't construct it twice.
@@ -78,6 +80,7 @@ fun EntryProviderScope<NavKey>.settingsEntries(
             onNavigateToProviderKeys = navigateToProviderKeys,
             onNavigateToRoleSkillsAdmin = { onNavigate(RoleSkillsAdmin) },
             onNavigateToSkills = onNavigateToSkills,
+            onNavigateToUsage = onNavigateToUsage,
         )
     }
     entry<SettingsGeneral> {
@@ -100,6 +103,7 @@ fun EntryProviderScope<NavKey>.settingsEntries(
             onNavigateToFavorites = { onNavigate(Favorites) },
             onNavigateToProviderKeys = navigateToProviderKeys,
             onNavigateToRoleSkillsAdmin = { onNavigate(RoleSkillsAdmin) },
+            onNavigateToUsage = onNavigateToUsage,
         )
     }
     entry<SettingsData> {

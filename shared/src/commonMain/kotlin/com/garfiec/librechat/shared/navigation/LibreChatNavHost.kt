@@ -77,6 +77,8 @@ import com.garfiec.librechat.feature.settings.navigation.settingsEntries
 import com.garfiec.librechat.feature.skills.navigation.SkillsList
 import com.garfiec.librechat.feature.skills.navigation.skillsEntries
 import com.garfiec.librechat.feature.tasks.navigation.MissionChat
+import com.garfiec.librechat.feature.tasks.navigation.MissionRuns
+import com.garfiec.librechat.feature.tasks.navigation.TasksUsage
 import com.garfiec.librechat.feature.tasks.navigation.tasksEntries
 import com.garfiec.librechat.shared.resources.Res
 import com.garfiec.librechat.shared.resources.dismiss
@@ -484,6 +486,7 @@ fun PhoneLayout(
             MainNavDisplay(
                 navigator = navigator,
                 onMenuClick = { scope.launch { drawerState.open() } },
+                tasksAvailable = tasksAvailable,
                 modifier = Modifier.fillMaxSize(),
             )
         }
@@ -496,6 +499,11 @@ fun MainNavDisplay(
     navigator: Navigator,
     modifier: Modifier = Modifier,
     onMenuClick: (() -> Unit)? = null,
+    /**
+     * Whether the engine's graph exists here (Android only, D-034). Decides the Settings row that
+     * opens the tasks feature's Usage screen: without the graph its view model cannot resolve.
+     */
+    tasksAvailable: Boolean = false,
     navHostViewModel: NavHostViewModel = koinViewModel(),
     drawerViewModel: DrawerViewModel = koinViewModel(),
     serverFileSelectionHandoff: ServerFileSelectionHandoff = koinInject(),
@@ -592,6 +600,7 @@ fun MainNavDisplay(
                     navigator.navigate(MissionChat(sessionId, title))
                 },
                 onBack = { navigator.goBack() },
+                onOpenMissionRuns = { name -> navigator.navigate(MissionRuns(name)) },
                 // The Tasks screen is a drawer destination: it carries the menu, as the chat does.
                 onOpenDrawer = onMenuClick,
             )
@@ -620,6 +629,12 @@ fun MainNavDisplay(
                 onNavigateToArchive = { navigator.navigate(ArchivedConversations) },
                 onNavigateToSkills = if (skillsEnabled) {
                     { navigator.navigate(SkillsList) }
+                } else {
+                    null
+                },
+                // The spend and the providers left the Tasks tab for Settings on 24/09/2026.
+                onNavigateToUsage = if (tasksAvailable) {
+                    { navigator.navigate(TasksUsage) }
                 } else {
                     null
                 },

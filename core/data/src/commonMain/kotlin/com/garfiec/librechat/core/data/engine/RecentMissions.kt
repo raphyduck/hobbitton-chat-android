@@ -89,10 +89,18 @@ fun selectRecentMissions(
  * {etiquette}"`); a session launched from the app is titled with its objective and never ends this
  * way.
  */
-internal fun isScheduledRun(title: String): Boolean {
+internal fun isScheduledRun(title: String): Boolean = scheduledMissionName(title) != null
+
+/**
+ * The scheduled mission [title] is a run of, or null when the scheduler did not write it — same
+ * reading of the title's shape as [isScheduledRun], which is what lets the Tasks tab list one
+ * mission's runs without asking the scheduler which sessions were its own (it keeps only the last).
+ */
+fun scheduledMissionName(title: String): String? {
     val separator = title.lastIndexOf(SCHEDULER_SEPARATOR)
-    if (separator <= 0) return false
-    return SCHEDULER_TRIGGER.matches(title.substring(separator + SCHEDULER_SEPARATOR.length))
+    if (separator <= 0) return null
+    if (!SCHEDULER_TRIGGER.matches(title.substring(separator + SCHEDULER_SEPARATOR.length))) return null
+    return title.substring(0, separator)
 }
 
 private const val IDLE = "idle"
