@@ -1,31 +1,24 @@
 package com.garfiec.librechat.feature.chat.components
 
 import android.net.Uri
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ContentPaste
-import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -97,8 +90,6 @@ fun ChatInput(
     onStopRecording: () -> Unit = {},
     onImagePasted: ((Uri) -> Unit)? = null,
     enabledTools: Set<String> = emptySet(),
-    onToggleTool: (String) -> Unit = {},
-    pinnedToolKeys: List<String> = emptyList(),
     mcpServers: List<McpServerDisplayData> = emptyList(),
     selectedMcpServerNames: Set<String> = emptySet(),
     selectedModelDisplay: String? = null,
@@ -127,20 +118,12 @@ fun ChatInput(
         textFieldValue = TextFieldValue(inputText, selection = TextRange(inputText.length))
     }
 
-    // Badge suppressed on agents endpoint (retained state restores on concrete models).
-    val hasActiveTools by remember(enabledTools, selectedMcpServerNames, gates.showEphemeralTools) {
-        derivedStateOf {
-            gates.showEphemeralTools && (enabledTools.isNotEmpty() || selectedMcpServerNames.isNotEmpty())
-        }
-    }
-
     val state = ChatInputState(
         inputText = inputText,
         isStreaming = isStreaming,
         isRecording = isRecording,
         isTranscribing = isTranscribing,
         enabledTools = enabledTools,
-        pinnedToolKeys = pinnedToolKeys,
         mcpServers = mcpServers,
         selectedMcpServerNames = selectedMcpServerNames,
         selectedModelDisplay = selectedModelDisplay,
@@ -167,7 +150,6 @@ fun ChatInput(
         onSend = onSend,
         onStop = onStop,
         onSelectPrompt = onSlashCommandSelected,
-        onToggleTool = onToggleTool,
         onQueue = onQueue,
         onDuringRunSend = onDuringRunSend,
         onSteer = onSteer,
@@ -186,36 +168,13 @@ fun ChatInput(
         onRemoveFile = onRemoveFile,
         modifier = modifier,
         leadingButtons = {
-            // "+" button to open tools bottom sheet
-            Box {
-                FilledTonalIconButton(
-                    onClick = onOpenTools,
-                    modifier = Modifier
-                        .size(48.dp)
-                        .semantics {
-                            contentDescription = cdOpenToolsMenu
-                            role = Role.Button
-                        },
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = null,
-                    )
-                }
-                // Active tools badge
-                if (hasActiveTools) {
-                    Box(
-                        modifier = Modifier
-                            .size(10.dp)
-                            .align(Alignment.TopEnd)
-                            .offset(x = (-2).dp, y = 2.dp)
-                            .background(
-                                color = MaterialTheme.colorScheme.primary,
-                                shape = CircleShape,
-                            ),
-                    )
-                }
-            }
+            // "+" button to open tools bottom sheet, with the number of active tools on it. The
+            // count is zero on the agents endpoint (retained state restores on concrete models).
+            ToolsButton(
+                activeTools = activeToolCount(state),
+                onClick = onOpenTools,
+                contentDescription = cdOpenToolsMenu,
+            )
 
             // Paste image button (shown only when clipboard has image content)
             if (onImagePasted != null) {

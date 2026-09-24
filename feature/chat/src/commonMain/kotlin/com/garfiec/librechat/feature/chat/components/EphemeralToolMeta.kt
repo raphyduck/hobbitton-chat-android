@@ -22,10 +22,10 @@ import com.garfiec.librechat.feature.chat.resources.tool_web_search_desc
 import org.jetbrains.compose.resources.StringResource
 
 /**
- * Single source of truth for the icon + label + description of the ephemeral chat tools,
- * shared by the tools bottom sheet ([ChatToolsSheetContent]) and the input-bar pinned-tool
- * chips ([PinnedToolsRow]) so the two surfaces can't drift. Returns null for keys mobile
- * doesn't surface as a toggle (e.g. `artifacts`, `mcp`, MCP server names).
+ * Single source of truth for the icon + label + description of the ephemeral chat tools, used
+ * by the tools bottom sheet ([ChatToolsSheetContent]). The input bar's pinned-tool chips shared it
+ * until they were folded into that sheet (23/09/2026). Returns null for keys mobile doesn't
+ * surface as a toggle (e.g. `artifacts`, `mcp`, MCP server names).
  */
 internal data class EphemeralToolMeta(
     val icon: ImageVector,

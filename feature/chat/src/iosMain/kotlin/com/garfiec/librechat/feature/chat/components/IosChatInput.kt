@@ -9,9 +9,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ContentPaste
-import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -76,8 +74,6 @@ fun IosChatInput(
     onReorderQueuedMessages: (fromIndex: Int, toIndex: Int) -> Unit = { _, _ -> },
     fontSizeMultiplier: Float = 1f,
     enabledTools: Set<String> = emptySet(),
-    pinnedToolKeys: List<String> = emptyList(),
-    onToggleTool: (String) -> Unit = {},
     mcpServers: List<McpServerDisplayData> = emptyList(),
     selectedMcpServerNames: Set<String> = emptySet(),
     isRecording: Boolean = false,
@@ -106,7 +102,6 @@ fun IosChatInput(
         isRecording = isRecording,
         isTranscribing = isTranscribing,
         enabledTools = enabledTools,
-        pinnedToolKeys = pinnedToolKeys,
         mcpServers = mcpServers,
         selectedMcpServerNames = selectedMcpServerNames,
         selectedModelDisplay = selectedModelDisplay,
@@ -133,7 +128,6 @@ fun IosChatInput(
         onSend = onSend,
         onStop = onStop,
         onSelectPrompt = onSlashCommandSelected,
-        onToggleTool = onToggleTool,
         onQueue = onQueue,
         onDuringRunSend = onDuringRunSend,
         onSteer = onSteer,
@@ -152,16 +146,12 @@ fun IosChatInput(
         onRemoveFile = onRemoveFile,
         modifier = modifier,
         leadingButtons = {
-            // "+" button to open tools bottom sheet (matches Android behavior)
-            FilledTonalIconButton(
+            // "+" button to open tools bottom sheet, with the active-tool count (same as Android).
+            ToolsButton(
+                activeTools = activeToolCount(state),
                 onClick = onOpenTools,
-                modifier = Modifier.size(48.dp),
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = stringResource(Res.string.cd_attach_file),
-                )
-            }
+                contentDescription = stringResource(Res.string.cd_attach_file),
+            )
 
             // Paste image button (shown when clipboard has image content)
             if (hasClipboardImage && onPasteImage != null) {
