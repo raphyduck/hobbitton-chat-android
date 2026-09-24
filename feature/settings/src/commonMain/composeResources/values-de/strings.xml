@@ -544,4 +544,6 @@
     <string name="server_headers_discard_message">Deine nicht gespeicherten Header-Änderungen gehen verloren.</string>
     <string name="server_headers_discard_confirm">Verwerfen</string>
     <string name="server_headers_keep_editing">Weiter bearbeiten</string>
+    <string name="skills_entry">Skills</string>
+    <string name="skills_entry_subtitle">Deine Skills verwalten</string>
 </resources>

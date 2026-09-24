@@ -77,5 +77,5 @@
     <string name="no_conversations_found">未找到对话</string>
     <string name="search_conversations_placeholder">搜索对话…</string>
     <string name="settings">设置</string>
-    <string name="skills">技能</string>
+    <string name="drawer_recents">最近</string>
 </resources>

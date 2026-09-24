@@ -544,4 +544,6 @@
     <string name="server_headers_discard_message">سيتم فقدان تغييرات الرؤوس غير المحفوظة.</string>
     <string name="server_headers_discard_confirm">تجاهل</string>
     <string name="server_headers_keep_editing">متابعة التحرير</string>
+    <string name="skills_entry">المهارات</string>
+    <string name="skills_entry_subtitle">إدارة المهارات</string>
 </resources>

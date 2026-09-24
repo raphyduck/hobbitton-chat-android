@@ -55,6 +55,11 @@ fun EntryProviderScope<NavKey>.settingsEntries(
     onBack: () -> Unit,
     onLogout: () -> Unit,
     onNavigateToArchive: () -> Unit = {},
+    /**
+     * Opens the Skills list, which this module cannot name (feature modules never depend on each
+     * other). Null when the role may not use skills — the row is then absent.
+     */
+    onNavigateToSkills: (() -> Unit)? = null,
 ) {
     // Hoisted: navigation to ProviderKeys() (no pending endpoint) is identical in Tabbed
     // and Account — share the resolver so callers don't construct it twice.
@@ -72,6 +77,7 @@ fun EntryProviderScope<NavKey>.settingsEntries(
             onNavigateToFavorites = { onNavigate(Favorites) },
             onNavigateToProviderKeys = navigateToProviderKeys,
             onNavigateToRoleSkillsAdmin = { onNavigate(RoleSkillsAdmin) },
+            onNavigateToSkills = onNavigateToSkills,
         )
     }
     entry<SettingsGeneral> {
@@ -83,6 +89,7 @@ fun EntryProviderScope<NavKey>.settingsEntries(
         ChatSettingsScreen(
             onNavigateBack = onBack,
             onNavigateToPresets = { onNavigate(PresetManager) },
+            onNavigateToSkills = onNavigateToSkills,
         )
     }
     entry<SettingsAccount> {

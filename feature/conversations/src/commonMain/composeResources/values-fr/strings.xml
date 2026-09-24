@@ -77,11 +77,11 @@
     <string name="no_conversations_found">Aucune conversation trouvée</string>
     <string name="search_conversations_placeholder">Rechercher des conversations…</string>
     <string name="settings">Paramètres</string>
-    <string name="skills">Compétences</string>
     <string name="tasks">Tâches</string>
     <!-- Une mission parmi les récents du tiroir (règle B, 23/09/2026). -->
     <string name="drawer_mission">Mission</string>
     <string name="drawer_mission_failed">Échec</string>
     <string name="drawer_mission_incomplete">Incomplète</string>
     <string name="cd_drawer_mission_running">Mission en cours</string>
+    <string name="drawer_recents">Récents</string>
 </resources>

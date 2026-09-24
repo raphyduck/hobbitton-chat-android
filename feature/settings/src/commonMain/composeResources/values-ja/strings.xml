@@ -544,4 +544,6 @@
     <string name="server_headers_discard_message">保存していないヘッダーの変更は失われます。</string>
     <string name="server_headers_discard_confirm">破棄</string>
     <string name="server_headers_keep_editing">編集を続ける</string>
+    <string name="skills_entry">スキル</string>
+    <string name="skills_entry_subtitle">スキルを管理</string>
 </resources>

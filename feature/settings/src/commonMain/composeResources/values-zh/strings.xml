@@ -544,4 +544,6 @@
     <string name="server_headers_discard_message">未保存的标头更改将会丢失。</string>
     <string name="server_headers_discard_confirm">放弃</string>
     <string name="server_headers_keep_editing">继续编辑</string>
+    <string name="skills_entry">技能</string>
+    <string name="skills_entry_subtitle">管理技能</string>
 </resources>

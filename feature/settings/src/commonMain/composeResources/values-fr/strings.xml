@@ -556,4 +556,6 @@
     <string name="server_headers_discard_message">Vos modifications d'en-têtes non enregistrées seront perdues.</string>
     <string name="server_headers_discard_confirm">Abandonner</string>
     <string name="server_headers_keep_editing">Continuer l'édition</string>
+    <string name="skills_entry">Compétences</string>
+    <string name="skills_entry_subtitle">Gérer vos compétences</string>
 </resources>

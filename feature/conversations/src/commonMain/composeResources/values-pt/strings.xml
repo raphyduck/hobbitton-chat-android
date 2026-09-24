@@ -77,5 +77,5 @@
     <string name="no_conversations_found">Nenhuma conversa encontrada</string>
     <string name="search_conversations_placeholder">Buscar conversas…</string>
     <string name="settings">Configurações</string>
-    <string name="skills">Habilidades</string>
+    <string name="drawer_recents">Recentes</string>
 </resources>

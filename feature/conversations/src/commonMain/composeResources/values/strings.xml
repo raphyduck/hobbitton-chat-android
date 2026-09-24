@@ -60,7 +60,6 @@
     <string name="project_delete_confirm">Delete project "%1$s"? Conversations stay, but are removed from the project.</string>
     <string name="project_open">Open</string>
     <string name="project_unassigned">Unassigned</string>
-    <string name="projects_all">All projects</string>
     <string name="project_new">New project</string>
     <string name="project_name_label">Project name</string>
     <string name="project_count">%1$d chats</string>
@@ -97,10 +96,8 @@
     <string name="agents">Agents</string>
     <string name="cd_collapse_section">Collapse section</string>
     <string name="cd_expand_section">Expand section</string>
-    <string name="chats">Chats</string>
     <string name="favorites">Favorites</string>
     <string name="files">Files</string>
-    <string name="library">Library</string>
     <string name="no_conversations_found">No conversations found</string>
     <string name="pinned">Pinned</string>
     <string name="projects">Projects</string>
@@ -108,7 +105,6 @@
     <string name="settings">Settings</string>
     <string name="show_less">Show less</string>
     <string name="show_more">Show more</string>
-    <string name="skills">Skills</string>
     <string name="accounts">Accounts</string>
     <string name="add_account">Add account</string>
     <string name="cd_active_account">Active account</string>
@@ -122,4 +118,5 @@
     <string name="drawer_mission_failed">Failed</string>
     <string name="drawer_mission_incomplete">Incomplete</string>
     <string name="cd_drawer_mission_running">Mission running</string>
+    <string name="drawer_recents">Recents</string>
 </resources>

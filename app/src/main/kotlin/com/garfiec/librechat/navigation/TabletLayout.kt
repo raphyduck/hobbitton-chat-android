@@ -36,7 +36,6 @@ import com.garfiec.librechat.feature.conversations.drawer.DrawerViewModel
 import com.garfiec.librechat.feature.conversations.navigation.Projects
 import com.garfiec.librechat.feature.files.navigation.Files
 import com.garfiec.librechat.feature.settings.navigation.SettingsTabbed
-import com.garfiec.librechat.feature.skills.navigation.SkillsList
 import com.garfiec.librechat.shared.navigation.MainNavDisplay
 import com.garfiec.librechat.shared.navigation.NavHostViewModel
 import com.garfiec.librechat.shared.navigation.Navigator
@@ -198,9 +197,6 @@ fun TabletLayout(
                         },
                         onFilesClick = {
                             navigator.navigate(Files)
-                        },
-                        onSkillsClick = {
-                            navigator.navigate(SkillsList)
                         },
                         // Non-null here: this layout only ever runs on Android, where the engine's
                         // graph is started (D-034).
