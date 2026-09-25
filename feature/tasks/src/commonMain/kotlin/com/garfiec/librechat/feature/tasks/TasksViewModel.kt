@@ -36,9 +36,9 @@ data class TasksUiState(
     val engineConfigured: Boolean = true,
     val loading: Boolean = false,
     /**
-     * The sessions working right now, and only those (24/09/2026). A settled session is found
-     * elsewhere: in the drawer's recents if someone launched it, under its mission's runs if the
-     * scheduler did.
+     * The most recently active sessions, running or settled — the list under the schedule. It held
+     * only the running ones from 24/09/2026; a day of that was enough to want the recent runs back
+     * on the tab rather than one tap further, under each mission (25/09/2026).
      */
     val missions: List<Mission> = emptyList(),
     /**
@@ -181,7 +181,7 @@ class TasksViewModel(
             }
             _state.update { it.copy(engineConfigured = true, loading = true, error = null) }
             refreshScheduled()
-            runCatching { repository.runningMissions() }
+            runCatching { repository.recentMissions() }
                 .onSuccess { missions ->
                     _state.update {
                         it.copy(

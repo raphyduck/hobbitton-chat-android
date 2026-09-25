@@ -121,36 +121,32 @@ class EngineMissionRepository(
     }
 
     /**
-     * The sessions working right now — what the Tasks tab lists under its schedule since
-     * 24/09/2026. Settled sessions went to the drawer's recents (a manual one) or to their mission's
-     * runs (a scheduled one), so this list judges nothing and downloads no transcript: two round
-     * trips, whatever the history's length, where [missions] paid one per session ever run.
+     * The [limit] most recently active sessions, each judged — the Tasks tab's list under its
+     * schedule (asked for on 25/09/2026, after a day of the tab showing only what was running).
+     *
+     * Capped **before** the transcripts are fetched: judging a session costs its whole transcript,
+     * and the scheduler adds about nine sessions a day. A running session needs no transcript at
+     * all, so the cap bounds the settled ones only in practice.
      */
-    suspend fun runningMissions(): List<Mission> {
+    suspend fun recentMissions(limit: Int = RECENT_SHOWN): List<Mission> {
         val statuses = api.status()
-        return api.sessions()
-            .filter { session -> statuses[session.id].let { it != null && it.type != IDLE_STATUS } }
-            .map { session ->
-                Mission(
-                    sessionId = session.id,
-                    title = session.title.orEmpty().ifBlank { session.id },
-                    state = judgeMission(statuses[session.id], emptyList()),
-                    lastActivityMillis = session.time?.updated ?: session.time?.created,
-                )
-            }
+        val recent = api.sessions()
+            .sortedByDescending { it.time?.updated ?: it.time?.created ?: Long.MIN_VALUE }
+            .take(limit)
+        return judged(statuses, recent)
     }
 
     /**
      * The runs of one scheduled mission, newest first, each judged — what a tap on its card opens.
      *
-     * Recognised by title (`scheduledMissionName`), because the scheduler remembers only a
-     * mission's last run. Capped at [RUNS_SHOWN] **before** the transcripts are fetched: a daily
-     * mission accumulates a session a day, and judging each one costs its whole transcript.
+     * Recognised by title ([isRunOf]), because the scheduler remembers only a mission's last run.
+     * Capped at [RUNS_SHOWN] **before** the transcripts are fetched: a daily mission accumulates a
+     * session a day, and judging each one costs its whole transcript.
      */
     suspend fun missionRuns(name: String): List<Mission> {
         val statuses = api.status()
         val runs = api.sessions()
-            .filter { session -> session.title?.let(::scheduledMissionName) == name }
+            .filter { session -> session.title?.let { isRunOf(it, name) } == true }
             .sortedByDescending { it.time?.updated ?: it.time?.created ?: Long.MIN_VALUE }
             .take(RUNS_SHOWN)
         return judged(statuses, runs)
@@ -314,6 +310,9 @@ class EngineMissionRepository(
 
         /** A month of a daily mission: enough to see a pattern, few enough transcripts to fetch. */
         const val RUNS_SHOWN = 30
+
+        /** Two days of the scheduler's output: what one scrolls, not what one searches. */
+        const val RECENT_SHOWN = 20
 
         /**
          * The single engine agent every mission launched from this app runs on.
