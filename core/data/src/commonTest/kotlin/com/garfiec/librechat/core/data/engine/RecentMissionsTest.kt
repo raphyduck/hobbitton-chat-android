@@ -49,9 +49,33 @@ class RecentMissionsTest {
     }
 
     @Test
+    fun `a run relaunched outside the scheduler still belongs to its mission`() {
+        // 23/09/2026: every mission relaunched straight on the engine after the budget outage.
+        assertTrue(isRunOf("brief-crypto — reprise après panne", "brief-crypto"))
+        assertTrue(isRunOf("brief-crypto — 2026-09-23T06:45+0200", "brief-crypto"))
+        assertFalse(isRunOf("brief-crypto-hebdo — reprise après panne", "brief-crypto"))
+        assertFalse(isRunOf("Relance Engie — facture de clôture", "brief-crypto"))
+    }
+
+    @Test
     fun `a session launched by hand names no mission`() {
         assertNull(scheduledMissionName("Relance Engie — facture de clôture"))
         assertNull(scheduledMissionName("— manuel"))
+    }
+
+    @Test
+    fun `a relaunch titled after a mission is not taken for a session launched by hand`() {
+        // The drawer of 25/09/2026: eight « reprise après panne » rows above every chat.
+        val recents = selectRecentMissions(
+            sessions = listOf(
+                session("r", "brief-crypto — reprise après panne", updated = 200),
+                session("m", "Compare les devis", updated = 100),
+            ),
+            statuses = emptyMap(),
+            scheduled = listOf(mission("brief-crypto", run = null)),
+        )
+
+        assertEquals(listOf("m"), recents.map { it.sessionId })
     }
 
     @Test

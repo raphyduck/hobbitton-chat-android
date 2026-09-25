@@ -54,9 +54,11 @@ fun selectRecentMissions(
 ): List<RecentMission> {
     val latestRuns = scheduled.mapNotNull { mission -> mission.lastRun?.sessionId?.let { it to mission } }.toMap()
 
+    val missionNames = scheduled.mapTo(HashSet()) { it.name }
+
     return sessions.mapNotNull { session ->
         val title = session.title.orEmpty().ifBlank { session.id }
-        val status = if (isScheduledRun(title)) {
+        val status = if (isScheduledRun(title) || missionPrefix(title) in missionNames) {
             // A scheduled run earns a line only as its mission's latest run, and only in trouble.
             val run = latestRuns[session.id]?.lastRun ?: return@mapNotNull null
             when {
@@ -90,6 +92,25 @@ fun selectRecentMissions(
  * way.
  */
 internal fun isScheduledRun(title: String): Boolean = scheduledMissionName(title) != null
+
+/**
+ * Whether [title] is a run of the mission [name]: the scheduler's own shape, **or** any
+ * `<name> — <label>` at all.
+ *
+ * The second half is for runs started outside the scheduler under the mission's name. On 23/09/2026
+ * the budget outage was cleared by relaunching every mission straight on the engine, titled
+ * `<name> — reprise après panne`; the shape test alone read those as launched by hand, and they
+ * filled the drawer (reported 25/09/2026). Matching the name is safe *here* because the caller
+ * names a mission that exists — the reason [isScheduledRun] avoids it does not apply.
+ */
+fun isRunOf(title: String, name: String): Boolean =
+    scheduledMissionName(title) == name || missionPrefix(title) == name
+
+/** What precedes the last ` — ` of [title], or null when there is none. */
+internal fun missionPrefix(title: String): String? {
+    val separator = title.lastIndexOf(SCHEDULER_SEPARATOR)
+    return if (separator > 0) title.substring(0, separator) else null
+}
 
 /**
  * The scheduled mission [title] is a run of, or null when the scheduler did not write it — same

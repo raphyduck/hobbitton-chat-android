@@ -68,7 +68,9 @@
     <string name="tasks_scheduled_last_ok">Dernier passage %1$s · %2$s jetons</string>
     <string name="tasks_scheduled_last_failed">Dernier passage en échec : %1$s</string>
     <string name="tasks_scheduled_tools">%1$d outils par tour</string>
-    <string name="tasks_running_header">En cours</string>
+    <string name="tasks_recent_header">Sessions récentes</string>
+    <string name="tasks_scheduled_recurring_header">Récurrentes · %1$d</string>
+    <string name="tasks_scheduled_once_header">Ponctuelles · %1$d</string>
     <string name="usage_title">Utilisation</string>
     <string name="usage_not_configured">Aucun planificateur configuré</string>
     <string name="usage_not_configured_hint">La dépense et les fournisseurs sont lus par le planificateur. Son adresse se règle dans les réglages de l\'onglet Tâches.</string>

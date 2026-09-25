@@ -68,7 +68,9 @@
     <string name="tasks_scheduled_last_ok">Last run %1$s · %2$s tokens</string>
     <string name="tasks_scheduled_last_failed">Last run failed: %1$s</string>
     <string name="tasks_scheduled_tools">%1$d tools per turn</string>
-    <string name="tasks_running_header">Running now</string>
+    <string name="tasks_recent_header">Recent sessions</string>
+    <string name="tasks_scheduled_recurring_header">Recurring · %1$d</string>
+    <string name="tasks_scheduled_once_header">One-shot · %1$d</string>
     <string name="usage_title">Usage</string>
     <string name="usage_not_configured">No scheduler configured</string>
     <string name="usage_not_configured_hint">The spend and the providers are read through the scheduler. Its address is set in the Tasks tab\'s settings.</string>

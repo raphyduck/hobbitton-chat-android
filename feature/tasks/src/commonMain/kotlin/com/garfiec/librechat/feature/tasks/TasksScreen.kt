@@ -49,6 +49,7 @@ import com.garfiec.librechat.core.data.engine.Mission
 import com.garfiec.librechat.core.model.engine.EngineFailureKind
 import com.garfiec.librechat.core.model.engine.MissionState
 import com.garfiec.librechat.core.model.scheduler.ScheduledMission
+import com.garfiec.librechat.feature.tasks.components.DisclosureRow
 import com.garfiec.librechat.feature.tasks.components.Explanation
 import com.garfiec.librechat.feature.tasks.components.TasksBottomSheet
 import com.garfiec.librechat.feature.tasks.resources.Res
@@ -59,8 +60,8 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_new
 import com.garfiec.librechat.feature.tasks.resources.tasks_not_configured
 import com.garfiec.librechat.feature.tasks.resources.tasks_not_configured_hint
 import com.garfiec.librechat.feature.tasks.resources.tasks_open_drawer
+import com.garfiec.librechat.feature.tasks.resources.tasks_recent_header
 import com.garfiec.librechat.feature.tasks.resources.tasks_retry
-import com.garfiec.librechat.feature.tasks.resources.tasks_running_header
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_cron
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_cron_hint
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_delete
@@ -75,7 +76,9 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_last_ok
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_never
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_next
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_once
+import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_once_header
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_recurring
+import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_recurring_header
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_run
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_runat
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_runat_hint
@@ -100,12 +103,11 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
- * The Tasks tab: the recurring missions, and whatever is running right now.
+ * The Tasks tab: the scheduled missions, and the recent sessions.
  *
- * Claude-style since 24/09/2026. The tab used to open on the week's spend, the providers, a folded
- * schedule and every session ever run; the spend and the providers moved to Settings › Usage, the
- * settled sessions to the drawer's recents (launched by hand) or to their mission's runs (launched
- * by the scheduler). What remains is what this tab is opened for: the tasks, and what needs a hand.
+ * The spend and the providers moved to Settings › Usage on 24/09/2026. What remains: the schedule,
+ * folded and split into recurring and one-shot, then the recent sessions — each mission's own runs
+ * are one tap further, on its card.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -128,6 +130,9 @@ fun TasksScreen(
     val uriHandler = LocalUriHandler.current
     var composing by remember { mutableStateOf(false) }
     var configuring by remember { mutableStateOf(false) }
+    // Folded by default, and saved across rotation: whether the schedule is open is the reader's
+    // choice, and a rotation must not undo it.
+    var scheduledShown by rememberSaveable { mutableStateOf(false) }
     // Read once into a local: `state` is a delegated property, so the branch below cannot smart-cast
     // through it.
     val failure = state.error
@@ -246,42 +251,67 @@ fun TasksScreen(
                         }
                     }
 
-                    // What is working right now leads, with its Stop: it is the only thing on this
-                    // tab that may need a hand this minute. Settled sessions are not listed any
-                    // more (24/09/2026): one launched by hand is in the drawer's recents, like a
-                    // chat; one the scheduler ran is under its mission, one tap below.
+                    // The schedule first, folded (asked for on 25/09/2026): it is what one sets up,
+                    // not what one comes to read, and a dozen cards above the sessions pushed them
+                    // off the screen. The count rides on the header so the fold still says what it
+                    // hides. Recurring and one-shot apart, because they answer different questions
+                    // — « what runs every day » and « what is still to come ».
+                    if (state.scheduled.isNotEmpty()) {
+                        item(key = "scheduled-header") {
+                            DisclosureRow(
+                                label = stringResource(Res.string.tasks_scheduled_header),
+                                expanded = scheduledShown,
+                                onToggle = { scheduledShown = !scheduledShown },
+                                labelStyle = MaterialTheme.typography.titleSmall,
+                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                trailing = {
+                                    Text(
+                                        state.scheduled.size.toString(),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                },
+                            )
+                        }
+                        if (scheduledShown) {
+                            val (recurring, oneShot) = state.scheduled.partition { it.runAt == null }
+                            listOf(
+                                Triple("recurring", Res.string.tasks_scheduled_recurring_header, recurring),
+                                Triple("once", Res.string.tasks_scheduled_once_header, oneShot),
+                            ).forEach { (groupKey, header, group) ->
+                                if (group.isEmpty()) return@forEach
+                                item(key = "scheduled-group-$groupKey") {
+                                    SubsectionHeader(stringResource(header, group.size))
+                                }
+                                items(group, key = { "scheduled-" + it.name }) { mission ->
+                                    ScheduledMissionRow(
+                                        mission = mission,
+                                        onOpen = { onOpenMissionRuns(mission.name) },
+                                        onRun = { viewModel.runScheduled(mission.name) },
+                                        onToggle = {
+                                            viewModel.setScheduledEnabled(mission.name, !mission.enabled)
+                                        },
+                                        onReschedule = { cron, runAt ->
+                                            viewModel.rescheduleMission(mission.name, cron, runAt)
+                                        },
+                                        onDelete = { viewModel.deleteScheduled(mission.name) },
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Then the recent sessions, running or settled, newest first — a running one
+                    // carries its Stop on the row.
                     if (state.missions.isNotEmpty()) {
-                        item(key = "running-header") {
-                            SectionHeader(stringResource(Res.string.tasks_running_header))
+                        item(key = "recent-header") {
+                            SectionHeader(stringResource(Res.string.tasks_recent_header))
                         }
                         items(state.missions, key = { it.sessionId }) { mission ->
                             MissionRow(
                                 mission = mission,
                                 onOpenChat = { onOpenMissionChat(mission.sessionId, mission.title) },
                                 onStop = { viewModel.abort(mission.sessionId) },
-                            )
-                        }
-                    }
-
-                    // The tasks themselves, always shown — Claude's Tasks page is this list. It was
-                    // collapsed until 24/09/2026 because the sessions below it were what one came
-                    // to read; they are gone from here, so nothing competes with it any more.
-                    if (state.scheduled.isNotEmpty()) {
-                        item(key = "scheduled-header") {
-                            SectionHeader(stringResource(Res.string.tasks_scheduled_header))
-                        }
-                        items(state.scheduled, key = { "scheduled-" + it.name }) { mission ->
-                            ScheduledMissionRow(
-                                mission = mission,
-                                onOpen = { onOpenMissionRuns(mission.name) },
-                                onRun = { viewModel.runScheduled(mission.name) },
-                                onToggle = {
-                                    viewModel.setScheduledEnabled(mission.name, !mission.enabled)
-                                },
-                                onReschedule = { cron, runAt ->
-                                    viewModel.rescheduleMission(mission.name, cron, runAt)
-                                },
-                                onDelete = { viewModel.deleteScheduled(mission.name) },
                             )
                         }
                     }
@@ -325,6 +355,17 @@ fun TasksScreen(
             catalogueFailed = state.connectorsFailed,
         )
     }
+}
+
+/** « Récurrentes · 9 » — a group inside the folded schedule, quieter than a section. */
+@Composable
+private fun SubsectionHeader(label: String) {
+    Text(
+        label,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(top = 4.dp),
+    )
 }
 
 @Composable
