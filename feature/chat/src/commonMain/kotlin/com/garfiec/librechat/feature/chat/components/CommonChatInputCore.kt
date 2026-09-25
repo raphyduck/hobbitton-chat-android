@@ -12,10 +12,12 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
@@ -24,11 +26,12 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
-import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
@@ -57,6 +60,9 @@ import com.garfiec.librechat.core.data.datastore.ContextBarPlacement
 import com.garfiec.librechat.core.data.datastore.DuringRunAction
 import com.garfiec.librechat.core.model.usage.ContextUsage
 import com.garfiec.librechat.core.model.usage.TokenUsage
+import com.garfiec.librechat.core.ui.input.ChatInputBox
+import com.garfiec.librechat.core.ui.input.ChatInputDefaults
+import com.garfiec.librechat.core.ui.input.ChatInputPill
 import com.garfiec.librechat.feature.chat.model.McpServerDisplayData
 import com.garfiec.librechat.feature.chat.model.PromptMentionDisplayData
 import com.garfiec.librechat.feature.chat.resources.Res
@@ -73,6 +79,7 @@ import com.garfiec.librechat.feature.chat.resources.editing_queued_message
 import com.garfiec.librechat.feature.chat.resources.hint_message
 import com.garfiec.librechat.feature.chat.resources.hint_message_model
 import com.garfiec.librechat.feature.chat.resources.recording
+import com.garfiec.librechat.feature.chat.resources.select_model
 import com.garfiec.librechat.feature.chat.viewmodel.ChatInputGates
 import com.garfiec.librechat.feature.chat.viewmodel.DuringRunSendTarget
 import com.garfiec.librechat.feature.chat.viewmodel.PendingSteerChip
@@ -134,11 +141,13 @@ data class ChatInputState(
 )
 
 /**
- * Shared container for the chat input area. Renders the gradient background,
- * attachment chips row, and a slot-based input row with a shared send/stop button.
+ * Shared container for the chat input area. Renders the gradient background, the attachment chips,
+ * then [ChatInputBox]: the text on top and one row of controls beneath — the platform's
+ * [leadingButtons] (« + », paste), the model pill, the platform's [micButton], and the shared
+ * send/stop button.
  *
- * Platform wrappers fill in [leadingButtons] (e.g. "+" button, paste button)
- * and [textFieldContent] (platform-specific text field with mic placement).
+ * Platform wrappers fill in [leadingButtons], [textFieldContent] (their own text field, which differ
+ * in how they hold the cursor) and [micButton].
  */
 @Composable
 fun CommonChatInputCore(
@@ -179,10 +188,14 @@ fun CommonChatInputCore(
     fontSizeMultiplier: Float = 1f,
     /** Selection from the `/` prompt picker. */
     onSelectPrompt: (PromptMentionDisplayData) -> Unit = {},
+    /** Opens the model selector from the pill in the controls row. Null hides the pill. */
+    onOpenModelSelector: (() -> Unit)? = null,
     leadingButtons: @Composable RowScope.() -> Unit = {},
-    trailingSpacer: @Composable RowScope.() -> Unit = {},
+    /** The mic, just before send at the end of the controls row. */
+    micButton: @Composable RowScope.() -> Unit = {},
     bottomContent: @Composable BoxScope.() -> Unit = {},
-    textFieldContent: @Composable RowScope.() -> Unit,
+    /** The text field, full width at the top of the box. Draws no frame of its own. */
+    textFieldContent: @Composable ColumnScope.() -> Unit,
 ) {
     val surfaceColor = MaterialTheme.colorScheme.surface
     Box(
@@ -278,48 +291,70 @@ fun CommonChatInputCore(
                 onSelect = onSelectPrompt,
             )
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                leadingButtons()
+            // One box, Claude's layout (capture of 24/09/2026): the text on top, the controls in a
+            // single row beneath it. The send button used to sit outside the field at 56 dp with the
+            // « + » on the other side, which left the text two thirds of the width on a phone.
+            ChatInputBox {
                 textFieldContent()
-                trailingSpacer()
-                val hasComposerContent = composerCanSend(
-                    inputText = state.inputText,
-                    hasAttachments = state.attachedFiles.isNotEmpty(),
-                    arePicksUnsettled = state.arePicksUnsettled,
-                )
-                // Mid-stream + typed content + queueing allowed → morph Stop into a during-run send.
-                val duringRunSend = state.canQueue && hasComposerContent && onQueue != null &&
-                    !state.isEditingQueued
-                // The picker only earns its space when both routes are open; with steering
-                // unavailable the send button alone says everything there is to say. `canSteer`
-                // is false while a run is paused for review, which is also what keeps the picker
-                // from offering a steer/queue choice over a send that will answer the pause.
-                if (duringRunSend && state.canSteer) {
-                    DuringRunSendMenu(
-                        defaultAction = state.duringRunAction,
-                        onSteerOnce = onSteer,
-                        onQueueOnce = onQueue ?: {},
-                        onSetDefault = onSetDuringRunAction,
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    leadingButtons()
+                    // The pills scroll among themselves, so a long model name never pushes send
+                    // off the row.
+                    Row(
+                        modifier = Modifier.weight(1f).horizontalScroll(rememberScrollState()),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        // The model, one tap away, where Claude keeps it. It used to be reachable
+                        // only through the « + » sheet, and named nowhere but the placeholder.
+                        if (onOpenModelSelector != null && state.gates.modelSelectEnabled) {
+                            ChatInputPill(
+                                label = state.selectedModelDisplay
+                                    ?: stringResource(Res.string.select_model),
+                                onClick = onOpenModelSelector,
+                            )
+                        }
+                    }
+                    micButton()
+                    val hasComposerContent = composerCanSend(
+                        inputText = state.inputText,
+                        hasAttachments = state.attachedFiles.isNotEmpty(),
+                        arePicksUnsettled = state.arePicksUnsettled,
+                    )
+                    // Mid-stream + typed content + queueing allowed → morph Stop into a during-run send.
+                    val duringRunSend = state.canQueue && hasComposerContent && onQueue != null &&
+                        !state.isEditingQueued
+                    // The picker only earns its space when both routes are open; with steering
+                    // unavailable the send button alone says everything there is to say. `canSteer`
+                    // is false while a run is paused for review, which is also what keeps the picker
+                    // from offering a steer/queue choice over a send that will answer the pause.
+                    if (duringRunSend && state.canSteer) {
+                        DuringRunSendMenu(
+                            defaultAction = state.duringRunAction,
+                            onSteerOnce = onSteer,
+                            onQueueOnce = onQueue ?: {},
+                            onSetDefault = onSetDuringRunAction,
+                        )
+                    }
+                    SendStopButton(
+                        isStreaming = state.isStreaming,
+                        canSend = hasComposerContent,
+                        canQueue = duringRunSend,
+                        duringRunTarget = state.duringRunSendTarget,
+                        onSend = onSend,
+                        onStop = onStop,
+                        onQueue = onDuringRunSend,
+                        // In queued-edit mode the button commits the edit instead of send/stop/queue.
+                        isEditingQueued = state.isEditingQueued,
+                        onUpdate = onCommitEdit,
+                        // A send waiting on an in-flight upload: spinner, tap to cancel.
+                        isAwaitingUploadSend = state.isAwaitingUploadSend,
+                        onCancelPendingSend = onCancelPendingSend,
                     )
                 }
-                SendStopButton(
-                    isStreaming = state.isStreaming,
-                    canSend = hasComposerContent,
-                    canQueue = duringRunSend,
-                    duringRunTarget = state.duringRunSendTarget,
-                    onSend = onSend,
-                    onStop = onStop,
-                    onQueue = onDuringRunSend,
-                    // In queued-edit mode the button commits the edit instead of send/stop/queue.
-                    isEditingQueued = state.isEditingQueued,
-                    onUpdate = onCommitEdit,
-                    // A send waiting on an in-flight upload: spinner, tap to cancel.
-                    isAwaitingUploadSend = state.isAwaitingUploadSend,
-                    onCancelPendingSend = onCancelPendingSend,
-                )
             }
         }
         bottomContent()
@@ -429,20 +464,20 @@ fun SendStopButton(
         when (buttonMode) {
             SendButtonMode.UPDATE -> IconButton(
                 onClick = onUpdate,
-                modifier = Modifier.size(56.dp),
+                modifier = Modifier.size(ChatInputDefaults.controlSize),
                 enabled = canSend,
                 colors = IconButtonDefaults.iconButtonColors(
                     containerColor = if (canSend) {
                         MaterialTheme.colorScheme.primary
                     } else {
-                        MaterialTheme.colorScheme.surfaceContainer
+                        MaterialTheme.colorScheme.surfaceContainerHighest
                     },
                     contentColor = if (canSend) {
                         MaterialTheme.colorScheme.onPrimary
                     } else {
                         MaterialTheme.colorScheme.onSurfaceVariant
                     },
-                    disabledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                     disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 ),
             ) {
@@ -454,7 +489,7 @@ fun SendStopButton(
 
             SendButtonMode.AWAITING -> IconButton(
                 onClick = onCancelPendingSend,
-                modifier = Modifier.size(56.dp),
+                modifier = Modifier.size(ChatInputDefaults.controlSize),
                 colors = IconButtonDefaults.iconButtonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary,
@@ -463,7 +498,7 @@ fun SendStopButton(
                 // Spinner (upload still in flight) with a small ✕ so it reads as "tap to cancel".
                 Box(contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(
-                        modifier = Modifier.size(28.dp),
+                        modifier = Modifier.size(24.dp),
                         strokeWidth = 2.dp,
                         color = MaterialTheme.colorScheme.onPrimary,
                     )
@@ -477,7 +512,7 @@ fun SendStopButton(
 
             SendButtonMode.STOP -> IconButton(
                 onClick = onStop,
-                modifier = Modifier.size(56.dp),
+                modifier = Modifier.size(ChatInputDefaults.controlSize),
                 colors = IconButtonDefaults.iconButtonColors(
                     containerColor = MaterialTheme.colorScheme.error,
                     contentColor = MaterialTheme.colorScheme.onError,
@@ -487,7 +522,7 @@ fun SendStopButton(
                     imageVector = Icons.Default.Stop,
                     contentDescription = stringResource(Res.string.cd_stop_generation),
                     modifier = Modifier
-                        .size(28.dp)
+                        .size(22.dp)
                         .background(
                             color = MaterialTheme.colorScheme.error,
                             shape = CircleShape,
@@ -497,7 +532,7 @@ fun SendStopButton(
 
             SendButtonMode.QUEUE -> IconButton(
                 onClick = onQueue,
-                modifier = Modifier.size(56.dp),
+                modifier = Modifier.size(ChatInputDefaults.controlSize),
                 colors = IconButtonDefaults.iconButtonColors(
                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
                     contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
@@ -511,7 +546,7 @@ fun SendStopButton(
 
             SendButtonMode.STEER -> IconButton(
                 onClick = onQueue,
-                modifier = Modifier.size(56.dp),
+                modifier = Modifier.size(ChatInputDefaults.controlSize),
                 colors = IconButtonDefaults.iconButtonColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -528,39 +563,39 @@ fun SendStopButton(
             // click target differs (onQueue → sendDuringRun → resolve the pause).
             SendButtonMode.ANSWER -> IconButton(
                 onClick = onQueue,
-                modifier = Modifier.size(56.dp),
+                modifier = Modifier.size(ChatInputDefaults.controlSize),
                 colors = IconButtonDefaults.iconButtonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary,
                 ),
             ) {
                 Icon(
-                    imageVector = Icons.AutoMirrored.Filled.Send,
+                    imageVector = Icons.Default.ArrowUpward,
                     contentDescription = stringResource(Res.string.cd_answer_question),
                 )
             }
 
             SendButtonMode.SEND -> IconButton(
                 onClick = onSend,
-                modifier = Modifier.size(56.dp),
+                modifier = Modifier.size(ChatInputDefaults.controlSize),
                 enabled = canSend,
                 colors = IconButtonDefaults.iconButtonColors(
                     containerColor = if (canSend) {
                         MaterialTheme.colorScheme.primary
                     } else {
-                        MaterialTheme.colorScheme.surfaceContainer
+                        MaterialTheme.colorScheme.surfaceContainerHighest
                     },
                     contentColor = if (canSend) {
                         MaterialTheme.colorScheme.onPrimary
                     } else {
                         MaterialTheme.colorScheme.onSurfaceVariant
                     },
-                    disabledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                     disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 ),
             ) {
                 Icon(
-                    imageVector = Icons.AutoMirrored.Filled.Send,
+                    imageVector = Icons.Default.ArrowUpward,
                     contentDescription = stringResource(Res.string.cd_send_message),
                 )
             }

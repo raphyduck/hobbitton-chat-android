@@ -3,13 +3,14 @@ package com.garfiec.librechat.core.ui.input
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.TextFieldColors
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /**
@@ -36,11 +37,23 @@ object ChatInputDefaults {
         capitalization = KeyboardCapitalization.Sentences,
     )
 
+    /**
+     * Every round control in the box's bottom row — « + », pills, mic, send. One size so the row
+     * reads as one line of controls; 44 dp keeps each a thumb's target.
+     */
+    val controlSize: Dp = 44.dp
+
+    /**
+     * The text field inside [ChatInputBox]. The box draws the frame; the field draws nothing of its
+     * own — no fill, no underline — so the two cannot disagree about where the edge is.
+     */
     @Composable
-    fun textFieldColors(): TextFieldColors = OutlinedTextFieldDefaults.colors(
-        focusedContainerColor = containerColor,
-        unfocusedContainerColor = containerColor,
-        focusedBorderColor = MaterialTheme.colorScheme.outline,
-        unfocusedBorderColor = borderColor,
+    fun embeddedTextFieldColors(): TextFieldColors = TextFieldDefaults.colors(
+        focusedContainerColor = Color.Transparent,
+        unfocusedContainerColor = Color.Transparent,
+        disabledContainerColor = Color.Transparent,
+        focusedIndicatorColor = Color.Transparent,
+        unfocusedIndicatorColor = Color.Transparent,
+        disabledIndicatorColor = Color.Transparent,
     )
 }

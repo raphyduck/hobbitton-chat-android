@@ -42,6 +42,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.garfiec.librechat.core.common.EndpointConstants
 import com.garfiec.librechat.core.data.datastore.LatexRenderer
 import com.garfiec.librechat.feature.chat.components.ChatFloatingTopBar
+import com.garfiec.librechat.feature.chat.components.ChatOptionsPage
 import com.garfiec.librechat.feature.chat.components.ChatRoot
 import com.garfiec.librechat.feature.chat.components.IosChatInput
 import com.garfiec.librechat.feature.chat.components.LandingContent
@@ -263,6 +264,8 @@ actual fun ChatScreen(
                 },
                 onStop = viewModel::stopGeneration,
                 onOpenTools = { optionsController.open() },
+                // The pill opens the same selector page the « + » sheet's Model row does.
+                onOpenModelSelector = { optionsController.open(ChatOptionsPage.ModelSelector) },
                 // The mid-stream send button routes through the ViewModel, which resolves
                 // steer-vs-queue; `onQueue` stays the picker's explicit "add to queue".
                 onDuringRunSend = { viewModel.sendDuringRun() },

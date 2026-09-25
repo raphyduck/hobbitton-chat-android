@@ -14,8 +14,8 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.dp
 import com.garfiec.librechat.core.common.ToolConstants
+import com.garfiec.librechat.core.ui.input.ChatInputDefaults
 import com.garfiec.librechat.feature.chat.resources.Res
 import com.garfiec.librechat.feature.chat.resources.cd_tools_active
 import org.jetbrains.compose.resources.stringResource
@@ -55,7 +55,7 @@ fun ToolsButton(
         FilledTonalIconButton(
             onClick = onClick,
             modifier = Modifier
-                .size(48.dp)
+                .size(ChatInputDefaults.controlSize)
                 .semantics {
                     this.contentDescription = spoken
                     role = Role.Button
