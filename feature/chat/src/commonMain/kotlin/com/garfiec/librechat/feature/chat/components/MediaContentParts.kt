@@ -25,25 +25,40 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import coil3.SingletonImageLoader
+import coil3.compose.LocalPlatformContext
 import coil3.compose.SubcomposeAsyncImage
+import com.garfiec.librechat.core.ui.media.rememberUnauthenticatedImageLoader
 import com.garfiec.librechat.feature.chat.resources.*
 import com.garfiec.librechat.feature.chat.resources.Res
 import org.jetbrains.compose.resources.stringResource
 
 // ─── ImageContentPart ───────────────────────────────────────────────
 
+/**
+ * @param fromServer whether [imageUrl] is under the server's own origin. Only then does the
+ *   authenticated loader fetch it; anything else — a model-written `image_url`, the server's host
+ *   on another scheme or port — loads without a session (review C7, 26/09/2026).
+ */
 @Composable
 internal fun ImageContentPart(
     imageUrl: String?,
     modifier: Modifier = Modifier,
+    fromServer: Boolean = true,
 ) {
     if (imageUrl == null) return
 
     val openMedia = LocalChatMediaViewer.current
+    val imageLoader = if (fromServer) {
+        SingletonImageLoader.get(LocalPlatformContext.current)
+    } else {
+        rememberUnauthenticatedImageLoader()
+    }
 
     SubcomposeAsyncImage(
         model = imageUrl,
         contentDescription = stringResource(Res.string.cd_embedded_image),
+        imageLoader = imageLoader,
         contentScale = ContentScale.FillWidth,
         modifier = modifier
             .fillMaxWidth()

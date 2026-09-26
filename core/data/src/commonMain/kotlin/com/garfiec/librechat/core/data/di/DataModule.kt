@@ -199,6 +199,7 @@ val dataModule = module {
             draftDao = get(),
             tagDao = get(),
             prefetchWatermarkDao = get(),
+            artifactShortcutDao = get(),
             ioDispatcher = get(KoinQualifiers.IO),
         )
     }

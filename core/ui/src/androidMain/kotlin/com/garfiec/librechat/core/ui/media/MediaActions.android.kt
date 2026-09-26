@@ -134,7 +134,7 @@ actual fun rememberShareFile(): (bytes: ByteArray, filename: String, mime: Strin
                         dir.mkdirs()
                         // Sweep prior shares safely past any in-flight read (mirrors the image path).
                         sweepStaleFiles(dir, STALE_THRESHOLD_MS)
-                        val f = File(dir, sanitizeFilename(filename))
+                        val f = File(dir, sanitizeShareFilename(filename))
                         f.writeBytes(bytes)
                         f
                     }
@@ -145,7 +145,7 @@ actual fun rememberShareFile(): (bytes: ByteArray, filename: String, mime: Strin
                     )
                     val shareIntent = Intent(Intent.ACTION_SEND).apply {
                         putExtra(Intent.EXTRA_STREAM, contentUri)
-                        type = mime?.takeIf { it.isNotBlank() } ?: "application/octet-stream"
+                        type = shareMimeTypeOrDefault(mime)
                         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     }
                     context.startActivity(Intent.createChooser(shareIntent, null))
@@ -156,10 +156,6 @@ actual fun rememberShareFile(): (bytes: ByteArray, filename: String, mime: Strin
         }
     }
 }
-
-/** Strips path separators so a server-supplied filename can't escape the cache dir. */
-private fun sanitizeFilename(filename: String): String =
-    filename.substringAfterLast('/').substringAfterLast('\\').ifBlank { "file" }
 
 private suspend fun saveUrlToGallery(context: Context, url: String) {
     try {

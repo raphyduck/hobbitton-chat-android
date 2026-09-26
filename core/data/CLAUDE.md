@@ -134,8 +134,10 @@ every write there goes to memory and a test would pass for the wrong reason. It 
 `ServerRepository` / `ServerRepositoryImpl` own the gateway headers of issue #287 and are the
 `ServerHeadersProvider` the HTTP clients read them through.
 
-- **Device-scoped, no `accountId`.** Like `artifact_shortcuts`, deliberately absent from
-  `AccountDataPurger` and from the detekt tenancy rule's table list: the headers are what let a user
+- **Device-scoped, no `accountId`.** Like `artifact_shortcuts`, absent from the detekt tenancy rule's
+  table list — and, unlike `artifact_shortcuts` (emptied whole by `AccountDataPurger` since the
+  26/09/2026 review, C9, because a snapshot opens without a session), deliberately absent from
+  `AccountDataPurger`: the headers are what let a user
   log back *in*, so logout must not take them.
 - **Natural primary key.** `server_id` is the derived server id, not a surrogate — Room resolves
   `@Upsert` by primary key, so a surrogate would make every save after the first match zero rows and

@@ -5,6 +5,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.forms.submitForm
 import io.ktor.client.request.get
+import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.Parameters
 
@@ -59,16 +60,23 @@ class EngineTokenClient(
         endpoints: EngineOAuthEndpoints,
         code: String,
         attempt: EngineAuthorizationAttempt,
-    ): EngineTokenResponse = client.submitForm(
-        url = endpoints.tokenEndpoint,
-        formParameters = Parameters.build {
-            append("grant_type", "authorization_code")
-            append("code", code)
-            append("redirect_uri", attempt.redirectUri)
-            append("client_id", clientId)
-            append("code_verifier", attempt.pkce.verifier)
-        },
-    ).body()
+    ): EngineTokenResponse {
+        val response = client.submitForm(
+            url = endpoints.tokenEndpoint,
+            formParameters = Parameters.build {
+                append("grant_type", "authorization_code")
+                append("code", code)
+                append("redirect_uri", attempt.redirectUri)
+                append("client_id", clientId)
+                append("code_verifier", attempt.pkce.verifier)
+            },
+        )
+        // Since the portal has its own bare client (M1, 26/09/2026) nothing validates the status
+        // before the body is decoded; read it here so a refusal names the OAuth error rather
+        // than the field the deserializer missed.
+        throwIfRefused(response)
+        return response.body()
+    }
 
     /**
      * Renews the access token without sending the user back through the portal.
@@ -95,7 +103,9 @@ class EngineTokenClient(
                 },
             )
         } catch (raised: ApiException) {
-            // This client validates responses, so a failing status arrives here rather than below.
+            // A client that validates responses raises a failing status here rather than below.
+            // None does in production since the portal got its bare client (M1, 26/09/2026), but
+            // the arm is kept so wiring one back in cannot turn a refusal into a transient error.
             // A 5xx is deliberately left alone: an overloaded portal is not a revoked token.
             if (raised.statusCode in REFUSAL_STATUSES) {
                 throw EngineGrantRefused(
@@ -105,15 +115,19 @@ class EngineTokenClient(
             }
             throw raised
         }
-        // And when it does not validate — the shape the tests use, and any future client without a
-        // validator — the same status has to be read off the response itself. Left to fall through,
-        // a `{"error":"invalid_grant"}` body would surface as a deserialization failure: a
-        // definitive refusal wearing the costume of a transient one.
+        // And when it does not validate — the portal's own client, since M1 — the same status has
+        // to be read off the response itself. Left to fall through, a `{"error":"invalid_grant"}`
+        // body would surface as a deserialization failure: a definitive refusal wearing the costume
+        // of a transient one.
+        throwIfRefused(response)
+        return response.body()
+    }
+
+    private suspend fun throwIfRefused(response: HttpResponse) {
         if (response.status.value in REFUSAL_STATUSES) {
             val body = runCatching { response.bodyAsText() }.getOrNull()
             throw EngineGrantRefused(oauthError(body) ?: "http ${response.status.value}")
         }
-        return response.body()
     }
 
     private companion object {

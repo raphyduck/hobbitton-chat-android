@@ -1,11 +1,7 @@
 package com.garfiec.librechat.feature.chat.components.artifact
 
-import android.annotation.SuppressLint
-import android.net.http.SslError
 import android.view.ViewGroup
-import android.webkit.SslErrorHandler
 import android.webkit.WebView
-import android.webkit.WebViewClient
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -15,15 +11,19 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.ui.theme.isSurfaceDark
+import com.garfiec.librechat.feature.chat.components.web.LockedDownWebViewClient
+import com.garfiec.librechat.feature.chat.components.web.applyLockedDownSettings
 import com.garfiec.librechat.feature.chat.components.web.configureLazyListWebView
+import com.garfiec.librechat.feature.chat.components.web.loadIsolatedDocument
 import com.garfiec.librechat.feature.chat.components.web.safelyDestroyWebView
 
 /**
@@ -34,8 +34,11 @@ import com.garfiec.librechat.feature.chat.components.web.safelyDestroyWebView
  * [ArtifactPanel] on tap. A fixed slot is the only configuration we've
  * measured that fully eliminates LazyColumn scroll-jump for WebView-hosted
  * previews.
+ *
+ * Locked down like the fullscreen surface (review C1, 26/09/2026). The `MermaidBridge`
+ * interface is registered only on a WebView created for a cacheable mermaid document — no
+ * other document ever sees it — and what it receives is checked before it is cached.
  */
-@SuppressLint("SetJavaScriptEnabled")
 @Composable
 actual fun InlineArtifactView(
     artifact: Artifact,
@@ -44,9 +47,11 @@ actual fun InlineArtifactView(
 ) {
     val isDarkTheme = isSurfaceDark()
     val bgArgb = MaterialTheme.colorScheme.surface.toArgb()
+    val uriHandler = LocalUriHandler.current
     val html = remember(artifact, isDarkTheme) {
         ArtifactWebContent.buildHtml(artifact.content, artifact.type, isDarkTheme, inline = true)
     }
+    val policy by rememberUpdatedState(ArtifactWebContent.resourcePolicy(artifact.type))
     var loadedHtml by remember { mutableStateOf("") }
 
     val cache = LocalMermaidRenderCache.current
@@ -85,38 +90,30 @@ actual fun InlineArtifactView(
                     )
                     configureLazyListWebView(this)
                     setBackgroundColor(bgArgb)
-                    settings.javaScriptEnabled = true
-                    settings.domStorageEnabled = true
+                    applyLockedDownSettings()
                     settings.loadWithOverviewMode = true
                     settings.useWideViewPort = true
-                    settings.allowFileAccess = false
-                    settings.allowContentAccess = false
                     isVerticalScrollBarEnabled = false
                     isHorizontalScrollBarEnabled = false
-                    webViewClient = object : WebViewClient() {
-                        override fun onReceivedSslError(
-                            view: WebView?,
-                            handler: SslErrorHandler?,
-                            error: SslError?,
-                        ) {
-                            handler?.cancel()
-                            Logger.w { "SSL error in inline artifact WebView: ${error?.primaryError}" }
-                        }
-                    }
-                    // Must run before loadDataWithBaseURL so MermaidBridge is
+                    webViewClient = LockedDownWebViewClient(
+                        policy = { policy },
+                        openExternally = uriHandler::openUri,
+                        surface = "inline artifact",
+                    )
+                    // Must run before the document loads so MermaidBridge is
                     // bound when mermaid's IIFE executes.
                     if (mermaidKey != null) {
                         val receiver = MermaidBridgeReceiver(cache, mermaidKey)
                         addJavascriptInterface(MermaidJsBridge(receiver), "MermaidBridge")
                     }
-                    loadDataWithBaseURL("https://cdn.jsdelivr.net", html, "text/html", "UTF-8", null)
+                    loadIsolatedDocument(html)
                     loadedHtml = html
                 }
             },
             update = { webView ->
                 webView.setBackgroundColor(bgArgb)
                 if (html != loadedHtml) {
-                    webView.loadDataWithBaseURL("https://cdn.jsdelivr.net", html, "text/html", "UTF-8", null)
+                    webView.loadIsolatedDocument(html)
                     loadedHtml = html
                 }
             },

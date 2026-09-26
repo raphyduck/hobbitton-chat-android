@@ -36,4 +36,45 @@ class MermaidBridgeReceiverTest {
 
         assertThat(cache["k"]).isEqualTo("<svg id='v2'/>")
     }
+
+    // What the page reports is checked before it is cached (review C3).
+
+    @Test
+    fun `a rendered diagram with style and text is accepted`() {
+        val svg = "  <svg xmlns=\"http://www.w3.org/2000/svg\"><style>.node{fill:#fff}</style><text>on time</text></svg>"
+        assertThat(isAcceptableRenderedSvg(svg)).isTrue()
+    }
+
+    @Test
+    fun `anything that is not an svg document is refused`() {
+        val cache = MermaidRenderCache()
+        MermaidBridgeReceiver(cache, key = "k").onSvg("<div>not a diagram</div>")
+        MermaidBridgeReceiver(cache, key = "k").onSvg("")
+        MermaidBridgeReceiver(cache, key = "k").onSvg("plain text")
+
+        assertThat(cache["k"]).isNull()
+    }
+
+    @Test
+    fun `an svg carrying a script element is refused`() {
+        assertThat(isAcceptableRenderedSvg("<svg><script>x</script></svg>")).isFalse()
+        assertThat(isAcceptableRenderedSvg("<svg><SCRIPT>x</SCRIPT></svg>")).isFalse()
+    }
+
+    @Test
+    fun `an svg carrying an event handler attribute is refused`() {
+        assertThat(isAcceptableRenderedSvg("<svg onload=\"x\"></svg>")).isFalse()
+        assertThat(isAcceptableRenderedSvg("<svg><g ONCLICK = \"x\"/></svg>")).isFalse()
+    }
+
+    @Test
+    fun `an svg carrying a javascript reference is refused`() {
+        assertThat(isAcceptableRenderedSvg("<svg><a href=\"javascript:x\"/></svg>")).isFalse()
+    }
+
+    @Test
+    fun `an oversized svg is refused`() {
+        val huge = "<svg>" + "x".repeat(MAX_RENDERED_SVG_CHARS) + "</svg>"
+        assertThat(isAcceptableRenderedSvg(huge)).isFalse()
+    }
 }

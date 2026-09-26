@@ -1,6 +1,7 @@
 package com.garfiec.librechat.core.data.repository
 
 import com.garfiec.librechat.core.common.identity.AccountId
+import com.garfiec.librechat.core.data.db.dao.ArtifactShortcutDao
 import com.garfiec.librechat.core.data.db.dao.ConversationDao
 import com.garfiec.librechat.core.data.db.dao.ConversationTagDao
 import com.garfiec.librechat.core.data.db.dao.DraftDao
@@ -18,6 +19,11 @@ import kotlinx.coroutines.withContext
  * Per-table sequential deletes (no FK cascade is declared between these tables); a process death
  * mid-purge leaves only rows still owned by the now-inactive account, which are invisible to every
  * account-filtered read and are the orphan sweep's responsibility.
+ *
+ * The artifact-shortcut snapshots go too, all of them (review C9, 26/09/2026): the table carries
+ * no account column and the viewer opens a snapshot without a session, so after a logout on a
+ * shared device the launcher icon would still show the outgoing user's document. The `servers`
+ * table stays out of the purge, as before — its headers are what let a user log back in.
  */
 class AccountDataPurger(
     private val conversationDao: ConversationDao,
@@ -25,6 +31,7 @@ class AccountDataPurger(
     private val draftDao: DraftDao,
     private val tagDao: ConversationTagDao,
     private val prefetchWatermarkDao: PrefetchWatermarkDao,
+    private val artifactShortcutDao: ArtifactShortcutDao,
     private val ioDispatcher: CoroutineDispatcher,
 ) {
 
@@ -37,5 +44,6 @@ class AccountDataPurger(
         // Must go with the messages: a watermark outliving the rows it describes reads as "already
         // warm", so a re-login would never re-fetch the conversations this purge just emptied.
         prefetchWatermarkDao.deleteAllForAccount(id)
+        artifactShortcutDao.deleteAll()
     }
 }

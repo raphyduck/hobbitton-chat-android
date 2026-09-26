@@ -494,4 +494,44 @@ class ServerUrlViewModelTest {
         // Expanded, so the warning isn't hidden behind a collapsed section.
         assertThat(viewModel.uiState.value.showAdvanced).isTrue()
     }
+
+    // ---- Plain http (M4, 26/09/2026) ----
+
+    @Test
+    fun `an http URL to a public host is refused before anything is stored or probed`() = runTest(testDispatcher) {
+        val viewModel = createViewModel(addAccount = false)
+        advanceUntilIdle()
+
+        viewModel.onUrlChanged("http://chat.example.com")
+        viewModel.validateAndConnect()
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertThat(state.error).contains("https://")
+        // No dialog: there is no informed « yes » to sending the password in the clear across the internet.
+        assertThat(state.showHttpWarning).isFalse()
+        assertThat(state.isValidated).isFalse()
+        coVerify(exactly = 0) { serverDataStore.setServerUrl(any()) }
+        coVerify(exactly = 0) { configRepository.validateServerUrl(any()) }
+        coVerify(exactly = 0) { accountSwitcher.beginAdd(any()) }
+    }
+
+    @Test
+    fun `an http URL to a private address still goes through the warning dialog`() = runTest(testDispatcher) {
+        coEvery { configRepository.validateServerUrl(any()) } returns Result.Success(config)
+        val viewModel = createViewModel(addAccount = false)
+        advanceUntilIdle()
+
+        viewModel.onUrlChanged("http://192.168.1.20:3080")
+        viewModel.validateAndConnect()
+        advanceUntilIdle()
+
+        assertThat(viewModel.uiState.value.error).isNull()
+        assertThat(viewModel.uiState.value.showHttpWarning).isTrue()
+
+        viewModel.confirmHttpConnection()
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { serverDataStore.setServerUrl("http://192.168.1.20:3080") }
+    }
 }

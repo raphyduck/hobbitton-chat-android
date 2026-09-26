@@ -22,6 +22,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -32,6 +33,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -50,6 +52,7 @@ import com.garfiec.librechat.core.common.lifecycle.ForegroundSignal
 import com.garfiec.librechat.core.logging.Diag
 import com.garfiec.librechat.core.ui.components.BannerDisplay
 import com.garfiec.librechat.core.ui.theme.AppLocale
+import com.garfiec.librechat.core.ui.util.SafeUriHandler
 import com.garfiec.librechat.feature.agents.navigation.AgentMarketplace
 import com.garfiec.librechat.feature.agents.navigation.agentsEntries
 import com.garfiec.librechat.feature.auth.navigation.AddAccountServerUrl
@@ -269,39 +272,49 @@ fun LibreChatNavHost(
         hygieneAccountId = current
     }
 
+    // One link gate for the whole tree (review C5, 26/09/2026): every `LocalUriHandler.current`
+    // below — message links, citations, web-search cards, the media list, mission notes, agent
+    // contacts, an MCP server's authorization URL — resolves to a handler that opens `http`,
+    // `https` and `mailto` and ignores every other scheme, instead of the platform's ACTION_VIEW
+    // on whatever a piece of content named.
+    val platformUriHandler = LocalUriHandler.current
+    val safeUriHandler = remember(platformUriHandler) { SafeUriHandler(platformUriHandler) }
+
     // The locale wrapper must sit BELOW the back stack: changing language recreates the rendered
     // UI so every stringResource re-resolves, while the back stack created above survives the swap
     // and the user stays on their current screen.
-    AppLocale(tag = appLocaleTag) {
-        if (content != null) {
-            content(navigator, navHostViewModel, modifier)
-        } else {
-            PhoneLayout(
-                tasksAvailable = tasksAvailable,
-                navigator = navigator,
-                modifier = modifier,
-            )
-        }
+    CompositionLocalProvider(LocalUriHandler provides safeUriHandler) {
+        AppLocale(tag = appLocaleTag) {
+            if (content != null) {
+                content(navigator, navHostViewModel, modifier)
+            } else {
+                PhoneLayout(
+                    tasksAvailable = tasksAvailable,
+                    navigator = navigator,
+                    modifier = modifier,
+                )
+            }
 
-        // Version mismatch warning dialog
-        val versionMismatch by navHostViewModel.versionMismatch.collectAsStateWithLifecycle()
-        versionMismatch?.let { mismatch ->
-            VersionMismatchDialog(
-                supportedVersion = mismatch.supportedVersion,
-                backendVersion = mismatch.backendVersion,
-                onDismiss = navHostViewModel::dismissVersionWarning,
-                onDismissPermanently = navHostViewModel::dismissVersionWarningPermanently,
-            )
-        }
+            // Version mismatch warning dialog
+            val versionMismatch by navHostViewModel.versionMismatch.collectAsStateWithLifecycle()
+            versionMismatch?.let { mismatch ->
+                VersionMismatchDialog(
+                    supportedVersion = mismatch.supportedVersion,
+                    backendVersion = mismatch.backendVersion,
+                    onDismiss = navHostViewModel::dismissVersionWarning,
+                    onDismissPermanently = navHostViewModel::dismissVersionWarningPermanently,
+                )
+            }
 
-        // Rendered here rather than inside the auth screens: it sits above NavDisplay and so survives
-        // the back-stack reset that routed the user to auth in the first place.
-        val sessionExpiredNotice by navHostViewModel.sessionExpiredNotice.collectAsStateWithLifecycle()
-        sessionExpiredNotice?.let { accountLabel ->
-            SessionExpiredDialog(
-                accountLabel = accountLabel,
-                onDismiss = navHostViewModel::dismissSessionExpiredNotice,
-            )
+            // Rendered here rather than inside the auth screens: it sits above NavDisplay and so survives
+            // the back-stack reset that routed the user to auth in the first place.
+            val sessionExpiredNotice by navHostViewModel.sessionExpiredNotice.collectAsStateWithLifecycle()
+            sessionExpiredNotice?.let { accountLabel ->
+                SessionExpiredDialog(
+                    accountLabel = accountLabel,
+                    onDismiss = navHostViewModel::dismissSessionExpiredNotice,
+                )
+            }
         }
     }
 }

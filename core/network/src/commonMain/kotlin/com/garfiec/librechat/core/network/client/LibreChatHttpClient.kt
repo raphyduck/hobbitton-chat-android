@@ -110,6 +110,11 @@ object LibreChatHttpClient {
         // redirect yields a 200 sign-in page, which no status-based check can catch.
         install(GatewayDetectionPlugin)
 
+        // Inside the redirect loop as well, so a hop towards a public `http://` host is refused
+        // before it is dialled (M4, 26/09/2026). Coil rides this client too, so an `http://` image
+        // off a public host is refused with it — which is the point: https everywhere but the LAN.
+        install(CleartextGuardPlugin)
+
         // The SwitchBarrierPlugin (when a SwitchGate is wired) captures a consistent
         // (url, bearer, account) snapshot per request and resolves the URL against it, subsuming
         // ServerUrlReadyPlugin's cold-start await. Without a gate (tests) fall back to the plain
@@ -237,7 +242,9 @@ internal fun HttpRequestRetryConfig.configureRetryPolicy() {
             // Deterministic until the user edits the credential, so retrying only delays the report.
             // Excluded here rather than by install order: this plugin is installed first and so runs
             // outermost, which it must stay for the transient failures it exists to absorb.
-            cause !is AccessGatewayException
+            cause !is AccessGatewayException &&
+            // Same shape: a refused cleartext send is a policy verdict, not a flaky network.
+            cause !is CleartextRefusedException
     }
     exponentialDelay()
 }

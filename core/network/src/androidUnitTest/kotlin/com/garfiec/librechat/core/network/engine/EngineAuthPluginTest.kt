@@ -4,6 +4,7 @@ import com.google.common.truth.Truth.assertThat
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
+import io.ktor.client.request.HttpRequestData
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
@@ -25,19 +26,27 @@ class EngineAuthPluginTest {
         clientId = "hobbitton-chat-android",
         username = "opencode",
         password = "engine-secret",
+        schedulerUrl = "https://sched.example.com",
     )
 
     private fun client(
         engine: MockEngine,
         bearer: String? = "bearer-1",
         renew: suspend () -> String? = { null },
+        authority: (EngineAccess) -> String = { it.baseUrl },
     ) = HttpClient(engine) {
         install(EngineAuthPlugin) {
             this.access = { engineAccess }
             this.bearer = { bearer }
             this.renew = renew
+            this.authority = authority
         }
     }
+
+    private fun HttpRequestData.credentials(): Pair<String?, String?> =
+        headers[HttpHeaders.Authorization] to headers[HttpHeaders.ProxyAuthorization]
+
+    private val noCredentials: Pair<String?, String?> = null to null
 
     @Test
     fun `the engine gets its Basic and the proxy gets the bearer`() = runTest {
@@ -161,5 +170,145 @@ class EngineAuthPluginTest {
         // Sending `Bearer null` would be worse than sending nothing: the proxy would reject a
         // malformed credential rather than treat the request as anonymous.
         assertThat(proxyAuthorization).isNull()
+    }
+
+    // ---- Where the two credentials may go (M2, 26/09/2026) ----
+
+    @Test
+    fun `a cross-authority redirect drops both credentials`() = runTest {
+        // The contract KtorRedirectContractTest pins: HttpRedirect strips Authorization and copies
+        // everything else, Proxy-Authorization included — and that one is the portal's bearer,
+        // which opens the engine and the scheduler and renews itself offline.
+        val seen = mutableListOf<HttpRequestData>()
+        val engine = MockEngine { request ->
+            seen += request
+            if (request.url.host == "agent.example.com") {
+                respond(
+                    content = "",
+                    status = HttpStatusCode.Found,
+                    headers = headersOf(HttpHeaders.Location, "https://evil.example.net/steal"),
+                )
+            } else {
+                respond("{}", HttpStatusCode.OK)
+            }
+        }
+
+        client(engine).get("https://agent.example.com/doc")
+
+        assertThat(seen).hasSize(2)
+        assertThat(seen[0].credentials()).isEqualTo("Basic b3BlbmNvZGU6ZW5naW5lLXNlY3JldA==" to "Bearer bearer-1")
+        assertThat(seen[1].url.host).isEqualTo("evil.example.net")
+        assertThat(seen[1].credentials()).isEqualTo(noCredentials)
+    }
+
+    @Test
+    fun `a redirect back into the engine's authority re-attaches both credentials`() = runTest {
+        val seen = mutableListOf<HttpRequestData>()
+        val engine = MockEngine { request ->
+            seen += request
+            when {
+                request.url.host == "agent.example.com" && seen.size == 1 -> respond(
+                    content = "",
+                    status = HttpStatusCode.Found,
+                    headers = headersOf(HttpHeaders.Location, "https://store.example.net/blob"),
+                )
+                request.url.host == "store.example.net" -> respond(
+                    content = "",
+                    status = HttpStatusCode.Found,
+                    headers = headersOf(HttpHeaders.Location, "https://agent.example.com/doc?done=1"),
+                )
+                else -> respond("{}", HttpStatusCode.OK)
+            }
+        }
+
+        client(engine).get("https://agent.example.com/doc")
+
+        // Stripped on the way out, back on the way home: the `State` phase runs once per call,
+        // so a strip that is never undone leaves the last hop hitting the engine anonymously.
+        assertThat(seen.map { it.url.host })
+            .containsExactly("agent.example.com", "store.example.net", "agent.example.com").inOrder()
+        assertThat(seen[1].credentials()).isEqualTo(noCredentials)
+        assertThat(seen[2].credentials()).isEqualTo(seen[0].credentials())
+    }
+
+    @Test
+    fun `an absolute request to another host carries no engine credentials`() = runTest {
+        var credentials: Pair<String?, String?>? = null
+        val engine = MockEngine { request ->
+            credentials = request.credentials()
+            respond("{}", HttpStatusCode.OK)
+        }
+
+        client(engine).get("https://cdn.example.net/asset")
+
+        assertThat(credentials).isEqualTo(noCredentials)
+    }
+
+    @Test
+    fun `a same-host scheme downgrade carries no engine credentials`() = runTest {
+        // The engine's Basic never rotates; in the clear once is in the clear for good.
+        var credentials: Pair<String?, String?>? = null
+        val engine = MockEngine { request ->
+            credentials = request.credentials()
+            respond("{}", HttpStatusCode.OK)
+        }
+
+        client(engine).get("http://agent.example.com/doc")
+
+        assertThat(credentials).isEqualTo(noCredentials)
+    }
+
+    @Test
+    fun `another port on the engine's host carries no engine credentials`() = runTest {
+        var credentials: Pair<String?, String?>? = null
+        val engine = MockEngine { request ->
+            credentials = request.credentials()
+            respond("{}", HttpStatusCode.OK)
+        }
+
+        client(engine).get("https://agent.example.com:8443/doc")
+
+        assertThat(credentials).isEqualTo(noCredentials)
+    }
+
+    @Test
+    fun `the scheduler's client scopes the credentials to the scheduler, not the engine`() = runTest {
+        val seen = mutableListOf<HttpRequestData>()
+        val engine = MockEngine { request ->
+            seen += request
+            respond("{}", HttpStatusCode.OK)
+        }
+        val scheduler = client(engine, authority = { it.schedulerUrl })
+
+        scheduler.get("https://sched.example.com/missions")
+        scheduler.get("https://agent.example.com/doc")
+
+        assertThat(seen[0].credentials().second).isEqualTo("Bearer bearer-1")
+        assertThat(seen[1].credentials()).isEqualTo(noCredentials)
+    }
+
+    @Test
+    fun `a client whose service is not configured sends no credential anywhere`() = runTest {
+        // The scheduler is optional and its address blank by default; blank must match nothing,
+        // or the engine's Basic would go to whatever host the request happened to name.
+        var credentials: Pair<String?, String?>? = null
+        val engine = MockEngine { request ->
+            credentials = request.credentials()
+            respond("{}", HttpStatusCode.OK)
+        }
+
+        client(engine, authority = { "" }).get("https://sched.example.com/missions")
+
+        assertThat(credentials).isEqualTo(noCredentials)
+    }
+
+    @Test
+    fun `a 401 from a foreign host does not spend a renewal`() = runTest {
+        var renewals = 0
+        val engine = MockEngine { respond("", HttpStatusCode.Unauthorized) }
+
+        client(engine, renew = { renewals++; "bearer-2" }).get("https://cdn.example.net/asset")
+
+        assertThat(renewals).isEqualTo(0)
     }
 }

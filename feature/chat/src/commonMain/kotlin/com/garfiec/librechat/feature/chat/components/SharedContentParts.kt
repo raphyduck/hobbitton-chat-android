@@ -23,6 +23,7 @@ import com.garfiec.librechat.core.model.content.MessageContentPart
 import com.garfiec.librechat.core.model.media.resolveImageFilePartUrl
 import com.garfiec.librechat.feature.chat.resources.*
 import com.garfiec.librechat.feature.chat.resources.Res
+import com.garfiec.librechat.feature.chat.util.isSameOrigin
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -101,7 +102,13 @@ internal fun ContentPartDispatcher(
             ImageContentPart(imageUrl = imageUrl, modifier = mod)
         }
         ContentType.IMAGE_URL -> DisableSelection {
-            ImageContentPart(imageUrl = part.imageUrl?.url, modifier = mod)
+            // Written by the model or a tool: authenticated only under the server's own origin.
+            val url = part.imageUrl?.url
+            ImageContentPart(
+                imageUrl = url,
+                modifier = mod,
+                fromServer = url != null && isSameOrigin(url, baseUrl),
+            )
         }
         ContentType.VIDEO_URL -> DisableSelection {
             val videoUrl = part.videoUrl?.url

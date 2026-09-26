@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    What leaves the device with a cloud backup or a device-to-device transfer, and what does not
+    (security review of 26/09/2026, finding M5).
+
+    android:allowBackup="false" governs cloud backup on every version, but from Android 12 it no
+    longer keeps an app out of a device-to-device transfer: that path reads these rules, and with
+    none declared the whole private storage follows the user to the new phone. The items below are
+    the ones that must not:
+
+      - librechat.db (and its WAL/SHM/journal companions): the Room cache of conversations and
+        messages, and the `servers` table — the per-server gateway headers, which are long-lived,
+        non-rotating credentials stored in plain text by design (see core/data/CLAUDE.md);
+      - librechat_tokens.xml and engine_secrets.xml: the EncryptedSharedPreferences files holding
+        LibreChat's tokens and the engine's password and portal tokens. Their master key lives in
+        the Keystore and never leaves the device, so a copy is unreadable anyway — excluded so the
+        new device starts clean instead of discovering an undecryptable store and rebuilding it;
+      - datastore/: the preference stores (server URL, account roster, settings);
+      - diag_logs/: the redacted diagnostic log — still a record of usage nobody agreed to move.
+
+    Nothing is listed as included: with only excludes, everything else keeps the default. The
+    cache directory is never backed up or transferred by the platform, so the image cache and the
+    FileProvider directories need no rule. Both sections are kept identical on purpose — one
+    behaviour for both paths, and a review of one is a review of the other.
+-->
+<data-extraction-rules>
+    <cloud-backup disableIfNoEncryptionCapabilities="true">
+        <exclude domain="database" path="librechat.db" />
+        <exclude domain="database" path="librechat.db-wal" />
+        <exclude domain="database" path="librechat.db-shm" />
+        <exclude domain="database" path="librechat.db-journal" />
+        <exclude domain="sharedpref" path="librechat_tokens.xml" />
+        <exclude domain="sharedpref" path="engine_secrets.xml" />
+        <exclude domain="file" path="datastore/" />
+        <exclude domain="file" path="diag_logs/" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="database" path="librechat.db" />
+        <exclude domain="database" path="librechat.db-wal" />
+        <exclude domain="database" path="librechat.db-shm" />
+        <exclude domain="database" path="librechat.db-journal" />
+        <exclude domain="sharedpref" path="librechat_tokens.xml" />
+        <exclude domain="sharedpref" path="engine_secrets.xml" />
+        <exclude domain="file" path="datastore/" />
+        <exclude domain="file" path="diag_logs/" />
+    </device-transfer>
+</data-extraction-rules>

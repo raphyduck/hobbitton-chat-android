@@ -3,6 +3,7 @@ package com.garfiec.librechat.feature.tasks
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
+import com.garfiec.librechat.core.common.network.CleartextPolicy
 import com.garfiec.librechat.core.data.engine.EngineSettingsStore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -150,6 +151,12 @@ class EngineSettingsViewModel(
  * The URL rule looks pedantic and is not: `agent.hobbitton.at` without a scheme is accepted by every
  * text field and rejected by every HTTP client, and the resulting « unknown host » reads as a
  * network outage on a phone whose network is fine.
+ *
+ * `http://` is accepted towards a private host only (finding F5, 26/09/2026): the engine's Basic and
+ * the portal's bearer go on every request to these three addresses, and the scheduler's is also
+ * where the authorization code comes back. A laptop on `127.0.0.1` needs no certificate; a public
+ * host gets one or is refused. [CleartextPolicy] is the one definition of « private », shared with
+ * the server URL screen and the HTTP clients.
  */
 internal fun validateEngineSettings(
     baseUrl: String,
@@ -162,16 +169,17 @@ internal fun validateEngineSettings(
     // them — which is exactly what happened when it went in after `issuerUrl`.
     schedulerUrl: String = "",
 ): Set<EngineSettingsField> = buildSet {
-    if (!baseUrl.isHttpUrl()) add(EngineSettingsField.BASE_URL)
-    if (!issuerUrl.isHttpUrl()) add(EngineSettingsField.ISSUER_URL)
+    if (!baseUrl.isAcceptableUrl()) add(EngineSettingsField.BASE_URL)
+    if (!issuerUrl.isAcceptableUrl()) add(EngineSettingsField.ISSUER_URL)
     // Only when filled in: an empty scheduler URL is « I do not have one », not a mistake.
-    if (schedulerUrl.isNotBlank() && !schedulerUrl.isHttpUrl()) add(EngineSettingsField.SCHEDULER_URL)
+    if (schedulerUrl.isNotBlank() && !schedulerUrl.isAcceptableUrl()) add(EngineSettingsField.SCHEDULER_URL)
     if (username.isBlank()) add(EngineSettingsField.USERNAME)
     if (typedPassword.isBlank() && !passwordStored) add(EngineSettingsField.PASSWORD)
 }
 
-private fun String.isHttpUrl(): Boolean {
+private fun String.isAcceptableUrl(): Boolean {
     val trimmed = trim()
-    return (trimmed.startsWith("https://") || trimmed.startsWith("http://")) &&
+    val hasScheme = (trimmed.startsWith("https://") || trimmed.startsWith("http://")) &&
         trimmed.substringAfter("://").isNotBlank()
+    return hasScheme && CleartextPolicy.isPermitted(trimmed)
 }
