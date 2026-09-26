@@ -68,7 +68,7 @@ internal open class LockedDownWebViewClient(
 
     override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
         val url = request?.url?.toString().orEmpty()
-        if (request?.hasGesture == true && isSafeExternalUri(url)) {
+        if (request?.hasGesture() == true && isSafeExternalUri(url)) {
             openExternally(url)
         } else {
             Logger.d { "$surface WebView: navigation refused" }
