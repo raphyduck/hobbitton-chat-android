@@ -17,4 +17,6 @@ class EngineHttpException(
     val status: Int,
     val method: String,
     val path: String,
-) : Exception("Engine answered HTTP $status for $method $path")
+    /** The decoding failure this one translates, when there is one, so the trace keeps it. */
+    cause: Throwable? = null,
+) : Exception("Engine answered HTTP $status for $method $path", cause)

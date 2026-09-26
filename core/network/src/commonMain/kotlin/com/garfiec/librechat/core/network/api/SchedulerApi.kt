@@ -94,9 +94,9 @@ class SchedulerApi(
         return try {
             json.decodeFromString(payload)
         } catch (e: SerializationException) {
-            throw EngineHttpException(HTTP_OK, tool, "$UNEXPECTED_ANSWER: ${e.message}")
+            throw EngineHttpException(HTTP_OK, tool, "$UNEXPECTED_ANSWER: ${e.message}", e)
         } catch (e: IllegalArgumentException) {
-            throw EngineHttpException(HTTP_OK, tool, "$UNEXPECTED_ANSWER: ${e.message}")
+            throw EngineHttpException(HTTP_OK, tool, "$UNEXPECTED_ANSWER: ${e.message}", e)
         }
     }
 
