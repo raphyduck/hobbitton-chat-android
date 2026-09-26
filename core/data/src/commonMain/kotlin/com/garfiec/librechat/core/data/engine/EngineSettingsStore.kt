@@ -4,6 +4,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
+import com.garfiec.librechat.core.common.network.CleartextPolicy
 import com.garfiec.librechat.core.network.engine.EngineAccess
 import com.garfiec.librechat.core.network.engine.EnginePasswordStore
 import kotlinx.coroutines.flow.Flow
@@ -72,6 +73,15 @@ class EngineSettingsStore(
         return candidate.takeIf { it.isConfigured }.also { cached = it }
     }
 
+    /**
+     * Persists the addresses and, when given, the password.
+     *
+     * Refuses an `http://` address whose host is not private (finding F5, 26/09/2026): the Basic
+     * and the portal's bearer go on every request to the engine and the scheduler, and the
+     * `redirect_uri` built from the scheduler's address receives the authorization code. The form
+     * checks the same rule first and names the field; this is the last line, for any caller that
+     * is not the form. [CleartextPolicy] is the one definition of « private ».
+     */
     suspend fun save(
         baseUrl: String,
         issuerUrl: String,
@@ -80,6 +90,11 @@ class EngineSettingsStore(
         password: String?,
         schedulerUrl: String = "",
     ) {
+        require(CleartextPolicy.isPermitted(baseUrl)) { "The engine address may use http:// only towards a private host" }
+        require(CleartextPolicy.isPermitted(issuerUrl)) { "The portal address may use http:// only towards a private host" }
+        require(CleartextPolicy.isPermitted(schedulerUrl)) {
+            "The scheduler address may use http:// only towards a private host"
+        }
         dataStore.edit { prefs ->
             prefs[KEY_BASE_URL] = baseUrl.trim().trimEnd('/')
             prefs[KEY_ISSUER_URL] = issuerUrl.trim().trimEnd('/')

@@ -13,7 +13,6 @@ import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
-import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -84,10 +83,15 @@ class AuthInterceptorTest {
         override fun getBaseUrl(): String = baseUrl
     }
 
+    /**
+     * A provider by default: since 26/09/2026 (finding M3) the bearer is scoped to the server's full
+     * authority and fails closed, so a client with no provider and no snapshot attaches nothing.
+     * Tests that mean « no provider » pass null explicitly.
+     */
     private fun createClient(
         tokenManager: FakeTokenManager,
         engine: MockEngine,
-        serverUrlProvider: ServerUrlProvider? = null,
+        serverUrlProvider: ServerUrlProvider? = FakeServerUrlProvider("https://example.com"),
     ): HttpClient = HttpClient(engine) {
         install(ContentNegotiation) { json() }
         install(AuthInterceptorPlugin) {
@@ -399,20 +403,18 @@ class AuthInterceptorTest {
     }
 
     @Test
-    fun `empty base url falls back to attach-always and exercises 401 retry`() = runTest {
-        val tokenManager = FakeTokenManager(
-            accessToken = "expired-token",
-            refreshOutcome = RefreshResult.Refreshed,
-            refreshedToken = "new-token",
-        )
+    fun `an empty base url attaches no bearer and refreshes nothing`() = runTest {
+        // Fail closed (M3, 26/09/2026): a request whose server can't be established carries no
+        // credential. Until then an empty base URL meant « attach everywhere », which also sent
+        // the bearer on a refresh-and-retry to a host nothing had vouched for.
+        val tokenManager = FakeTokenManager(accessToken = "expired-token", refreshOutcome = RefreshResult.Refreshed)
         var requestCount = 0
-        val capturedTokens = mutableListOf<String?>()
+        var capturedAuth: String? = "not-null"
 
         val engine = MockEngine { request ->
             requestCount++
-            capturedTokens.add(request.headers[HttpHeaders.Authorization])
-            if (requestCount == 1) respond("Unauthorized", HttpStatusCode.Unauthorized)
-            else respond("OK", HttpStatusCode.OK)
+            capturedAuth = request.headers[HttpHeaders.Authorization]
+            respond("Unauthorized", HttpStatusCode.Unauthorized)
         }
         val client = createClient(
             tokenManager,
@@ -421,14 +423,71 @@ class AuthInterceptorTest {
         )
 
         val response = client.get("https://chat.example.com/api/data")
-        assertThat(response.status).isEqualTo(HttpStatusCode.OK)
-        assertThat(tokenManager.refreshCallCount).isEqualTo(1)
-        assertThat(capturedTokens[0]).isEqualTo("Bearer expired-token")
-        assertThat(capturedTokens[1]).isEqualTo("Bearer new-token")
+        assertThat(response.status).isEqualTo(HttpStatusCode.Unauthorized)
+        assertThat(capturedAuth).isNull()
+        assertThat(requestCount).isEqualTo(1)
+        assertThat(tokenManager.refreshCallCount).isEqualTo(0)
     }
 
     @Test
-    fun `attaches token when host-scoping disabled (no provider)`() = runTest {
+    fun `no provider and no snapshot attaches no bearer`() = runTest {
+        val tokenManager = FakeTokenManager(accessToken = "my-token")
+        var capturedAuth: String? = "not-null"
+
+        val engine = MockEngine { request ->
+            capturedAuth = request.headers[HttpHeaders.Authorization]
+            respond("OK", HttpStatusCode.OK)
+        }
+        val client = createClient(tokenManager, engine, serverUrlProvider = null)
+
+        client.get("https://anyhost.example.org/api/data")
+        assertThat(capturedAuth).isNull()
+    }
+
+    @Test
+    fun `an absolute http URL on the server's own host receives no bearer`() = runTest {
+        // Host-only scoping passed this: a download URL the server hands back over `http://` put
+        // the session bearer on the wire in cleartext. Ktor refuses an https→http *redirect*, but a
+        // direct absolute URL never goes through the redirect guard.
+        val tokenManager = FakeTokenManager(accessToken = "my-token")
+        var capturedAuth: String? = "not-null"
+
+        val engine = MockEngine { request ->
+            capturedAuth = request.headers[HttpHeaders.Authorization]
+            respond("OK", HttpStatusCode.OK)
+        }
+        val client = createClient(
+            tokenManager,
+            engine,
+            serverUrlProvider = FakeServerUrlProvider("https://chat.example.com"),
+        )
+
+        client.get("http://chat.example.com/api/files/download/u1/f1")
+        assertThat(capturedAuth).isNull()
+    }
+
+    @Test
+    fun `another port on the server's host receives no bearer`() = runTest {
+        val tokenManager = FakeTokenManager(accessToken = "my-token", refreshOutcome = RefreshResult.Refreshed)
+        var capturedAuth: String? = "not-null"
+
+        val engine = MockEngine { request ->
+            capturedAuth = request.headers[HttpHeaders.Authorization]
+            respond("Unauthorized", HttpStatusCode.Unauthorized)
+        }
+        val client = createClient(
+            tokenManager,
+            engine,
+            serverUrlProvider = FakeServerUrlProvider("https://chat.example.com"),
+        )
+
+        client.get("https://chat.example.com:8443/api/data")
+        assertThat(capturedAuth).isNull()
+        assertThat(tokenManager.refreshCallCount).isEqualTo(0)
+    }
+
+    @Test
+    fun `an explicit default port still matches the server`() = runTest {
         val tokenManager = FakeTokenManager(accessToken = "my-token")
         var capturedAuth: String? = null
 
@@ -436,9 +495,13 @@ class AuthInterceptorTest {
             capturedAuth = request.headers[HttpHeaders.Authorization]
             respond("OK", HttpStatusCode.OK)
         }
-        val client = createClient(tokenManager, engine)
+        val client = createClient(
+            tokenManager,
+            engine,
+            serverUrlProvider = FakeServerUrlProvider("https://chat.example.com:443"),
+        )
 
-        client.get("https://anyhost.example.org/api/data")
+        client.get("https://chat.example.com/api/data")
         assertThat(capturedAuth).isEqualTo("Bearer my-token")
     }
 

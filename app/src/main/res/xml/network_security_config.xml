@@ -1,18 +1,38 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
     <!--
-        Cleartext (HTTP) traffic is intentionally permitted because LibreChat is a
-        self-hosted server that users may run on their local network over plain HTTP
-        (e.g. http://192.168.x.x:3080 or http://localhost:3080).
+        Cleartext (HTTP) traffic is permitted here for ONE reason: LibreChat is self-hosted, and
+        people run it on their own network without a certificate — http://192.168.1.20:3080,
+        http://localhost:3080, http://nas.local. That is the only case plain http is meant for.
 
-        Android's network_security_config is static and cannot be toggled at runtime,
-        so we cannot restrict cleartext to specific domains since the server URL is
-        user-configured. Instead, the app displays an HTTP warning dialog at server
-        setup time (ServerUrlScreen) when the user enters an HTTP URL, informing them
-        that their connection will not be encrypted. The user must explicitly
-        acknowledge this risk before proceeding.
+        This resource cannot say so. Its rules are domain names (with an includeSubdomains flag),
+        not address ranges: there is no way to write « 10/8, 172.16/12, 192.168/16, 100.64/10,
+        fd00::/8, loopback » in a <domain-config>, and the server address is whatever the user
+        typed. A base-config of cleartextTrafficPermitted="false" would therefore cut every LAN
+        server off at the OS level, with no way to allow it back.
 
-        HTTPS is always preferred and no warning is shown for HTTPS URLs.
+        So the platform policy stays permissive and the bounded rule lives in the app instead
+        (security review of 26/09/2026, finding M4), in three places that all read one definition
+        of « private host », core/common's CleartextPolicy:
+
+          - the server URL screen refuses an http:// address whose host is public — no dialog,
+            because there is no informed « yes » to sending the password across the internet in
+            the clear; a private host still gets the existing warning dialog;
+          - the engine settings form applies the same rule to the engine, portal and scheduler
+            addresses (finding F5);
+          - CleartextGuardPlugin, installed on every Ktor client, refuses an http:// SEND to a
+            public host — which is what covers an absolute http:// URL the server hands back (a
+            download URL, an avatar) and a redirect towards one, neither of which passes through
+            an entry screen.
+
+        Net effect: https anywhere, http only towards loopback, the RFC 1918 and CGNAT ranges,
+        link-local, IPv6 unique-local, the .local/.lan/.home/.internal/.home.arpa suffixes and a
+        single-label name. A local server therefore keeps working exactly as before, warning dialog
+        included; a public http:// server is refused at entry and, should one slip through by any
+        other path, at send time.
+
+        No certificate pinning: the deployment is user-chosen, so there is no certificate to pin
+        at build time. Per-server pinning would belong in the `servers` table (see core/data).
     -->
     <base-config cleartextTrafficPermitted="true" />
 </network-security-config>

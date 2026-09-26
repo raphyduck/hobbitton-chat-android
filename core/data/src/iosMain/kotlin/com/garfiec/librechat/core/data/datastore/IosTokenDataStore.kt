@@ -12,6 +12,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import platform.CoreFoundation.CFDictionaryAddValue
 import platform.CoreFoundation.CFDictionaryCreateMutable
 import platform.CoreFoundation.CFRelease
+import platform.CoreFoundation.CFStringRef
 import platform.CoreFoundation.CFTypeRefVar
 import platform.CoreFoundation.kCFBooleanTrue
 import platform.Foundation.CFBridgingRelease
@@ -27,6 +28,7 @@ import platform.Security.SecItemDelete
 import platform.Security.errSecSuccess
 import platform.Security.kSecAttrAccessible
 import platform.Security.kSecAttrAccessibleAfterFirstUnlock
+import platform.Security.kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
 import platform.Security.kSecAttrAccount
 import platform.Security.kSecAttrService
 import platform.Security.kSecClass
@@ -59,7 +61,9 @@ class IosTokenDataStore(
         if (url.isBlank()) {
             keychainDelete(KEY_SERVER_URL)
         } else {
-            keychainSet(KEY_SERVER_URL, url)
+            // The one item that is MEANT to follow the person to a new device: it names the server,
+            // not a session, and is what lets them sign back in after a restore.
+            keychainSet(KEY_SERVER_URL, url, accessible = kSecAttrAccessibleAfterFirstUnlock)
         }
     }
 
@@ -108,8 +112,24 @@ class IosTokenDataStore(
         return null
     }
 
+    /**
+     * Writes one item, replacing any previous one.
+     *
+     * [accessible] defaults to `AfterFirstUnlockThisDeviceOnly` (finding F3, 26/09/2026): the
+     * tokens of every retained account used to be `AfterFirstUnlock`, which migrates with an
+     * encrypted iTunes/Finder backup and a device-to-device transfer, and survives an uninstall.
+     * `ThisDeviceOnly` keeps them off any other device. `AfterFirstUnlock` rather than `WhenUnlocked`
+     * because a refresh can run just after the screen locks — a stream still draining, a 401 on a
+     * request that left a moment earlier — and a read that fails then reads as an expired session.
+     * A previously stored item keeps its old class until it is next written; every sign-in and
+     * every refresh rewrites the pair, so the change lands at the first use.
+     */
     @OptIn(ExperimentalForeignApi::class)
-    private fun keychainSet(key: String, value: String) {
+    private fun keychainSet(
+        key: String,
+        value: String,
+        accessible: CFStringRef? = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
+    ) {
         keychainDelete(key)
         val data = (value as NSString).dataUsingEncoding(NSUTF8StringEncoding) ?: run {
             Logger.e { "keychainSet($key): dataUsingEncoding returned null" }
@@ -123,7 +143,7 @@ class IosTokenDataStore(
             CFDictionaryAddValue(query, kSecClass, kSecClassGenericPassword)
             CFDictionaryAddValue(query, kSecAttrService, cfService)
             CFDictionaryAddValue(query, kSecAttrAccount, cfKey)
-            CFDictionaryAddValue(query, kSecAttrAccessible, kSecAttrAccessibleAfterFirstUnlock)
+            CFDictionaryAddValue(query, kSecAttrAccessible, accessible)
             CFDictionaryAddValue(query, kSecValueData, cfData)
 
             val status = SecItemAdd(query, null)
