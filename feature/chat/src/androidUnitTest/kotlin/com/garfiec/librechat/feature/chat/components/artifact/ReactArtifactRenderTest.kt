@@ -20,8 +20,9 @@ class ReactArtifactRenderTest {
 
     private val reactType = "application/vnd.react"
 
+    /** The runner document itself — the host wraps it in a sandboxed frame (review C1). */
     private fun build(content: String): String =
-        ArtifactWebContent.buildHtml(content, reactType, isDarkTheme = false)
+        SandboxHostSupport.sandboxedDocument(ArtifactWebContent.buildHtml(content, reactType, isDarkTheme = false))
 
     /** Recovers the artifact source the runner will execute, from the base64 blob. */
     private fun embeddedSource(html: String): String {

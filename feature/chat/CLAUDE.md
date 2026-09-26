@@ -366,6 +366,22 @@ existing upload/usage path already handles them.
 - `MermaidWebContent` renders Mermaid diagrams via CDN mermaid.js with zoom controls and dark theme
 - `MarkdownWebContent` renders Markdown via CDN marked.js + highlight.js with GFM and syntax highlighting
 - HTML/React/SVG templates include Tailwind CDN, theme CSS vars, and error handling
+- **WebView isolation (security review 26/09/2026, C1–C4/C8).** Every content WebView on Android goes
+  through `components/web/LockedDownWebView.kt`: opaque origin (`loadDataWithBaseURL(null, …)` — no
+  cookie jar, no storage), DOM storage off, `shouldOverrideUrlLoading` refuses every navigation (a
+  tapped `http(s)` link goes out through the root `SafeUriHandler`), and `shouldInterceptRequest`
+  enforces the template's `WebResourcePolicy` natively (main frame never, subresources only over
+  `https` from the hosts the template names). HTML and React artifacts are wrapped by
+  `ArtifactWebContent.sandboxHost` in an `<iframe sandbox="allow-scripts" srcdoc>` — the sandbox, not a
+  `<meta>` CSP the content could precede, is what forbids forms, popups and top navigation; the srcdoc
+  inherits the host's CSP. App-authored templates (Markdown, Mermaid, KaTeX, SVG, code) keep a direct
+  document with a hardened CSP written first in `<head>`. Untrusted text is handed to a template's
+  script only as base64 (`ArtifactWebContent.base64Literal`), never spliced into a literal. CDN scripts
+  are pinned to exact versions with SRI hashes in `CdnAssets` (Tailwind's Play CDN excepted: no CORS,
+  so version pin only). Markdown goes through DOMPurify; mermaid runs `securityLevel: 'strict'`; KaTeX
+  runs `trust: false`. The `MermaidBridge` JS interface is registered only on a cacheable-mermaid
+  WebView and `MermaidBridgeReceiver` validates what it receives before caching. `ArtifactIsolationTest`
+  and `WebResourcePolicyTest` pin all of this.
 - React artifacts compile in-browser (Babel) and load as a real ES module; the artifact's `import`/`export` run verbatim against a generated import map that resolves every bare package via an ESM CDN (no source rewriting, no per-library handling)
 - `ArtifactPanel` supports fullscreen Dialog mode, version switching, loading indicator, and WebView error overlay
 - `ArtifactButton` shows type-specific icons and subtitle (e.g. "Mermaid Diagram", "React Component")
@@ -373,6 +389,13 @@ existing upload/usage path already handles them.
 - `ArtifactVersionNav` provides prev/next arrows with "v2/3" indicator
 - `ArtifactDownloadHelper` shares artifacts via FileProvider temp file + system share sheet. Maps 25+ language extensions including `.mmd` for Mermaid. Sanitizes filenames to 100 chars
 - **Gotcha**: FileProvider authority must match app's declared authority in AndroidManifest
+
+## Shares from other apps (security review 26/09/2026, C6)
+- `MainActivity` keeps only `content:` streams that are not from this app's own FileProvider
+  (`SharedUriPolicy.kt`, bounded to `MAX_SHARED_FILES`); `FileAttachmentDelegate` refuses any other
+  scheme again before opening a stream. A shared file is never uploaded on arrival: `applyShare` runs
+  the intake with `confirm = true`, which stages the batch in the routing sheet whatever the
+  preference, and the upload starts only on the user's Attach.
 
 ## Media Players
 - `VideoContentPlayer` uses ExoPlayer (media3) — 16:9 aspect ratio Card, lifecycle-aware release

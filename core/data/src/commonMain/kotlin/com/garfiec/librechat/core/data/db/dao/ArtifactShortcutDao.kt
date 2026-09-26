@@ -20,4 +20,8 @@ interface ArtifactShortcutDao {
 
     @Query("DELETE FROM artifact_shortcuts WHERE id = :id")
     suspend fun deleteById(id: String)
+
+    /** Every snapshot on the device — the table has no account column (see the entity). */
+    @Query("DELETE FROM artifact_shortcuts")
+    suspend fun deleteAll()
 }

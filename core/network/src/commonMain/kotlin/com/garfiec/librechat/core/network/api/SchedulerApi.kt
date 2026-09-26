@@ -17,13 +17,15 @@ import io.ktor.client.statement.request
 import io.ktor.http.ContentType
 import io.ktor.http.isSuccess
 import io.ktor.http.path
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
@@ -43,6 +45,12 @@ import kotlinx.serialization.json.putJsonObject
  *   connector on 20 August;
  * - a response may come back as JSON *or* as a `text/event-stream` frame depending on what the
  *   edge negotiates, hence [singleFrame]. Accepting only JSON works until the day it doesn't.
+ *
+ * Whatever shape the answer takes, a caller sees one exception type: [EngineHttpException]
+ * (review C10, 26/09/2026). A scheduler that is broken — or not the scheduler at all — may answer
+ * prose where JSON was expected, an object where a string was, or an envelope without `result`;
+ * each of those used to surface as an `IllegalArgumentException` or `NoSuchElementException` from
+ * a `.jsonObject`/`getValue` accessor, outside the failure path the screens translate.
  */
 class SchedulerApi(
     private val client: HttpClient,
@@ -50,7 +58,7 @@ class SchedulerApi(
 ) {
 
     /** Every mission, its next due time and its last run — one call, because a screen wants it at once. */
-    suspend fun state(): SchedulerState = json.decodeFromString(callTool("etat", null))
+    suspend fun state(): SchedulerState = decode(callTool("etat", null), "etat")
 
     /**
      * What the platform spent, by model and by day, over the last [days] days — both bounds
@@ -79,10 +87,17 @@ class SchedulerApi(
      * two places to forget the same thing.
      */
     private inline fun <reified T> decode(payload: String, tool: String): T {
-        json.parseToJsonElement(payload).jsonObject["erreur"]?.let { reason ->
-            throw EngineHttpException(200, tool, reason.jsonPrimitive.content)
+        val answer = payload.asJsonObjectOrNull() ?: throw EngineHttpException(HTTP_OK, tool, UNEXPECTED_ANSWER)
+        answer["erreur"]?.let { reason ->
+            throw EngineHttpException(HTTP_OK, tool, reason.asStringOrNull() ?: reason.toString())
         }
-        return json.decodeFromString(payload)
+        return try {
+            json.decodeFromString(payload)
+        } catch (e: SerializationException) {
+            throw EngineHttpException(HTTP_OK, tool, "$UNEXPECTED_ANSWER: ${e.message}")
+        } catch (e: IllegalArgumentException) {
+            throw EngineHttpException(HTTP_OK, tool, "$UNEXPECTED_ANSWER: ${e.message}")
+        }
     }
 
     /**
@@ -226,20 +241,31 @@ class SchedulerApi(
         if (!status.isSuccess()) {
             throw EngineHttpException(status.value, request.url.toString(), bodyAsText())
         }
-        val payload = json.parseToJsonElement(singleFrame(bodyAsText())).jsonObject
+        val payload = singleFrame(bodyAsText()).asJsonObjectOrNull()
+            ?: throw EngineHttpException(status.value, request.url.toString(), "$tool: $UNEXPECTED_ANSWER")
 
         // A JSON-RPC error is a 200 with an `error` member. Reading `result` first would throw a
         // « missing key » that names nothing, on a response that says precisely what went wrong.
         payload["error"]?.let { error ->
-            val message = error.jsonObject["message"]?.jsonPrimitive?.content ?: error.toString()
+            val message = (error as? JsonObject)?.get("message")?.asStringOrNull() ?: error.toString()
             throw EngineHttpException(status.value, request.url.toString(), "$tool: $message")
         }
 
-        return payload.getValue("result").jsonObject.getValue("content").jsonArray
-            .joinToString("") { it.jsonObject["text"]?.jsonPrimitive?.content.orEmpty() }
+        val content = (payload["result"] as? JsonObject)?.get("content") as? JsonArray
+            ?: throw EngineHttpException(status.value, request.url.toString(), "$tool: $UNEXPECTED_ANSWER")
+        return content.joinToString("") { (it as? JsonObject)?.get("text")?.asStringOrNull().orEmpty() }
     }
 
+    /** The body as a JSON object, or null when it is not JSON or not an object — never a throw. */
+    private fun String.asJsonObjectOrNull(): JsonObject? =
+        runCatching { json.parseToJsonElement(this) }.getOrNull() as? JsonObject
+
+    private fun JsonElement.asStringOrNull(): String? = (this as? JsonPrimitive)?.contentOrNull
+
     private companion object {
+        const val HTTP_OK = 200
+        const val UNEXPECTED_ANSWER = "unexpected answer from the scheduler"
+
         /**
          * The payload of an event-stream answer, or the body unchanged when it is plain JSON.
          *

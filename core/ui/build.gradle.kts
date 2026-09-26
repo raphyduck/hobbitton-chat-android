@@ -26,6 +26,11 @@ kotlin {
             api(libs.markdown.renderer.m3)
             implementation(libs.coil3.compose)
             implementation(libs.coil3.network.ktor)
+            // C7 (26/09/2026): the unauthenticated image loader decodes SVGs like the
+            // singleton does and builds its own bare Ktor client.
+            implementation(libs.coil3.svg)
+            implementation(libs.ktor.client.core)
+            implementation(libs.kermit)
             implementation(libs.zoomimage.compose.coil3.core)
             implementation(libs.material.kolor)
             implementation(libs.compose.ui.backhandler)
@@ -33,7 +38,6 @@ kotlin {
         androidMain.dependencies {
             // Runtime-permission launcher for saving images to the gallery (API < 29).
             implementation(libs.activity.compose)
-            implementation(libs.kermit)
             // The ONLY Koin here, and not a module: `copyToClipboard` needs the application
             // `Context` to reach the system clipboard, and a global lookup is what the chat's copy
             // button already did before this moved up. No Koin module is declared in this module
