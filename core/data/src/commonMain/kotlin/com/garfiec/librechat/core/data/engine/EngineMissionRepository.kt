@@ -196,19 +196,23 @@ class EngineMissionRepository(
      *
      * Null means « whatever the profile is configured with » — an absent key, not an empty one, so
      * the engine's own default applies untouched.
+     *
+     * **Interactive, always** (26/09/2026): a mission launched from the app is one somebody is
+     * looking at, so nothing the catalogue reserves for a watched session (`shell`, the annuaire)
+     * is withheld. The scheduler's missions are the autonomous ones, and they never come through
+     * here.
      */
     suspend fun launch(
         objective: String,
         connectors: List<String>,
         title: String? = null,
-        autonomous: Boolean = true,
         model: EngineModelRef? = null,
     ): String {
         val session = api.createSession(
             CreateEngineSessionRequest(
                 agent = MISSION_AGENT,
                 title = title ?: objective.take(TITLE_LENGTH),
-                permission = permissionsFor(connectors(), connectors, autonomous),
+                permission = permissionsFor(connectors(), connectors, autonomous = false),
             ),
         )
         api.prompt(

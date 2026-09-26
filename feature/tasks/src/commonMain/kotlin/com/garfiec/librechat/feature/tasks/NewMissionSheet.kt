@@ -3,12 +3,10 @@ package com.garfiec.librechat.feature.tasks
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -43,10 +41,6 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_connectors_count
 import com.garfiec.librechat.feature.tasks.resources.tasks_connectors_failed
 import com.garfiec.librechat.feature.tasks.resources.tasks_connectors_loading
 import com.garfiec.librechat.feature.tasks.resources.tasks_launch
-import com.garfiec.librechat.feature.tasks.resources.tasks_mode_autonomous
-import com.garfiec.librechat.feature.tasks.resources.tasks_mode_hint_autonomous
-import com.garfiec.librechat.feature.tasks.resources.tasks_mode_hint_interactive
-import com.garfiec.librechat.feature.tasks.resources.tasks_mode_interactive
 import com.garfiec.librechat.feature.tasks.resources.tasks_model
 import com.garfiec.librechat.feature.tasks.resources.tasks_model_default_short
 import com.garfiec.librechat.feature.tasks.resources.tasks_new
@@ -54,7 +48,12 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_objective
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Creating a mission: an objective, the connectors it may use, and how it is watched.
+ * Creating a mission: an objective, and the connectors it may use.
+ *
+ * Interactive, always (26/09/2026). The sheet used to ask autonomous or interactive; a mission
+ * launched from a phone is one the person is looking at, and the choice only ever decided whether
+ * `shell` could be ticked. The scheduler's missions are the autonomous ones, and they are not
+ * created here.
  *
  * No profile choice, deliberately (25/08). What a mission does is what its objective says; what it
  * MAY do is what the connector picker grants — the per-session permission rules override the
@@ -66,10 +65,12 @@ import org.jetbrains.compose.resources.stringResource
  * app was a launcher for a handful of missions; it stopped holding when the app became the way to
  * work, and every mission started with a picker to open before it could do anything at all.
  *
- * What makes it safe is *which* connectors: the server's socle is reading only — memory, files, web
- * search, bank accounts, the schedule's state — and nothing that acts. What makes it bounded is
- * cost: every ticked connector reloads its tool catalogue to the model on every turn, so ticking
- * all thirty would spend a mission's budget before it did anything (D-040).
+ * What makes it bounded is cost: every ticked connector reloads its tool catalogue to the model on
+ * every turn, so ticking all forty would spend a mission's budget before it did anything (D-040).
+ * Since 26/09/2026 the scheduler's default set carries an « annuaire » connector instead: two tools
+ * through which the mission finds and calls everything else on demand (server-side D-070). So the
+ * default tick is already « everything », for the price of a handful of schemas; ticking a
+ * connector here loads its tools directly, which only pays off for one the mission will hammer.
  *
  * The model, on the other hand, IS preselected — with the engine's own default, and never with a
  * first-in-the-list guess. An unticked connector means « you may not »; an unticked model would
@@ -87,7 +88,6 @@ fun NewMissionSheet(
     onLaunch: (
         objective: String,
         connectors: List<String>,
-        autonomous: Boolean,
         model: EngineModelRef?,
     ) -> Unit,
     modifier: Modifier = Modifier,
@@ -99,7 +99,6 @@ fun NewMissionSheet(
 ) {
     // Saveable: a configuration change used to wipe a filled-in objective and every ticked box.
     var objective by rememberSaveable { mutableStateOf("") }
-    var autonomous by rememberSaveable { mutableStateOf(true) }
     val ticked = rememberSaveable(saver = listSaver({ it.toList() }, { it.toMutableStateList() })) {
         mutableListOf<String>().toMutableStateList()
     }
@@ -110,8 +109,7 @@ fun NewMissionSheet(
     var pickingConnectors by rememberSaveable { mutableStateOf(false) }
     var pickingModel by rememberSaveable { mutableStateOf(false) }
 
-    // Recomputed on the mode: what an autonomous mission may not tick depends on it.
-    val offered = catalogue.offered(autonomous)
+    val offered = catalogue.offered(autonomous = false)
 
     // The socle, ticked once the catalogue lands — it is fetched while the sheet is already open,
     // so there is nothing to tick on the first composition.
@@ -123,8 +121,6 @@ fun NewMissionSheet(
     LaunchedEffect(offered) {
         if (!seeded && offered.isNotEmpty()) {
             seeded = true
-            // `enabled` is honoured here too: an autonomous mission must not open the sheet with a
-            // connector already ticked that the server would refuse at launch.
             offered.filter { it.tickedByDefault && it.enabled }.forEach { option ->
                 if (option.name !in ticked) ticked += option.name
             }
@@ -169,38 +165,6 @@ fun NewMissionSheet(
             onOpen = { pickingConnectors = true },
         )
 
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            FilterChip(
-                selected = autonomous,
-                onClick = {
-                    autonomous = true
-                    // Ticking a connector then switching to autonomous would otherwise carry a
-                    // permission the server is about to refuse — better to clear it here, where
-                    // the person can see it happen. Which ones those are is the catalogue's
-                    // answer, not a name written down here.
-                    catalogue.offered(autonomous = true)
-                        .filterNot { it.enabled }
-                        .forEach { ticked -= it.name }
-                },
-                label = { Text(stringResource(Res.string.tasks_mode_autonomous)) },
-            )
-            FilterChip(
-                selected = !autonomous,
-                onClick = { autonomous = false },
-                label = { Text(stringResource(Res.string.tasks_mode_interactive)) },
-            )
-        }
-        Text(
-            stringResource(
-                if (autonomous) Res.string.tasks_mode_hint_autonomous else Res.string.tasks_mode_hint_interactive,
-            ),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.End,
@@ -208,7 +172,7 @@ fun NewMissionSheet(
             TextButton(onClick = onDismiss) { Text(stringResource(Res.string.tasks_cancel)) }
             TextButton(
                 enabled = objective.isNotBlank(),
-                onClick = { onLaunch(objective.trim(), ticked.toList(), autonomous, model?.ref) },
+                onClick = { onLaunch(objective.trim(), ticked.toList(), model?.ref) },
             ) { Text(stringResource(Res.string.tasks_launch)) }
         }
     }

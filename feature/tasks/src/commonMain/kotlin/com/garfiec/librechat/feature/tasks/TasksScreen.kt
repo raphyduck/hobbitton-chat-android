@@ -344,9 +344,9 @@ fun TasksScreen(
         }
         NewMissionSheet(
             onDismiss = { composing = false },
-            onLaunch = { objective, connectors, autonomous, model ->
+            onLaunch = { objective, connectors, model ->
                 composing = false
-                viewModel.launch(objective, connectors, autonomous, model)
+                viewModel.launch(objective, connectors, model)
             },
             models = state.models,
             prices = state.prices,
