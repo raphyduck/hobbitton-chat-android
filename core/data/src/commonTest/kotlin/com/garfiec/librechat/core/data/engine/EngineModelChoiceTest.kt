@@ -145,7 +145,7 @@ class EngineModelChoiceTest {
         val engine = MockEngine { request ->
             bodies[request.url.encodedPath] = request.textBody()
             if (request.url.encodedPath == "/mcp") {
-                respond(connectorCatalogueFrame(), HttpStatusCode.OK, jsonHeaders())
+                respond(schedulerFrame(request.textBody()), HttpStatusCode.OK, jsonHeaders())
             } else {
                 respond("""{"id":"ses_abc"}""", HttpStatusCode.OK, jsonHeaders())
             }
@@ -172,7 +172,7 @@ class EngineModelChoiceTest {
         val engine = MockEngine { request ->
             if (request.url.encodedPath.endsWith("prompt_async")) promptBody = request.textBody()
             if (request.url.encodedPath == "/mcp") {
-                respond(connectorCatalogueFrame(), HttpStatusCode.OK, jsonHeaders())
+                respond(schedulerFrame(request.textBody()), HttpStatusCode.OK, jsonHeaders())
             } else {
                 respond("""{"id":"ses_abc"}""", HttpStatusCode.OK, jsonHeaders())
             }
@@ -184,6 +184,21 @@ class EngineModelChoiceTest {
         // « I did not choose » has to mean.
         assertFalse("model" in promptBody)
     }
+}
+
+/**
+ * The scheduler's answer to whichever of its tools the request body names: the connector catalogue,
+ * or the record of a session's scope (`perimetre`, D-071), which `launch` writes right after the
+ * session is created. Both travel on the one `/mcp` route, so a mock has to read the body.
+ */
+private fun schedulerFrame(body: String): String =
+    if ("\"perimetre\"" in body) scopeFrame() else connectorCatalogueFrame()
+
+private fun scopeFrame(): String {
+    val payload = """{"session":"ses_abc","connecteurs":["memoire"],"enregistre":true}"""
+    return """{"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":${
+        kotlinx.serialization.json.JsonPrimitive(payload)
+    }}]}}"""
 }
 
 /**

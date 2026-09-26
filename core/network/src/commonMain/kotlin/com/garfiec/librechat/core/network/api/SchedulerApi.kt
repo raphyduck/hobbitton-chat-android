@@ -5,6 +5,7 @@ import com.garfiec.librechat.core.model.scheduler.Consumption
 import com.garfiec.librechat.core.model.scheduler.ModelPrices
 import com.garfiec.librechat.core.model.scheduler.ProviderHealth
 import com.garfiec.librechat.core.model.scheduler.SchedulerState
+import com.garfiec.librechat.core.model.scheduler.SessionScope
 import com.garfiec.librechat.core.network.engine.EngineHttpException
 import io.ktor.client.HttpClient
 import io.ktor.client.request.accept
@@ -120,6 +121,29 @@ class SchedulerApi(
         callTool("connecteurs", buildJsonObject { put("json_brut", true) }),
         "connecteurs",
     )
+
+    /**
+     * Records what a session may reach through the annuaire (D-071): the connectors ticked for it.
+     *
+     * Called right after the session is created and before its first prompt. The engine's own
+     * rules only carry the *direct* connectors; everything else is served by the annuaire, which
+     * consults this record. Returns the list as recorded, so a caller can check it round-tripped.
+     */
+    suspend fun setScope(sessionId: String, connectors: List<String>): List<String> =
+        decode<SessionScope>(
+            callTool("perimetre", buildJsonObject {
+                put("session", sessionId)
+                putJsonArray("connecteurs") { connectors.forEach { add(it) } }
+            }),
+            "perimetre",
+        ).connectors.orEmpty()
+
+    /** The scope recorded for a session, or null when the scheduler holds none for it. */
+    suspend fun scope(sessionId: String): List<String>? =
+        decode<SessionScope>(
+            callTool("perimetre", buildJsonObject { put("session", sessionId) }),
+            "perimetre",
+        ).connectors
 
     /**
      * Starts a mission now. Returns the scheduler's own sentence, which is the useful thing to

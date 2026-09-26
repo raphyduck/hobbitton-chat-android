@@ -50,4 +50,27 @@ data class ConnectorGrant(
      */
     @SerialName("defaut")
     val tickedByDefault: Boolean = false,
+    /**
+     * Declared to the engine when ticked — as opposed to reachable through the annuaire only.
+     *
+     * A ticked box means « in this mission's scope », not « in the model's tool list » (D-071):
+     * only the direct connectors go into the session's permission rules, everything else is served
+     * by the annuaire, which checks the scope the app registered for the session. Defaults to true
+     * so that a scheduler that does not serve the field yet gets the pre-D-071 behaviour, where
+     * every ticked connector was declared.
+     */
+    val direct: Boolean = true,
+)
+
+/**
+ * What a session may reach through the annuaire, as the scheduler recorded it — the answer of its
+ * `perimetre` tool. [connectors] is null when nothing was recorded for that session.
+ */
+@Serializable
+data class SessionScope(
+    val session: String,
+    @SerialName("connecteurs")
+    val connectors: List<String>? = null,
+    @SerialName("enregistre")
+    val recorded: Boolean = false,
 )

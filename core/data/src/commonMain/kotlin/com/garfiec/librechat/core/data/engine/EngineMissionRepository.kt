@@ -215,6 +215,13 @@ class EngineMissionRepository(
                 permission = permissionsFor(connectors(), connectors, autonomous = false),
             ),
         )
+        // The scope goes to the scheduler before the first prompt (D-071): the annuaire consults
+        // it from the mission's very first tool call. A recording that fails is a launch that
+        // fails — going on regardless would hand the mission the whole catalogue, the opposite of
+        // what an unticked box promised. The engine keeps an empty, never-prompted session; that
+        // is harmless, and cheaper than an abort call whose behaviour on an idle session is
+        // unmeasured.
+        scheduler.setScope(session.id, connectors)
         api.prompt(
             sessionId = session.id,
             request = EnginePromptRequest(
@@ -287,8 +294,17 @@ class EngineMissionRepository(
      * ruleset this app or the scheduler produced round-trips exactly; a hand-written one that opens
      * half a connector reads as off, which understates rather than overstates what the session can do.
      */
-    suspend fun sessionConnectors(sessionId: String): Set<String> =
-        connectorsGranted(connectors(), api.session(sessionId).permission)
+    suspend fun sessionConnectors(sessionId: String): Set<String> {
+        val catalogue = connectors()
+        val declared = connectorsGranted(catalogue, api.session(sessionId).permission)
+        // The annuaire's share of a session lives in the scheduler, not in the rules (D-071). A
+        // session the app never recorded — the scheduler's own, or one launched before D-071 —
+        // has no scope, and its chips show what its rules carry. A scheduler that cannot be
+        // reached reads the same way: the chips understate rather than invent, which is the only
+        // direction a capability chip may err in.
+        val scoped = runCatching { scheduler.scope(sessionId) }.getOrNull().orEmpty()
+        return declared + scoped.filter { it in catalogue.connecteurs }
+    }
 
     /**
      * Re-grants a **live** session's connectors, replacing its whole ruleset.
@@ -298,6 +314,10 @@ class EngineMissionRepository(
      * without a restart, and without losing the transcript that is its only record.
      */
     suspend fun setConnectors(sessionId: String, connectors: List<String>) {
+        // The scope first (D-071): if recording it fails, nothing has changed and the caller hears
+        // it; recording it after the rules would leave a session whose direct tools moved while
+        // the annuaire still serves yesterday's list.
+        scheduler.setScope(sessionId, connectors)
         // Never autonomous here: someone is looking at the screen, which is the whole premise of
         // §4.2's ban — an approval prompt nobody answers is not a safeguard, but one they *do*
         // answer is exactly the supervision the rule asks for.
@@ -395,6 +415,11 @@ fun permissionsFor(
     val granted = connectors
         .mapNotNull { name -> catalogue.connecteurs[name]?.let { name to it } }
         .filterNot { (_, grant) -> autonomous && grant.refusedWhenAutonomous }
+        // Only the direct connectors become rules (D-071). The rest is the annuaire's, which reads
+        // the scope the app records for the session; declaring it here would put its whole
+        // catalogue in front of the model on every turn — the very cost the annuaire exists to
+        // avoid.
+        .filter { (_, grant) -> grant.direct }
 
     val rules = mutableListOf(EnginePermissionRule(permission = "*", action = "deny"))
     catalogue.socle.forEach { (tool, action) ->
@@ -466,7 +491,11 @@ fun ConnectorCatalogue.offered(autonomous: Boolean): List<ConnectorOption> =
             // Disabled rather than hidden: someone who wonders where shell went gets an answer,
             // instead of a missing row to puzzle over.
             enabled = !(autonomous && grant.refusedWhenAutonomous),
-            tickedByDefault = grant.tickedByDefault,
+            // A direct connector is ticked when the scheduler says so, on cost. One the annuaire
+            // serves costs nothing until it is called, and the annuaire's promise is reach — so
+            // it is ticked, and unticking it is what narrows the scope (D-071).
+            tickedByDefault = grant.tickedByDefault || !grant.direct,
+            viaAnnuaire = !grant.direct,
         )
     }
 
@@ -477,4 +506,6 @@ data class ConnectorOption(
     val enabled: Boolean,
     /** Ticked when the sheet opens. The scheduler decides which, on cost — see [ConnectorGrant]. */
     val tickedByDefault: Boolean = false,
+    /** Reached through the annuaire rather than declared to the model — see [ConnectorGrant.direct]. */
+    val viaAnnuaire: Boolean = false,
 )
