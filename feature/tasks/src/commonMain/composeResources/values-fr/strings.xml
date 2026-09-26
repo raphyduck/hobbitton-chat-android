@@ -24,10 +24,6 @@
     <string name="tasks_objective">Objectif</string>
     <string name="tasks_model">Modèle</string>
     <string name="tasks_connectors">Connecteurs</string>
-    <string name="tasks_mode_autonomous">Autonome</string>
-    <string name="tasks_mode_interactive">Interactif</string>
-    <string name="tasks_mode_hint_autonomous">Tourne seule. L\'accès shell est refusé : personne n\'est là pour répondre à une approbation.</string>
-    <string name="tasks_mode_hint_interactive">Vous la suivez et répondez à ses approbations.</string>
     <string name="tasks_launch">Lancer</string>
     <string name="tasks_cancel">Annuler</string>
     <string name="tasks_settings_title">Moteur</string>

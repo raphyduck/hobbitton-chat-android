@@ -52,7 +52,9 @@ class GlobalProfileOnMissionsTest {
         val body = when {
             // `launch` reads the scheduler's connector catalogue to build the session's permission
             // rules, so a mock that serves a launch has to answer this too.
-            request.url.encodedPath == "/mcp" -> connectorCatalogue()
+            // …and records the session's scope with the same scheduler (D-071), on the same route.
+            request.url.encodedPath == "/mcp" ->
+                if ("\"perimetre\"" in (request.body as TextContent).text) scopeFrame() else connectorCatalogue()
             request.url.encodedPath.endsWith("/message") -> messageJson
             else -> sessionJson
         }
@@ -62,6 +64,13 @@ class GlobalProfileOnMissionsTest {
     private fun connectorCatalogue(): String {
         val payload = """{"connecteurs":{"memoire":{"outils":["memoire_lire"],""" +
             """"refuse_si_autonome":false}},"socle":{"todowrite":"allow"}}"""
+        return """{"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":${
+            JsonPrimitive(payload)
+        }}]}}"""
+    }
+
+    private fun scopeFrame(): String {
+        val payload = """{"session":"ses_1","connecteurs":[],"enregistre":true}"""
         return """{"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":${
             JsonPrimitive(payload)
         }}]}}"""

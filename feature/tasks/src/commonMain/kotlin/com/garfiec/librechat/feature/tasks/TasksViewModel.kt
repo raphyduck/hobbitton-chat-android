@@ -315,7 +315,6 @@ class TasksViewModel(
     fun launch(
         objective: String,
         connectors: List<String>,
-        autonomous: Boolean,
         model: EngineModelRef? = null,
     ) {
         viewModelScope.launch {
@@ -324,7 +323,6 @@ class TasksViewModel(
                 repository.launch(
                     objective,
                     connectors,
-                    autonomous = autonomous,
                     model = model,
                 )
             }
