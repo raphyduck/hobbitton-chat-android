@@ -113,8 +113,10 @@ class ArtifactIsolationTest {
     fun `an office html preview is sandboxed the same way`() {
         val host = ArtifactWebContent.buildOfficePreviewHtml("<b>doc</b>", "html", isDarkTheme = false)
         assertTrue(host.contains("""<iframe sandbox="allow-scripts" srcdoc="""))
-        val docx = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        assertEquals(host, ArtifactWebContent.buildHtml(host, docx, isDarkTheme = false))
+        // The preview MIME the office card hands over, not the document's own: only that one
+        // takes the pass-through branch of buildHtml.
+        val preview = ArtifactType.DEFAULT_OFFICE_PREVIEW_MIME
+        assertEquals(host, ArtifactWebContent.buildHtml(host, preview, isDarkTheme = false))
     }
 
     @Test
