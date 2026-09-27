@@ -72,6 +72,12 @@ class EngineAuthPlugin(
          * the request names.
          */
         var authority: (EngineAccess) -> String = { it.baseUrl }
+
+        /** Both halves from the one portal session — what every client of the app does. */
+        fun bearerFrom(source: PortalBearerSource) {
+            bearer = { source.bearer() }
+            renew = { source.renew() }
+        }
     }
 
     companion object : HttpClientPlugin<Config, EngineAuthPlugin> {
@@ -122,6 +128,19 @@ class EngineAuthPlugin(
             }
         }
     }
+}
+
+/**
+ * What the HTTP layer needs from the portal session: the bearer to present, and a forced renewal
+ * for when the proxy turns it away. Implemented by `PortalSession` (`:core:data`), the one holder of
+ * the portal's tokens, which the engine's and the scheduler's clients both read.
+ */
+interface PortalBearerSource {
+    /** The bearer to present, renewed first if it is spent. Null: go through the portal. */
+    suspend fun bearer(): String?
+
+    /** Forces a renewal. Null when the person has to go through the portal again. */
+    suspend fun renew(): String?
 }
 
 /**

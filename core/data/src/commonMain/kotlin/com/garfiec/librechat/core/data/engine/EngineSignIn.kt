@@ -1,6 +1,7 @@
 package com.garfiec.librechat.core.data.engine
 
 import co.touchlab.kermit.Logger
+import com.garfiec.librechat.core.data.portal.PortalSession
 import com.garfiec.librechat.core.network.engine.EngineAccess
 import com.garfiec.librechat.core.network.engine.auth.EngineAuthorizationAttempt
 import com.garfiec.librechat.core.network.engine.auth.EngineOAuthEndpoints
@@ -16,7 +17,7 @@ import com.garfiec.librechat.core.network.engine.auth.generateStateToken
  *
  * Everything downstream of it existed and was tested: PKCE, the pushed authorization request, the
  * callback parser, the code exchange, the token store, the renewal. Nothing **called**
- * them. [EngineSessionManager.onAuthorized] had no caller in the whole application, and neither did
+ * them. [PortalSession.onAuthorized] had no caller in the whole application, and neither did
  * `pushAuthorizationRequest`, `authorizationUrl` or `parseCallbackUri` outside their own unit
  * tests. The app could therefore renew a token it had no way of ever obtaining.
  *
@@ -48,7 +49,7 @@ class EngineSignIn(
      */
     private val access: suspend () -> EngineAccess?,
     private val tokens: EngineTokenClient,
-    private val sessions: EngineSessionManager,
+    private val sessions: PortalSession,
     /**
      * La boîte aux lettres du lien profond. Une instance, pas une fabrique : le point d'entrée de
      * la plateforme y dépose, ce tour y relève, et deux instances feraient deux boîtes dont l'une

@@ -1,5 +1,6 @@
 package com.garfiec.librechat.core.data.engine
 
+import com.garfiec.librechat.core.data.portal.PortalSession
 import com.garfiec.librechat.core.network.engine.EngineAccess
 import com.garfiec.librechat.core.network.engine.EngineTokenStore
 import com.garfiec.librechat.core.network.engine.EngineTokens
@@ -127,7 +128,7 @@ class EngineSignInTest {
         return EngineSignIn(
             access = { engine },
             tokens = tokens,
-            sessions = EngineSessionManager(
+            sessions = PortalSession(
                 store = store,
                 client = tokens,
                 endpoints = { endpoints },
