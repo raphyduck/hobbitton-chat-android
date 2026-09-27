@@ -20,15 +20,18 @@ class AuthInterceptorPlugin private constructor(
         lateinit var tokenManager: TokenManager
 
         /**
-         * Resolves the configured LibreChat server base URL. When set, the
-         * Authorization header is attached ONLY to requests whose host matches
-         * the base URL host — so a presigned absolute URL fetch to a third-party
-         * CDN (S3/CloudFront, e.g. file download-url) never leaks the session
-         * bearer token to that host. Null disables host-scoping (attach to every
-         * non-auth-path request), preserving legacy behavior for callers/tests
-         * that don't wire a provider.
+         * Resolves the configured LibreChat server base URL. The Authorization header is attached
+         * ONLY to requests whose scheme, host and port match it — so a presigned absolute URL
+         * fetch to a third-party CDN (S3/CloudFront, e.g. file download-url) never leaks the
+         * session bearer token to that host, and neither does a same-host `http://` or other-port
+         * URL the server hands back (finding M3, 26/09/2026).
          *
-         * The rule itself lives in `HostScoping.kt` (`isSameHostAsServer`), shared with the
+         * Fail-closed: with no provider and no [RequestIdentity] snapshot the server is unknown, and
+         * a request whose server can't be established carries no bearer. Until 26/09/2026 a null
+         * provider meant « attach everywhere »; the production clients all wire one, so only tests
+         * ever relied on that, and they now say which server they mean.
+         *
+         * The rule itself lives in `HostScoping.kt` (`isSameServerAuthority`), shared with the
          * gateway-header plugin so the two can't drift onto different definitions of "same server".
          */
         var serverUrlProvider: ServerUrlProvider? = null
@@ -64,7 +67,7 @@ class AuthInterceptorPlugin private constructor(
             scope.requestPipeline.intercept(HttpRequestPipeline.State) {
                 val snapshot = context.attributes.getOrNull(RequestIdentityKey)
                 val serverBaseUrl = snapshot?.baseUrl ?: plugin.serverUrlProvider?.getBaseUrl()
-                if (!isSkipPath(context.url) && isSameHostAsServer(context.url.host, serverBaseUrl)) {
+                if (!isSkipPath(context.url) && isSameServerAuthority(context.url, serverBaseUrl)) {
                     // Explicit branch (not `?:`): a snapshot whose bearer is null must attach
                     // nothing — a pending add-account probe before sign-in has no token yet, and
                     // falling through to the live cache would send the ACTIVE account's bearer to
@@ -88,13 +91,13 @@ class AuthInterceptorPlugin private constructor(
                     return@intercept originalCall
                 }
 
-                // Host-scope the refresh-and-reattach exactly like the build-phase
-                // attach: never refresh a token and re-send it to a foreign host
-                // (e.g. a presigned CDN URL). For a non-base host, pass the
-                // original 401 straight through with no token on the retry.
+                // Scope the refresh-and-reattach exactly like the build-phase attach: never
+                // refresh a token and re-send it to a foreign authority (a presigned CDN URL, a
+                // same-host `http://` downgrade). For a non-server authority, pass the original 401
+                // straight through with no token on the retry.
                 val snapshot = request.attributes.getOrNull(RequestIdentityKey)
                 val serverBaseUrl = snapshot?.baseUrl ?: plugin.serverUrlProvider?.getBaseUrl()
-                if (!isSameHostAsServer(request.url.host, serverBaseUrl)) {
+                if (!isSameServerAuthority(request.url, serverBaseUrl)) {
                     return@intercept originalCall
                 }
 

@@ -37,7 +37,7 @@
     <string name="tasks_settings_password_kept">Laissez vide pour conserver celui qui est enregistré.</string>
     <string name="tasks_settings_password_required">Obligatoire la première fois.</string>
     <string name="tasks_settings_username_required">Obligatoire.</string>
-    <string name="tasks_settings_invalid_url">Doit commencer par https:// ou http://</string>
+    <string name="tasks_settings_invalid_url">Doit commencer par https:// — http:// seulement vers un hôte de votre réseau local</string>
     <string name="tasks_settings_reveal">Afficher le mot de passe</string>
     <string name="tasks_settings_advanced">À ne changer que si le portail a été configuré avec un autre identifiant de client.</string>
     <string name="tasks_settings_client_id">Identifiant de client</string>

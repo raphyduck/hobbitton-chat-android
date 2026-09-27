@@ -16,6 +16,7 @@ import com.garfiec.librechat.core.data.pricing.ModelPriceSource
 import com.garfiec.librechat.core.data.scheduler.SchedulerRepository
 import com.garfiec.librechat.core.network.api.AgentEngineApi
 import com.garfiec.librechat.core.network.api.SchedulerApi
+import com.garfiec.librechat.core.network.client.CleartextGuardPlugin
 import com.garfiec.librechat.core.network.engine.EngineAuthPlugin
 import com.garfiec.librechat.core.network.engine.EngineEventParser
 import com.garfiec.librechat.core.network.engine.EngineEventTransport
@@ -86,6 +87,8 @@ val engineModule: Module = module {
                 bearer = { sessions.bearer() }
                 renew = { sessions.renew() }
             }
+            // The Basic never rotates: in the clear to a public host once is for good (M4).
+            install(CleartextGuardPlugin)
             install(HttpTimeout) {
                 connectTimeoutMillis = 10_000
                 // A mission is not a request: the engine answers `prompt_async` at once, and every
@@ -132,7 +135,11 @@ val engineModule: Module = module {
                 access = { settings.access() }
                 bearer = { sessions.bearer() }
                 renew = { sessions.renew() }
+                // Its own address, not the engine's (M2, 26/09/2026): the plugin puts the
+                // credentials on requests to this authority only, and a blank one matches nothing.
+                authority = { it.schedulerUrl }
             }
+            install(CleartextGuardPlugin)
             install(HttpTimeout) {
                 connectTimeoutMillis = 10_000
                 // `lancer` no longer blocks for the length of a mission — it answers as soon as the
@@ -169,10 +176,35 @@ val engineModule: Module = module {
     single<RecentMissionsSource> { EngineRecentMissionsSource(api = get(), scheduler = get(), settings = get()) }
 
     /**
+     * A **fourth** client, bare, for the portal (finding M1, 26/09/2026).
+     *
      * The OAuth client talks to the **portal**, not the engine, and carries none of the engine's
-     * credentials: mixing them would put the engine's Basic on every token request.
+     * credentials: mixing them would put the engine's Basic on every token request. Until
+     * 26/09/2026 it rode the chat's client instead — the one with LibreChat's bearer, the gateway
+     * headers, the account-switch barrier and the retry ladder. On a deployment where the portal
+     * and LibreChat share a host, the chat's session bearer went along to the portal's token
+     * endpoint, one authority's secret handed to another; and every token round waited behind the
+     * chat account being ready, a coupling of two authorities the design says are separate.
+     *
+     * So: content negotiation, the cleartext guard, timeouts, and nothing that knows an identity.
+     * No response validator either — `EngineTokenClient` reads the status itself, so a portal
+     * refusal (`invalid_grant`) still arrives as `EngineGrantRefused` and not as a transient error
+     * that would keep a dead session alive. Redirects stay on for discovery only: the two form
+     * POSTs carry the verifier and the refresh token in their body, and Ktor never re-sends a
+     * POST across a redirect.
      */
-    single { EngineTokenClient(client = get(), clientId = "hobbitton-chat-android") }
+    single(KoinQualifiers.Portal) {
+        HttpClient(get<HttpClientEngineFactory<*>>()) {
+            install(ContentNegotiation) { json(get<Json>()) }
+            install(CleartextGuardPlugin)
+            install(HttpTimeout) {
+                connectTimeoutMillis = 10_000
+                requestTimeoutMillis = 15_000
+            }
+        }
+    }
+
+    single { EngineTokenClient(client = get(KoinQualifiers.Portal), clientId = "hobbitton-chat-android") }
 
     single {
         EngineSessionManager(

@@ -69,5 +69,5 @@ actual val dataPlatformModule: Module = module {
     }
 
     // --- Switch Cache Cleaner (account switch, non-partitionable caches) ---
-    single<SwitchCacheCleaner> { AndroidSwitchCacheCleaner() }
+    single<SwitchCacheCleaner> { AndroidSwitchCacheCleaner(androidContext()) }
 }

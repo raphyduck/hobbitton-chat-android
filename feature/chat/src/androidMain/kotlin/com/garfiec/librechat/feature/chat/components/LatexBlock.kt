@@ -1,12 +1,8 @@
 package com.garfiec.librechat.feature.chat.components
 
-import android.annotation.SuppressLint
 import android.graphics.Color
-import android.net.http.SslError
 import android.view.ViewGroup
-import android.webkit.SslErrorHandler
 import android.webkit.WebView
-import android.webkit.WebViewClient
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -19,11 +15,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import co.touchlab.kermit.Logger
+import com.garfiec.librechat.feature.chat.components.artifact.ArtifactWebContent
+import com.garfiec.librechat.feature.chat.components.artifact.CdnAssets
+import com.garfiec.librechat.feature.chat.components.artifact.WebResourcePolicy
+import com.garfiec.librechat.feature.chat.components.web.LockedDownWebViewClient
+import com.garfiec.librechat.feature.chat.components.web.applyLockedDownSettings
+import com.garfiec.librechat.feature.chat.components.web.loadIsolatedDocument
 
 /**
  * Escapes a LaTeX string for safe embedding inside a JavaScript string literal.
@@ -50,8 +52,20 @@ private fun argbToCss(argb: Int): String {
     return "rgba($r, $g, $b, $a)"
 }
 
+/** Only the pinned KaTeX script, stylesheet and fonts from jsdelivr. */
+private val KATEX_POLICY = WebResourcePolicy(setOf(CdnAssets.JSDELIVR_HOST), anyHttps = false)
+
+private const val KATEX_CSP = "default-src 'none'; script-src 'unsafe-inline' https://cdn.jsdelivr.net; " +
+    "style-src 'unsafe-inline' https://cdn.jsdelivr.net; font-src https://cdn.jsdelivr.net; img-src data:; " +
+    "${ArtifactWebContent.CSP_NO_FRAMES} form-action 'none'; base-uri 'none'; object-src 'none';"
+
 /**
  * Builds the minimal HTML page that loads KaTeX from CDN and renders a LaTeX expression.
+ *
+ * `trust: false` (review C4, 26/09/2026): with `trust` on, `\href`/`\url` produce links of any
+ * scheme and `\htmlStyle`/`\htmlData` emit attributes, from an element nobody suspects — an
+ * equation in a reply. KaTeX renders those commands as errors instead, which is what the web
+ * client does too.
  *
  * @param escapedLatex The LaTeX string already escaped via [escapeForJs].
  * @param displayMode true for block/display mode (centered, large), false for inline mode.
@@ -62,9 +76,9 @@ private fun buildKatexHtml(escapedLatex: String, displayMode: Boolean, textColor
 <!DOCTYPE html>
 <html>
 <head>
+<meta http-equiv="Content-Security-Policy" content="$KATEX_CSP">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'unsafe-inline' https://cdn.jsdelivr.net; font-src https://cdn.jsdelivr.net; img-src data:;">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.css">
+${CdnAssets.KATEX_STYLE.stylesheetTag()}
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -83,14 +97,14 @@ private fun buildKatexHtml(escapedLatex: String, displayMode: Boolean, textColor
 </head>
 <body>
 <div id="math"></div>
-<script src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.js"></script>
+${CdnAssets.KATEX_SCRIPT.scriptTag()}
 <script>
 try {
   katex.render("$escapedLatex", document.getElementById("math"), {
     displayMode: $displayMode,
     throwOnError: false,
     strict: false,
-    trust: true
+    trust: false
   });
 } catch(e) {
   document.getElementById("math").textContent = "$escapedLatex";
@@ -156,12 +170,12 @@ private fun NativeLatexInline(
 
 // ── KaTeX (WebView) renderers ──────────────────────────────────────
 
-@SuppressLint("SetJavaScriptEnabled")
 @Composable
 private fun KatexLatexBlock(
     latex: String,
     modifier: Modifier,
 ) {
+    val uriHandler = LocalUriHandler.current
     val textColorArgb = MaterialTheme.colorScheme.onSurface.toArgb()
     val textColorCss = remember(textColorArgb) { argbToCss(textColorArgb) }
     val escapedLatex = remember(latex) { escapeForJs(latex) }
@@ -180,49 +194,13 @@ private fun KatexLatexBlock(
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                 )
                 setBackgroundColor(Color.TRANSPARENT)
-                settings.javaScriptEnabled = true
-                settings.allowFileAccess = false
-                settings.allowContentAccess = false
-                webViewClient = object : WebViewClient() {
-                    override fun onPageFinished(view: WebView, url: String?) {
-                        // Read the content height from document.title (set by JS)
-                        view.evaluateJavascript("document.body.scrollHeight") { heightStr ->
-                            val h = heightStr?.toIntOrNull()
-                            if (h != null && h > 0) {
-                                val density = view.resources.displayMetrics.density
-                                val layoutParams = view.layoutParams
-                                layoutParams.height = (h * density).toInt()
-                                view.layoutParams = layoutParams
-                            }
-                        }
-                    }
-
-                    override fun onReceivedSslError(
-                        view: WebView?,
-                        handler: SslErrorHandler?,
-                        error: SslError?,
-                    ) {
-                        handler?.cancel()
-                        Logger.w { "SSL error in LaTeX block WebView: ${error?.primaryError}" }
-                    }
-                }
-                loadDataWithBaseURL(
-                    "https://cdn.jsdelivr.net",
-                    html,
-                    "text/html",
-                    "UTF-8",
-                    null,
-                )
+                applyLockedDownSettings()
+                webViewClient = KatexWebViewClient(uriHandler::openUri, surface = "LaTeX block")
+                loadIsolatedDocument(html)
             }
         },
         update = { webView ->
-            webView.loadDataWithBaseURL(
-                "https://cdn.jsdelivr.net",
-                html,
-                "text/html",
-                "UTF-8",
-                null,
-            )
+            webView.loadIsolatedDocument(html)
         },
         onRelease = { webView ->
             webView.stopLoading()
@@ -231,12 +209,12 @@ private fun KatexLatexBlock(
     )
 }
 
-@SuppressLint("SetJavaScriptEnabled")
 @Composable
 private fun KatexLatexInline(
     latex: String,
     modifier: Modifier,
 ) {
+    val uriHandler = LocalUriHandler.current
     val textColorArgb = MaterialTheme.colorScheme.onSurface.toArgb()
     val textColorCss = remember(textColorArgb) { argbToCss(textColorArgb) }
     val escapedLatex = remember(latex) { escapeForJs(latex) }
@@ -253,54 +231,41 @@ private fun KatexLatexInline(
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                 )
                 setBackgroundColor(Color.TRANSPARENT)
-                settings.javaScriptEnabled = true
-                settings.allowFileAccess = false
-                settings.allowContentAccess = false
-                webViewClient = object : WebViewClient() {
-                    override fun onPageFinished(view: WebView, url: String?) {
-                        view.evaluateJavascript("document.body.scrollHeight") { heightStr ->
-                            val h = heightStr?.toIntOrNull()
-                            if (h != null && h > 0) {
-                                val density = view.resources.displayMetrics.density
-                                val layoutParams = view.layoutParams
-                                layoutParams.height = (h * density).toInt()
-                                view.layoutParams = layoutParams
-                            }
-                        }
-                    }
-
-                    override fun onReceivedSslError(
-                        view: WebView?,
-                        handler: SslErrorHandler?,
-                        error: SslError?,
-                    ) {
-                        handler?.cancel()
-                        Logger.w { "SSL error in LaTeX inline WebView: ${error?.primaryError}" }
-                    }
-                }
-                loadDataWithBaseURL(
-                    "https://cdn.jsdelivr.net",
-                    html,
-                    "text/html",
-                    "UTF-8",
-                    null,
-                )
+                applyLockedDownSettings()
+                webViewClient = KatexWebViewClient(uriHandler::openUri, surface = "LaTeX inline")
+                loadIsolatedDocument(html)
             }
         },
         update = { webView ->
-            webView.loadDataWithBaseURL(
-                "https://cdn.jsdelivr.net",
-                html,
-                "text/html",
-                "UTF-8",
-                null,
-            )
+            webView.loadIsolatedDocument(html)
         },
         onRelease = { webView ->
             webView.stopLoading()
             webView.destroy()
         },
     )
+}
+
+/**
+ * The locked-down client both KaTeX views share, plus the height read-back that sizes the view to
+ * its content once the page has finished rendering.
+ */
+private class KatexWebViewClient(
+    openExternally: (String) -> Unit,
+    surface: String,
+) : LockedDownWebViewClient(policy = { KATEX_POLICY }, openExternally = openExternally, surface = surface) {
+
+    override fun onPageFinished(view: WebView, url: String?) {
+        view.evaluateJavascript("document.body.scrollHeight") { heightStr ->
+            val h = heightStr?.toIntOrNull()
+            if (h != null && h > 0) {
+                val density = view.resources.displayMetrics.density
+                val layoutParams = view.layoutParams
+                layoutParams.height = (h * density).toInt()
+                view.layoutParams = layoutParams
+            }
+        }
+    }
 }
 
 // ── Public API ──────────────────────────────────────────────────────

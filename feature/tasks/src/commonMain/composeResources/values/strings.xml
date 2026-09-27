@@ -37,7 +37,7 @@
     <string name="tasks_settings_password_kept">Leave empty to keep the saved one.</string>
     <string name="tasks_settings_password_required">Required the first time.</string>
     <string name="tasks_settings_username_required">Required.</string>
-    <string name="tasks_settings_invalid_url">Must start with https:// or http://</string>
+    <string name="tasks_settings_invalid_url">Must start with https:// — http:// only for a host on your own network</string>
     <string name="tasks_settings_reveal">Show the password</string>
     <string name="tasks_settings_advanced">Only change this if the portal was set up with another client id.</string>
     <string name="tasks_settings_client_id">Client id</string>

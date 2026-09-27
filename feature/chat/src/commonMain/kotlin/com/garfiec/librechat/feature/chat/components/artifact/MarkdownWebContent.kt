@@ -3,8 +3,22 @@ package com.garfiec.librechat.feature.chat.components.artifact
 /**
  * Builds an HTML page that renders Markdown content using marked.js (GFM)
  * with highlight.js for code syntax highlighting.
+ *
+ * The Markdown reaches the page as a base64 literal ([ArtifactWebContent.base64Literal]), never
+ * spliced into a template string: an escape that only covered backslashes, backticks and `$`
+ * left a closing script tag inside the content free to end the `<script>` element at the HTML
+ * level (review C3, 26/09/2026). The HTML marked produces is passed through DOMPurify before it
+ * touches the DOM, so raw HTML in the Markdown renders as inert markup rather than as script —
+ * a "Markdown" artifact reads as text to the user and must behave like one.
  */
 object MarkdownWebContent {
+
+    /** jsdelivr for the pinned libraries; any `https:` host for the images the Markdown embeds. */
+    val RESOURCE_POLICY = WebResourcePolicy(setOf(CdnAssets.JSDELIVR_HOST), anyHttps = true)
+
+    private const val CSP = "default-src 'none'; script-src 'unsafe-inline' https://cdn.jsdelivr.net; " +
+        "style-src 'unsafe-inline' https://cdn.jsdelivr.net; img-src data: blob: https:; " +
+        "${ArtifactWebContent.CSP_NO_FRAMES} form-action 'none'; base-uri 'none'; object-src 'none';"
 
     fun buildHtml(markdownContent: String, isDarkTheme: Boolean, inline: Boolean = false): String {
         val bgColor = if (isDarkTheme) "#1C1B1F" else "#FFFBFE"
@@ -12,20 +26,17 @@ object MarkdownWebContent {
         val codeBg = if (isDarkTheme) "#2B2930" else "#F3EDF7"
         val borderColor = if (isDarkTheme) "#48464C" else "#CAC4D0"
         val linkColor = if (isDarkTheme) "#D0BCFF" else "#6750A4"
-        val hlTheme = if (isDarkTheme) "github-dark" else "github"
+        val hlStyle = if (isDarkTheme) CdnAssets.HLJS_STYLE_DARK else CdnAssets.HLJS_STYLE_LIGHT
         val bodyPadding = if (inline) "8px" else "16px"
-        val escapedContent = markdownContent
-            .replace("\\", "\\\\")
-            .replace("`", "\\`")
-            .replace("$", "\\$")
+        val contentLiteral = ArtifactWebContent.base64Literal(markdownContent)
 
         return """
             <!DOCTYPE html>
             <html>
             <head>
+                <meta http-equiv="Content-Security-Policy" content="$CSP">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'unsafe-inline' https://cdn.jsdelivr.net; img-src data: blob: https:;">
-                <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11/styles/$hlTheme.min.css">
+                ${hlStyle.stylesheetTag()}
                 <style>
                     html, body { max-width: 100%; overflow-x: hidden; }
                     body {
@@ -104,24 +115,16 @@ object MarkdownWebContent {
             </head>
             <body>
                 <div id="content"></div>
-                <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-                <script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/core.min.js"></script>
-                <script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/common.min.js"></script>
+                ${CdnAssets.MARKED.scriptTag()}
+                ${CdnAssets.DOMPURIFY.scriptTag()}
+                ${CdnAssets.HLJS_CORE.scriptTag()}
+                ${CdnAssets.HLJS_COMMON.scriptTag()}
                 <script>
-                    marked.setOptions({
-                        gfm: true,
-                        breaks: true,
-                        highlight: function(code, lang) {
-                            if (lang && hljs.getLanguage(lang)) {
-                                try { return hljs.highlight(code, { language: lang }).value; }
-                                catch (e) {}
-                            }
-                            try { return hljs.highlightAuto(code).value; }
-                            catch (e) { return code; }
-                        }
-                    });
-                    const md = `$escapedContent`;
-                    document.getElementById('content').innerHTML = marked.parse(md);
+                    marked.setOptions({ gfm: true, breaks: true });
+                    const md = ${ArtifactWebContent.decodeBase64Js(contentLiteral)};
+                    const html = DOMPurify.sanitize(marked.parse(md), { USE_PROFILES: { html: true } });
+                    document.getElementById('content').innerHTML = html;
+                    try { hljs.highlightAll(); } catch (e) { /* highlighting is decoration */ }
                 </script>
             </body>
             </html>

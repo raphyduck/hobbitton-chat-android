@@ -234,6 +234,95 @@ class SchedulerApiTest {
         assertThat(failure.message).contains("timeout")
     }
 
+    // Whatever comes back, the caller sees an EngineHttpException and nothing else (review C10).
+
+    @Test
+    fun `a gateway failure whose reason is not text is still reported as one`() = runTest {
+        val api = api(MockEngine {
+            respond(
+                content = envelope("""{"erreur":{"code":"timeout","detail":"GET /health"}}"""),
+                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+            )
+        })
+
+        val failure = assertFailsWith<EngineHttpException> { api.consumption() }
+        assertThat(failure.message).contains("timeout")
+    }
+
+    @Test
+    fun `a tool that answers prose instead of JSON is a scheduler failure`() = runTest {
+        val api = api(MockEngine {
+            respond(
+                content = envelope("Aucune donnée pour cette période."),
+                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+            )
+        })
+
+        assertFailsWith<EngineHttpException> { api.consumption() }
+        assertFailsWith<EngineHttpException> { api.state() }
+    }
+
+    @Test
+    fun `a tool that answers a JSON value that is not an object is a scheduler failure`() = runTest {
+        val api = api(MockEngine {
+            respond(
+                content = envelope("[1, 2, 3]"),
+                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+            )
+        })
+
+        assertFailsWith<EngineHttpException> { api.providers() }
+    }
+
+    @Test
+    fun `an object of the wrong shape is a scheduler failure, not a decoding crash`() = runTest {
+        val api = api(MockEngine {
+            respond(
+                content = envelope("""{"missions":"none"}"""),
+                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+            )
+        })
+
+        assertFailsWith<EngineHttpException> { api.state() }
+    }
+
+    @Test
+    fun `an envelope without a result is a scheduler failure`() = runTest {
+        val api = api(MockEngine {
+            respond(
+                content = """{"jsonrpc":"2.0","id":1}""",
+                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+            )
+        })
+
+        assertFailsWith<EngineHttpException> { api.state() }
+    }
+
+    @Test
+    fun `a body that is not JSON at all is a scheduler failure`() = runTest {
+        val api = api(MockEngine {
+            respond(
+                content = "<html><body>Maintenance</body></html>",
+                headers = headersOf(HttpHeaders.ContentType, ContentType.Text.Html.toString()),
+            )
+        })
+
+        assertFailsWith<EngineHttpException> { api.state() }
+    }
+
+    @Test
+    fun `a protocol error whose message is missing is still reported`() = runTest {
+        val api = api(MockEngine {
+            respond(
+                content = """{"jsonrpc":"2.0","id":1,"error":"broken"}""",
+                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+            )
+        })
+
+        val failure = assertFailsWith<EngineHttpException> { api.state() }
+        assertThat(failure.message).contains("broken")
+    }
+
     @Test
     fun `the period is sent as a tool argument`() = runTest {
         lateinit var sent: String

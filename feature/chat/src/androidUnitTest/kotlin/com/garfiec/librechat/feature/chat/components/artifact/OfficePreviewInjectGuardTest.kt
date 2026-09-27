@@ -16,8 +16,10 @@ class OfficePreviewInjectGuardTest {
     @Test
     fun `html format injects content verbatim`() {
         val html = ArtifactWebContent.buildOfficePreviewHtml(payload, "html", isDarkTheme = false)
-        // The raw tags survive (rendered live) — this is the trusted sanitized-HTML path.
-        assertTrue(html.contains(payload))
+        // The raw tags survive (rendered live) — this is the trusted sanitized-HTML path. Since
+        // review C1 they live inside the sandboxed frame's document, not in the host page.
+        assertTrue(SandboxHostSupport.sandboxedDocument(html).contains(payload))
+        assertFalse(html.contains(payload))
     }
 
     @Test

@@ -384,10 +384,18 @@ class ChatViewModelUploadRoutingTest {
             provider.complete(Result.Success("ollama"))
             runCurrent()
 
-            // A share is auto-routed and never prompted, but it is not exempt from resolving the
+            // A share is never routed by the preference, but it is not exempt from resolving the
             // provider: routing against a null one silently takes the provider path for every
             // shared document, so the same file behaves differently depending on whether it
-            // arrived through the share sheet or the "+" menu a second later.
+            // arrived through the share sheet or the "+" menu a second later. And it is always
+            // confirmed (review C6, 26/09/2026): another app's initiative uploads nothing until
+            // the user has seen what arrived and pressed Attach.
+            assertThat(captured.isCaptured).isFalse()
+            val pending = vm.uiState.value.composer.pendingUploadRouting
+            assertThat(pending).isNotNull()
+            assertThat(pending!!.files.map { it.route }).containsExactly(UploadRoute.TEXT)
+
+            vm.confirmPendingUploadRouting()
             assertThat(captured.captured.map { it.route }).containsExactly(UploadRoute.TEXT)
         }
     }
@@ -418,6 +426,10 @@ class ChatViewModelUploadRoutingTest {
             vm.onModelSelected(EndpointConstants.AGENTS, AGENT_ID)
             runCurrent()
 
+            // Seeded and resolved: the share is staged for the user's Attach, not uploaded (C6).
+            assertThat(captured.isCaptured).isFalse()
+            assertThat(vm.uiState.value.composer.pendingUploadRouting).isNotNull()
+            vm.confirmPendingUploadRouting()
             assertThat(captured.captured.map { it.route }).containsExactly(UploadRoute.TEXT)
         }
     }
@@ -444,7 +456,8 @@ class ChatViewModelUploadRoutingTest {
             runCurrent()
             assertThat(vm.uiState.value.arePicksUnsettled).isTrue()
 
-            // The share's intake completes; the picker's is still waiting on the preference.
+            // The share's intake completes and stages its batch for the user's Attach (C6); the
+            // picker's is still waiting on the preference.
             provider.complete(Result.Success("ollama"))
             runCurrent()
 
@@ -454,6 +467,11 @@ class ChatViewModelUploadRoutingTest {
 
             preference.emit(UploadRoutingMode.AUTO)
             runCurrent()
+            // The picker's batch is attached; the shared one still waits on the sheet.
+            assertThat(vm.uiState.value.arePicksUnsettled).isTrue()
+            assertThat(vm.uiState.value.composer.pendingUploadRouting).isNotNull()
+
+            vm.confirmPendingUploadRouting()
             assertThat(vm.uiState.value.arePicksUnsettled).isFalse()
         }
     }

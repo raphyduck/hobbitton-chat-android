@@ -41,9 +41,24 @@ class EngineSettingsValidationTest {
     }
 
     @Test
-    fun `plain http is allowed`() {
+    fun `plain http is allowed towards a private host`() {
         // A laptop pointed at the engine on 127.0.0.1 has no certificate and needs none.
         assertTrue(validate(baseUrl = "http://127.0.0.1:4096").isEmpty())
+        assertTrue(validate(baseUrl = "http://192.168.1.20:4096", issuerUrl = "http://auth.lan").isEmpty())
+        assertTrue(validate(schedulerUrl = "http://[fd00::1]:8080").isEmpty())
+    }
+
+    @Test
+    fun `plain http towards a public host is refused, field by field`() {
+        // The Basic and the portal's bearer go on every request to these addresses (F5): in the
+        // clear across the internet they are anyone's. Each address is judged on its own so the
+        // form points at the one to fix.
+        assertEquals(setOf(EngineSettingsField.BASE_URL), validate(baseUrl = "http://agent.example.com"))
+        assertEquals(setOf(EngineSettingsField.ISSUER_URL), validate(issuerUrl = "http://auth.example.com"))
+        assertEquals(
+            setOf(EngineSettingsField.SCHEDULER_URL),
+            validate(schedulerUrl = "http://203.0.113.10:8080"),
+        )
     }
 
     @Test

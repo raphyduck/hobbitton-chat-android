@@ -1,5 +1,6 @@
 package com.garfiec.librechat.core.data.engine
 
+import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.data.datastore.GlobalProfileSource
 import com.garfiec.librechat.core.model.engine.CreateEngineSessionRequest
 import com.garfiec.librechat.core.model.engine.EngineMessage
@@ -406,6 +407,12 @@ internal fun lastActivityOf(session: EngineSession, messages: List<EngineMessage
  * `shell` is refused outright to an autonomous mission — but that verdict comes from the catalogue
  * (`refusedWhenAutonomous`), not from a constant here. Nobody watches an autonomous mission, and an
  * approval prompt nobody answers is not a safeguard.
+ *
+ * One guard the catalogue does not get to override (review C11, 26/09/2026): a pattern is taken
+ * only when it names one tool. `*`, an empty string or anything carrying a wildcard, from a
+ * connector's `outils` or from the `socle`, would re-open everything the opening `*` → `deny` just
+ * closed while the screen still showed only the ticked connectors. Such a pattern is logged and
+ * skipped; it is a fault in the scheduler's table, not a grant.
  */
 fun permissionsFor(
     catalogue: ConnectorCatalogue,
@@ -421,14 +428,22 @@ fun permissionsFor(
         // avoid.
         .filter { (_, grant) -> grant.direct }
 
-    val rules = mutableListOf(EnginePermissionRule(permission = "*", action = "deny"))
+    val rules = mutableListOf(EnginePermissionRule(permission = ANY_TOOL, action = ACTION_DENY))
     catalogue.socle.forEach { (tool, action) ->
-        rules += EnginePermissionRule(permission = tool, action = action)
+        if (namesOneTool(tool)) rules += EnginePermissionRule(permission = tool, action = action)
     }
     granted.flatMap { (_, grant) -> grant.outils }
         .distinct()
-        .forEach { tool -> rules += EnginePermissionRule(permission = tool, action = "allow") }
+        .filter(::namesOneTool)
+        .forEach { tool -> rules += EnginePermissionRule(permission = tool, action = ACTION_ALLOW) }
     return rules
+}
+
+/** A concrete tool name — not blank, no `*` or `?` — the only shape a catalogue pattern may take. */
+private fun namesOneTool(pattern: String): Boolean {
+    val concrete = pattern.isNotBlank() && '*' !in pattern && '?' !in pattern
+    if (!concrete) Logger.w { "permissionsFor: ignored a catalogue pattern that is not one tool name" }
+    return concrete
 }
 
 /**

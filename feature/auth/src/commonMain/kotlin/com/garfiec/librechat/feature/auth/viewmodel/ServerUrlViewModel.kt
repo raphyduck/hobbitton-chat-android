@@ -3,6 +3,7 @@ package com.garfiec.librechat.feature.auth.viewmodel
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.garfiec.librechat.core.common.network.CleartextPolicy
 import com.garfiec.librechat.core.common.result.Result
 import com.garfiec.librechat.core.data.datastore.ServerDataStore
 import com.garfiec.librechat.core.data.repository.AccountSwitcher
@@ -192,8 +193,16 @@ class ServerUrlViewModel(
             return
         }
 
-        // Show warning dialog if user enters an HTTP URL
         if (url.startsWith("http://", ignoreCase = true)) {
+            // Plain http is for a server on the user's own network and nothing else (M4,
+            // 26/09/2026): towards a public host it would put the password, both tokens and the
+            // gateway headers on the wire in the clear, over a path nobody controls. Refused
+            // outright — no dialog, because there is no informed « yes » to that. A private host
+            // keeps the warning dialog: the risk there is real but bounded to the LAN.
+            if (!CleartextPolicy.isPermitted(url)) {
+                _uiState.value = _uiState.value.copy(error = CLEARTEXT_REFUSED)
+                return
+            }
             _uiState.value = _uiState.value.copy(showHttpWarning = true)
             return
         }
@@ -330,5 +339,11 @@ class ServerUrlViewModel(
             is Result.Loading -> Unit
         }
         return result
+    }
+
+    private companion object {
+        const val CLEARTEXT_REFUSED =
+            "Plain http:// is only accepted for a server on your own network (localhost, .local, or a private " +
+                "address such as 192.168.x.x). Use https:// for this server."
     }
 }

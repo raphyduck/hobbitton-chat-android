@@ -2,15 +2,12 @@ package com.garfiec.librechat.feature.chat.components.artifact
 
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
-import android.net.http.SslError
 import android.view.MotionEvent
 import android.view.ViewGroup
-import android.webkit.SslErrorHandler
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
-import android.webkit.WebViewClient
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
@@ -20,27 +17,35 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.data.repository.ArtifactShortcutRepository
-import kotlinx.coroutines.launch
-import androidx.compose.runtime.rememberCoroutineScope
+import com.garfiec.librechat.feature.chat.components.web.LockedDownWebViewClient
+import com.garfiec.librechat.feature.chat.components.web.applyLockedDownSettings
+import com.garfiec.librechat.feature.chat.components.web.loadIsolatedDocument
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
+import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
 /**
  * Android preview surface — a `WebView` hosting the artifact's rendered HTML.
  * The shell, header, selector, and code body are shared in the common
  * `ArtifactPanel`.
+ *
+ * The WebView is locked down (review C1, 26/09/2026): opaque origin, no storage, every
+ * navigation refused, fetches limited to what [ArtifactWebContent.resourcePolicy] names for the
+ * artifact's type. Links the user taps go out through the root `SafeUriHandler`.
  */
-@SuppressLint("SetJavaScriptEnabled", "ClickableViewAccessibility")
+@SuppressLint("ClickableViewAccessibility")
 @Composable
 actual fun ArtifactPreviewSurface(
     content: String,
@@ -50,6 +55,10 @@ actual fun ArtifactPreviewSurface(
 ) {
     val bgColor = MaterialTheme.colorScheme.surface.toArgb()
     var isLoading by remember { mutableStateOf(true) }
+    val uriHandler = LocalUriHandler.current
+    // Read at request time by the client: the surface can be handed another type without
+    // being recreated (version switching), and the policy must follow the document shown.
+    val policy by rememberUpdatedState(ArtifactWebContent.resourcePolicy(type))
 
     val html = remember(content, type, isDarkTheme) {
         ArtifactWebContent.buildHtml(content, type, isDarkTheme, inline = false)
@@ -81,18 +90,19 @@ actual fun ArtifactPreviewSurface(
                         false // let the WebView handle the event normally
                     }
                     setBackgroundColor(bgColor)
-                    settings.javaScriptEnabled = true
-                    settings.domStorageEnabled = true
+                    applyLockedDownSettings()
                     settings.loadWithOverviewMode = true
                     settings.useWideViewPort = true
-                    settings.allowFileAccess = false
-                    settings.allowContentAccess = false
                     webChromeClient = object : WebChromeClient() {
                         override fun onProgressChanged(view: WebView?, newProgress: Int) {
                             if (newProgress >= 80) isLoading = false
                         }
                     }
-                    webViewClient = object : WebViewClient() {
+                    webViewClient = object : LockedDownWebViewClient(
+                        policy = { policy },
+                        openExternally = uriHandler::openUri,
+                        surface = "artifact",
+                    ) {
                         override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
                             isLoading = true
                         }
@@ -103,33 +113,20 @@ actual fun ArtifactPreviewSurface(
                             error: WebResourceError?,
                         ) {
                             if (request?.isForMainFrame == true) {
-                                view?.loadDataWithBaseURL(
-                                    null,
+                                view?.loadIsolatedDocument(
                                     buildErrorHtml(error?.description?.toString() ?: "Unknown error"),
-                                    "text/html",
-                                    "UTF-8",
-                                    null,
                                 )
                             }
                         }
-
-                        override fun onReceivedSslError(
-                            view: WebView?,
-                            handler: SslErrorHandler?,
-                            error: SslError?,
-                        ) {
-                            handler?.cancel()
-                            Logger.w { "SSL error in artifact WebView: ${error?.primaryError}" }
-                        }
                     }
-                    loadDataWithBaseURL("https://cdn.jsdelivr.net", html, "text/html", "UTF-8", null)
+                    loadIsolatedDocument(html)
                     loadedHtml = html
                 }
             },
             update = { webView ->
                 webView.setBackgroundColor(bgColor)
                 if (html != loadedHtml) {
-                    webView.loadDataWithBaseURL("https://cdn.jsdelivr.net", html, "text/html", "UTF-8", null)
+                    webView.loadIsolatedDocument(html)
                     loadedHtml = html
                 }
             },

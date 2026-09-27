@@ -1,7 +1,9 @@
 package com.garfiec.librechat
 
 import android.app.Application
+import co.touchlab.kermit.LogWriter
 import co.touchlab.kermit.Logger
+import co.touchlab.kermit.Severity
 import co.touchlab.kermit.platformLogWriter
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
@@ -15,7 +17,9 @@ import com.garfiec.librechat.core.common.AppInfo
 import com.garfiec.librechat.core.data.di.engineModule
 import com.garfiec.librechat.core.logging.PersistentLogWriter
 import com.garfiec.librechat.core.logging.PlatformInfo
+import com.garfiec.librechat.core.logging.RedactingLogWriter
 import com.garfiec.librechat.core.logging.logStartupHeader
+import com.garfiec.librechat.core.logging.redact.LogRedactor
 import com.garfiec.librechat.core.logging.startMainThreadWatchdog
 import com.garfiec.librechat.feature.tasks.di.tasksModule
 import com.garfiec.librechat.shared.di.sharedKoinModules
@@ -31,8 +35,22 @@ class LibreChatApplication : Application(), SingletonImageLoader.Factory {
 
     private val httpClient: HttpClient by inject()
 
+    /**
+     * Logcat, floored and scrubbed in release (finding F1, 26/09/2026). Installed before Koin so
+     * that not even a DI failure prints a raw message; its own [LogRedactor] is the same default
+     * the graph binds. Debug keeps the verbose, unredacted console it always had.
+     */
+    private val consoleWriter: LogWriter = RedactingLogWriter(
+        delegate = platformLogWriter(),
+        redactor = LogRedactor(),
+        minSeverity = if (BuildConfig.DEBUG) Severity.Verbose else Severity.Warn,
+        redact = !BuildConfig.DEBUG,
+        stackTraces = BuildConfig.DEBUG,
+    )
+
     override fun onCreate() {
         super.onCreate()
+        Logger.setLogWriters(consoleWriter)
         try {
             startKoin {
                 if (BuildConfig.DEBUG) {
@@ -60,8 +78,8 @@ class LibreChatApplication : Application(), SingletonImageLoader.Factory {
     private fun initDiagnostics() {
         val writer: PersistentLogWriter by inject()
 
-        // Preserve Logcat (platformLogWriter) and add the persistent file sink alongside it.
-        Logger.setLogWriters(platformLogWriter(), writer)
+        // Keep the (floored, scrubbed) Logcat writer and add the persistent file sink alongside it.
+        Logger.setLogWriters(consoleWriter, writer)
 
         // Capture uncaught exceptions on any thread: write a synchronous crash record, then delegate
         // to the previous handler so the process still crashes exactly as it would have.

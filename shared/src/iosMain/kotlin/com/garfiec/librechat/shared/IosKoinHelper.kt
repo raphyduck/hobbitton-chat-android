@@ -6,11 +6,15 @@ import co.touchlab.kermit.Severity
 import com.garfiec.librechat.core.common.AppInfo
 import com.garfiec.librechat.core.logging.PersistentLogWriter
 import com.garfiec.librechat.core.logging.PlatformInfo
+import com.garfiec.librechat.core.logging.RedactingLogWriter
 import com.garfiec.librechat.core.logging.logStartupHeader
+import com.garfiec.librechat.core.logging.redact.LogRedactor
 import com.garfiec.librechat.core.logging.startMainThreadWatchdog
 import kotlinx.coroutines.CoroutineExceptionHandler
 import org.koin.core.context.startKoin
 import platform.Foundation.NSLog
+import kotlin.experimental.ExperimentalNativeApi
+import kotlin.native.Platform
 
 /**
  * LogWriter that routes Kermit output through NSLog so it appears in
@@ -23,6 +27,20 @@ private class IosNSLogWriter : LogWriter() {
         throwable?.let { NSLog("[$level/$tag] ${it.stackTraceToString()}") }
     }
 }
+
+/**
+ * NSLog, floored and scrubbed in a release binary (finding F1, 26/09/2026). The severity used to be
+ * forced to Debug regardless of build, so a shipped app wrote URIs, file names and identifiers to
+ * the unified log. Debug binaries keep the verbose, unredacted console.
+ */
+@OptIn(ExperimentalNativeApi::class)
+private fun consoleWriter(): LogWriter = RedactingLogWriter(
+    delegate = IosNSLogWriter(),
+    redactor = LogRedactor(),
+    minSeverity = if (Platform.isDebugBinary) Severity.Debug else Severity.Warn,
+    redact = !Platform.isDebugBinary,
+    stackTraces = Platform.isDebugBinary,
+)
 
 private var koinStarted = false
 
@@ -39,8 +57,10 @@ fun startIosKoin() {
     if (koinStarted) return
     koinStarted = true
     // Route Kermit logs through NSLog for OS log visibility. The persistent file writer is added
-    // after Koin starts (below), once its dependencies are resolvable.
-    Logger.setLogWriters(IosNSLogWriter())
+    // after Koin starts (below), once its dependencies are resolvable. The global floor stays at
+    // Debug so the file sink keeps its detail; the console writer applies its own floor.
+    val console = consoleWriter()
+    Logger.setLogWriters(console)
     Logger.setMinSeverity(Severity.Debug)
     Logger.withTag("Koin").d { "startIosKoin: initializing Koin DI" }
 
@@ -61,7 +81,7 @@ fun startIosKoin() {
         val writer: PersistentLogWriter = app.koin.get()
 
         // Keep NSLog visibility AND add the persistent file sink.
-        Logger.setLogWriters(IosNSLogWriter(), writer)
+        Logger.setLogWriters(console, writer)
 
         // Install the Kotlin/Native crash hook with the writer so unhandled exceptions are persisted
         // synchronously before the process dies.

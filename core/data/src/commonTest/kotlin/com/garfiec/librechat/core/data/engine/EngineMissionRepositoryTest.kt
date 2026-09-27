@@ -101,6 +101,29 @@ class PermissionsForTest {
 
         assertEquals(rules.size, rules.distinctBy { it.permission }.size)
     }
+
+    /**
+     * A catalogue pattern that is not one tool name grants nothing (review C11): a wildcard from a
+     * connector or from the socle would re-open everything the opening deny just closed while the
+     * screen still showed only the ticked connectors.
+     */
+    @Test
+    fun `a wildcard from the catalogue is not a grant`() {
+        val loose = ConnectorCatalogue(
+            connecteurs = mapOf(
+                "tout" to ConnectorGrant(outils = listOf("*", "memoire_*", "fichiers_?", "", " ", "memoire_lire")),
+            ),
+            socle = mapOf("*" to "allow", "todo*" to "allow", "todowrite" to "allow"),
+        )
+
+        val rules = permissionsFor(loose, listOf("tout"), autonomous = true)
+        val allowed = rules.filter { it.action == "allow" }.map { it.permission }
+
+        assertEquals(listOf("todowrite", "memoire_lire"), allowed)
+        // The opening deny-all is the only rule that may name `*`.
+        assertEquals(1, rules.count { it.permission == "*" })
+        assertEquals("deny", rules.first { it.permission == "*" }.action)
+    }
     @Test
     fun `what a session was granted is read back from the rules it carries`() {
         // The round trip is the contract: what the sheet ticked is what the chip must report, or

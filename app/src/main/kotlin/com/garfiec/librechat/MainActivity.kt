@@ -54,6 +54,7 @@ import com.garfiec.librechat.core.network.engine.auth.CALLBACK_SCHEME
 import com.garfiec.librechat.core.ui.theme.LibreChatTheme
 import com.garfiec.librechat.feature.chat.ShareIntentConsumer
 import com.garfiec.librechat.feature.chat.SharedContent
+import com.garfiec.librechat.feature.chat.acceptableSharedUris
 import com.garfiec.librechat.navigation.LibreChatNavHost
 import com.garfiec.librechat.navigation.toDeepLinkUri
 import com.garfiec.librechat.shared.navigation.DeepLinkResolution
@@ -235,7 +236,7 @@ class MainActivity : ComponentActivity() {
             // Same resolver the nav host uses — the accept decision and the routing decision can't
             // drift because they're one source of truth. Anything it doesn't route is dropped here.
             if (DeepLinks.resolve(uri.toDeepLinkUri()) is DeepLinkResolution.None) {
-                Logger.w { "Ignoring unhandled deep link: $uri" }
+                Logger.w { "Ignoring unhandled deep link: scheme=${uri.scheme} host=${uri.host}" }
             } else {
                 deepLinkUri = uri
             }
@@ -252,7 +253,10 @@ class MainActivity : ComponentActivity() {
             intent.getParcelableExtra(Intent.EXTRA_STREAM)
         }
 
-        val fileUris = if (sharedUri != null) listOf(sharedUri) else emptyList()
+        val fileUris = acceptableSharedUris(listOfNotNull(sharedUri), fileProviderAuthority())
+        if (sharedUri != null && fileUris.isEmpty()) {
+            Logger.w { "Share intent: dropped a stream that is not a content URI from another app" }
+        }
 
         if (sharedText != null || fileUris.isNotEmpty()) {
             Logger.d { "Share intent received: text=${sharedText != null}, uris=${fileUris.size}" }
@@ -271,11 +275,21 @@ class MainActivity : ComponentActivity() {
             intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM)
         }
 
-        if (!sharedUris.isNullOrEmpty()) {
-            Logger.d { "Share multiple intent received: uris=${sharedUris.size}" }
+        if (sharedUris.isNullOrEmpty()) return
+        // Only `content:` URIs from other apps, and a bounded number of them (review C6,
+        // 26/09/2026): a `file:` URI would be read with this app's own rights.
+        val accepted = acceptableSharedUris(sharedUris, fileProviderAuthority())
+        if (accepted.size != sharedUris.size) {
+            Logger.w { "Share multiple intent: dropped ${sharedUris.size - accepted.size} of ${sharedUris.size} streams" }
+        }
+        if (accepted.isNotEmpty()) {
+            Logger.d { "Share multiple intent received: uris=${accepted.size}" }
             ShareIntentConsumer.setPendingShare(
-                SharedContent(fileUris = sharedUris),
+                SharedContent(fileUris = accepted),
             )
         }
     }
+
+    /** The authority under which this app's own FileProvider serves its cache — never a valid share source. */
+    private fun fileProviderAuthority(): String = "$packageName.fileprovider"
 }

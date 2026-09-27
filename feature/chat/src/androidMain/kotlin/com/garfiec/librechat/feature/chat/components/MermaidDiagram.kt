@@ -1,12 +1,8 @@
 package com.garfiec.librechat.feature.chat.components
 
-import android.annotation.SuppressLint
-import android.net.http.SslError
 import android.view.ViewGroup
-import android.webkit.SslErrorHandler
 import android.webkit.WebChromeClient
 import android.webkit.WebView
-import android.webkit.WebViewClient
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -43,11 +39,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import co.touchlab.kermit.Logger
+import com.garfiec.librechat.feature.chat.components.artifact.ArtifactWebContent
+import com.garfiec.librechat.feature.chat.components.artifact.CdnAssets
+import com.garfiec.librechat.feature.chat.components.artifact.MermaidWebContent
+import com.garfiec.librechat.feature.chat.components.web.LockedDownWebViewClient
+import com.garfiec.librechat.feature.chat.components.web.applyLockedDownSettings
+import com.garfiec.librechat.feature.chat.components.web.loadIsolatedDocument
 import com.garfiec.librechat.feature.chat.components.web.safelyDestroyWebView
 import com.garfiec.librechat.feature.chat.resources.*
 import com.garfiec.librechat.feature.chat.resources.Res
@@ -172,7 +174,11 @@ actual fun MermaidDiagram(
     }
 }
 
-@SuppressLint("SetJavaScriptEnabled")
+/**
+ * Locked down like the artifact surfaces (review C1/C3/C8, 26/09/2026): opaque origin, no
+ * storage, navigation refused, only the pinned mermaid runtime fetched, and the diagram source
+ * carried as a base64 literal rather than an escaped string.
+ */
 @Composable
 private fun MermaidWebView(
     code: String,
@@ -180,18 +186,11 @@ private fun MermaidWebView(
     modifier: Modifier,
 ) {
     val bgColor = MaterialTheme.colorScheme.surfaceContainerHighest.toArgb()
-    val escapedCode = remember(code) {
-        code.replace("\\", "\\\\")
-            .replace("`", "\\`")
-            .replace("$", "\\$")
-            .replace("\"", "\\\"")
-            .replace("<", "\\u003c")
-            .replace("\n", "\\n")
-    }
+    val uriHandler = LocalUriHandler.current
     val theme = if (isDarkTheme) "dark" else "default"
 
-    val html = remember(escapedCode, theme) {
-        buildMermaidHtml(escapedCode, theme)
+    val html = remember(code, theme) {
+        buildMermaidHtml(ArtifactWebContent.base64Literal(code), theme)
     }
 
     var loadedHtml by remember { mutableStateOf("") }
@@ -205,43 +204,23 @@ private fun MermaidWebView(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                 )
                 setBackgroundColor(bgColor)
-                settings.javaScriptEnabled = true
-                settings.domStorageEnabled = true
+                applyLockedDownSettings()
                 settings.loadWithOverviewMode = true
                 settings.useWideViewPort = true
-                settings.allowFileAccess = false
-                settings.allowContentAccess = false
                 webChromeClient = WebChromeClient()
-                webViewClient = object : WebViewClient() {
-                    override fun onReceivedSslError(
-                        view: WebView?,
-                        handler: SslErrorHandler?,
-                        error: SslError?,
-                    ) {
-                        handler?.cancel()
-                        Logger.w { "SSL error in Mermaid WebView: ${error?.primaryError}" }
-                    }
-                }
-                loadDataWithBaseURL(
-                    "https://cdn.jsdelivr.net",
-                    html,
-                    "text/html",
-                    "UTF-8",
-                    null,
+                webViewClient = LockedDownWebViewClient(
+                    policy = { MermaidWebContent.RESOURCE_POLICY },
+                    openExternally = uriHandler::openUri,
+                    surface = "mermaid",
                 )
+                loadIsolatedDocument(html)
                 loadedHtml = html
             }
         },
         update = { webView ->
             webView.setBackgroundColor(bgColor)
             if (html != loadedHtml) {
-                webView.loadDataWithBaseURL(
-                    "https://cdn.jsdelivr.net",
-                    html,
-                    "text/html",
-                    "UTF-8",
-                    null,
-                )
+                webView.loadIsolatedDocument(html)
                 loadedHtml = html
             }
         },
@@ -249,13 +228,17 @@ private fun MermaidWebView(
     )
 }
 
-private fun buildMermaidHtml(escapedCode: String, theme: String): String {
+private const val MERMAID_CSP = "default-src 'none'; script-src 'unsafe-inline' https://cdn.jsdelivr.net; " +
+    "style-src 'unsafe-inline'; img-src data:; " +
+    "${ArtifactWebContent.CSP_NO_FRAMES} form-action 'none'; base-uri 'none'; object-src 'none';"
+
+private fun buildMermaidHtml(codeLiteral: String, theme: String): String {
     return """
         <!DOCTYPE html>
         <html>
         <head>
+            <meta http-equiv="Content-Security-Policy" content="$MERMAID_CSP">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'unsafe-inline'; img-src data:;">
             <style>
                 html, body { max-width: 100%; }
                 body {
@@ -316,7 +299,7 @@ private fun buildMermaidHtml(escapedCode: String, theme: String): String {
                     };
                 }
             </script>
-            <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+            ${CdnAssets.MERMAID.scriptTag()}
             <script>
                 mermaid.initialize({
                     startOnLoad: false,
@@ -325,7 +308,7 @@ private fun buildMermaidHtml(escapedCode: String, theme: String): String {
                     flowchart: { useMaxWidth: true },
                 });
                 try {
-                    var code = "$escapedCode";
+                    var code = ${ArtifactWebContent.decodeBase64Js(codeLiteral)};
                     mermaid.render('rendered', code).then(function(result) {
                         document.getElementById('diagram').innerHTML = result.svg;
                     }).catch(function(err) {

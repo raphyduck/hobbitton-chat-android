@@ -5,9 +5,13 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 
 /**
- * A pinned-artifact snapshot. Deliberately has NO accountId column: a home-screen launcher icon must
- * keep opening after logout / account-switch, so this table is device-scoped and is intentionally
- * excluded from AccountDataPurger's per-account teardown.
+ * A pinned-artifact snapshot. Has NO accountId column: a home-screen launcher icon keeps working
+ * across an account *switch*, so this table is device-scoped and no read filters it.
+ *
+ * It is nonetheless emptied by `AccountDataPurger` when an account is removed (logout included):
+ * the snapshot holds the artifact's full content and the viewer opens it without a session, so on
+ * a shared device the next user could read it from the launcher (review C9, 26/09/2026). A pinned
+ * icon then opens an empty viewer rather than someone else's document.
  */
 @Entity(tableName = "artifact_shortcuts")
 data class ArtifactShortcutEntity(

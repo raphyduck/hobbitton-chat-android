@@ -6,8 +6,20 @@ package com.garfiec.librechat.feature.chat.components.artifact
  *
  * Uses mermaid v10 (UMD build) because v11+ ships ESM-only, which fails in
  * Android WebView's `loadDataWithBaseURL` with "Unexpected token '{'".
+ *
+ * The diagram source reaches the page as a base64 literal, never spliced into a template string
+ * (review C3, 26/09/2026 — see [MarkdownWebContent]). `securityLevel` is `strict`, as the chat's
+ * own `MermaidDiagram` already had it: `loose` let a label carry HTML and a `click` directive
+ * carry any URL, in a card the user reads as a picture.
  */
 object MermaidWebContent {
+
+    /** Nothing but the pinned runtime from jsdelivr. */
+    val RESOURCE_POLICY = WebResourcePolicy(setOf(CdnAssets.JSDELIVR_HOST), anyHttps = false)
+
+    private const val CSP = "default-src 'none'; script-src 'unsafe-inline' https://cdn.jsdelivr.net; " +
+        "style-src 'unsafe-inline'; img-src data:; " +
+        "${ArtifactWebContent.CSP_NO_FRAMES} form-action 'none'; base-uri 'none'; object-src 'none';"
 
     fun buildHtml(
         mermaidCode: String,
@@ -21,17 +33,14 @@ object MermaidWebContent {
         val btnBg = if (isDarkTheme) "#332D41" else "#E8DEF8"
         val bodyPadding = if (inline) "4px" else "16px"
         val zoomDisplay = if (inline) "none" else "flex"
-        val escapedCode = mermaidCode
-            .replace("\\", "\\\\")
-            .replace("`", "\\`")
-            .replace("$", "\\$")
+        val codeLiteral = ArtifactWebContent.base64Literal(mermaidCode)
 
         return """
             <!DOCTYPE html>
             <html>
             <head>
+                <meta http-equiv="Content-Security-Policy" content="$CSP">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'unsafe-inline'; img-src data:;">
                 <style>
                     html, body { max-width: 100%; overflow-x: hidden; }
                     body {
@@ -131,7 +140,7 @@ object MermaidWebContent {
                         };
                     }
                 </script>
-                <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+                ${CdnAssets.MERMAID.scriptTag()}
                 <script>
                     var scale = 1;
                     function zoom(delta) {
@@ -142,13 +151,13 @@ object MermaidWebContent {
                     mermaid.initialize({
                         startOnLoad: false,
                         theme: '$theme',
-                        securityLevel: 'loose',
+                        securityLevel: 'strict',
                         flowchart: { htmlLabels: $htmlLabels }
                     });
 
                     (async function() {
+                        var code = ${ArtifactWebContent.decodeBase64Js(codeLiteral)};
                         try {
-                            var code = `$escapedCode`;
                             var result = await mermaid.render('mermaid-graph', code);
                             document.getElementById('mermaid-container').innerHTML = result.svg;
                             try {
@@ -158,7 +167,7 @@ object MermaidWebContent {
                             } catch (e) { /* swallow; bridge failure must not break visible render */ }
                         } catch (e) {
                             document.getElementById('error-display').style.display = 'block';
-                            document.getElementById('error-display').textContent = 'Mermaid parse error:\n' + e.message + '\n\nRaw code:\n' + `$escapedCode`;
+                            document.getElementById('error-display').textContent = 'Mermaid parse error:\n' + e.message + '\n\nRaw code:\n' + code;
                         }
                     })();
                 </script>

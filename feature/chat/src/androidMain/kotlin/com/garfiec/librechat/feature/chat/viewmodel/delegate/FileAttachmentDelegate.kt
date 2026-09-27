@@ -1,5 +1,6 @@
 package com.garfiec.librechat.feature.chat.viewmodel.delegate
 
+import android.content.ContentResolver
 import android.content.Context
 import android.net.Uri
 import co.touchlab.kermit.Logger
@@ -47,7 +48,7 @@ class FileAttachmentDelegate(
      * they're read — but it's the only type available before an upload commits, which is when the
      * route has to be chosen.
      */
-    fun describe(uris: List<Uri>): List<PickedFile> = uris.map { uri ->
+    fun describe(uris: List<Uri>): List<PickedFile> = uris.filter { it.isContentUri() }.map { uri ->
         val filename = resolveFileName(appContext, uri) ?: fallbackFilename()
         PickedFile(
             ref = uri,
@@ -66,10 +67,21 @@ class FileAttachmentDelegate(
 
     private fun fallbackFilename() = "file_${System.currentTimeMillis()}"
 
+    /**
+     * Only a `content:` URI is ever opened. The pickers and the camera hand those out; a `file:`
+     * URI can only come from another app's share, and opening it would read with this app's own
+     * rights — its private directory included (review C6, 26/09/2026).
+     */
+    private fun Uri.isContentUri(): Boolean = scheme.equals(ContentResolver.SCHEME_CONTENT, ignoreCase = true)
+
     private fun uploadFile(picked: PickedFile, route: UploadRoute) {
         val context = appContext
         val contentResolver = context.contentResolver
         val uri = picked.ref as Uri
+        if (!uri.isContentUri()) {
+            Logger.w { "uploadFile: refused a file reference whose scheme is not content" }
+            return
+        }
 
         val filename = picked.name
         val preliminaryMimeType = picked.mimeType ?: guessMimeType(filename)

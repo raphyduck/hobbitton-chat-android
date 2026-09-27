@@ -79,9 +79,13 @@ Two rules that are load-bearing and easy to undo by accident:
   fetches server-supplied absolute URLs, so this is reachable. `KtorRedirectContractTest` pins the Ktor
   behaviour; without it the guard's own test would be unfalsifiable.
 
-Host-scoping for these is stricter than for the bearer (`isSameServerAuthority` vs
-`isSameHostAsServer`, both in `HostScoping.kt`): scheme + host + port, and fail-closed. A gateway token
-is long-lived and never rotates, so an `http://` downgrade or an unknown base URL must not carry it.
+Host-scoping is one rule for every credential (`isSameServerAuthority` in `HostScoping.kt`): scheme +
+host + port, and fail-closed. A gateway token is long-lived and never rotates, so an `http://` downgrade
+or an unknown base URL must not carry it — and since 26/09/2026 (security review, M3) the session bearer
+and the engine's credentials are held to the same rule; the bearer's old host-only, fail-open variant is
+gone. `CleartextGuardPlugin` (M4) sits on every client as well and refuses an `http://` send to any host
+outside `CleartextPolicy`'s private ranges, so a server-supplied `http://` URL is stopped even before the
+credential question arises.
 
 ### Detecting the gateway (as opposed to sending headers to it)
 

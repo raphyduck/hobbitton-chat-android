@@ -983,16 +983,21 @@ class ChatViewModel(
         }
 
         if (shareData.fileRefs.isNotEmpty()) {
-            // Always auto-routed, never prompted: this fires on cold start, before the endpoint
-            // configs and the agent's provider have resolved, so a prompt here would both
-            // interrupt and decide against context that isn't there yet.
+            // Never routed by the preference (`prompt = false`): this fires on cold start, before
+            // the endpoint configs and the agent's provider have resolved, so reading it here would
+            // decide against context that isn't there yet.
             //
-            // It must still go through the same intake, though. This flow also delivers shares
-            // that arrive while the screen is already up, and routing without waiting on the
-            // agent's provider sends every shared document down the provider path — the silent
-            // drop this feature exists to fix, and a disagreement with the same file picked from
-            // the "+" menu a second later.
-            intakePickedFiles(shareData.fileRefs, prompt = false)
+            // Always confirmed (`confirm = true`), though — review C6, 26/09/2026. A share is
+            // another app's initiative, not the user's tap on "+": nothing may be read from the
+            // URI or uploaded to the server until the user has looked at what arrived and pressed
+            // Attach in the routing sheet. Dismissing it drops the share with no upload made.
+            //
+            // It must still go through the same intake: this flow also delivers shares that
+            // arrive while the screen is already up, and routing without waiting on the agent's
+            // provider sends every shared document down the provider path — the silent drop this
+            // feature exists to fix, and a disagreement with the same file picked from the "+"
+            // menu a second later.
+            intakePickedFiles(shareData.fileRefs, prompt = false, confirm = true)
         }
     }
 
@@ -2010,7 +2015,12 @@ class ChatViewModel(
      * from a share. [prompt] is false for a share, which never opens the routing sheet — but still
      * has to resolve the provider before it can route.
      */
-    private fun intakePickedFiles(platformRefs: List<Any>, prompt: Boolean) {
+    /**
+     * @param prompt whether the Manual routing preference may open the routing sheet.
+     * @param confirm whether the sheet opens regardless of preference and choice, so that an
+     *   upload only ever follows the user's Attach (a share from another app).
+     */
+    private fun intakePickedFiles(platformRefs: List<Any>, prompt: Boolean, confirm: Boolean = false) {
         // The composer these files were picked for. A queued-edit session is a *different* draft
         // sharing one composer, and it can end while we resolve.
         val pickedFor = _uiState.value.composer.editingQueuedItem
@@ -2035,8 +2045,8 @@ class ChatViewModel(
                     Logger.w { "intakePickedFiles: dropping ${platformRefs.size} pick(s) — the composer they were picked for is gone" }
                     return@launch
                 }
-                if (manual) {
-                    stageForManualRouting(platformRefs)
+                if (manual || confirm) {
+                    stageForManualRouting(platformRefs, alwaysAsk = confirm)
                 } else {
                     attachWithAutoRouting(platformRefs)
                 }
@@ -2062,9 +2072,10 @@ class ChatViewModel(
     /**
      * Stages a picked batch for the routing sheet, or attaches it straight away when there is
      * nothing worth asking about — a sheet whose every control is disabled is friction, not
-     * choice.
+     * choice. Unless [alwaysAsk]: a batch that arrived by share is shown whatever its choices,
+     * because there the sheet's Attach is the user's consent to the upload, not a routing question.
      */
-    private fun stageForManualRouting(platformRefs: List<Any>) {
+    private fun stageForManualRouting(platformRefs: List<Any>, alwaysAsk: Boolean = false) {
         val state = _uiState.value
         val picked = fileDelegate.describe(platformRefs)
         if (picked.isEmpty()) return
@@ -2076,7 +2087,7 @@ class ChatViewModel(
                 choosable = state.uploadRouteIsAmbiguous(file.mimeType),
             )
         }
-        if (staged.none { it.choosable }) {
+        if (!alwaysAsk && staged.none { it.choosable }) {
             fileDelegate.onFilesSelected(staged.map { RoutedFile(it.file, it.route) })
             return
         }

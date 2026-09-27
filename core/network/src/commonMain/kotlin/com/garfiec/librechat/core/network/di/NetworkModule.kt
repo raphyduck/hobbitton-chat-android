@@ -30,6 +30,7 @@ import com.garfiec.librechat.core.network.api.SpeechApi
 import com.garfiec.librechat.core.network.api.TagsApi
 import com.garfiec.librechat.core.network.api.UserApi
 import com.garfiec.librechat.core.network.client.AuthInterceptorPlugin
+import com.garfiec.librechat.core.network.client.CleartextGuardPlugin
 import com.garfiec.librechat.core.network.client.GatewayDetectionPlugin
 import com.garfiec.librechat.core.network.client.LibreChatHttpClient
 import com.garfiec.librechat.core.network.client.ServerHeadersPlugin
@@ -118,6 +119,8 @@ val networkModule = module {
             // No HttpResponseValidator here, so without this the gateway's 302→200 sign-in page
             // reaches the SSE parser as a valid response and the chat hangs with no error.
             install(GatewayDetectionPlugin)
+            // A stream to a public `http://` host would carry the bearer in the clear (M4).
+            install(CleartextGuardPlugin)
             install(SwitchBarrierPlugin) {
                 this.switchGate = switchGate
             }
@@ -158,6 +161,9 @@ val networkModule = module {
             // Detection reads the challenge off that 302 directly, so it does not depend on the
             // redirect being followed — which on a POST it is not. See RefreshAttempt.GatewayBlocked.
             install(GatewayDetectionPlugin)
+            // The refresh token in this client's POST body is the longest-lived LibreChat secret
+            // there is; it never goes in the clear to a public host (M4).
+            install(CleartextGuardPlugin)
             install(HttpTimeout) {
                 requestTimeoutMillis = 15_000
                 connectTimeoutMillis = 10_000
