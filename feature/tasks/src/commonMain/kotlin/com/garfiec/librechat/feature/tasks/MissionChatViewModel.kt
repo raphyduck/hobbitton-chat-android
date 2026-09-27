@@ -2,7 +2,6 @@ package com.garfiec.librechat.feature.tasks
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.garfiec.librechat.core.common.result.Result
 import com.garfiec.librechat.core.data.datastore.MissionReadingPosition
 import com.garfiec.librechat.core.data.datastore.MissionReadingPositions
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
@@ -15,6 +14,9 @@ import com.garfiec.librechat.core.data.repository.SpeechRepository
 import com.garfiec.librechat.core.model.engine.EngineFailureKind
 import com.garfiec.librechat.core.model.engine.EngineSelectableModel
 import com.garfiec.librechat.core.model.scheduler.ModelPrices
+import com.garfiec.librechat.feature.tasks.delegate.CatalogueFetch
+import com.garfiec.librechat.feature.tasks.delegate.ComposerStagingDelegate
+import com.garfiec.librechat.feature.tasks.delegate.MissionCatalogueDelegate
 import com.garfiec.librechat.feature.tasks.util.AudioNote
 import com.garfiec.librechat.feature.tasks.util.MissionChatState
 import com.garfiec.librechat.feature.tasks.util.StagedAttachment
@@ -153,7 +155,21 @@ class MissionChatViewModel(
     val uiState: StateFlow<MissionChatUiState> = _uiState.asStateFlow()
 
     private var streamJob: Job? = null
-    private var audioNoteSeq = 0
+
+    // Declared before `init`, which reads the catalogue: initializers run in textual order.
+    private val catalogueLoader = MissionCatalogueDelegate(
+        fetchModels = { repository.models() },
+        fetchPrices = { modelPrices.prices() },
+        fetchConnectors = { repository.connectors() },
+        context = ioDispatcher,
+    )
+
+    private val staging = ComposerStagingDelegate(
+        state = _uiState,
+        scope = viewModelScope,
+        transcribe = { bytes, mime -> speech.transcribeAudio(bytes, mime) },
+        context = ioDispatcher,
+    )
 
     init {
         loadHistory()
@@ -200,43 +216,40 @@ class MissionChatViewModel(
      */
     private fun loadConnectors() {
         viewModelScope.launch {
-            try {
-                val catalogue = withContext(ioDispatcher) { repository.connectors() }
-                val granted = runCatching {
-                    withContext(ioDispatcher) { repository.sessionConnectors(sessionId) }
-                }.getOrNull()
-                _uiState.update {
-                    it.copy(
-                        // Someone is watching this conversation, so nothing is barred as it would be
-                        // for an unattended mission (brief §4.2).
-                        connectors = catalogue.offered(),
-                        // A tick the user made while this was in flight outranks what the engine
-                        // said a moment ago: it has already been sent, and overwriting it here would
-                        // undo a checkbox under their finger.
-                        enabledConnectors = it.enabledConnectors ?: granted,
-                        connectorsError = null,
-                    )
+            when (val fetched = catalogueLoader.connectors()) {
+                is CatalogueFetch.Failed -> _uiState.update { it.copy(connectorsError = fetched.kind) }
+                is CatalogueFetch.Loaded -> {
+                    val granted = runCatching {
+                        withContext(ioDispatcher) { repository.sessionConnectors(sessionId) }
+                    }.getOrNull()
+                    _uiState.update {
+                        it.copy(
+                            // Someone is watching this conversation, so nothing is barred as it would
+                            // be for an unattended mission (brief §4.2).
+                            connectors = fetched.value.offered(),
+                            // A tick the user made while this was in flight outranks what the engine
+                            // said a moment ago: it has already been sent, and overwriting it here
+                            // would undo a checkbox under their finger.
+                            enabledConnectors = it.enabledConnectors ?: granted,
+                            connectorsError = null,
+                        )
+                    }
                 }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                _uiState.update { it.copy(connectorsError = e.engineFailureKind()) }
             }
         }
     }
 
     private fun loadModels() {
         viewModelScope.launch {
-            try {
-                val choice = withContext(ioDispatcher) { repository.models() }
-                _uiState.update { it.copy(models = choice.models, modelsError = null) }
-                // After the models and never instead of them: the price table comes from another
-                // service, and its absence must cost the prices, not the picker.
-                _uiState.update { it.copy(prices = withContext(ioDispatcher) { modelPrices.prices() }) }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                _uiState.update { it.copy(modelsError = e.engineFailureKind()) }
+            when (val fetched = catalogueLoader.models()) {
+                is CatalogueFetch.Failed -> _uiState.update { it.copy(modelsError = fetched.kind) }
+                is CatalogueFetch.Loaded -> {
+                    _uiState.update { it.copy(models = fetched.value.models, modelsError = null) }
+                    // After the models and never instead of them: the price table comes from another
+                    // service, and its absence must cost the prices, not the picker.
+                    val prices = catalogueLoader.prices()
+                    _uiState.update { it.copy(prices = prices) }
+                }
             }
         }
     }
@@ -355,75 +368,21 @@ class MissionChatViewModel(
         _uiState.update { it.copy(input = text) }
     }
 
-    /**
-     * The dictation: a voice recording becomes words in the **composer**.
-     *
-     * The speaker sees what Whisper heard and can fix it before it becomes an instruction — the
-     * chat's dictation contract, applied here. Demanded as such on 31/08/2026: the composer is
-     * where a *dictation* lands; a deposited file goes to the thread instead ([attachAudio]).
-     */
-    fun transcribeAudio(bytes: ByteArray, mime: String) {
-        if (_uiState.value.transcribing) return
-        _uiState.update { it.copy(transcribing = true, transcriptionFailed = false) }
-        viewModelScope.launch {
-            val transcribed = withContext(ioDispatcher) { speech.transcribeAudio(bytes, mime) }
-            _uiState.update { current ->
-                when (transcribed) {
-                    is Result.Success -> current.copy(
-                        transcribing = false,
-                        input = listOf(current.input.trimEnd(), transcribed.data.text.trim())
-                            .filter { it.isNotEmpty() }
-                            .joinToString(" "),
-                    )
-                    else -> current.copy(transcribing = false, transcriptionFailed = true)
-                }
-            }
-        }
-    }
+    // The composer's staging — dictation, audio files, photos — lives in ComposerStagingDelegate.
 
-    /**
-     * A deposited audio file becomes a quoted transcription in the **thread**.
-     *
-     * Transcribed on pick, not on send: a failure surfaces while the person is still here to see
-     * it, and the send itself stays instant. What is staged is the *words* ([AudioNote]) — the
-     * bytes are dropped once Whisper has answered, because no model on the gateway could read
-     * them and the transcript should not carry megabytes nobody can open.
-     */
-    fun attachAudio(bytes: ByteArray, mime: String, filename: String) {
-        if (_uiState.value.transcribing) return
-        _uiState.update { it.copy(transcribing = true, transcriptionFailed = false) }
-        // Minted outside the update: an `update` block is a CAS loop and may re-run.
-        val id = "audio-${audioNoteSeq++}"
-        viewModelScope.launch {
-            val transcribed = withContext(ioDispatcher) { speech.transcribeAudio(bytes, mime) }
-            _uiState.update { current ->
-                when (transcribed) {
-                    is Result.Success -> current.copy(
-                        transcribing = false,
-                        audioNotes = current.audioNotes +
-                            AudioNote(id, filename, transcribed.data.text.trim()),
-                    )
-                    else -> current.copy(transcribing = false, transcriptionFailed = true)
-                }
-            }
-        }
-    }
+    /** A dictation, transcribed into the composer. */
+    fun transcribeAudio(bytes: ByteArray, mime: String) = staging.transcribeAudio(bytes, mime)
 
-    fun removeAudioNote(id: String) {
-        _uiState.update { state -> state.copy(audioNotes = state.audioNotes.filterNot { it.id == id }) }
-    }
+    /** A deposited audio file, transcribed into a quoted note for the thread. */
+    fun attachAudio(bytes: ByteArray, mime: String, filename: String) = staging.attachAudio(bytes, mime, filename)
 
-    fun dismissTranscriptionError() {
-        _uiState.update { it.copy(transcriptionFailed = false) }
-    }
+    fun removeAudioNote(id: String) = staging.removeAudioNote(id)
 
-    fun addAttachments(staged: List<StagedAttachment>) {
-        _uiState.update { it.copy(attachments = it.attachments + staged) }
-    }
+    fun dismissTranscriptionError() = staging.dismissTranscriptionError()
 
-    fun removeAttachment(id: String) {
-        _uiState.update { state -> state.copy(attachments = state.attachments.filterNot { it.id == id }) }
-    }
+    fun addAttachments(staged: List<StagedAttachment>) = staging.addAttachments(staged)
+
+    fun removeAttachment(id: String) = staging.removeAttachment(id)
 
     /**
      * Send, and reconcile.

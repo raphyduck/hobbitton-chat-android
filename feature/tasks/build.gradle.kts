@@ -22,5 +22,9 @@ kotlin {
             // The photo picker's activity-result launchers.
             implementation(libs.activity.compose)
         }
+        commonTest.dependencies {
+            // The ViewModel delegates' tests drive their coroutines with runTest.
+            implementation(libs.coroutines.test)
+        }
     }
 }

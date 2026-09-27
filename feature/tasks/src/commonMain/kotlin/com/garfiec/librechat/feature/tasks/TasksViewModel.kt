@@ -18,6 +18,8 @@ import com.garfiec.librechat.core.model.engine.EngineSelectableModel
 import com.garfiec.librechat.core.model.scheduler.ConnectorCatalogue
 import com.garfiec.librechat.core.model.scheduler.ModelPrices
 import com.garfiec.librechat.core.model.scheduler.ScheduledMission
+import com.garfiec.librechat.feature.tasks.delegate.CatalogueFetch
+import com.garfiec.librechat.feature.tasks.delegate.MissionCatalogueDelegate
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -124,6 +126,13 @@ class TasksViewModel(
 
     private val _state = MutableStateFlow(TasksUiState())
     val state: StateFlow<TasksUiState> = _state.asStateFlow()
+
+    /** No dispatcher: the sheet's fetches ran on the caller's context before D-076, and still do. */
+    private val catalogueLoader = MissionCatalogueDelegate(
+        fetchModels = { repository.models() },
+        fetchPrices = { modelPrices.prices() },
+        fetchConnectors = { repository.connectors() },
+    )
 
     init {
         refresh()
@@ -277,16 +286,15 @@ class TasksViewModel(
     fun loadModels() {
         if (_state.value.models.isNotEmpty()) return
         viewModelScope.launch {
-            runCatching { repository.models() }
-                .onSuccess { choice ->
-                    _state.update { it.copy(models = choice.models, preselectedModel = choice.preselected) }
-                }
-                .onFailure { failure ->
-                    Logger.w(failure, tag = "Tasks") { "Could not list the engine's models" }
-                }
+            val fetched = catalogueLoader.models()
+            if (fetched is CatalogueFetch.Loaded) {
+                val choice = fetched.value
+                _state.update { it.copy(models = choice.models, preselectedModel = choice.preselected) }
+            }
             // Prices come from the scheduler, the models from the engine: a picker that showed no
             // model because a price was missing would trade the feature for its decoration.
-            _state.update { it.copy(prices = modelPrices.prices()) }
+            val prices = catalogueLoader.prices()
+            _state.update { it.copy(prices = prices) }
         }
     }
 
@@ -303,12 +311,10 @@ class TasksViewModel(
     fun loadConnectors() {
         if (_state.value.catalogue.connecteurs.isNotEmpty()) return
         viewModelScope.launch {
-            runCatching { repository.connectors() }
-                .onSuccess { catalogue -> _state.update { it.copy(catalogue = catalogue) } }
-                .onFailure { failure ->
-                    Logger.w(failure, tag = "Tasks") { "Could not list the engine's connectors" }
-                    _state.update { it.copy(connectorsFailed = true) }
-                }
+            when (val fetched = catalogueLoader.connectors()) {
+                is CatalogueFetch.Loaded -> _state.update { it.copy(catalogue = fetched.value) }
+                is CatalogueFetch.Failed -> _state.update { it.copy(connectorsFailed = true) }
+            }
         }
     }
 
