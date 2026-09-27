@@ -8,9 +8,7 @@ import com.garfiec.librechat.core.data.datastore.AccountRegistry
 import com.garfiec.librechat.core.data.datastore.AccountRoster
 import com.garfiec.librechat.core.data.datastore.AccountScopedPrefsPurger
 import com.garfiec.librechat.core.data.datastore.ConfigCacheDataStore
-import com.garfiec.librechat.core.data.datastore.GlobalProfileSource
 import com.garfiec.librechat.core.data.datastore.GlobalProfileStore
-import com.garfiec.librechat.core.data.datastore.MissionReadingPositions
 import com.garfiec.librechat.core.data.datastore.RoleCacheDataStore
 import com.garfiec.librechat.core.data.datastore.ServerDataStore
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
@@ -24,7 +22,6 @@ import com.garfiec.librechat.core.data.prefetch.PrefetchGate
 import com.garfiec.librechat.core.data.prefetch.PrefetchPolicy
 import com.garfiec.librechat.core.data.prefetch.PrefetchScheduleCoordinator
 import com.garfiec.librechat.core.data.prefetch.PrefetchStatusReporter
-import com.garfiec.librechat.core.data.pricing.ModelPriceCache
 import com.garfiec.librechat.core.data.repository.AccountClaimReconciler
 import com.garfiec.librechat.core.data.repository.AccountDataPurger
 import com.garfiec.librechat.core.data.repository.AccountSessionEstablisher
@@ -114,6 +111,7 @@ expect val dataPlatformModule: Module
 val dataModule = module {
 
     includes(dataPlatformModule)
+    includes(hobbittonDataModule)
 
     // --- DAOs ---
 
@@ -251,13 +249,6 @@ val dataModule = module {
             ioDispatcher = get(KoinQualifiers.IO),
         )
     }
-    single {
-        MissionReadingPositions(
-            dataStore = get(),
-            json = get(),
-            ioDispatcher = get(KoinQualifiers.IO),
-        )
-    }
 
     // --- Repositories (special wiring) ---
 
@@ -388,9 +379,6 @@ val dataModule = module {
             activeAccountProvider = get(),
         )
     }
-    // The store IS the source; the binding exists so a send path can ask for the value without
-    // taking a DataStore with it.
-    single<GlobalProfileSource> { get<GlobalProfileStore>() }
 
     single<ChatRepository> {
         ChatRepositoryImpl(
@@ -471,13 +459,5 @@ val dataModule = module {
     singleOf(::BannerRepositoryImpl) bind BannerRepository::class
     singleOf(::FavoritesRepositoryImpl) bind FavoritesRepository::class
     singleOf(::ToolFavoritesRepositoryImpl) bind ToolFavoritesRepository::class
-    /**
-     * The gateway's price table, shared by the chat's model picker and the tasks tab's.
-     *
-     * `getOrNull` and not `get`: its source is bound by `engineModule`, which is Android-only
-     * (D-034). On iOS the cache resolves with no source and answers an empty table without ever
-     * reaching the network — a picker with no prices, rather than a graph that fails to build.
-     */
-    single { ModelPriceCache(source = getOrNull()) }
     singleOf(::ResumePinStore)
 }
