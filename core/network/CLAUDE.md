@@ -82,7 +82,7 @@ Two rules that are load-bearing and easy to undo by accident:
 Host-scoping is one rule for every credential (`isSameServerAuthority` in `HostScoping.kt`): scheme +
 host + port, and fail-closed. A gateway token is long-lived and never rotates, so an `http://` downgrade
 or an unknown base URL must not carry it — and since 26/09/2026 (security review, M3) the session bearer
-and the engine's credentials are held to the same rule; the bearer's old host-only, fail-open variant is
+and the portal bearer of the engine/scheduler clients are held to the same rule; the bearer's old host-only, fail-open variant is
 gone. `CleartextGuardPlugin` (M4) sits on every client as well and refuses an `http://` send to any host
 outside `CleartextPolicy`'s private ranges, so a server-supplied `http://` URL is stopped even before the
 credential question arises.
@@ -152,6 +152,19 @@ full-screen pre-login form, and a tablet's dialog is narrow despite the tablet. 
 field gets under half the width, which rendered both `CF-Access-Client-Id` and
 `CF-Access-Client-Secret` as `CF-Access-C…`: two different headers looking identical, next to a
 masked value.
+
+## The portal's bearer: the only credential for the engine and the scheduler (D-076)
+
+- `EngineAuthPlugin` puts `Proxy-Authorization: Bearer <portal token>` on requests to its client's own
+  service, and nothing else. **It never sets `Authorization`**: the edge (nginx) validates the bearer
+  through Authelia and then presents the engine's Basic itself. The app kept that password until
+  D-076 — a shared service secret on every phone — and the review found it riding the scheduler's
+  client too. Don't add a credential here; add it at the edge.
+- The engine's and the scheduler's clients are built by one function, `portalService(PortalService.X)`,
+  which scopes the bearer to that service's address. `PortalServiceClientTest` (the function) and
+  `:core:data`'s `PortalServiceWiringTest` (the Koin module) pin that neither client ever hands the
+  bearer to the other's host, nor to a redirect target off its authority.
+- One client id, `PORTAL_CLIENT_ID`, used by the PAR, the token calls and the authorization URL alike.
 
 ## The Agent engine has two disjoint API worlds
 
