@@ -55,42 +55,48 @@ internal fun PortalLoginEntry(
     showEmailDivider: Boolean,
     onStart: () -> Unit,
 ) {
-    Button(
-        onClick = onStart,
-        enabled = enabled && state.step == PortalLoginStep.Idle,
-        modifier = Modifier.fillMaxWidth().testTag("login_portal"),
-    ) {
-        Text(state.label ?: stringResource(Res.string.portal_sign_in))
-    }
-    Spacer(modifier = Modifier.height(8.dp))
-    Text(
-        text = stringResource(Res.string.portal_sign_in_hint),
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        textAlign = TextAlign.Center,
+    // One node at the top level: the caller lays this out as a single item of its column.
+    Column(
         modifier = Modifier.fillMaxWidth(),
-    )
-    state.problem?.let { problem ->
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Button(
+            onClick = onStart,
+            enabled = enabled && state.step == PortalLoginStep.Idle,
+            modifier = Modifier.fillMaxWidth().testTag("login_portal"),
+        ) {
+            Text(state.label ?: stringResource(Res.string.portal_sign_in))
+        }
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = state.problemDetail ?: stringResource(problem.sentence()),
-            color = MaterialTheme.colorScheme.error,
-            style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.testTag("login_portal_error"),
-        )
-    }
-    if (showEmailDivider) {
-        Spacer(modifier = Modifier.height(24.dp))
-        HorizontalDivider(modifier = Modifier.fillMaxWidth())
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = stringResource(Res.string.portal_or_email),
+            text = stringResource(Res.string.portal_sign_in_hint),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth(),
         )
-        Spacer(modifier = Modifier.height(16.dp))
+        state.problem?.let { problem ->
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = state.problemDetail ?: stringResource(problem.sentence()),
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.testTag("login_portal_error"),
+            )
+        }
+        if (showEmailDivider) {
+            Spacer(modifier = Modifier.height(24.dp))
+            HorizontalDivider(modifier = Modifier.fillMaxWidth())
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = stringResource(Res.string.portal_or_email),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+        }
     }
 }
 
