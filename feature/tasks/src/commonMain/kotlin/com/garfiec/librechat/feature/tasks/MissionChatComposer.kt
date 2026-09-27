@@ -1,11 +1,5 @@
 package com.garfiec.librechat.feature.tasks
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -23,7 +17,6 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.outlined.AddPhotoAlternate
 import androidx.compose.material.icons.outlined.AudioFile
@@ -36,7 +29,6 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -54,6 +46,7 @@ import com.garfiec.librechat.core.model.engine.EngineSelectableModel
 import com.garfiec.librechat.core.ui.input.ChatInputBox
 import com.garfiec.librechat.core.ui.input.ChatInputDefaults
 import com.garfiec.librechat.core.ui.input.ChatInputPill
+import com.garfiec.librechat.core.ui.input.ComposerSendButton
 import com.garfiec.librechat.feature.tasks.components.ConnectorPickerSheet
 import com.garfiec.librechat.feature.tasks.components.ModelPickerSheet
 import com.garfiec.librechat.feature.tasks.components.rememberMissionAttachmentPicker
@@ -192,7 +185,7 @@ internal fun MissionChatInput(
                             }
                         }
                     }
-                    MissionSendButton(
+                    ComposerSendButton(
                         // `sending` counts as running: the gap between the POST and the answer's
                         // first token is exactly when someone wants to be able to call it off.
                         running = state.chat.streaming || state.sending,
@@ -202,6 +195,8 @@ internal fun MissionChatInput(
                             state.audioNotes.isNotEmpty(),
                         onSend = onSend,
                         onStop = onStop,
+                        sendContentDescription = stringResource(Res.string.tasks_chat_send),
+                        stopContentDescription = stringResource(Res.string.tasks_stop),
                     )
                 }
             }
@@ -348,54 +343,6 @@ private fun ComposerPill(label: String, onClick: () -> Unit, icon: ImageVector? 
             { Icon(it, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant) }
         },
     )
-}
-
-/**
- * Send, or stop what is running, in the same round spot at the end of the row. Animated across the
- * swap: the two states occupy one place, and a hard cut reads as the button having been replaced.
- */
-@Composable
-private fun MissionSendButton(
-    running: Boolean,
-    canSend: Boolean,
-    onSend: () -> Unit,
-    onStop: () -> Unit,
-) {
-    AnimatedContent(
-        targetState = running,
-        transitionSpec = { (fadeIn() + scaleIn()).togetherWith(fadeOut() + scaleOut()) },
-        label = "mission_send_stop_toggle",
-    ) { showStop ->
-        if (showStop) {
-            IconButton(
-                onClick = onStop,
-                modifier = Modifier.size(ChatInputDefaults.controlSize),
-                colors = IconButtonDefaults.iconButtonColors(
-                    containerColor = MaterialTheme.colorScheme.error,
-                    contentColor = MaterialTheme.colorScheme.onError,
-                ),
-            ) {
-                Icon(imageVector = Icons.Filled.Stop, contentDescription = stringResource(Res.string.tasks_stop))
-            }
-        } else {
-            IconButton(
-                onClick = onSend,
-                modifier = Modifier.size(ChatInputDefaults.controlSize),
-                enabled = canSend,
-                colors = IconButtonDefaults.iconButtonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                    disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                ),
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.ArrowUpward,
-                    contentDescription = stringResource(Res.string.tasks_chat_send),
-                )
-            }
-        }
-    }
 }
 
 private const val MAX_INPUT_LINES = 6
