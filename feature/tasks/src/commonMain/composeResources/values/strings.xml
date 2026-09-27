@@ -100,7 +100,7 @@
     <string name="tasks_sign_in_no_callback_host">The scheduler address is missing, and that is where the portal sends the authorization code back. Fill it in, then sign in again.</string>
     <string name="tasks_sign_in_unreachable">The portal did not answer. Check the portal address and the network, then try again.</string>
     <string name="tasks_sign_in_refused">The portal refused: consent declined, second factor abandoned, or the request expired. Starting again is safe.</string>
-    <string name="tasks_sign_in_interrupted">The round trip did not finish — the browser was closed, or it took more than five minutes. Try again.</string>
+    <string name="tasks_sign_in_interrupted">The round trip did not finish — it broke on the way, or took more than five minutes. Try again.</string>
     <string name="tasks_sign_in_missing_scope">Signed in, and the token still does not open the engine: the portal did not grant it authorization scope. That one is fixed on the server, not here.</string>
     <string name="tasks_chat_no_connector">No connector</string>
     <string name="tasks_chat_connector_count">%1$d connector(s)</string>

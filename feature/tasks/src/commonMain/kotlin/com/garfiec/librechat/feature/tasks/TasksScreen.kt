@@ -29,12 +29,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.garfiec.librechat.core.model.engine.EngineFailureKind
 import com.garfiec.librechat.feature.tasks.components.DisclosureRow
 import com.garfiec.librechat.feature.tasks.components.Explanation
+import com.garfiec.librechat.feature.tasks.components.PortalSignInDialog
 import com.garfiec.librechat.feature.tasks.resources.Res
 import com.garfiec.librechat.feature.tasks.resources.tasks_empty
 import com.garfiec.librechat.feature.tasks.resources.tasks_empty_hint
@@ -79,10 +79,6 @@ fun TasksScreen(
     viewModel: TasksViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    // The portal round trip needs a browser, and Compose already knows how to open one on both
-    // platforms. Reaching for a platform launcher here would make this screen Android-only for the
-    // sake of one call.
-    val uriHandler = LocalUriHandler.current
     var composing by remember { mutableStateOf(false) }
     var configuring by remember { mutableStateOf(false) }
     // Folded by default, and saved across rotation: whether the schedule is open is the reader's
@@ -166,8 +162,7 @@ fun TasksScreen(
                         // 24 August: the tab offered the settings form, so the only thing anyone could
                         // do about a missing token was retype a password that had nothing to do with it.
                         EngineFailureKind.AUTHENTICATION ->
-                            stringResource(Res.string.tasks_sign_in) to
-                                { viewModel.signIn(uriHandler::openUri) }
+                            stringResource(Res.string.tasks_sign_in) to viewModel::signIn
                         EngineFailureKind.NOT_FOUND ->
                             stringResource(Res.string.tasks_settings_open) to { configuring = true }
                         EngineFailureKind.PERMISSION -> null
@@ -285,6 +280,16 @@ fun TasksScreen(
                 // as the form having done nothing.
                 viewModel.refresh()
             },
+        )
+    }
+
+    // The portal, in the login's web view rather than the browser (D-076): its session cookie is
+    // there, so a lapsed token costs one consent click rather than a password and a second factor.
+    state.portalPage?.let { page ->
+        PortalSignInDialog(
+            page = page,
+            onNavigation = viewModel::onPortalNavigation,
+            onClose = viewModel::cancelSignIn,
         )
     }
 
