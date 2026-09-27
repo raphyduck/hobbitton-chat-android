@@ -42,6 +42,8 @@ class AuthRepositoryImpl(
     private val sessionManager: SessionManager,
     private val accountSwitcher: AccountSwitcher,
     private val switchGate: SwitchGate,
+    // hobbitton (D-076): what an explicit sign-out owes beyond this session — see SignOutHook.
+    private val signOutHooks: List<SignOutHook> = emptyList(),
 ) : AuthRepository {
 
     /**
@@ -317,7 +319,20 @@ class AuthRepositoryImpl(
                         // clear the account-blind file caches so nothing is left behind.
                         sessionCacheCleaner.clearFileCaches()
                     }
+                    // hobbitton (D-076): the portal's tokens and web cookies go with the session.
+                    runSignOutHooks(snapshot.baseUrl)
                 }
+            }
+        }
+    }
+
+    /** Each hook on its own: one that fails must not keep the next from purging what it owns. */
+    private suspend fun runSignOutHooks(serverUrl: String?) {
+        signOutHooks.forEach { hook ->
+            try {
+                hook.onSignedOut(serverUrl)
+            } catch (e: Exception) {
+                Logger.w(e) { "A sign-out hook failed; the others still run" }
             }
         }
     }

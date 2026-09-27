@@ -79,6 +79,7 @@ import com.garfiec.librechat.core.data.repository.ServerRepository
 import com.garfiec.librechat.core.data.repository.ServerRepositoryImpl
 import com.garfiec.librechat.core.data.repository.ShareRepository
 import com.garfiec.librechat.core.data.repository.ShareRepositoryImpl
+import com.garfiec.librechat.core.data.repository.SignOutHook
 import com.garfiec.librechat.core.data.repository.SkillsRepository
 import com.garfiec.librechat.core.data.repository.SkillsRepositoryImpl
 import com.garfiec.librechat.core.data.repository.SpeechRepository
@@ -265,6 +266,8 @@ val dataModule = module {
             sessionManager = get(),
             accountSwitcher = get(),
             switchGate = get(),
+            // hobbitton (D-076): bound by the Android-only engineModule; empty elsewhere.
+            signOutHooks = getAll<SignOutHook>(),
         )
     }
 
