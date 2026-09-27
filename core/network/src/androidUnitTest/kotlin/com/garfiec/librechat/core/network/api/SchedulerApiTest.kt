@@ -3,19 +3,12 @@ package com.garfiec.librechat.core.network.api
 import com.garfiec.librechat.core.network.di.librechatJson
 import com.garfiec.librechat.core.network.engine.EngineHttpException
 import com.google.common.truth.Truth.assertThat
-import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.client.engine.mock.toByteArray
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.plugins.defaultRequest
-import io.ktor.client.request.url
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
-import io.ktor.http.HttpStatusCode
-import io.ktor.http.contentType
 import io.ktor.http.headersOf
-import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -32,17 +25,6 @@ import kotlin.test.assertFailsWith
 class SchedulerApiTest {
 
     private val json = librechatJson
-
-    private fun api(engine: MockEngine): SchedulerApi = SchedulerApi(
-        HttpClient(engine) {
-            install(ContentNegotiation) { json(json) }
-            defaultRequest {
-                url("https://sched.example.com")
-                contentType(ContentType.Application.Json)
-            }
-        },
-        json,
-    )
 
     private fun envelope(payload: String): String =
         """{"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":${
@@ -63,10 +45,10 @@ class SchedulerApiTest {
 
     @Test
     fun `a mission is read through all three layers`() = runTest {
-        val api = api(MockEngine {
+        val api = schedulerApi(MockEngine {
             respond(
                 content = envelope(etat),
-                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+                headers = jsonHeaders(),
             )
         })
 
@@ -88,7 +70,7 @@ class SchedulerApiTest {
      */
     @Test
     fun `an event-stream answer is read like a JSON one`() = runTest {
-        val api = api(MockEngine {
+        val api = schedulerApi(MockEngine {
             respond(
                 content = "event: message\ndata: ${envelope(etat)}\n\n",
                 headers = headersOf(HttpHeaders.ContentType, ContentType.Text.EventStream.toString()),
@@ -110,10 +92,10 @@ class SchedulerApiTest {
             "derniere":{"debut":"2026-08-23T05:00:08+00:00","fin":null,"duree_s":null,
             "jetons":null,"arret":null,"succes":null,"session":"ses_x"}}]}
         """.trimIndent().replace("\n", "")
-        val api = api(MockEngine {
+        val api = schedulerApi(MockEngine {
             respond(
                 content = envelope(payload),
-                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+                headers = jsonHeaders(),
             )
         })
 
@@ -128,10 +110,10 @@ class SchedulerApiTest {
      */
     @Test
     fun `a protocol error is reported with its own message`() = runTest {
-        val api = api(MockEngine {
+        val api = schedulerApi(MockEngine {
             respond(
                 content = """{"jsonrpc":"2.0","id":1,"error":{"code":-32602,"message":"mission introuvable"}}""",
-                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+                headers = jsonHeaders(),
             )
         })
 
@@ -158,10 +140,10 @@ class SchedulerApiTest {
             "depense_totale":13.0373135,"jetons_totaux":7749493,
             "modeles_non_tarifes":["openai/deepseek-chat"],"economie_du_cache":6.6959}
         """.trimIndent().replace("\n", "")
-        val api = api(MockEngine {
+        val api = schedulerApi(MockEngine {
             respond(
                 content = envelope(payload),
-                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+                headers = jsonHeaders(),
             )
         })
 
@@ -200,10 +182,10 @@ class SchedulerApiTest {
             "depense_totale":13.0423135,"jetons_totaux":7780899,
             "modeles_non_tarifes":["deepseek-chat"],"economie_du_cache":6.6959}
         """.trimIndent().replace("\n", "")
-        val api = api(MockEngine {
+        val api = schedulerApi(MockEngine {
             respond(
                 content = envelope(payload),
-                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+                headers = jsonHeaders(),
             )
         })
 
@@ -223,10 +205,10 @@ class SchedulerApiTest {
      */
     @Test
     fun `a gateway failure is reported with the scheduler's own words`() = runTest {
-        val api = api(MockEngine {
+        val api = schedulerApi(MockEngine {
             respond(
                 content = envelope("""{"erreur":"GET /user/daily/activity : timeout"}"""),
-                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+                headers = jsonHeaders(),
             )
         })
 
@@ -238,10 +220,10 @@ class SchedulerApiTest {
 
     @Test
     fun `a gateway failure whose reason is not text is still reported as one`() = runTest {
-        val api = api(MockEngine {
+        val api = schedulerApi(MockEngine {
             respond(
                 content = envelope("""{"erreur":{"code":"timeout","detail":"GET /health"}}"""),
-                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+                headers = jsonHeaders(),
             )
         })
 
@@ -251,10 +233,10 @@ class SchedulerApiTest {
 
     @Test
     fun `a tool that answers prose instead of JSON is a scheduler failure`() = runTest {
-        val api = api(MockEngine {
+        val api = schedulerApi(MockEngine {
             respond(
                 content = envelope("Aucune donnée pour cette période."),
-                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+                headers = jsonHeaders(),
             )
         })
 
@@ -264,10 +246,10 @@ class SchedulerApiTest {
 
     @Test
     fun `a tool that answers a JSON value that is not an object is a scheduler failure`() = runTest {
-        val api = api(MockEngine {
+        val api = schedulerApi(MockEngine {
             respond(
                 content = envelope("[1, 2, 3]"),
-                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+                headers = jsonHeaders(),
             )
         })
 
@@ -276,10 +258,10 @@ class SchedulerApiTest {
 
     @Test
     fun `an object of the wrong shape is a scheduler failure, not a decoding crash`() = runTest {
-        val api = api(MockEngine {
+        val api = schedulerApi(MockEngine {
             respond(
                 content = envelope("""{"missions":"none"}"""),
-                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+                headers = jsonHeaders(),
             )
         })
 
@@ -288,10 +270,10 @@ class SchedulerApiTest {
 
     @Test
     fun `an envelope without a result is a scheduler failure`() = runTest {
-        val api = api(MockEngine {
+        val api = schedulerApi(MockEngine {
             respond(
                 content = """{"jsonrpc":"2.0","id":1}""",
-                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+                headers = jsonHeaders(),
             )
         })
 
@@ -300,7 +282,7 @@ class SchedulerApiTest {
 
     @Test
     fun `a body that is not JSON at all is a scheduler failure`() = runTest {
-        val api = api(MockEngine {
+        val api = schedulerApi(MockEngine {
             respond(
                 content = "<html><body>Maintenance</body></html>",
                 headers = headersOf(HttpHeaders.ContentType, ContentType.Text.Html.toString()),
@@ -312,10 +294,10 @@ class SchedulerApiTest {
 
     @Test
     fun `a protocol error whose message is missing is still reported`() = runTest {
-        val api = api(MockEngine {
+        val api = schedulerApi(MockEngine {
             respond(
                 content = """{"jsonrpc":"2.0","id":1,"error":"broken"}""",
-                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+                headers = jsonHeaders(),
             )
         })
 
@@ -326,12 +308,12 @@ class SchedulerApiTest {
     @Test
     fun `the period is sent as a tool argument`() = runTest {
         lateinit var sent: String
-        val api = api(MockEngine { request ->
+        val api = schedulerApi(MockEngine { request ->
             sent = String(request.body.toByteArray())
             respond(
                 content = envelope("""{"jours":[],"modeles":[],"depense_totale":0.0,
                     "jetons_totaux":0,"modeles_non_tarifes":[],"economie_du_cache":0.0}""".trimIndent().replace("\n", "")),
-                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+                headers = jsonHeaders(),
             )
         })
 
@@ -357,10 +339,10 @@ class SchedulerApiTest {
              "statut_http":null}]}],
             "cout_du_controle":0.0015}
         """.trimIndent().replace("\n", "")
-        val api = api(MockEngine {
+        val api = schedulerApi(MockEngine {
             respond(
                 content = envelope(payload),
-                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+                headers = jsonHeaders(),
             )
         })
 
@@ -385,10 +367,10 @@ class SchedulerApiTest {
      */
     @Test
     fun `an empty catalogue is not reported as healthy`() = runTest {
-        val api = api(MockEngine {
+        val api = schedulerApi(MockEngine {
             respond(
                 content = envelope("""{"fournisseurs":[],"cout_du_controle":0.0015}"""),
-                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+                headers = jsonHeaders(),
             )
         })
 
@@ -397,10 +379,10 @@ class SchedulerApiTest {
 
     @Test
     fun `a gateway failure on the provider check is reported too`() = runTest {
-        val api = api(MockEngine {
+        val api = schedulerApi(MockEngine {
             respond(
                 content = envelope("""{"erreur":"GET /health -> HTTP 500 : "}"""),
-                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+                headers = jsonHeaders(),
             )
         })
 
@@ -411,11 +393,11 @@ class SchedulerApiTest {
     @Test
     fun `running a mission sends its name as a tool argument`() = runTest {
         lateinit var sent: String
-        val api = api(MockEngine { request ->
+        val api = schedulerApi(MockEngine { request ->
             sent = String(request.body.toByteArray())
             respond(
                 content = envelope("mission « brief-crypto » lancée, session ses_y."),
-                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+                headers = jsonHeaders(),
             )
         })
 

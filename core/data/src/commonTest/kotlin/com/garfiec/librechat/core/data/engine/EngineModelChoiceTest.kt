@@ -1,29 +1,14 @@
 package com.garfiec.librechat.core.data.engine
 
-import com.garfiec.librechat.core.model.chat.GlobalProfile
 import com.garfiec.librechat.core.model.engine.EngineModelRef
-import com.garfiec.librechat.core.network.api.AgentEngineApi
-import com.garfiec.librechat.core.network.api.SchedulerApi
-import com.garfiec.librechat.core.network.di.librechatJson
-import com.garfiec.librechat.core.network.engine.EngineEventParser
-import com.garfiec.librechat.core.network.engine.EngineEventTransport
-import com.garfiec.librechat.core.network.engine.EngineStreamClient
-import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.request.HttpRequestData
 import io.ktor.client.utils.EmptyContent
 import io.ktor.content.TextContent
-import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
-import io.ktor.http.contentType
 import io.ktor.http.headersOf
-import io.ktor.serialization.kotlinx.json.json
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -59,45 +44,13 @@ class EngineModelChoiceTest {
         }
     """.trimIndent()
 
-    /**
-     * Built like the real graph, `defaultRequest` included.
-     *
-     * Not decoration: the engine's client sets `Content-Type: application/json` there
-     * (`engineModule`, `EngineModule.android.kt`), and the API services rely on it — none of them calls `contentType`. A test
-     * client without it fails at « Fail to prepare request body », which says nothing about the
-     * code under test and everything about the harness.
-     */
-    private fun repository(engine: MockEngine) = EngineMissionRepository(
-        api = AgentEngineApi(
-            HttpClient(engine) {
-                install(ContentNegotiation) { json(librechatJson) }
-                defaultRequest { contentType(ContentType.Application.Json) }
-            },
-        ),
-        // Neither the chat's live feed nor the connector catalogue is exercised here — this suite is
-        // about the model list — so both are stubbed: a real parser, an event transport that never
-        // emits, and a scheduler client pointed at the same mock engine.
-        scheduler = SchedulerApi(
-            HttpClient(engine) {
-                install(ContentNegotiation) { json(librechatJson) }
-                defaultRequest { contentType(ContentType.Application.Json) }
-            },
-            librechatJson,
-        ),
-        streamClient = EngineStreamClient(EngineEventParser(librechatJson)),
-        eventTransport = object : EngineEventTransport {
-            override fun stream(): Flow<ByteArray> = emptyFlow()
-        },
-        globalProfile = { GlobalProfile.NONE },
-    )
-
     private fun jsonHeaders() = headersOf(HttpHeaders.ContentType, "application/json")
 
     private fun catalogueEngine() = MockEngine { respond(catalogue, HttpStatusCode.OK, jsonHeaders()) }
 
     @Test
     fun `only the models of a provider this deployment declared are offered`() = runTest {
-        val choice = repository(catalogueEngine()).models()
+        val choice = testMissionRepository(catalogueEngine()).models()
 
         // OpenCode ships its own endpoint, keyed and ready. A mission sent there leaves the
         // platform's gateway entirely — no cost accounting, no ceiling — so it must not be on
@@ -108,7 +61,7 @@ class EngineModelChoiceTest {
 
     @Test
     fun `the list is ordered, because a map is not`() = runTest {
-        val choice = repository(catalogueEngine()).models()
+        val choice = testMissionRepository(catalogueEngine()).models()
 
         // The engine hands back an object, whose key order nothing promises. A picker that
         // reshuffles between two openings is a picker that gets misread under a thumb.
@@ -117,7 +70,7 @@ class EngineModelChoiceTest {
 
     @Test
     fun `the engine's own default is what gets preselected`() = runTest {
-        val choice = repository(catalogueEngine()).models()
+        val choice = testMissionRepository(catalogueEngine()).models()
 
         // Not the first of the list: that would quietly make the alphabet decide which model this
         // deployment runs on.
@@ -131,7 +84,7 @@ class EngineModelChoiceTest {
             """"default": { "opencode": "big-pickle", "hobbitton-gateway": "gpt-5.5" }""",
             """"default": {}""",
         )
-        val choice = repository(
+        val choice = testMissionRepository(
             MockEngine { respond(sansDefaut, HttpStatusCode.OK, jsonHeaders()) },
         ).models()
 
@@ -151,7 +104,7 @@ class EngineModelChoiceTest {
             }
         }
 
-        repository(engine).launch(
+        testMissionRepository(engine).launch(
             objective = "fais le point",
             connectors = listOf("memoire"),
             model = EngineModelRef(providerId = "hobbitton-gateway", modelId = "claude-sonnet-5"),
@@ -178,7 +131,7 @@ class EngineModelChoiceTest {
             }
         }
 
-        repository(engine).launch("fais le point", listOf("memoire"))
+        testMissionRepository(engine).launch("fais le point", listOf("memoire"))
 
         // An absent key, not a null one: the engine's own default applies untouched, which is what
         // « I did not choose » has to mean.
