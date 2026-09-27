@@ -22,7 +22,6 @@ import com.garfiec.librechat.core.network.engine.EngineEventParser
 import com.garfiec.librechat.core.network.engine.EngineEventTransport
 import com.garfiec.librechat.core.network.engine.EngineStreamClient
 import com.garfiec.librechat.core.network.engine.KtorEngineEventTransport
-import com.garfiec.librechat.core.network.engine.EnginePasswordStore
 import com.garfiec.librechat.core.network.engine.EngineTokenStore
 import com.garfiec.librechat.core.network.engine.auth.EngineOAuthEndpoints
 import com.garfiec.librechat.core.network.engine.auth.EngineTokenClient
@@ -60,10 +59,9 @@ val engineModule: Module = module {
 
     single { EngineSecureStore(androidContext(), get(KoinQualifiers.IO)) }
     single<EngineTokenStore> { get<EngineSecureStore>().tokens }
-    single<EnginePasswordStore> { get<EngineSecureStore>().password }
 
     single {
-        EngineSettingsStore(dataStore = get(), passwords = get()).also { store ->
+        EngineSettingsStore(dataStore = get()).also { store ->
             // Warm the snapshot off the startup thread: the first engine request must not find an
             // empty base URL and fail as « unknown host » on a phone whose network is fine.
             get<CoroutineScope>(KoinQualifiers.ApplicationScope).launch { store.access() }
@@ -87,7 +85,7 @@ val engineModule: Module = module {
                 bearer = { sessions.bearer() }
                 renew = { sessions.renew() }
             }
-            // The Basic never rotates: in the clear to a public host once is for good (M4).
+            // The bearer renews itself offline: in the clear to a public host once is too many (M4).
             install(CleartextGuardPlugin)
             install(HttpTimeout) {
                 connectTimeoutMillis = 10_000
@@ -117,11 +115,10 @@ val engineModule: Module = module {
     /**
      * A **third** client, for the scheduler.
      *
-     * Same portal, another host, and only one of the engine's two credentials applies: the
-     * scheduler has no Basic of its own — Authelia is all that guards it. It reuses
+     * Same portal, another host, the same bearer (its audience names both). It reuses
      * [EngineAuthPlugin] because the bearer, its renewal and the portal-redirect detection are
-     * exactly the same problem; what changes is the base URL and the fact that the Basic it also
-     * sends is ignored downstream rather than required.
+     * exactly the same problem; what changes is the base URL and the authority the bearer is
+     * scoped to. The engine's Basic, which this client used to carry for nothing, is gone (D-076).
      *
      * Built even when no scheduler URL is set: the client is harmless without one, and the
      * repository asks the settings before it calls anything.
@@ -179,7 +176,7 @@ val engineModule: Module = module {
      * A **fourth** client, bare, for the portal (finding M1, 26/09/2026).
      *
      * The OAuth client talks to the **portal**, not the engine, and carries none of the engine's
-     * credentials: mixing them would put the engine's Basic on every token request. Until
+     * client credentials: mixing them would put the bearer on every token request. Until
      * 26/09/2026 it rode the chat's client instead — the one with LibreChat's bearer, the gateway
      * headers, the account-switch barrier and the retry ladder. On a deployment where the portal
      * and LibreChat share a host, the chat's session bearer went along to the portal's token
@@ -204,7 +201,8 @@ val engineModule: Module = module {
         }
     }
 
-    single { EngineTokenClient(client = get(KoinQualifiers.Portal), clientId = "hobbitton-chat-android") }
+    // The client id is `PORTAL_CLIENT_ID`, the constructor's default: one value, not a setting (D-076).
+    single { EngineTokenClient(client = get(KoinQualifiers.Portal)) }
 
     single {
         EngineSessionManager(

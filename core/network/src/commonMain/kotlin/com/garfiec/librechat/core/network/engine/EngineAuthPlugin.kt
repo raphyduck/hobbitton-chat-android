@@ -13,16 +13,23 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.Url
 import io.ktor.util.AttributeKey
-import io.ktor.util.encodeBase64
 
 /**
- * Two credentials on the same request, and they are not interchangeable.
+ * One credential, on one header, to one authority: the **portal's** bearer, in
+ * `Proxy-Authorization`, which is what the reverse proxy's `forward-auth` reads.
  *
- * `Authorization` carries the **engine's** Basic — the engine insists on its own and refuses
- * anything else. `Proxy-Authorization` carries the **portal's** bearer, which is what the reverse
- * proxy's `forward-auth` reads. Putting the bearer in `Authorization` locks the engine out; putting
- * the Basic in `Proxy-Authorization` locks the proxy out. Both gates stay distinct, and neither
- * holds the other's secret.
+ * ## No more engine Basic (D-076)
+ *
+ * Until D-076 this plugin also put the engine's own `Authorization: Basic` on every request, from a
+ * password the person typed into the settings. The edge now validates the bearer and then presents
+ * the Basic itself (nginx, `hobbitton-agent-basic.inc` server-side), so the app holds no service
+ * secret at all: `Authorization` is never set here. The earlier review had also found that Basic
+ * riding the scheduler's client, towards a host that had no use for it — with it gone, that class
+ * of leak has nothing left to leak.
+ *
+ * Authelia does not read `Authorization` on these hosts (`authn_strategies` names only
+ * `HeaderProxyAuthorization` and `CookieSession`), and the engine never sees the bearer: the two
+ * gates stay distinct.
  *
  * One measured caveat, worth repeating because it cost an afternoon on the server side:
  * `Proxy-Authorization` is a **hop-by-hop** header (RFC 7230 §6.1). A proxy is entitled to drop it,
@@ -30,15 +37,15 @@ import io.ktor.util.encodeBase64
  * (server-side D-031); should a future edge stop doing so, every request here comes back as a
  * redirect to the portal — which is what [isPortalRedirect] catches.
  *
- * **Both headers go to one authority and nowhere else** (finding M2, 26/09/2026). Until then they
- * were put on every request of the client, and Ktor's `HttpRedirect` copies every header but
- * `Authorization` to a redirect target — so an engine, a scheduler or a proxy answering 302 towards
- * a third-party host would have handed it the portal's bearer, a token that opens the engine *and*
- * the scheduler and renews itself offline. `KtorRedirectContractTest` pins that Ktor behaviour.
- * Now the `State` phase attaches only when the request addresses the client's own authority
- * (scheme + host + port, see [isSameServerAuthority]), and the `HttpSend` interceptor — the only
- * place that sees a redirect hop — strips both headers whenever a hop leaves it and puts them back
- * when a chain comes home, the same two-way rule the gateway headers follow.
+ * ## One authority and nowhere else (finding M2, 26/09/2026)
+ *
+ * Ktor's `HttpRedirect` copies every header but `Authorization` to a redirect target — so an
+ * engine, a scheduler or a proxy answering 302 towards a third-party host would hand it the
+ * portal's bearer, a token that opens the engine *and* the scheduler and renews itself offline.
+ * `KtorRedirectContractTest` pins that Ktor behaviour. The `State` phase attaches the bearer only
+ * when the request addresses the client's own authority (scheme + host + port, see
+ * [isSameServerAuthority]), and the `HttpSend` interceptor — the only place that sees a redirect
+ * hop — strips it whenever a hop leaves that authority and puts it back when a chain comes home.
  */
 class EngineAuthPlugin(
     internal val access: suspend () -> EngineAccess?,
@@ -58,10 +65,10 @@ class EngineAuthPlugin(
         var renew: suspend () -> String? = { null }
 
         /**
-         * Which of the configured addresses this client speaks to — the only one its credentials
+         * Which of the configured addresses this client speaks to — the only one its credential
          * may reach. The engine's client keeps the default; the scheduler's client picks
          * [EngineAccess.schedulerUrl]. A blank address matches nothing, so a client whose service
-         * is not configured sends no credential at all rather than the engine's to whatever host
+         * is not configured sends no credential at all rather than the bearer to whatever host
          * the request names.
          */
         var authority: (EngineAccess) -> String = { it.baseUrl }
@@ -80,7 +87,7 @@ class EngineAuthPlugin(
             scope.requestPipeline.intercept(HttpRequestPipeline.State) {
                 val engine = plugin.access() ?: return@intercept
                 if (!isSameServerAuthority(context.url, plugin.authority(engine))) return@intercept
-                context.applyEngineCredentials(engine, plugin.bearer())
+                context.applyPortalBearer(plugin.bearer())
             }
 
             scope.plugin(HttpSend).intercept { request ->
@@ -89,14 +96,14 @@ class EngineAuthPlugin(
                     // A redirect hop off the authority — or a request that never was on it. The
                     // `State` phase ran once per call, before any hop; this is where the target
                     // of a hop is first visible.
-                    request.headers.stripEngineCredentials()
+                    request.headers.stripPortalBearer()
                     return@intercept execute(request)
                 }
-                if (!request.headers.contains(HttpHeaders.Authorization)) {
+                if (!request.headers.contains(HttpHeaders.ProxyAuthorization)) {
                     // A chain that left the authority and came back (origin → object store →
                     // origin is an ordinary signed-URL shape). The strip above emptied the request
                     // on the way out, and a bare request to the engine reads as a login page.
-                    request.applyEngineCredentials(engine, plugin.bearer())
+                    request.applyPortalBearer(plugin.bearer())
                 }
                 val call = execute(request)
 
@@ -109,7 +116,7 @@ class EngineAuthPlugin(
                 if (request.attributes.getOrNull(RetryFlag) == true) return@intercept call
 
                 val renewed = plugin.renew() ?: return@intercept call
-                request.applyEngineCredentials(engine, renewed)
+                request.applyPortalBearer(renewed)
                 request.attributes.put(RetryFlag, true)
                 execute(request)
             }
@@ -133,12 +140,8 @@ internal fun isPortalRedirect(response: HttpResponse, issuerUrl: String): Boolea
     return issuerHost.isNotEmpty() && location.contains(issuerHost, ignoreCase = true)
 }
 
-internal fun basicHeaderValue(username: String, password: String): String =
-    "Basic " + "$username:$password".encodeBase64()
-
-internal fun HttpRequestBuilder.applyEngineCredentials(access: EngineAccess, bearer: String?) {
-    headers.stripEngineCredentials()
-    headers.append(HttpHeaders.Authorization, basicHeaderValue(access.username, access.password))
+internal fun HttpRequestBuilder.applyPortalBearer(bearer: String?) {
+    headers.stripPortalBearer()
     // Sending `Bearer null` would be worse than sending nothing: the proxy would reject a malformed
     // credential instead of treating the request as anonymous and saying so.
     if (bearer != null) {
@@ -146,8 +149,7 @@ internal fun HttpRequestBuilder.applyEngineCredentials(access: EngineAccess, bea
     }
 }
 
-/** Both of the engine's credentials, and only those — nothing else on the request is this plugin's. */
-internal fun HeadersBuilder.stripEngineCredentials() {
-    remove(HttpHeaders.Authorization)
+/** The portal's bearer, and only that — nothing else on the request is this plugin's. */
+internal fun HeadersBuilder.stripPortalBearer() {
     remove(HttpHeaders.ProxyAuthorization)
 }

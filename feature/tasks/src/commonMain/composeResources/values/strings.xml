@@ -31,15 +31,7 @@
     <string name="tasks_settings_base_url_hint">https://agent.example.com — the OpenCode session API.</string>
     <string name="tasks_settings_issuer_url">Portal address</string>
     <string name="tasks_settings_issuer_url_hint">https://auth.example.com — the Authelia portal that issues the token.</string>
-    <string name="tasks_settings_username">Engine user</string>
-    <string name="tasks_settings_password">Engine password</string>
-    <string name="tasks_settings_password_kept">Leave empty to keep the saved one.</string>
-    <string name="tasks_settings_password_required">Required the first time.</string>
-    <string name="tasks_settings_username_required">Required.</string>
     <string name="tasks_settings_invalid_url">Must start with https:// — http:// only for a host on your own network</string>
-    <string name="tasks_settings_reveal">Show the password</string>
-    <string name="tasks_settings_advanced">Only change this if the portal was set up with another client id.</string>
-    <string name="tasks_settings_client_id">Client id</string>
     <string name="tasks_settings_save">Save</string>
     <string name="tasks_settings_forget">Forget</string>
     <string name="tasks_error_authentication">Sign-in to the engine failed</string>

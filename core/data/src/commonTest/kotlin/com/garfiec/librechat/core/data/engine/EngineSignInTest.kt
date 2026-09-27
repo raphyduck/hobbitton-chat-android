@@ -69,9 +69,6 @@ class EngineSignInTest {
     private val access = EngineAccess(
         baseUrl = "https://agent.example.com",
         issuerUrl = "https://auth.example.com",
-        clientId = "hobbitton-chat-android",
-        username = "opencode",
-        password = "motdepasse",
         schedulerUrl = "https://sched.example.com",
     )
 
@@ -155,6 +152,9 @@ class EngineSignInTest {
         assertEquals("renouveau", store.stored?.refreshToken)
         assertTrue(inbox.armed && inbox.released, "la boîte s'arme puis se libère")
         assertTrue(opened!!.contains("request_uri="), "le navigateur reçoit l'URL opaque du PAR")
+        // Un seul identifiant de client, le même dans l'URL et dans la demande poussée (D-076).
+        assertTrue(opened!!.contains("client_id=hobbitton-chat-android"))
+        assertEquals("hobbitton-chat-android", portal.forms["par"]?.get("client_id"))
         assertTrue(
             "code_challenge" !in opened!!,
             "PAR existe justement pour que le défi ne traverse pas le navigateur",

@@ -15,13 +15,8 @@ class EngineSettingsValidationTest {
     private fun validate(
         baseUrl: String = "https://agent.example.com",
         issuerUrl: String = "https://auth.example.com",
-        username: String = "opencode",
-        typedPassword: String = "secret",
-        passwordStored: Boolean = false,
         schedulerUrl: String = "",
-    ) = validateEngineSettings(
-        baseUrl, issuerUrl, username, typedPassword, passwordStored, schedulerUrl,
-    )
+    ) = validateEngineSettings(baseUrl = baseUrl, issuerUrl = issuerUrl, schedulerUrl = schedulerUrl)
 
     @Test
     fun `a complete form is accepted`() {
@@ -50,8 +45,8 @@ class EngineSettingsValidationTest {
 
     @Test
     fun `plain http towards a public host is refused, field by field`() {
-        // The Basic and the portal's bearer go on every request to these addresses (F5): in the
-        // clear across the internet they are anyone's. Each address is judged on its own so the
+        // The portal's bearer goes on every request to these addresses (F5): in the clear across
+        // the internet it is anyone's. Each address is judged on its own so the
         // form points at the one to fix.
         assertEquals(setOf(EngineSettingsField.BASE_URL), validate(baseUrl = "http://agent.example.com"))
         assertEquals(setOf(EngineSettingsField.ISSUER_URL), validate(issuerUrl = "http://auth.example.com"))
@@ -69,23 +64,14 @@ class EngineSettingsValidationTest {
     }
 
     @Test
-    fun `an empty password is refused when none has ever been saved`() {
+    fun `the form asks for no credential at all`() {
+        // D-076: the engine's user and password left the app — the edge presents the Basic — and
+        // the client id is a constant. Three addresses are the whole form; a field for a secret
+        // coming back would be the regression.
         assertEquals(
-            setOf(EngineSettingsField.PASSWORD),
-            validate(typedPassword = "", passwordStored = false),
+            setOf(EngineSettingsField.BASE_URL, EngineSettingsField.ISSUER_URL, EngineSettingsField.SCHEDULER_URL),
+            EngineSettingsField.entries.toSet(),
         )
-    }
-
-    @Test
-    fun `an empty password is accepted when one is already saved`() {
-        // Blank means « keep the stored one ». Refusing here would make someone retype a secret
-        // every time they fix a typo in the URL.
-        assertTrue(validate(typedPassword = "", passwordStored = true).isEmpty())
-    }
-
-    @Test
-    fun `a blank username is refused`() {
-        assertEquals(setOf(EngineSettingsField.USERNAME), validate(username = "   "))
     }
 
     @Test
@@ -107,11 +93,8 @@ class EngineSettingsValidationTest {
 
     @Test
     fun `every problem is reported at once`() {
-        // One field at a time would send someone through four save-and-fix rounds.
-        val problems = validate(
-            baseUrl = "", issuerUrl = "", username = "", typedPassword = "",
-            schedulerUrl = "sched.example.com",
-        )
+        // One field at a time would send someone through three save-and-fix rounds.
+        val problems = validate(baseUrl = "", issuerUrl = "", schedulerUrl = "sched.example.com")
 
         assertEquals(EngineSettingsField.entries.toSet(), problems)
     }

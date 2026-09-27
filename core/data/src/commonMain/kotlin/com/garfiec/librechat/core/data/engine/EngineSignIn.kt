@@ -43,8 +43,8 @@ import com.garfiec.librechat.core.network.engine.auth.generateStateToken
 class EngineSignIn(
     /**
      * Where the engine and the portal are. A lambda rather than the settings store itself: this
-     * class needs one answer from it, and taking the whole store would drag DataStore and the
-     * encrypted password store into every test of the round trip.
+     * class needs one answer from it, and taking the whole store would drag DataStore into every
+     * test of the round trip.
      */
     private val access: suspend () -> EngineAccess?,
     private val tokens: EngineTokenClient,
@@ -111,7 +111,9 @@ class EngineSignIn(
             openBrowser(
                 authorizationUrl(
                     endpoints = discovered,
-                    clientId = engine.clientId,
+                    // The token client's own id, so the URL and the pushed request cannot name
+                    // two different clients (D-076).
+                    clientId = tokens.clientId,
                     requestUri = pushed.requestUri,
                 ),
             )
