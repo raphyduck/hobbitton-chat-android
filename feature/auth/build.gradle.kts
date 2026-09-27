@@ -10,6 +10,8 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             implementation(project(":core:network"))
+            // The portal sign-in (D-076) logs its outcome; declared, not borrowed transitively.
+            implementation(libs.kermit)
         }
         androidMain.dependencies {
             implementation(libs.browser)

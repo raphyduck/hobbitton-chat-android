@@ -1,7 +1,9 @@
 package com.garfiec.librechat.feature.auth.di
 
+import com.garfiec.librechat.core.data.portal.PortalTasksSignIn
 import com.garfiec.librechat.feature.auth.viewmodel.ForgotPasswordViewModel
 import com.garfiec.librechat.feature.auth.viewmodel.LoginViewModel
+import com.garfiec.librechat.feature.auth.viewmodel.PortalLoginViewModel
 import com.garfiec.librechat.feature.auth.viewmodel.RegisterViewModel
 import com.garfiec.librechat.feature.auth.viewmodel.ResetPasswordViewModel
 import com.garfiec.librechat.feature.auth.viewmodel.ServerUrlViewModel
@@ -61,4 +63,17 @@ val authModule = module {
         )
     }
     viewModelOf(::TermsViewModel)
+    // hobbitton (D-076): the single sign-in. Lambda form for `getOrNull`: the tasks half is bound
+    // by the Android-only engineModule, and absent on iOS, where the sign-in ends with the chat.
+    @Suppress("DeprecatedKoinApi")
+    viewModel {
+        PortalLoginViewModel(
+            authRepository = get(),
+            configRepository = get(),
+            oAuthLauncher = get(),
+            serverDataStore = get(),
+            accountSwitcher = get(),
+            tasks = getOrNull<PortalTasksSignIn>(),
+        )
+    }
 }

@@ -207,6 +207,12 @@ sealed interface EngineSignInResult {
     data class Interrupted(val reason: String) : EngineSignInResult
 
     /**
+     * The person closed the portal's page before it finished. Not a failure to report: they know,
+     * they did it. Kept apart from [Interrupted] so the screen says nothing rather than « it broke ».
+     */
+    data object Cancelled : EngineSignInResult
+
+    /**
      * Signed in, and the token still will not open the engine.
      *
      * Its own outcome because it is the one failure that looks like a success: tokens are stored,
@@ -231,6 +237,13 @@ interface EngineSignInLauncher {
 
     /** Lance le tour, ou ne fait rien s'il en reste un en vol. */
     fun lancer(ouvrirNavigateur: (url: String) -> Unit)
+
+    /**
+     * Abandonne le tour en vol, s'il y en a un, et le dit : [etat] passe à `Termine(Cancelled)`.
+     * Ce que la vue web appelle quand on la ferme — sans cela le tour attendrait cinq minutes un
+     * retour que plus personne ne peut produire, et refuserait tout nouvel essai jusque-là.
+     */
+    fun annuler()
 
     /** Remet l'état à zéro une fois le résultat lu, pour qu'un second essai reparte propre. */
     fun acquitter()

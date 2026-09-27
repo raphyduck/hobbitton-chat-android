@@ -18,6 +18,7 @@ import com.garfiec.librechat.core.data.datastore.ServerDataStore
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.datastore.ThemeDataStore
 import com.garfiec.librechat.core.data.engine.RecentMissionsSource
+import com.garfiec.librechat.core.data.portal.PortalTasksSignIn
 import com.garfiec.librechat.core.data.prefetch.AttachmentWarmer
 import com.garfiec.librechat.core.data.prefetch.PrefetchController
 import com.garfiec.librechat.core.data.prefetch.PrefetchStatusReporter
@@ -231,6 +232,9 @@ class KoinGraphVerificationTest {
             ModelPriceSource::class,
             // Same arrangement: bound by `engineModule`, resolved by the drawer with `getOrNull`.
             RecentMissionsSource::class,
+            // Same again: the single sign-in's tasks half (D-076), resolved by the login screen's
+            // view model with `getOrNull`.
+            PortalTasksSignIn::class,
             // Provided by :core:data's own module; verify() resolves one module at a time.
             ModelPriceCache::class,
             // Wrappers/DSL types that verify can't resolve via constructor

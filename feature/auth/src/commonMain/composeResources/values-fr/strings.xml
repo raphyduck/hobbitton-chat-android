@@ -76,4 +76,15 @@
 
     <!-- Custom server headers (issue #287) -->
     <string name="server_headers_advanced">Avancé</string>
+
+    <!-- Connexion unique par le portail (hobbitton, D-076) -->
+    <string name="portal_sign_in">Se connecter par le portail</string>
+    <string name="portal_sign_in_hint">Une seule connexion pour les conversations et les tâches : mot de passe et second facteur au portail, puis une autorisation.</string>
+    <string name="portal_or_email">Ou avec courriel et mot de passe</string>
+    <string name="portal_title">Connexion</string>
+    <string name="portal_close">Fermer</string>
+    <string name="portal_step_session">Ouverture de la session…</string>
+    <string name="portal_step_tasks">Dernière étape : autorisez l'accès à vos tâches.</string>
+    <string name="portal_problem_no_session">Le portail n'a pas ouvert de session. Réessayez, ou connectez-vous avec courriel et mot de passe.</string>
+    <string name="portal_problem_session_failed">Le serveur a refusé la session ouverte par le portail. Réessayez.</string>
 </resources>

@@ -16,10 +16,26 @@
 - `TwoFactor(val tempToken: String)` data class carries the nav argument directly
 
 ## OAuth Flow
-- `OAuthManager` opens Chrome Custom Tabs to `{serverUrl}/api/oauth/{provider}`
-- On return (Activity.onResume), `CookieManager.getCookie()` extracts `refreshToken=` cookie
-- Cookie is cleared after extraction to prevent stale reads
-- Supported providers configured by server: Google, GitHub, Discord, Facebook, Apple, OpenID
+- LibreChat mounts its OAuth routes at **`/oauth/{provider}`** (v0.8.7), not `/api/oauth/…`:
+  `oauthEntryUrl()` builds it for every launcher.
+- **`openid` on Android — the single sign-in (hobbitton, D-076).** `PortalLoginViewModel` runs it in
+  an embedded web view (`PortalWebView`, `:core:ui`) over the login screen:
+  1. load `{server}/oauth/openid`; the edge sends it through the Authelia portal (password + 2FA);
+  2. the navigation back out of `/oauth` on the chat origin (`classifyPortalNavigation`, `:core:data`)
+     is stopped — never loaded: the web client would spend the refresh token itself — and the
+     `refreshToken` cookie is read from `CookieManager` (retried briefly), cleared, and handed to
+     `AuthRepository.loginWithOAuthToken`, the path every sign-in ends on;
+  3. in the **same** web view (same jar, so the portal session is there), the tasks' portal round trip
+     runs (`PortalTasksSignIn` → `EngineSignInLauncher`): only the consent click is left. The
+     scheduler page's hop to `at.hobbitton.chat://oauth` is caught by the web view and dropped in the
+     callback mailbox.
+  The screen is left once both steps are over; closing the view during step 3 keeps the chat and skips
+  the tasks. The email/password form stays below as a fallback while the server accepts it.
+- Other providers (and iOS): Custom Tab / `ASWebAuthenticationSession`, then `extractTokenFromCookies`
+  on resume. **Known, inherited limitation:** a browser tab has its own cookie jar, so that read cannot
+  see the cookie the server set there. Only `openid` is configured on the servers this fork targets.
+- Cookie is cleared after extraction to prevent stale reads; `checkOAuthResult` is skipped while the
+  portal web view is open (it owns that cookie).
 
 ## Token Storage
 - Tokens stored in `EncryptedSharedPreferences` via `TokenDataStore` in `:core:data`
@@ -33,7 +49,8 @@
 
 ## Key Implementation Notes
 - If server URL is already stored, skip ServerUrl screen on launch
-- Social logins must use Custom Tabs, not WebView (cookie sharing requirement)
+- Third-party social logins use Custom Tabs, not a WebView (RFC 8252). The deployment's own portal
+  (`openid`, D-076) is the exception: it needs the app's cookie jar, and it is not a third party.
 - `openidAutoRedirect` from server config triggers automatic redirect instead of showing login form
 - LDAP mode: show "Username" field instead of "Email" (check server config)
 

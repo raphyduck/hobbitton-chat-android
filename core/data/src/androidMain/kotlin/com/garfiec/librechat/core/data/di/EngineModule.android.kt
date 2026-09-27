@@ -14,6 +14,7 @@ import com.garfiec.librechat.core.data.engine.RecentMissionsSource
 import com.garfiec.librechat.core.data.portal.AndroidWebCookieJar
 import com.garfiec.librechat.core.data.portal.PortalSession
 import com.garfiec.librechat.core.data.portal.PortalSignOut
+import com.garfiec.librechat.core.data.portal.PortalTasksSignIn
 import com.garfiec.librechat.core.data.pricing.ModelPriceSource
 import com.garfiec.librechat.core.data.repository.SignOutHook
 import com.garfiec.librechat.core.data.scheduler.SchedulerRepository
@@ -216,6 +217,19 @@ val engineModule: Module = module {
         EngineSignInCoordinator(
             portail = get(),
             portee = get(KoinQualifiers.ApplicationScope),
+        )
+    }
+
+    /**
+     * The same round trip, hosted by a web view instead of the browser (D-076): the login screen
+     * runs it right after the chat's, in the web view that already holds the portal's session,
+     * and the Tasks tab reuses it to sign in again.
+     */
+    single {
+        PortalTasksSignIn(
+            access = { get<EngineSettingsStore>().access() },
+            launcher = get(),
+            delivery = get(),
         )
     }
 }

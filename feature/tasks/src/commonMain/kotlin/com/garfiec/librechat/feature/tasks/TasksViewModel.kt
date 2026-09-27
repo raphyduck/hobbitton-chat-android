@@ -350,4 +350,6 @@ private fun EngineSignInResult.asProblem(): EngineSignInProblem? = when (this) {
     is EngineSignInResult.Refused -> EngineSignInProblem.REFUSED
     is EngineSignInResult.Interrupted -> EngineSignInProblem.INTERRUPTED
     is EngineSignInResult.MissingAuthorizationScope -> EngineSignInProblem.MISSING_SCOPE
+    // The person closed the page: nothing to explain to them.
+    EngineSignInResult.Cancelled -> null
 }

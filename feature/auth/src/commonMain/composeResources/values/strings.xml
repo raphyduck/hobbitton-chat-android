@@ -76,4 +76,15 @@
 
     <!-- Custom server headers (issue #287) -->
     <string name="server_headers_advanced">Advanced</string>
+
+    <!-- Single sign-in through the portal (hobbitton, D-076) -->
+    <string name="portal_sign_in">Sign in with the portal</string>
+    <string name="portal_sign_in_hint">One sign-in for chats and tasks: password and second factor at the portal, then one consent.</string>
+    <string name="portal_or_email">Or with email and password</string>
+    <string name="portal_title">Sign in</string>
+    <string name="portal_close">Close</string>
+    <string name="portal_step_session">Opening your chat session…</string>
+    <string name="portal_step_tasks">Last step: authorize access to your tasks.</string>
+    <string name="portal_problem_no_session">The portal did not open a chat session. Try again, or sign in with email and password.</string>
+    <string name="portal_problem_session_failed">The chat server refused the session the portal opened. Try again.</string>
 </resources>
