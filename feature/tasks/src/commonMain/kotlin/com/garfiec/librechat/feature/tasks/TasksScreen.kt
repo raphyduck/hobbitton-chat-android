@@ -90,7 +90,6 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_settings_open
 import com.garfiec.librechat.feature.tasks.resources.tasks_settings_title
 import com.garfiec.librechat.feature.tasks.resources.tasks_sign_in
 import com.garfiec.librechat.feature.tasks.resources.tasks_state_failed
-import com.garfiec.librechat.feature.tasks.resources.tasks_state_idle
 import com.garfiec.librechat.feature.tasks.resources.tasks_state_running
 import com.garfiec.librechat.feature.tasks.resources.tasks_state_succeeded
 import com.garfiec.librechat.feature.tasks.resources.tasks_stop
@@ -708,8 +707,6 @@ private fun MissionChip(state: MissionState) {
                 MaterialTheme.colorScheme.secondary
         is MissionState.Failed ->
             stringResource(Res.string.tasks_state_failed) to MaterialTheme.colorScheme.error
-        MissionState.Idle ->
-            stringResource(Res.string.tasks_state_idle) to MaterialTheme.colorScheme.outline
     }
     AssistChip(
         onClick = {},

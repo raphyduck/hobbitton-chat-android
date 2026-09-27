@@ -20,7 +20,6 @@
     <string name="tasks_state_running">Running</string>
     <string name="tasks_state_succeeded">Done · %1$s tokens</string>
     <string name="tasks_state_failed">Failed</string>
-    <string name="tasks_state_idle">Not started</string>
     <string name="tasks_objective">Objective</string>
     <string name="tasks_model">Model</string>
     <string name="tasks_connectors">Connectors</string>

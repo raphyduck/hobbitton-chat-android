@@ -209,7 +209,7 @@ class MissionChatViewModel(
                     it.copy(
                         // Someone is watching this conversation, so nothing is barred as it would be
                         // for an unattended mission (brief §4.2).
-                        connectors = catalogue.offered(autonomous = false),
+                        connectors = catalogue.offered(),
                         // A tick the user made while this was in flight outranks what the engine
                         // said a moment ago: it has already been sent, and overwriting it here would
                         // undo a checkbox under their finger.
@@ -356,19 +356,6 @@ class MissionChatViewModel(
     }
 
     /**
-     * Send, and reconcile.
-     *
-     * The call waits for the finished turn, but the turn also arrives on the feed meanwhile — so
-     * the failure arm has to tell two different things apart. A send that never reached the engine
-     * leaves the conversation exactly as it was, and the words belong back in the box. A send that
-     * reached it and then lost the socket has *already* moved the conversation, and reporting « the
-     * engine did not answer » over an answer visibly streaming in is the screen contradicting
-     * itself — which is what it did on 30/08/2026, when the client's 30 s cap expired mid-turn.
-     *
-     * So the fold of the transcript is the arbiter: unchanged means nothing happened, changed means
-     * the engine took it and only the reconciliation was lost.
-     */
-    /**
      * The dictation: a voice recording becomes words in the **composer**.
      *
      * The speaker sees what Whisper heard and can fix it before it becomes an instruction — the
@@ -438,6 +425,19 @@ class MissionChatViewModel(
         _uiState.update { state -> state.copy(attachments = state.attachments.filterNot { it.id == id }) }
     }
 
+    /**
+     * Send, and reconcile.
+     *
+     * The call waits for the finished turn, but the turn also arrives on the feed meanwhile — so
+     * the failure arm has to tell two different things apart. A send that never reached the engine
+     * leaves the conversation exactly as it was, and the words belong back in the box. A send that
+     * reached it and then lost the socket has *already* moved the conversation, and reporting « the
+     * engine did not answer » over an answer visibly streaming in is the screen contradicting
+     * itself — which is what it did on 30/08/2026, when the client's 30 s cap expired mid-turn.
+     *
+     * So the fold of the transcript is the arbiter: unchanged means nothing happened, changed means
+     * the engine took it and only the reconciliation was lost.
+     */
     fun send() {
         val staged = _uiState.value
         // The typed words plus each audio note as a quoted block — what the thread will show.

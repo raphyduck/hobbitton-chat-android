@@ -182,31 +182,20 @@ class SchedulerApi(
      *
      * Null means « leave it alone ». Setting `cron` clears a one-shot's date and vice versa: a
      * mission is recurring or one-shot, never both.
+     *
+     * The tool takes more (`fuseau`, `modele`, `connecteurs`, the budgets…); only what a screen
+     * actually sends is wired here. A new field comes with the caller that needs it.
      */
     suspend fun updateMission(
         name: String,
         cron: String? = null,
         runAt: String? = null,
-        timeZone: String? = null,
-        model: String? = null,
-        connectors: List<String>? = null,
-        toolCallCeiling: Int? = null,
-        timeoutSeconds: Int? = null,
-        tokenBudget: Int? = null,
-        notifies: Boolean? = null,
     ): String = callTool(
         "modifier",
         buildJsonObject {
             put("nom", name)
             cron?.let { put("cron", it) }
             runAt?.let { put("quand", it) }
-            timeZone?.let { put("fuseau", it) }
-            model?.let { put("modele", it) }
-            connectors?.let { list -> putJsonArray("connecteurs") { list.forEach { add(it) } } }
-            toolCallCeiling?.let { put("plafond_appels", it) }
-            timeoutSeconds?.let { put("timeout_s", it) }
-            tokenBudget?.let { put("budget_tokens", it) }
-            notifies?.let { put("notifier", it) }
         },
     )
 

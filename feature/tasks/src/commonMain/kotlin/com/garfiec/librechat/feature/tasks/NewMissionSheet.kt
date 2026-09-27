@@ -109,7 +109,7 @@ fun NewMissionSheet(
     var pickingConnectors by rememberSaveable { mutableStateOf(false) }
     var pickingModel by rememberSaveable { mutableStateOf(false) }
 
-    val offered = catalogue.offered(autonomous = false)
+    val offered = catalogue.offered()
 
     // The socle, ticked once the catalogue lands — it is fetched while the sheet is already open,
     // so there is nothing to tick on the first composition.
@@ -121,7 +121,7 @@ fun NewMissionSheet(
     LaunchedEffect(offered) {
         if (!seeded && offered.isNotEmpty()) {
             seeded = true
-            offered.filter { it.tickedByDefault && it.enabled }.forEach { option ->
+            offered.filter { it.tickedByDefault }.forEach { option ->
                 if (option.name !in ticked) ticked += option.name
             }
         }

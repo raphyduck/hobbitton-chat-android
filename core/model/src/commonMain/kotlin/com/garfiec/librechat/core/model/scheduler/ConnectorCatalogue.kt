@@ -33,7 +33,8 @@ data class ConnectorGrant(
     val outils: List<String> = emptyList(),
     /**
      * Refused to an autonomous mission (brief §4.2): nobody is watching one, so an approval prompt
-     * is not a safeguard. The picker greys it out rather than letting the server refuse the launch.
+     * is not a safeguard. The scheduler applies it to its own missions; this app launches only
+     * watched ones (26/09/2026), so it decodes the field and does not act on it.
      */
     @SerialName("refuse_si_autonome")
     val refusedWhenAutonomous: Boolean = false,

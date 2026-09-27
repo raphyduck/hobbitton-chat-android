@@ -77,7 +77,6 @@ class SchedulerRepository(
         return api.providers()
     }
 
-    /** Starts a mission now. Returns what the scheduler said — including its refusals. */
     /** Changes named fields of a scheduled mission; what is not named is not touched. */
     suspend fun updateMission(name: String, cron: String?, runAt: String?): String =
         api.updateMission(name = name, cron = cron, runAt = runAt)
@@ -85,6 +84,7 @@ class SchedulerRepository(
     /** Deletes a scheduled mission. Its run history is kept server-side. */
     suspend fun deleteMission(name: String): String = api.deleteMission(name)
 
+    /** Starts a mission now. Returns what the scheduler said — including its refusals. */
     suspend fun run(name: String): String = api.run(name)
 
     suspend fun setEnabled(name: String, enabled: Boolean): String =

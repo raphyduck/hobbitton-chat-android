@@ -63,7 +63,7 @@ class EngineModelChoiceTest {
      * Built like the real graph, `defaultRequest` included.
      *
      * Not decoration: the engine's client sets `Content-Type: application/json` there
-     * (`NetworkModule`), and the API services rely on it — none of them calls `contentType`. A test
+     * (`engineModule`, `EngineModule.android.kt`), and the API services rely on it — none of them calls `contentType`. A test
      * client without it fails at « Fail to prepare request body », which says nothing about the
      * code under test and everything about the harness.
      */

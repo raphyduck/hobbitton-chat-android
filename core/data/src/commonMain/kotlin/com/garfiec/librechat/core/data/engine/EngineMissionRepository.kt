@@ -206,14 +206,13 @@ class EngineMissionRepository(
     suspend fun launch(
         objective: String,
         connectors: List<String>,
-        title: String? = null,
         model: EngineModelRef? = null,
     ): String {
         val session = api.createSession(
             CreateEngineSessionRequest(
                 agent = MISSION_AGENT,
-                title = title ?: objective.take(TITLE_LENGTH),
-                permission = permissionsFor(connectors(), connectors, autonomous = false),
+                title = objective.take(TITLE_LENGTH),
+                permission = permissionsFor(connectors(), connectors),
             ),
         )
         // The scope goes to the scheduler before the first prompt (D-071): the annuaire consults
@@ -322,7 +321,7 @@ class EngineMissionRepository(
         // Never autonomous here: someone is looking at the screen, which is the whole premise of
         // §4.2's ban — an approval prompt nobody answers is not a safeguard, but one they *do*
         // answer is exactly the supervision the rule asks for.
-        api.setPermissions(sessionId, permissionsFor(connectors(), connectors, autonomous = false))
+        api.setPermissions(sessionId, permissionsFor(connectors(), connectors))
     }
 
     private var cachedConnectors: ConnectorCatalogue? = null
@@ -368,11 +367,12 @@ class EngineMissionRepository(
  * When a session last moved: the latest of its messages, or the session's own `updated` when there
  * are none to read.
  *
- * The messages are the exact answer and they cost nothing extra — [EngineMissionRepository.missions]
- * already fetches them to judge a finished mission. A **running** one is the case with no messages:
- * they are deliberately not fetched (a mission in flight needs no verdict, and pulling its whole
- * transcript on every refresh would download the history of the tab). `time.updated` stands in
- * there; it is the engine's own field and the only one available without a second round trip.
+ * The messages are the exact answer and they cost nothing extra —
+ * [EngineMissionRepository.recentMissions] already fetches them to judge a finished mission. A
+ * **running** one is the case with no messages: they are deliberately not fetched (a mission in
+ * flight needs no verdict, and pulling its whole transcript on every refresh would download the
+ * history of the tab). `time.updated` stands in there; it is the engine's own field and the only
+ * one available without a second round trip.
  *
  * A message's `completed` is preferred over its `created`: an assistant turn is created when it
  * starts and completed when it stops, and a ten-minute turn that began at 03:00 last spoke at 03:10.
@@ -404,9 +404,9 @@ internal fun lastActivityOf(session: EngineSession, messages: List<EngineMessage
  *  * the catalogue's `socle` is granted **on top**. It is what a session gets besides its
  *    connectors (`todowrite`); dropping it builds rules that are incomplete, and silently so.
  *
- * `shell` is refused outright to an autonomous mission — but that verdict comes from the catalogue
- * (`refusedWhenAutonomous`), not from a constant here. Nobody watches an autonomous mission, and an
- * approval prompt nobody answers is not a safeguard.
+ * **Interactive, always** (26/09/2026): every mission this app builds rules for is one somebody is
+ * watching, so the catalogue's `refusedWhenAutonomous` is not read here. The autonomous missions are
+ * the scheduler's, and their rules are built server-side, not by this function.
  *
  * One guard the catalogue does not get to override (review C11, 26/09/2026): a pattern is taken
  * only when it names one tool. `*`, an empty string or anything carrying a wildcard, from a
@@ -417,11 +417,9 @@ internal fun lastActivityOf(session: EngineSession, messages: List<EngineMessage
 fun permissionsFor(
     catalogue: ConnectorCatalogue,
     connectors: List<String>,
-    autonomous: Boolean,
 ): List<EnginePermissionRule> {
     val granted = connectors
         .mapNotNull { name -> catalogue.connecteurs[name]?.let { name to it } }
-        .filterNot { (_, grant) -> autonomous && grant.refusedWhenAutonomous }
         // Only the direct connectors become rules (D-071). The rest is the annuaire's, which reads
         // the scope the app records for the session; declaring it here would put its whole
         // catalogue in front of the model on every turn — the very cost the annuaire exists to
@@ -497,15 +495,17 @@ private const val ACTION_ALLOW = "allow"
 private const val ACTION_DENY = "deny"
 private const val ANY_TOOL = "*"
 
-/** The connectors this catalogue offers a mission, in the order the picker should show them. */
-fun ConnectorCatalogue.offered(autonomous: Boolean): List<ConnectorOption> =
+/**
+ * The connectors this catalogue offers a mission, in the order the picker should show them.
+ *
+ * Every one is tickable: a mission launched or talked to from this app is watched (26/09/2026), so
+ * nothing the catalogue reserves for a watched session is barred.
+ */
+fun ConnectorCatalogue.offered(): List<ConnectorOption> =
     connecteurs.entries.sortedBy { it.key }.map { (name, grant) ->
         ConnectorOption(
             name = name,
             toolCount = grant.outils.size,
-            // Disabled rather than hidden: someone who wonders where shell went gets an answer,
-            // instead of a missing row to puzzle over.
-            enabled = !(autonomous && grant.refusedWhenAutonomous),
             // A direct connector is ticked when the scheduler says so, on cost. One the annuaire
             // serves costs nothing until it is called, and the annuaire's promise is reach — so
             // it is ticked, and unticking it is what narrows the scope (D-071).
@@ -518,7 +518,6 @@ fun ConnectorCatalogue.offered(autonomous: Boolean): List<ConnectorOption> =
 data class ConnectorOption(
     val name: String,
     val toolCount: Int,
-    val enabled: Boolean,
     /** Ticked when the sheet opens. The scheduler decides which, on cost — see [ConnectorGrant]. */
     val tickedByDefault: Boolean = false,
     /** Reached through the annuaire rather than declared to the model — see [ConnectorGrant.direct]. */
