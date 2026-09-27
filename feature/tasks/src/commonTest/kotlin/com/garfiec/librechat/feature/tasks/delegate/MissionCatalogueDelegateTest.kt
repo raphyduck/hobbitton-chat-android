@@ -87,6 +87,6 @@ class MissionCatalogueDelegateTest {
         delegue.prices()
         delegue.connectors()
 
-        assertEquals(listOf("io", "io", "io"), vus)
+        assertEquals<List<String?>>(listOf("io", "io", "io"), vus)
     }
 }
