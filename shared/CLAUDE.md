@@ -1,52 +1,27 @@
 # Shared Module
 
-KMP umbrella module that exports all core and feature modules as a single `Shared.framework` for iOS. On Android, this module is a dependency of `:app` but the framework export is iOS-only.
+The engine shell, and the Koin module list the application starts from. KMP library
+(`commonMain` + `androidMain`), Android target only.
 
-## Framework Export
+## `engine/`
 
-`shared/build.gradle.kts` configures iOS targets (`iosArm64`, `iosSimulatorArm64`) and exports:
-- `core:common`, `core:model`, `core:network`, `core:data` — exported via `api()` so iOS sees all public types
-- `core:ui` + all `feature:*` modules — included via `implementation()` for Compose Multiplatform screen sharing
+- `EngineNavHost` — the app's root (D-077): the portal sign-in (`PortalSignInScreen`) when signed
+  out, the chat under a drawer when signed in. Re-checks the signed-in state on every return to the
+  foreground. Provides `SafeUriHandler` (http(s) and mailto only) to everything below it.
+- `EngineShellViewModel` — signed-in state (`isPortalSignedIn`), the drawer's recent chats, the
+  theme, and sign-out: `PortalSignOut` (the portal's tokens and web-view cookies), then this device's
+  session kinds and reading positions. Every engine dependency is nullable (`getOrNull`).
+- `EngineNavigator` — the back stack: the chat as root, a new chat's blank entry replaced in place
+  once the engine has the session; Tasks, mission runs, usage, settings and instructions pushed on
+  top.
+- `EngineDrawer`, `EngineSettingsScreen` (theme, platform addresses read-only, sign-out),
+  `EngineInstructionsScreen` + `EngineInstructionsViewModel` — the global instructions' editor over
+  `GlobalProfileEditor` (Enregistrer / Annuler; the MCP servers an earlier build stored are kept as
+  they are, never edited here).
 
-The framework is static (`isStatic = true`) and named `Shared`.
+## `di/`
 
-## iOS Platform Files (`src/iosMain/`)
-
-| File | Purpose |
-|------|---------|
-| `IosKoinHelper.kt` | `startIosKoin()` — called from Swift `iOSApp.init()`. Sets up Kermit logging via NSLog, installs crash reporting, starts Koin with iOS modules. |
-| `IosSharedModule.kt` | iOS Koin graph: `includes(sharedKoinModules)` (which brings in `networkModule` → Darwin engine + iOS `SseHttpTransport` via `networkPlatformModule.ios`, HTTP clients, all API services, SSE client) and adds only the one iOS-only binding, `LibreChatSDK`. |
-| `IosKoinAccessor.kt` | Swift-accessible Koin resolver. `KoinHelper.swift` calls these to get SDK, repos, etc. |
-| `IosCrashReporting.kt` | Unhandled exception hook — logs via Kermit + raises NSException for readable iOS crash logs. |
-| `MainViewController.kt` | `MainViewController()` — the Compose Multiplatform entry point wrapped by `ComposeView.swift`. |
-
-## Common Files (`src/commonMain/`)
-
-- `LibreChatSDK.kt` — Facade class aggregating all API services, token manager, and SSE client
-- `di/SharedKoinModules.kt` — `sharedKoinModules`, the single Koin module list both platforms start from (Android loads it directly; iOS `includes` it). Add a feature module here, not in the per-platform entry points. Verified against Android actuals by `:app` `KoinGraphVerificationTest` and against iOS actuals by `iosTest/IosKoinGraphTest` (`:shared:iosSimulatorArm64Test`).
-- `engine/` — **the Android root since D-077**: `EngineNavHost` (portal sign-in when signed out,
-  the chat under a drawer when signed in), `EngineShellViewModel` (signed-in state, drawer chats,
-  theme, sign-out = `PortalSignOut` + local chat caches, LibreChat prefetch retired at start),
-  `EngineNavigator` (chat as root; a new chat's blank entry is replaced in place once the engine
-  has the session), `EngineAppSettings`, and `EngineInstructions` — the global instructions' editor
-  (`EngineInstructionsViewModel` over `GlobalProfileEditor`: Enregistrer / Annuler, the MCP servers
-  LibreChat used are kept as stored, never edited here). Its engine dependencies are `getOrNull`:
-  iOS has no engine graph (D-034) and keeps starting from the legacy shell below.
-- `navigation/` — Nav 3 route definitions and entry providers shared across platforms (the LibreChat
-  shell; iOS only since D-077)
-- `app/` — Shared app-level composables (root navigation host)
-
-## SKIE
-
-The SKIE Gradle plugin is applied here. All features are enabled by default:
-- Sealed classes → Swift exhaustive enums (`onEnum(of:)`)
-- `Flow<T>` → `AsyncSequence`
-- `suspend fun` → `async throws`
-
-No explicit SKIE configuration is needed unless disabling a specific feature.
-
-## Adding Platform-Specific Code
-
-- iOS implementations go in `src/iosMain/` with `actual` declarations matching `expect` in `commonMain`
-- For feature-level platform code, prefer adding `iosMain` source sets in the feature module itself rather than here
-- This module should only contain app-level iOS wiring (DI bootstrap, framework entry point)
+- `SharedKoinModules.kt` — `sharedKoinModules`: common, logging, network, data, auth and this
+  module's `sharedAppModule`. The engine graph (`engineModule`, `tasksModule`) is added next to it
+  by `LibreChatApplication`. Verified by `:app`'s `KoinGraphVerificationTest`.
+- `AppModule.kt` — `sharedAppModule`: the shell's and the instructions' view models.

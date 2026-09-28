@@ -1,141 +1,81 @@
-# Contributing to Switchboard
+# Contributing
 
 ## Prerequisites
 
 | Tool | Version | Notes |
 |------|---------|-------|
-| JDK | 17+ | |
-| Android Studio or IntelliJ IDEA | Latest stable | Recommended IDE for all code editing (Android + iOS) |
-| Xcode | 15+ | Required for iOS SDK, simulators, and `xcodebuild` CLI. IDE not needed. |
-| Apple Silicon Mac | | Intel Macs not supported (no `iosSimulatorX64` target) |
-| iOS Deployment Target | 16.0+ | |
+| JDK | 17+ | CI uses 21 |
+| Android Studio or IntelliJ IDEA | Latest stable | |
 | Gradle | 9.5.1 (via wrapper) | |
 | Kotlin | 2.4.10 | |
 
-## IDE Setup
-
-**Use Android Studio or IntelliJ IDEA for all development** — both Android and iOS. Nearly all code is Kotlin (shared business logic, Compose Multiplatform UI, `iosMain` platform implementations). The 4 remaining Swift files are a thin hosting layer that rarely changes.
-
-Xcode must be installed for the iOS toolchain (SDKs, simulators, `xcodebuild`), but you never need to open the Xcode IDE. All builds and runs are done via CLI.
-
 ## Getting Started
-
-```bash
-# Clone with submodules (upstream LibreChat server reference)
-git clone --recursive https://github.com/garfiec/Librechat-Mobile.git
-cd Librechat-Mobile
-```
-
-### Android
 
 Build and install on a connected device or emulator:
 
 ```bash
-./gradlew assembleDebug
+./gradlew :app:assembleDebug
 adb install app/build/outputs/apk/debug/app-debug.apk
 ```
 
 Or run directly via Android Studio's run configuration.
 
-Debug builds carry a `.debug` applicationId suffix, so they install as
-`at.hobbitton.chat.debug` under the launcher name **Switchboard Dev** (with a distinct
-icon backdrop) and coexist with a released install instead of colliding with it. The two
-are separate apps to Android: each keeps its own login, Room cache, and preferences, and
-neither can see the other's data. Release builds keep the bare `at.hobbitton.chat` —
-update channels track that package name, so it must not gain a suffix.
+Debug builds carry a `.debug` applicationId suffix, so they install as `at.hobbitton.chat.debug`
+under the launcher name **Switchboard Dev** (with a distinct icon backdrop) and coexist with a
+released install instead of colliding with it. The two are separate apps to Android: each keeps its
+own sign-in and preferences. Release builds keep the bare `at.hobbitton.chat` — update channels
+track that package name, so it must not gain a suffix.
 
-The code namespace is still `com.garfiec.librechat`: it names classes, not the installed
-app, so `$PKG/.MainActivity` shorthand does not resolve — spell the activity out in full.
+The code namespace is still `com.garfiec.librechat`: it names classes, not the installed app, so
+`$PKG/.MainActivity` shorthand does not resolve — spell the activity out in full.
 
-Both installs register the `librechat://` scheme, so opening such a URL by hand may prompt
-you to pick an app. Home-screen shortcuts are unaffected; they target an explicit component.
-
-### iOS
-
-Build and run on the iOS Simulator from CLI:
-
-```bash
-# Build the app (Xcode build phases handle the shared framework automatically)
-xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp \
-  -sdk iphonesimulator \
-  -destination 'platform=iOS Simulator,name=iPhone 16' \
-  -derivedDataPath iosApp/build build
-
-# Boot simulator, install, and launch
-xcrun simctl boot "iPhone 16"
-xcrun simctl install booted iosApp/build/Build/Products/Debug-iphonesimulator/iosApp.app
-xcrun simctl launch booted com.garfiec.librechat.ios
-```
-
-> **Note:** The first build takes several minutes while the Kotlin/Native toolchain downloads.
-
-To build only the shared KMP framework (e.g., after changing shared Kotlin code):
-
-```bash
-./gradlew :shared:linkDebugFrameworkIosSimulatorArm64
-```
+Both installs register the portal's return scheme (`at.hobbitton.chat://oauth`), so with both
+installed the system asks which app should open it (see the manifest's comment).
 
 ## Project Structure
 
-This is a Kotlin Multiplatform (KMP) app. Business logic and UI are shared across Android and iOS via Compose Multiplatform.
-
-### Modules
+Kotlin Multiplatform modules with a single Android target: shared code in `commonMain`,
+platform code in `androidMain`.
 
 ```
-app/                   -> Android entry point, adaptive navigation (phone/tablet)
-shared/                -> KMP umbrella module (commonMain, androidMain, iosMain)
-core/common/           -> Result type, dispatcher DI, coroutine scopes, extensions
-core/model/            -> @Serializable data classes (pure Kotlin)
-core/network/          -> Ktor client, API services, SSE client, auth interceptor
-core/data/             -> Room DB, DataStore, repositories
-core/ui/               -> Material 3 theme, shared composables
-feature/auth/          -> Login, Register, 2FA, OAuth, Forgot Password
-feature/chat/          -> Real-time chat with SSE streaming, message rendering
-feature/conversations/ -> Paginated list, CRUD, tags, search, export/import
-feature/settings/      -> Account, appearance, about
-feature/agents/        -> Agent marketplace with search and categories
-feature/files/         -> File upload, management, image viewer
+app/            -> MainActivity, LibreChatApplication
+shared/         -> the engine shell (EngineNavHost), shared Koin module list
+core/common/    -> Result / safeApiCall, dispatchers, connectivity
+core/logging/   -> persistent redacted diagnostic log
+core/model/     -> @Serializable models of the engine and the scheduler
+core/network/   -> engine and scheduler APIs, portal clients, event stream
+core/data/      -> engine repository and profiles, portal session, stores
+core/ui/        -> Material 3 theme, markdown, composer look, portal web view
+feature/auth/   -> the portal sign-in
+feature/tasks/  -> the conversation (chat and task), Tasks tab, usage
 ```
 
-Source sets: `commonMain` = shared code, `androidMain` / `iosMain` = platform-specific implementations.
-
-### Convention Plugins
-
-`build-logic/convention/` contains 13 convention plugins (8 Android + 5 KMP) that standardize module configuration. See `CLAUDE.md` for details.
+`build-logic/convention/` contains the convention plugins that standardize module
+configuration. See `CLAUDE.md` and the modules' own `CLAUDE.md` files for details.
 
 ## Adding a New Feature Module
 
-1. Create the module directory under `feature/`
-2. Apply the convention plugin in `build.gradle.kts`:
-   - `librechat.kmp.feature` — for KMP modules with shared iOS + Android code (most features)
-   - `librechat.mobile.feature` — for Android-only modules
+1. Create the module directory under `feature/` and include it in `settings.gradle.kts`
+2. Apply `librechat.kmp.feature` in its `build.gradle.kts`
 3. Create `di/<Feature>Module.kt` with a Koin `module { }` containing `viewModelOf(::YourViewModel)` definitions
-4. Register the module in the application startup Koin configuration
+4. Register the module in `sharedKoinModules`, or next to `engineModule` in `LibreChatApplication`
 5. Use `koinViewModel()` in screen composables to inject ViewModels
 
 ## Code Style
 
-- Follow [Kotlin coding conventions](https://kotlinlang.org/docs/coding-conventions.html)
-- ViewModels live in `commonMain` only — no platform-specific ViewModels
-- Handle platform differences via `expect`/`actual` declarations or delegate factories
-- Use [Kermit](https://github.com/touchlab/Kermit) for logging (`co.touchlab.kermit.Logger`), not `println`, `Log.d`, or `NSLog`
+- Follow [Kotlin coding conventions](https://kotlinlang.org/docs/coding-conventions.html); detekt
+  (`config/detekt/detekt.yml`) enforces the project's rules
+- ViewModels live in `commonMain`
+- Handle platform differences via `expect`/`actual` declarations
+- Use [Kermit](https://github.com/touchlab/Kermit) for logging (`co.touchlab.kermit.Logger`), not `println` or `Log.d`
 - Feature modules depend on `:core:*` only, never on each other
 
 ## Testing
 
 - Unit tests go in `commonTest` or `androidUnitTest`
-- Maestro flows for E2E testing (8 existing flows in `.maestro/`)
-- Run tests before submitting:
+- Run tests and lint before submitting:
 
 ```bash
 ./gradlew test
+./gradlew detekt detektMetadataCommonMain :app:lint
 ```
-
-## Architecture Rules
-
-- Feature modules depend on `:core:*` only, never on each other
-- Unidirectional data flow: UI -> ViewModel -> Repository -> API/Room
-- Room is a read-through cache; server is source of truth
-- Custom SSE parser over raw `ByteReadChannel` (not Ktor SSE plugin)
-
-See `CLAUDE.md` for the full architecture overview and backend quirks.

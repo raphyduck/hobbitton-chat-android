@@ -39,13 +39,7 @@ import org.koin.compose.viewmodel.koinViewModel
  * The app's root since D-077: one engine, two profiles.
  *
  * Signed out, the portal's sign-in ([PortalSignInScreen]); signed in, the chat — an engine session
- * on the `chat` profile — with a drawer of recent chats, the Tasks tab and the settings. Nothing of
- * LibreChat is reachable from here: no server URL, no LibreChat login, no agents marketplace, no
- * files, no LibreChat conversations, tags, sharing or account; and none of their view models, so
- * none of their startup calls (config, banners, version check, token refresh, session tasks).
- *
- * The upstream shell (`LibreChatNavHost`) still exists and still compiles — iOS starts from it, as
- * the engine graph is Android-only (D-034) — but Android no longer composes it.
+ * on the `chat` profile — with a drawer of recent chats, the Tasks tab and the settings.
  */
 @Composable
 fun EngineNavHost(

@@ -1,136 +1,73 @@
 # core:ui
 
-Material 3 theme and shared Compose components used across all feature modules. Purely presentational -- no business logic, no ViewModels, no repositories.
+Material 3 theme and the Compose pieces two features share. Purely presentational — no business
+logic, no ViewModels, no repositories.
 
 ## What This Module Provides
 
 ### Theme (`theme/`)
-- `Theme.kt`: `LibreChatTheme` wrapping Material 3 `MaterialTheme`. Maps LibreChat web colors to M3 color roles.
-- `Color.kt`: Color palette derived from the web app's CSS variables.
-- `Type.kt`: Typography scale.
-- `Shape.kt`: Corner radius definitions.
+- `Theme.kt`: `LibreChatTheme` wrapping Material 3 `MaterialTheme`; the scheme is generated from an
+  accent seed (material-kolor), or from the wallpaper (Material You) on Android 12+.
+- `AccentColors.kt` (default seed), `Type.kt`, `Shape.kt`.
+- `LocalAppLocale.kt` / `AppLocale`: applies the stored app language at the root.
 
-### Markdown parsing (`markdown/`)
+### Markdown (`markdown/`)
 
 `MarkdownParsing.kt` — the block-level parser (`parseMarkdownSegments`, `MarkdownSegment`,
-`InlineSegment`, `parseTableRow`, `parseAlignments`, `looksLikeLatex`, `CITATION_DETECT_REGEX`).
-
-`MarkdownTheme.kt` — how rendered markdown *looks*: `chatMarkdownColors`, `chatMarkdownTypography`
-and `TextStyle.scaleFontSize`. The same four colour roles and thirteen typography slots were
-written out three times (the chat's Android renderer, the chat's iOS renderer, the Tasks
-conversation) and the copies had begun to disagree — the Tasks one scaled glyphs without scaling
-line height, so SMALL and LARGE kept MEDIUM's line spacing. `text` is the one parameter, because
-prose on the Tasks user bubble sits on `secondaryContainer` rather than on the surface.
-
-It lives here because **two features render markdown**: `feature/chat` and, since 29/08/2026, a
-mission session's conversation in `feature/tasks`. Feature modules cannot see each other, so the
-alternative was a second copy of rules that took a long time to get right — fences of any length,
-tables, LaTeX, the artifact-aware fence handling — and would have drifted the first time one side
-fixed a bug.
-
-**Only the parser and the theme are shared.** The renderers stay in their own features:
-
-- `CachedMarkdown` and `ParsedMarkdownCache` are *not* here: they depend on chat-local symbols
-  (`LocalParsedMarkdownCache`, `StreamingCursorAnnotator`, `LocalImmediateMarkdown`) and on a cache
-  hoisted onto `ChatViewModel`. The library itself is no longer the obstacle — this module now
-  depends on it for the theme — but the composition locals still are.
-- The chat's renderer is layered with in-conversation search, citations and steer markers, all built
-  on chat message semantics a mission has no data for. `feature/tasks` renders its own `MissionMarkdown`
-  on top of the shared parser instead.
+`InlineSegment`, tables, LaTeX detection). `MarkdownTheme.kt` — how rendered markdown *looks*:
+`chatMarkdownColors`, `chatMarkdownTypography` and `TextStyle.scaleFontSize`. `StreamingCursor.kt`
+— the cursor drawn at the end of a streaming answer. **Not a renderer**: `feature/tasks` renders
+with the `com.mikepenz` multiplatform-markdown-renderer itself (`MissionMarkdown`). This module
+declares the library as `api` because `chatMarkdownColors`/`chatMarkdownTypography` return its
+types.
 
 ### Composer look (`input/`)
 
-`ChatInputDefaults` — shape, fill, border, keyboard options and text-field colours for the message
-composer. Shared for the same reason as the parser: the chat and the mission conversation both render
-a composer, and the tasks screen first shipped with a bare `OutlinedTextField` that read as a
-different, lesser control. The composers themselves are *not* shared — attachments, MCP pickers,
-voice, queueing and steering are chat concepts a mission session does not have.
+`ChatInputBox`, `ChatInputPill`, `ChatInputDefaults` (shape, fill, border, keyboard options,
+text-field colours) and `ComposerSendButton` — the message composer's look, used by the mission
+conversation's composer.
 
-### Shared Components (`components/`)
-- `LibreChatTopBar` - App bar with optional back navigation and actions.
-- `LoadingIndicator` - Centered circular progress.
-- `ErrorBanner` - Dismissible error message bar.
-- `EmptyState` - Illustration + message for empty lists.
-- `AvatarImage` - User/agent/model avatar with Coil image loading and fallback.
-- `ConfirmationDialog` - Reusable confirm/cancel dialog.
-- `ModelIcon` - Endpoint-specific model icons.
-- `EndpointBadge` - Colored badge showing the AI provider.
-- `SearchBar` - Reusable search input field.
-- `BottomSheetScaffold` - Wrapper for modal bottom sheets.
-- `PullToRefresh` - Pull-to-refresh wrapper.
-- `BannerDisplay` - The server banner. The server sends at most one and only ever types it
-  `banner`, so there is a single visual treatment; a `persistable` banner hides the dismiss control.
+### Components (`components/`)
+- `ModelPriceTag` / `modelPriceLabel` — a model's price beside its name in every model picker
+  (« price unknown » is never rendered as a zero).
+- `PlatformBackHandler` — predictive back, multiplatform.
 
-### Markdown
-- core/ui provides the parser and the theme (`markdown/`), **not a renderer**. Features call the
-  `com.mikepenz` multiplatform-markdown-renderer themselves — `feature/chat` (CachedMarkdown,
-  streaming-tuned, plus WebView artifact/LaTeX rendering), `feature/tasks` (`MissionMarkdown`) and
-  `feature/skills` (plain static `Markdown(...)`, and deliberately still on the library's own
-  default theme rather than the chat's). This module declares the library as `api` because
-  `chatMarkdownColors`/`chatMarkdownTypography` return its types.
+### Portal web view (`web/`, D-076)
+- `PortalWebView` — the web view the sign-in runs in (Authelia portal, the tasks' consent page).
+  Here because two features host it (`feature/auth`'s sign-in, `feature/tasks`' re-sign-in) and one
+  web view means one cookie jar, which is the point. It knows no scheme or host: every main-frame
+  navigation is offered to the caller first, only `http(s)` is ever loaded, TLS errors cancel.
+  JavaScript and DOM storage are on because the portal is a single-page app.
 
-### Message Components (`message/`)
-- `MessageBubble` - Shared message rendering used by `:feature:chat`.
-- `ToolCallCard` - Expandable tool call display.
-- `FileAttachmentChip` - File reference chip.
-- `FeedbackButtons` - Thumbs up/down.
-
-### Portal web view (`web/`, hobbitton D-076)
-- `PortalWebView` — the web view the single sign-in runs in (Authelia portal, LibreChat's `/oauth`
-  hops, the tasks' consent page). Here because two features host it (`feature/auth`'s login,
-  `feature/tasks`' re-sign-in) and one web view means one cookie jar, which is the point. It knows no
-  scheme or host: every main-frame navigation is offered to the caller first, only `http(s)` is ever
-  loaded, TLS errors cancel. JavaScript and DOM storage are on — unlike the chat's locked-down content
-  web views — because the portal is a single-page app. iOS actual is an empty box (engine graph
-  Android-only, D-034).
-
-### PDF (`pdf/`, androidMain only)
-- `PdfDocumentHolder` - Owns the `PdfRenderer`/fd; mutex-serialized on-demand `renderPage` with
-  dimension caps and a page-count bound. Created from bytes, closed by the owning composable.
-- `PdfPageContent` - One page rendered when it scrolls into a LazyColumn window and recycled when
-  it scrolls out. Shared by `:feature:chat`'s viewer (adds per-page pinch-zoom via the modifier
-  slot) and `:feature:files`' preview (adds page labels). Fix render/recycle logic HERE, not in the
-  feature copies — there are none.
+### Utilities (`util/`)
+- `SafeUriHandler` — the one link gate: http(s) and mailto only.
+- `copyToClipboard` (`PlatformClipboard`).
 
 ## Rules
 
 - **No business logic.** No ViewModels, no repository calls, no use cases.
-- Components accept domain models from `:core:model` as parameters and render them.
 - All components must be stateless or hoist state to the caller.
-- Dependencies: `:core:model`, `:core:common`, the mikepenz markdown renderer (`api`, for the shared
-  markdown theme), Coil for image loading, Compose libraries, Kermit logging (androidMain, for the
-  PDF holder). **Not `:core:data`** — the font-size multiplier is passed in as a `Float`, never read
-  from `SettingsDataStore` here (`ChatFontSize.multiplier` lives beside the enum in `:core:data`).
-- Convention plugins: `librechat.kmp.library` + `librechat.kmp.compose` (this module is KMP: Android + both iOS targets).
-- No DI in this module (no Koin modules, no injected classes). **One exception**, and it is a
-  lookup rather than an injection: `util/PlatformClipboard.android.kt` reaches the application
-  `Context` through `GlobalContext` to touch the system clipboard. It moved up from
-  `feature/chat` on 31/08/2026 when a mission transcript gained a copy button too — two
-  features copy, and feature modules cannot see each other.
-- Use `@Preview` annotations on all components for Android Studio preview support.
-- During SSE streaming, buffer markdown re-renders to ~100ms intervals to avoid frame drops.
-
-### Dynamic Parameters (`components/Dynamic*.kt`)
-- `DynamicParameterPanel` dispatches `List<ParameterDefinition>` to typed controls (slider/dropdown/checkbox/input/textarea)
-- `ParameterDefinition` contains: key, type, label, description, default, min, max, step, options
-- `DynamicSlider` snaps to step increments; calculates stepCount from range
-- All controls are stateless — caller manages values via `Map<String, String>`
-- `ModelParameterContent` falls back to existing fixed params when no schema available
-- **Gotcha**: Slider step count calculated as `((max - min) / step).toInt()` — ensure step divides range evenly to avoid drift
+- Dependencies: `:core:model`, the mikepenz markdown renderer (`api`), material-kolor, Compose,
+  Kermit. **Not `:core:data`** — the font-size multiplier is passed in as a `Float`.
+- Convention plugins: `librechat.kmp.library` + `librechat.kmp.compose`. Resources are public
+  (`publicResClass = true`) so features can read this module's strings.
+- No DI in this module. **One exception**, and it is a lookup rather than an injection:
+  `util/PlatformClipboard.android.kt` reaches the application `Context` through `GlobalContext` to
+  touch the system clipboard.
 
 ## Compose Performance Rules
 
-These rules apply to ALL composables across feature modules, not just core:ui.
+These rules apply to all composables across the app, not just core:ui.
 
 ### UI State Architecture
 
 1. **Single UI state data class per screen.** Each ViewModel exposes ONE `StateFlow<XyzUiState>` — never 5+ individual StateFlows that each trigger recomposition independently.
 
-2. **UI state contains only display-ready data.** The ViewModel maps domain models (e.g., `Conversation` with 28 fields) to minimal display data classes (e.g., `DrawerConversationDisplayData` with 7 fields). Composables should never receive full domain models.
+2. **UI state contains only display-ready data.** The ViewModel maps domain models to minimal display data classes. Composables should never receive full domain models.
 
 3. **Mark UI state classes `@Immutable`.** This lets the Compose compiler skip recomposition when the reference hasn't changed. All fields must be `val` with stable types.
 
-4. **Collect state at the narrowest scope.** If only `DrawerContent` uses drawer state, collect inside `DrawerContent` — not in the parent `PhoneLayout` which also owns the NavDisplay. State changes should only recompose the composable that reads them.
+4. **Collect state at the narrowest scope.** If only the drawer uses drawer state, collect inside the drawer — not in the parent that also owns the NavDisplay. State changes should only recompose the composable that reads them.
 
 5. **Use `SharingStarted.Eagerly`** for UI state that should be ready before the composable subscribes (avoids empty→populated two-phase render jank on first frame).
 
@@ -142,7 +79,7 @@ These rules apply to ALL composables across feature modules, not just core:ui.
 
 ### LazyColumn / LazyList
 
-8. **Always provide `key`** on `items()` calls. Keys must be unique, stable identifiers (e.g., `conversationId`).
+8. **Always provide `key`** on `items()` calls. Keys must be unique, stable identifiers (e.g., a session id).
 
 9. **Always provide `contentType`** when a LazyColumn has mixed item types (headers, content rows, loading indicators). This enables Compose to reuse compositions across items of the same type.
 

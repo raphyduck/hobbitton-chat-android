@@ -72,10 +72,8 @@ class LibreChatApplication : Application(), SingletonImageLoader.Factory {
                 }
                 androidContext(this@LibreChatApplication)
                 allowOverride(false)
-                // `engineModule` is Android-only on purpose (D-034): the engine's secrets need a
-                // secure store, and on iOS that is raw Keychain code that cannot be compiled or run
-                // outside CI's macOS runner. It therefore joins here rather than in
-                // `sharedKoinModules`, which both platforms start from.
+                // The engine's graph (`engineModule`, androidMain: its clients and its secure store)
+                // and the Tasks module that needs it, next to the shared list.
                 modules(sharedKoinModules + engineModule + tasksModule)
             }
         } catch (e: Exception) {

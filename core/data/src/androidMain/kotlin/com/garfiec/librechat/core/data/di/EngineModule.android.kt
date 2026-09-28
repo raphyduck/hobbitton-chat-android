@@ -48,17 +48,8 @@ import org.koin.dsl.module
 import java.util.Locale
 
 /**
- * The Agent engine's own graph: its HTTP client, its OAuth client, its stores.
- *
- * **Android only, for now, and deliberately.** The engine's secrets need a secure store, and on iOS
- * that means raw Keychain code (`SecItemAdd` and friends) that cannot be compiled or run from the
- * environment this was written in — only CI's macOS runner can. Shipping untested Keychain code to
- * find out is exactly the kind of guess that has cost this project its worst afternoons. The brief's
- * exit criterion for this phase is « Android, two tabs » (§9), so Android is where this lands.
- *
- * Reversing that is a known, bounded piece of work: an iOS `EngineSecureStore` over Keychain, an
- * `expect`/`actual` for it, and the Tasks module moved from `librechat.mobile.feature` to
- * `librechat.kmp.feature`. Recorded as D-034 in the server-side decision log.
+ * The Agent engine's own graph: its HTTP clients, its OAuth client, its stores. In androidMain
+ * because the engine's secrets live in an Android secure store (`EngineSecureStore`).
  */
 val engineModule: Module = module {
 
@@ -124,18 +115,16 @@ val engineModule: Module = module {
     }
 
     /**
-     * The price table's one supplier, bound where the scheduler is — Android only (D-034).
+     * The price table's one supplier, bound where the scheduler is.
      *
-     * The cache itself lives in the shared graph, because the chat holds it on every platform; here
-     * is where it is told there is somewhere to fetch from. On iOS nothing binds this, the cache
-     * receives null, and every picker renders without prices rather than crashing at first open.
+     * The cache itself lives in `hobbittonDataModule`; here is where it is told there is somewhere
+     * to fetch from.
      */
     single<ModelPriceSource> { get<SchedulerRepository>() }
 
     /**
      * The missions the drawer lists among the chats. Same arrangement as the price source above:
-     * bound here, resolved with `getOrNull` by the drawer, so iOS gets a drawer of chats only rather
-     * than a graph that fails to build.
+     * bound here, resolved with `getOrNull` by the drawer.
      */
     single<RecentMissionsSource> { EngineRecentMissionsSource(api = get(), scheduler = get(), settings = get()) }
 

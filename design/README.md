@@ -30,9 +30,3 @@ Two decisions in the script that look wrong but are not, and should not be "simp
   is a large part of the image and is meant to bleed past the safe zone and fill the layer.
 - The glow is **feathered at the master's canvas border**, where it is cut off at up to 52%
   alpha. Inset into the safe zone that cut would otherwise show as a hard line.
-
-## iOS
-
-`iosApp/iosApp/Assets.xcassets/AppIcon.appiconset` is **not** generated from this file and is
-deliberately different — it needs Icon Composer's template and its own padding. Do not try to
-bring the two platforms into pixel agreement.

@@ -1,30 +1,25 @@
 # core:model
 
-All `@Serializable` data classes -- domain models, DTOs, request/response wrappers. This is the shared contract between network, data, and feature modules.
+`@Serializable` models shared by network, data and feature modules. Pure Kotlin.
 
 ## What This Module Provides
 
-- **Domain models**: `User`, `Conversation`, `Message`, `MessageContentPart`, `Agent`, `Preset`, `Prompt`, `PromptGroup`, `ConversationTag`, `SharedLink`, `FileObject`, `Balance`, `StartupConfig`, `ModelSpec`, `ServerConnection`
-- **Enums**: `EModelEndpoint`, `ContentType`, `StepType`, `ToolCallType`, `FeedbackRating`, `Provider`
-- **StreamEvent sealed hierarchy**: `ContentDelta`, `ToolCallStart`, `ToolCallComplete`, `ThinkingDelta`, `Final`, `Sync`, `Error`, `Created`, `Step`, `AttachmentCreated`
-- **Request/response wrappers**: `LoginRequest`, `LoginResponse`, `RegisterRequest`, `ChatRequest`, `ConvoUpdateBody`, `ForkConvoRequest`, etc.
-
-## Key Patterns
-
-- **`arg` wrapper for mutation endpoints**: The backend reads `req.body.arg` on conversation update/delete/archive. Request bodies use: `{ "arg": { "conversationId": "...", "title": "..." } }`. See `ConvoUpdateBody` / `ConvoDeleteBody`.
-- **Nullable fields with defaults**: Most fields are nullable with `= null` defaults. The backend schema is loose (Mongoose + Zod). Always use `@SerialName` when the JSON key differs from Kotlin naming.
-- **`ignoreUnknownKeys = true`**: The server may add new fields at any time. Never assume the response shape is exhaustive.
-
-## Directory Convention
-
-- Top-level: domain model classes (Conversation.kt, Message.kt, etc.)
-- `request/`: Request body data classes (LoginRequest, ChatRequest, etc.)
-- `response/`: API response wrappers (LoginResponse, ConversationListResponse, etc.)
+- **`engine/`** — the OpenCode engine's wire models: sessions (`EngineSession`,
+  `CreateEngineSessionRequest`, `EngineSessionPatch`, `EnginePermissionRule`), messages and parts
+  (`EngineMessage`, `EnginePart`, `EngineTokens`), prompts (`EnginePromptRequest`,
+  `EnginePromptPart`, `EngineModelRef`), the provider catalogue (`EngineProviderCatalogue`,
+  `EngineSelectableModel`), the live feed (`EngineStreamEvent`, `engineHistoryEvents`), a
+  mission's verdict (`MissionState`, `judgeMission`) and `EngineFailureKind`.
+- **`scheduler/`** — the scheduler's models: scheduled missions and runs, the connector catalogue
+  and session scopes, consumption, model prices, provider health.
+- **`chat/GlobalProfile`** — the global instructions sent as `system` on every chat and task turn.
+- **`Constants.kt`** — `DEFAULT_ACCENT_SEED_ARGB`, the one literal behind the theme's default seed.
 
 ## Rules
 
-- **Pure Kotlin only.** NO Android framework dependencies. No `Context`, no `Parcelable`.
-- Only dependency beyond `:core:common` is `kotlinx-serialization-json`.
-- Use `@Serializable` on every data class. Use `@SerialName` for snake_case JSON fields.
-- Use `JsonObject` / `JsonElement` for truly polymorphic/mixed-type fields (e.g., `Agent.avatar`, `Feedback.tag`).
-- Convention plugins: `librechat.mobile.library` + `librechat.kotlin.serialization`.
+- **Pure Kotlin only.** No Android framework dependencies. Only dependency:
+  `kotlinx-serialization-json`.
+- Nullable fields with defaults where the server may omit them; `@SerialName` when the JSON key
+  differs from Kotlin naming. The app's `Json` ignores unknown keys — never assume a response is
+  exhaustive.
+- Convention plugins: `librechat.kmp.library` + `librechat.kotlin.serialization`.
