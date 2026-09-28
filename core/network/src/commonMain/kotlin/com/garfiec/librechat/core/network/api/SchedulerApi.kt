@@ -216,7 +216,7 @@ class SchedulerApi(
      * route — a file is not something JSON-RPC carries well, and this is not a tool a model calls.
      *
      * Same host, same client, same bearer as the MCP calls. The multipart carries the file as
-     * `audio`, with its real name and its real `audio/*` type (the server refuses anything else),
+     * `audio`, with its real name and its real audio MIME type (the server refuses anything else),
      * and [language] as `langue` when there is one — an ISO 639-1 code, or nothing at all rather
      * than a guess the server would then trust.
      *
