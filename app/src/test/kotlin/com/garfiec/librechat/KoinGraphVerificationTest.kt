@@ -100,9 +100,6 @@ import com.garfiec.librechat.core.network.client.SwitchGate
 import com.garfiec.librechat.core.network.client.TokenManager
 import com.garfiec.librechat.core.network.engine.EngineTokenStore
 import com.garfiec.librechat.core.network.sse.SseClient
-import com.garfiec.librechat.feature.auth.oauth.OAuthLauncher
-import com.garfiec.librechat.feature.conversations.export.ConversationExporter
-import com.garfiec.librechat.feature.files.platform.FileReader
 import com.garfiec.librechat.shared.di.sharedKoinModules
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -116,17 +113,15 @@ class KoinGraphVerificationTest {
 
     /**
      * Integration-level Koin graph verification over the shared module list
-     * ([sharedKoinModules]) — the same list both platforms start from.
+     * ([sharedKoinModules]).
      *
      * Koin's verify() operates per-module and cannot resolve definitions
      * from other modules. This test whitelists all cross-module and
      * framework types so every module is verified in a single test class.
      * If a type is renamed or removed, this test will catch it.
      *
-     * Scope: this JVM test resolves the shared list against **Android** actuals
-     * (verify() runs on the JVM, so `networkModule.includes(networkPlatformModule)`
-     * binds the Android engine). The iOS actuals and the iOS-only `LibreChatSDK`
-     * binding are covered by `IosKoinGraphTest` (`:shared:iosSimulatorArm64Test`).
+     * Scope: this JVM test resolves the shared list against the Android actuals
+     * (`networkModule.includes(networkPlatformModule)` binds the OkHttp engine).
      */
     @OptIn(KoinExperimentalAPI::class)
     @Test
@@ -189,7 +184,6 @@ class KoinGraphVerificationTest {
             AccountRoster::class,
             AccountSwitcher::class,
             SettingsDataStore::class,
-            // Defined in dataModule; settingsModule is verified on its own, so it has to be named.
             GlobalProfileStore::class,
             ThemeDataStore::class,
             AgentRepository::class,
@@ -228,12 +222,6 @@ class KoinGraphVerificationTest {
             PrefetchStatusReporter::class,
             PrefetchController::class,
             SessionTaskRunner::class,
-            // feature:auth platform provides
-            OAuthLauncher::class,
-            // feature:files platform provides
-            FileReader::class,
-            // feature:conversations provides (consumed cross-module by shared NavHostViewModel)
-            ConversationExporter::class,
             // Bound by `engineModule`, which is Android-only and NOT part of sharedKoinModules
             // (D-034). `ModelPriceCache` resolves it with `getOrNull` precisely because it may be
             // absent — the verifier reads the constructor's declared type and cannot see that.
@@ -261,8 +249,6 @@ class KoinGraphVerificationTest {
             // Wrappers/DSL types that verify can't resolve via constructor
             Lazy::class,
             File::class,
-            // ServerUrlViewModel's addAccount mode flag, injected via parametersOf
-            Boolean::class,
         )
 
         // Types whose libraries aren't on the app test classpath (transitive

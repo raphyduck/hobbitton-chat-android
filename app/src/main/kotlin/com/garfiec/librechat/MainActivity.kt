@@ -32,6 +32,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.dp
+import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import co.touchlab.kermit.Logger
@@ -43,7 +44,6 @@ import com.garfiec.librechat.core.data.engine.EngineCallbackDelivery
 import com.garfiec.librechat.core.network.engine.auth.CALLBACK_SCHEME
 import com.garfiec.librechat.core.ui.theme.LibreChatTheme
 import com.garfiec.librechat.shared.engine.EngineNavHost
-import com.garfiec.librechat.shortcuts.ModelShortcuts
 import org.koin.android.ext.android.inject
 
 class MainActivity : ComponentActivity() {
@@ -64,7 +64,7 @@ class MainActivity : ComponentActivity() {
 
         // The home-screen model shortcuts deep-linked into LibreChat's chat (`librechat://model`),
         // which no longer exists (D-077). Clear whatever an earlier build published.
-        ModelShortcuts.publish(this, emptyList())
+        ShortcutManagerCompat.removeAllDynamicShortcuts(this)
 
         setContent {
             val isConnected by connectivityObserver.isConnected.collectAsStateWithLifecycle(initialValue = true)

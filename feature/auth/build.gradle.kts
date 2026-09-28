@@ -13,11 +13,7 @@ kotlin {
             // The portal sign-in (D-076) logs its outcome; declared, not borrowed transitively.
             implementation(libs.kermit)
         }
-        androidMain.dependencies {
-            implementation(libs.browser)
-        }
         named("androidUnitTest").dependencies {
-            implementation(libs.kotlinx.serialization.json)
             implementation(libs.koin.test)
         }
     }

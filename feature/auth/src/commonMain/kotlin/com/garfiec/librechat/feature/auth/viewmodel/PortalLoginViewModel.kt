@@ -12,7 +12,6 @@ import com.garfiec.librechat.core.data.engine.validateEngineAddresses
 import com.garfiec.librechat.core.data.portal.PortalNavigation
 import com.garfiec.librechat.core.data.portal.PortalTasksSignIn
 import com.garfiec.librechat.core.data.portal.classifyPortalNavigation
-import com.garfiec.librechat.feature.auth.oauth.OAuthLauncher
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -79,17 +78,16 @@ data class PortalLoginUiState(
  * portal ([EngineSettingsStore]) — instead of a LibreChat server URL. All three are required here:
  * the scheduler is where the portal hands the code back.
  *
- * Both engine dependencies are null where the engine graph is absent (iOS, D-034): the form is then
- * not offered ([PortalLoginUiState.available]).
+ * Both engine dependencies are null where the engine graph is absent: the form is then not offered
+ * ([PortalLoginUiState.available]).
  */
 class PortalLoginViewModel(
     private val settings: EngineSettingsStore?,
     private val tasks: PortalTasksSignIn?,
-    oAuthLauncher: OAuthLauncher,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(
-        PortalLoginUiState(available = settings != null && tasks != null && oAuthLauncher.embedsPortal),
+        PortalLoginUiState(available = settings != null && tasks != null),
     )
     val state: StateFlow<PortalLoginUiState> = _state.asStateFlow()
 

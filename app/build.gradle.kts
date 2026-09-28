@@ -7,7 +7,7 @@ plugins {
 
 android {
     // Namespace stays upstream's: it names Kotlin classes (BuildConfig, R, and the
-    // MainActivity that :feature:chat references by string), not the installed app.
+    // MainActivity), not the installed app.
     // The installed identity is applicationId below.
     namespace = "com.garfiec.librechat"
 
@@ -49,12 +49,6 @@ dependencies {
     implementation(project(":core:common"))
     implementation(project(":core:logging"))
     implementation(project(":feature:auth"))
-    implementation(project(":feature:chat"))
-    implementation(project(":feature:conversations"))
-    implementation(project(":feature:settings"))
-    implementation(project(":feature:agents"))
-    implementation(project(":feature:files"))
-    implementation(project(":feature:skills"))
     implementation(project(":feature:tasks"))
 
     implementation(libs.activity.compose)
