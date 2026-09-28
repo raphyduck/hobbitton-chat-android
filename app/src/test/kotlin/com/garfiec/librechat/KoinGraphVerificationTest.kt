@@ -14,13 +14,19 @@ import com.garfiec.librechat.core.common.power.PowerStateObserver
 import com.garfiec.librechat.core.data.datastore.AccountRoster
 import com.garfiec.librechat.core.data.datastore.ConfigCacheDataStore
 import com.garfiec.librechat.core.data.datastore.GlobalProfileStore
+import com.garfiec.librechat.core.data.datastore.MissionReadingPositions
 import com.garfiec.librechat.core.data.datastore.ServerDataStore
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.datastore.ThemeDataStore
+import com.garfiec.librechat.core.data.engine.EngineMissionRepository
+import com.garfiec.librechat.core.data.engine.EngineSettingsStore
 import com.garfiec.librechat.core.data.engine.RecentMissionsSource
+import com.garfiec.librechat.core.data.engine.SessionKindStore
+import com.garfiec.librechat.core.data.portal.PortalSignOut
 import com.garfiec.librechat.core.data.portal.PortalTasksSignIn
 import com.garfiec.librechat.core.data.prefetch.AttachmentWarmer
 import com.garfiec.librechat.core.data.prefetch.PrefetchController
+import com.garfiec.librechat.core.data.prefetch.PrefetchScheduler
 import com.garfiec.librechat.core.data.prefetch.PrefetchStatusReporter
 import com.garfiec.librechat.core.data.pricing.ModelPriceCache
 import com.garfiec.librechat.core.data.pricing.ModelPriceSource
@@ -91,6 +97,7 @@ import com.garfiec.librechat.core.network.client.SecureTokenStorage
 import com.garfiec.librechat.core.network.client.ServerUrlProvider
 import com.garfiec.librechat.core.network.client.SwitchGate
 import com.garfiec.librechat.core.network.client.TokenManager
+import com.garfiec.librechat.core.network.engine.EngineTokenStore
 import com.garfiec.librechat.core.network.sse.SseClient
 import com.garfiec.librechat.feature.auth.oauth.OAuthLauncher
 import com.garfiec.librechat.feature.conversations.export.ConversationExporter
@@ -237,6 +244,16 @@ class KoinGraphVerificationTest {
             PortalTasksSignIn::class,
             // Provided by :core:data's own module; verify() resolves one module at a time.
             ModelPriceCache::class,
+            // The engine shell's view model (D-077), in sharedAppModule. Its engine half is bound
+            // by the Android-only engineModule / tasksModule and resolved with getOrNull; the rest
+            // by :core:data's modules. The verifier reads the declared types and cannot see that.
+            EngineSettingsStore::class,
+            EngineTokenStore::class,
+            PortalSignOut::class,
+            EngineMissionRepository::class,
+            SessionKindStore::class,
+            MissionReadingPositions::class,
+            PrefetchScheduler::class,
             // Wrappers/DSL types that verify can't resolve via constructor
             Lazy::class,
             File::class,

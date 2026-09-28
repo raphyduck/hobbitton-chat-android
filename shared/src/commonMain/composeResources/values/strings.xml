@@ -16,4 +16,29 @@
     <string name="session_expired_title">Signed out</string>
     <string name="session_expired_message">Your session has expired. Sign in again to continue.</string>
     <string name="session_expired_message_named">Your session for %1$s has expired. Sign in again to continue.</string>
+    <!-- The engine shell (hobbitton, D-077) -->
+    <string name="engine_drawer_new_chat">New chat</string>
+    <string name="engine_drawer_tasks">Tasks</string>
+    <string name="engine_drawer_settings">Settings</string>
+    <string name="engine_drawer_recent">Recent chats</string>
+    <string name="engine_drawer_empty">No chat yet.</string>
+    <string name="engine_drawer_failed">The chats could not be loaded.</string>
+    <string name="engine_drawer_retry">Retry</string>
+    <string name="engine_chat_running">Answering…</string>
+    <string name="engine_settings_title">Settings</string>
+    <string name="engine_settings_back">Back</string>
+    <string name="engine_settings_theme">Theme</string>
+    <string name="engine_theme_system">System</string>
+    <string name="engine_theme_light">Light</string>
+    <string name="engine_theme_dark">Dark</string>
+    <string name="engine_settings_platform">Platform</string>
+    <string name="engine_settings_engine">Engine</string>
+    <string name="engine_settings_scheduler">Scheduler</string>
+    <string name="engine_settings_portal">Portal</string>
+    <string name="engine_settings_platform_hint">To change an address, sign out and sign in again.</string>
+    <string name="engine_settings_usage">Usage and providers</string>
+    <string name="engine_settings_sign_out">Sign out</string>
+    <string name="engine_settings_sign_out_hint">Ends the portal session on this device and forgets its chat caches. Your chats and tasks stay on the platform.</string>
+    <string name="engine_settings_sign_out_confirm">Sign out</string>
+    <string name="engine_settings_cancel">Cancel</string>
 </resources>

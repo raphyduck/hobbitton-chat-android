@@ -11,4 +11,29 @@
     <string name="version_mismatch_message">Cette application a été conçue pour LibreChat v%1$s, mais votre serveur exécute la v%2$s. Certaines fonctionnalités pourraient ne pas fonctionner correctement.</string>
     <string name="dismiss">Ignorer</string>
     <string name="dont_warn_again">Ne plus avertir</string>
+    <!-- La coquille du moteur (hobbitton, D-077) -->
+    <string name="engine_drawer_new_chat">Nouvelle conversation</string>
+    <string name="engine_drawer_tasks">Tâches</string>
+    <string name="engine_drawer_settings">Réglages</string>
+    <string name="engine_drawer_recent">Conversations récentes</string>
+    <string name="engine_drawer_empty">Aucune conversation pour l'instant.</string>
+    <string name="engine_drawer_failed">Les conversations n'ont pas pu être chargées.</string>
+    <string name="engine_drawer_retry">Réessayer</string>
+    <string name="engine_chat_running">En train de répondre…</string>
+    <string name="engine_settings_title">Réglages</string>
+    <string name="engine_settings_back">Retour</string>
+    <string name="engine_settings_theme">Thème</string>
+    <string name="engine_theme_system">Système</string>
+    <string name="engine_theme_light">Clair</string>
+    <string name="engine_theme_dark">Sombre</string>
+    <string name="engine_settings_platform">Plateforme</string>
+    <string name="engine_settings_engine">Moteur</string>
+    <string name="engine_settings_scheduler">Planificateur</string>
+    <string name="engine_settings_portal">Portail</string>
+    <string name="engine_settings_platform_hint">Pour changer une adresse, déconnectez-vous puis reconnectez-vous.</string>
+    <string name="engine_settings_usage">Consommation et fournisseurs</string>
+    <string name="engine_settings_sign_out">Se déconnecter</string>
+    <string name="engine_settings_sign_out_hint">Ferme la session du portail sur cet appareil et oublie ses caches de conversation. Vos conversations et vos tâches restent sur la plateforme.</string>
+    <string name="engine_settings_sign_out_confirm">Se déconnecter</string>
+    <string name="engine_settings_cancel">Annuler</string>
 </resources>
