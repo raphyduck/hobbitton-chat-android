@@ -1,5 +1,6 @@
 package com.garfiec.librechat.core.data.engine
 
+import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.data.datastore.GlobalProfileSource
 import com.garfiec.librechat.core.model.engine.CreateEngineSessionRequest
 import com.garfiec.librechat.core.model.engine.EngineMessage
@@ -42,6 +43,19 @@ data class Mission(
 )
 
 /**
+ * One chat as the drawer lists it (D-077): an engine session run on the `chat` profile.
+ *
+ * [running] claims only what the status map proves, like the drawer's mission rows did: a chat
+ * that is answering right now. Nothing else is read to build a row.
+ */
+data class EngineChatSummary(
+    val sessionId: String,
+    val title: String,
+    val lastActivityMillis: Long?,
+    val running: Boolean,
+)
+
+/**
  * What the New-mission sheet needs to offer a model: the list, and what to tick when it opens.
  */
 data class EngineModelChoice(
@@ -63,6 +77,8 @@ class EngineMissionRepository(
     private val streamClient: EngineStreamClient,
     private val eventTransport: EngineEventTransport,
     private val globalProfile: GlobalProfileSource,
+    /** Which session is a chat and which a task, as far as this device knows (D-077). */
+    private val kinds: SessionKindStore,
 ) {
 
     /**
@@ -96,9 +112,11 @@ class EngineMissionRepository(
      * Sorted by label, because a map promises no order and a picker that reshuffles between two
      * openings is a picker that gets misread.
      */
-    suspend fun models(): EngineModelChoice {
+    suspend fun models(profile: EngineProfile = EngineProfile.TASK): EngineModelChoice {
         val catalogue = api.providers()
-        val declared = catalogue.providers.filter { it.source == DECLARED_PROVIDER }
+        // Declared by the deployment, AND meant for this profile (D-077): a chat is offered the
+        // chat's provider only, a task everything declared but that one — see [offersProvider].
+        val declared = catalogue.providers.filter { it.source == DECLARED_PROVIDER && offersProvider(profile, it.id) }
 
         fun selectable(providerId: String, key: String, model: EngineProviderModel?) =
             EngineSelectableModel(
@@ -129,10 +147,16 @@ class EngineMissionRepository(
      */
     suspend fun recentMissions(limit: Int = RECENT_SHOWN): List<Mission> {
         val statuses = api.status()
+        // Chats are not tasks (D-077): they live in the drawer, and the tab lists missions only.
+        // What this device already knows is dropped before the cap, so a morning of chatting does
+        // not push the night's missions off the list; the rest is sorted out once its transcript
+        // is read, below.
+        val recorded = recordedKinds()
         val recent = api.sessions()
+            .filter { recorded[it.id] != EngineSessionKind.CHAT }
             .sortedByDescending { it.time?.updated ?: it.time?.created ?: Long.MIN_VALUE }
             .take(limit)
-        return judged(statuses, recent)
+        return judged(statuses, recent, recorded, dropChats = true)
     }
 
     /**
@@ -162,19 +186,135 @@ class EngineMissionRepository(
     private suspend fun judged(
         statuses: Map<String, EngineSessionStatus>,
         sessions: List<EngineSession>,
-    ): List<Mission> = sessions.map { session ->
-        val active = statuses[session.id]
-        val messages = if (active != null && active.type != IDLE_STATUS) {
-            emptyList()
-        } else {
-            runCatching { api.messages(session.id) }.getOrDefault(emptyList())
+        recorded: Map<String, EngineSessionKind> = emptyMap(),
+        dropChats: Boolean = false,
+    ): List<Mission> {
+        val learned = mutableMapOf<String, EngineSessionKind>()
+        val missions = sessions.mapNotNull { session ->
+            val active = statuses[session.id]
+            val messages = if (active != null && active.type != IDLE_STATUS) {
+                emptyList()
+            } else {
+                runCatching { api.messages(session.id) }.getOrDefault(emptyList())
+            }
+            if (dropChats && recorded[session.id] == null) {
+                // The transcript is already here: classifying costs nothing more, and remembering
+                // the verdict spares the drawer from reading it again.
+                val kind = classifySession(session.title, null, messages)
+                if (kind != null) learned[session.id] = kind
+                if (kind == EngineSessionKind.CHAT) return@mapNotNull null
+            }
+            Mission(
+                sessionId = session.id,
+                title = session.title.orEmpty().ifBlank { session.id },
+                state = judgeMission(active, messages),
+                lastActivityMillis = lastActivityOf(session, messages),
+            )
         }
-        Mission(
-            sessionId = session.id,
-            title = session.title.orEmpty().ifBlank { session.id },
-            state = judgeMission(active, messages),
-            lastActivityMillis = lastActivityOf(session, messages),
+        remember(learned)
+        return missions
+    }
+
+    /**
+     * The chats of the drawer (D-077), most recently active first.
+     *
+     * Classified by [classifySession]: what this device recorded first, then the scheduler's title
+     * shape, and only then the transcript — read for at most [MAX_CLASSIFICATION_READS] unknown
+     * sessions per refresh, and the verdict recorded so it is never read again. A session that says
+     * nothing yet (no message) is left out: it is either a chat being created right now, which its
+     * creator recorded, or nobody's conversation.
+     */
+    suspend fun recentChats(limit: Int = RECENT_CHATS_SHOWN): List<EngineChatSummary> {
+        val statuses = runCatching { api.status() }.getOrDefault(emptyMap())
+        val recorded = recordedKinds()
+        val sessions = api.sessions()
+            .sortedByDescending { it.time?.updated ?: it.time?.created ?: Long.MIN_VALUE }
+        val learned = mutableMapOf<String, EngineSessionKind>()
+        var reads = 0
+        val chats = mutableListOf<EngineChatSummary>()
+        for (session in sessions) {
+            if (chats.size >= limit) break
+            var kind = classifySession(session.title, recorded[session.id], messages = null)
+            if (kind == null && reads < MAX_CLASSIFICATION_READS) {
+                reads++
+                val messages = runCatching { api.messages(session.id) }.getOrNull()
+                kind = classifySession(session.title, null, messages)
+                if (kind != null) learned[session.id] = kind
+            }
+            if (kind == EngineSessionKind.CHAT) {
+                val active = statuses[session.id]
+                chats += EngineChatSummary(
+                    sessionId = session.id,
+                    title = session.title.orEmpty().ifBlank { session.id },
+                    lastActivityMillis = session.time?.updated ?: session.time?.created,
+                    running = active != null && active.type != IDLE_STATUS,
+                )
+            }
+        }
+        remember(learned)
+        return chats
+    }
+
+    /**
+     * Starts a chat (D-077): an engine session on the `chat` profile, then its first message.
+     *
+     * The mission path, with the chat's three differences and nothing else:
+     *
+     *  * the agent is `chat` — no shell, no local files, no web fetch;
+     *  * the perimeter is **every connector the scheduler opens to a chat** ([chatPerimeter]):
+     *    recorded with the scheduler before the first prompt, exactly as a mission's is, and turned
+     *    into the session's rules by the same [permissionsFor];
+     *  * the model comes from `hobbitton-chat` ([forChat]), which carries the chat budget — the
+     *    chat provider's default when none is named.
+     *
+     * The kind is recorded as soon as the session exists, before anything can fail: a chat whose
+     * first prompt was lost is still a chat, and the drawer shows it as one.
+     */
+    suspend fun startChat(
+        text: String,
+        model: EngineModelRef? = null,
+        files: List<EnginePromptPart> = emptyList(),
+    ): String {
+        val catalogue = connectors()
+        val perimeter = catalogue.chatPerimeter()
+        val session = api.createSession(
+            CreateEngineSessionRequest(
+                agent = CHAT_AGENT,
+                title = text.trim().ifBlank { files.firstOrNull()?.filename.orEmpty() }.take(TITLE_LENGTH),
+                permission = permissionsFor(catalogue, perimeter),
+            ),
         )
+        runCatching { kinds.record(session.id, EngineSessionKind.CHAT) }
+            .onFailure { Logger.w(it) { "Could not record a new chat's kind" } }
+        scheduler.setScope(session.id, perimeter)
+        api.prompt(
+            sessionId = session.id,
+            request = EnginePromptRequest(
+                // Files first, text last: the order the classic send uses, and OpenCode's own UI.
+                parts = files + listOfNotNull(text.takeIf { it.isNotBlank() }?.let { EnginePromptPart.text(it) }),
+                agent = CHAT_AGENT,
+                model = chatModel(model),
+                system = instructions(),
+            ),
+        )
+        return session.id
+    }
+
+    /**
+     * The model a chat's turn runs on: the one asked for, moved onto the chat's provider, or the
+     * chat provider's own default. Named whenever the catalogue answers: an absent model would
+     * leave the choice to the engine, and the chat budget is not something to leave to it.
+     */
+    private suspend fun chatModel(requested: EngineModelRef?): EngineModelRef? =
+        requested?.forChat() ?: runCatching { models(EngineProfile.CHAT).preselected?.ref }.getOrNull()
+
+    private suspend fun recordedKinds(): Map<String, EngineSessionKind> =
+        runCatching { kinds.all() }.getOrDefault(emptyMap())
+
+    private suspend fun remember(learned: Map<String, EngineSessionKind>) {
+        if (learned.isEmpty()) return
+        runCatching { kinds.recordAll(learned) }
+            .onFailure { Logger.w(it) { "Could not record the kinds of ${learned.size} session(s)" } }
     }
 
     /**
@@ -261,12 +401,26 @@ class EngineMissionRepository(
         text: String,
         model: EngineModelRef? = null,
         files: List<EnginePromptPart> = emptyList(),
-    ): List<EngineStreamEvent> =
-        engineHistoryEvents(
+        profile: EngineProfile = EngineProfile.TASK,
+    ): List<EngineStreamEvent> {
+        // A chat names its agent and its provider on EVERY turn (D-077): the classic route takes
+        // both per message, and a turn that named neither would run on whatever the engine
+        // defaults to — not the chat's profile, not the chat's budget. A task's turn stays as it
+        // always was: the session's own.
+        val chat = profile == EngineProfile.CHAT
+        return engineHistoryEvents(
             listOf(
-                api.sendMessage(sessionId, text, model = model, files = files, system = instructions()),
+                api.sendMessage(
+                    sessionId,
+                    text,
+                    model = if (chat) chatModel(model) else model,
+                    files = files,
+                    system = instructions(),
+                    agent = if (chat) CHAT_AGENT else null,
+                ),
             ),
         )
+    }
 
     /**
      * The connectors a mission may be given, as the scheduler declares them.
@@ -336,21 +490,19 @@ class EngineMissionRepository(
         /** Two days of the scheduler's output: what one scrolls, not what one searches. */
         const val RECENT_SHOWN = 20
 
+        /** The drawer's conversations: a few weeks of chatting, not an archive. */
+        const val RECENT_CHATS_SHOWN = 40
+
         /**
-         * The single engine agent every mission launched from this app runs on.
-         *
-         * There is no profile choice here and there is no longer a profile *notion* either: what a
-         * mission may do is its ticked connectors, what it must do is its objective, and how it
-         * should behave is the global profile — three answers, three mechanisms, none of them a
-         * name to pick from a list. The app used to read `GET /agent` and resolve one of the
-         * deployment's métier profiles; that reading only ever returned `mission`, and every
-         * fallback it carried was a way of guessing which stranger to hand the objective to.
-         *
-         * The server's other profiles still exist and still matter — they are what the **scheduled**
-         * missions run on, bound to a métier in the scheduler's own configuration. They are simply
-         * not this app's to choose.
+         * Transcripts read per refresh to classify sessions this device has never seen. Each
+         * verdict is recorded, so a backlog drains over a few openings instead of one slow one.
          */
-        const val MISSION_AGENT = "mission"
+        const val MAX_CLASSIFICATION_READS = 10
+
+        // The agent a mission runs on is `MISSION_AGENT` (EngineProfile.kt), next to the chat's.
+        // There is no profile choice here and no profile *notion* either: what a mission may do is
+        // its ticked connectors, what it must do is its objective, and how it should behave is the
+        // global profile. The server's other profiles are what the SCHEDULED missions run on.
 
         /**
          * `source` of a provider this deployment declared in its own `opencode.json`, as opposed

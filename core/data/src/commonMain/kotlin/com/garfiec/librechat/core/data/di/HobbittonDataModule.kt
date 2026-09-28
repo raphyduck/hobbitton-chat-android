@@ -4,6 +4,8 @@ import com.garfiec.librechat.core.common.di.KoinQualifiers
 import com.garfiec.librechat.core.data.datastore.GlobalProfileSource
 import com.garfiec.librechat.core.data.datastore.GlobalProfileStore
 import com.garfiec.librechat.core.data.datastore.MissionReadingPositions
+import com.garfiec.librechat.core.data.engine.EngineSessionKinds
+import com.garfiec.librechat.core.data.engine.SessionKindStore
 import com.garfiec.librechat.core.data.pricing.ModelPriceCache
 import org.koin.dsl.module
 
@@ -19,6 +21,18 @@ val hobbittonDataModule = module {
     /** Where each mission transcript was left, so the conversation reopens there. */
     single {
         MissionReadingPositions(
+            dataStore = get(),
+            json = get(),
+            ioDispatcher = get(KoinQualifiers.IO),
+        )
+    }
+
+    /**
+     * Which engine session is a chat and which a task (D-077). Platform-neutral like the reading
+     * positions: plain preferences, no secret — the engine graph that reads it stays Android-only.
+     */
+    single<SessionKindStore> {
+        EngineSessionKinds(
             dataStore = get(),
             json = get(),
             ioDispatcher = get(KoinQualifiers.IO),

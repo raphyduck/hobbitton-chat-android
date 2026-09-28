@@ -29,12 +29,14 @@ import kotlinx.coroutines.flow.emptyFlow
 internal fun testMissionRepository(
     engine: MockEngine,
     globalProfile: GlobalProfileSource = GlobalProfileSource { GlobalProfile.NONE },
+    kinds: SessionKindStore = InMemorySessionKinds(),
 ): EngineMissionRepository = EngineMissionRepository(
     api = AgentEngineApi(engineTestClient(engine)),
     scheduler = SchedulerApi(engineTestClient(engine), librechatJson),
     streamClient = EngineStreamClient(EngineEventParser(librechatJson)),
     eventTransport = SilentEventTransport,
     globalProfile = globalProfile,
+    kinds = kinds,
 )
 
 /**
@@ -52,4 +54,21 @@ internal fun engineTestClient(engine: MockEngine): HttpClient = HttpClient(engin
 
 private object SilentEventTransport : EngineEventTransport {
     override fun stream(): Flow<ByteArray> = emptyFlow()
+}
+
+/** A [SessionKindStore] in memory: what the suites read back to see what the repository recorded. */
+internal class InMemorySessionKinds(
+    initial: Map<String, EngineSessionKind> = emptyMap(),
+) : SessionKindStore {
+    val recorded = LinkedHashMap(initial)
+
+    override suspend fun all(): Map<String, EngineSessionKind> = recorded.toMap()
+
+    override suspend fun recordAll(kinds: Map<String, EngineSessionKind>) {
+        recorded.putAll(kinds)
+    }
+
+    override suspend fun clear() {
+        recorded.clear()
+    }
 }
