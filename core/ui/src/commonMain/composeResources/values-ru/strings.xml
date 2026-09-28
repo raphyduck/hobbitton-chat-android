@@ -3,4 +3,5 @@
     <string name="cd_generating_response">Генерация ответа</string>
     <string name="model_price_per_million">(%1$s / %2$s $/M)</string>
     <string name="model_price_unknown">(цена неизвестна)</string>
+    <string name="model_price_legend">Цена за миллион токенов: ввод / вывод</string>
 </resources>

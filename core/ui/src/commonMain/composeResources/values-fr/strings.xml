@@ -3,4 +3,5 @@
     <string name="cd_generating_response">Génération de la réponse</string>
     <string name="model_price_per_million">(%1$s / %2$s $/M)</string>
     <string name="model_price_unknown">(prix inconnu)</string>
+    <string name="model_price_legend">Prix par million de jetons : entrée / sortie</string>
 </resources>

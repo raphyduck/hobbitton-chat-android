@@ -3,4 +3,5 @@
     <string name="cd_generating_response">正在生成回复</string>
     <string name="model_price_per_million">(%1$s / %2$s $/M)</string>
     <string name="model_price_unknown">(价格未知)</string>
+    <string name="model_price_legend">每百万 token 价格: 输入 / 输出</string>
 </resources>

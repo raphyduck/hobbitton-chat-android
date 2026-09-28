@@ -3,4 +3,5 @@
     <string name="cd_generating_response">応答を生成中</string>
     <string name="model_price_per_million">(%1$s / %2$s $/M)</string>
     <string name="model_price_unknown">(価格不明)</string>
+    <string name="model_price_legend">100万トークンあたりの価格: 入力 / 出力</string>
 </resources>

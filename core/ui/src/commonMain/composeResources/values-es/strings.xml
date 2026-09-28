@@ -3,4 +3,5 @@
     <string name="cd_generating_response">Generando respuesta</string>
     <string name="model_price_per_million">(%1$s / %2$s $/M)</string>
     <string name="model_price_unknown">(precio desconocido)</string>
+    <string name="model_price_legend">Precio por millón de tokens: entrada / salida</string>
 </resources>

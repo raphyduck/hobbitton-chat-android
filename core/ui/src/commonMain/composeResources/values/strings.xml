@@ -7,4 +7,5 @@
          model that charges would be reassuring and false. -->
     <string name="model_price_per_million">(%1$s / %2$s $/M)</string>
     <string name="model_price_unknown">(price unknown)</string>
+    <string name="model_price_legend">Price per million tokens: input / output</string>
 </resources>

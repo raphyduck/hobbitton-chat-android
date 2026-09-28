@@ -3,4 +3,5 @@
     <string name="cd_generating_response">جارٍ إنشاء الرد</string>
     <string name="model_price_per_million">(%1$s / %2$s $/M)</string>
     <string name="model_price_unknown">(السعر غير معروف)</string>
+    <string name="model_price_legend">السعر لكل مليون رمز: الإدخال / الإخراج</string>
 </resources>
