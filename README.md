@@ -1,183 +1,58 @@
-# Switchboard: LibreChat Mobile Client
+# hobbitton chat (Android)
 
-[![LibreChat](https://img.shields.io/badge/LibreChat-v0.8.4_–_v0.8.7_%2Bdev-blue)](https://github.com/danny-avila/LibreChat/commit/91adcf3f2c3a16266d29e4cee7916518e807f9b3)
+The Android client of the hobbitton platform: chats and tasks on the OpenCode engine, behind the
+platform's scheduler and its Authelia portal.
 
-A third-party native mobile client for [LibreChat](https://www.librechat.ai/) (Android & iOS). Not affiliated with the official LibreChat project — this is an independent app that connects to any self-hosted LibreChat server, no backend modifications required.
+It began as a fork of [Switchboard](https://github.com/garfiec/Librechat-Mobile), a native client
+for LibreChat. LibreChat has since left the platform, and its client code has left this app: what
+remains is the engine's shell. The installed application is `at.hobbitton.chat`.
 
-> **Backend compatibility:** Tested against LibreChat **v0.8.4 – v0.8.7 +dev** (partial sync to an untagged `dev` commit past v0.8.7). Older releases may work but are not guaranteed; newer releases are supported on a best-effort basis until the next sync.
+## What it does
 
-## Why use this instead of the web app?
+- **One sign-in** — the three addresses of the platform (engine, scheduler, portal), then the
+  portal's sign-in (PKCE) in the app's own web view.
+- **Chat** — a session on the engine's `chat` agent, with the models of the `hobbitton-chat`
+  provider and the connectors the scheduler opens to chats; answers stream live.
+- **Tasks** — scheduled and one-off missions, their runs and their conversations, and the
+  platform's consumption and model prices.
+- **Global instructions** — sent as `system` on every chat and task turn, edited from Settings.
+- **Dictation and audio files** — transcribed by the scheduler (`POST /transcription`).
+- **Themes** — accent colour, light / dark / system, Material You on Android 12+.
 
-- **Smoother and faster** — a real native app instead of a website in a wrapper, so scrolling, typing, and watching responses stream in all feel snappier.
-- **Feels like a mobile app, not a shrunk-down website** — familiar gestures like swipe to switch accounts and swipe back, comfortable tap targets, and a layout that adapts to tablets and foldables.
-- **Plays nicely with your phone** — share text, images, and files into the app from anywhere *(Android)*, pin your favorite models or generated content to your home screen, open chat links straight into the right screen, and save or share images through your phone's normal menus.
-- **Works without a connection** — your chat list and any conversations you've opened are saved on your phone, so you can keep reading with spotty or no signal.
-- **Multiple accounts, one app** — sign in to different accounts on different LibreChat servers and switch between them instantly, no re-entering passwords.
-- **Dictation stays on your phone** — voice typing runs on-device instead of through a server.
+## Install
 
-## Features
-
-- **Multi-Account & Multi-Server** — Sign in to multiple accounts across different LibreChat servers and switch between them instantly, no re-login. Swipe the account chip to switch; storage is fully scoped per account.
-- **Pin Artifacts to Home Screen** — Turn any generated artifact (HTML, React, SVG, Mermaid, Markdown) into a home-screen launcher icon that opens straight into a full-screen viewer — works on cold start, while logged out, and even after the source chat is deleted. *(Android)*
-- **Quick Actions** — Your most-used models become home-screen shortcuts (Android) and long-press quick actions (iOS) that deep-link into a new chat with that model preselected.
-- **Rich Media Viewer** — Full-screen, Google-Photos-style viewer with pinch-to-zoom and swipe between images across a branch or grid, shared by chat and files.
-- **Native Upload, Share & Save** — Attach from the device or reuse existing server files without re-uploading, save images to your gallery, and share out through the system share sheet with original format preserved.
-- **Themes** — Pick any accent color and the whole app regenerates a matching Material 3 palette — choose from presets or dial in a custom color (HSV or hex). System/light/dark modes, plus Material You wallpaper-based colors on Android 12+.
-- **Chat** — Real-time streaming (SSE), message branching & sibling navigation, stop/regenerate/continue, markdown with syntax highlighting, LaTeX math rendering, code blocks with copy, image display, file attachments, tool call progress cards
-- **Inline Artifacts** — Render Mermaid, SVG, HTML, React, and Markdown artifacts directly in chat messages at full message width with content-fit height. Per-type toggle in Settings → Chat → Artifacts.
-- **Model Selection** — Searchable bottom sheet grouped by endpoint, model comparison mode
-- **Agents** — Marketplace with search and categories, MCP server configuration
-- **Conversations** — Paginated list with date grouping, tags, search, rename, archive, delete, share, fork, duplicate, export/import
-- **Voice** — On-device live dictation (Android & iOS) with cloud fallback, plus text-to-speech playback
-- **Mobile & Tablet** — Single adaptive UI: single-pane on phones, dual-pane layout (600dp+) with a persistent sidebar on tablets and foldables, with native predictive-back gestures
-- **Settings** — In-app language switching, account management, data controls
-- **Accessibility** — Semantic headings, content descriptions, 48dp touch targets, live regions
-
-## Screenshots
-
-| Feature | Phone | Tablet / Foldable |
-|---|---|---|
-| **Server Connect** — Point the app at any self-hosted LibreChat server | <img src="docs/screenshots/server-url-phone.png" width="280"> | <img src="docs/screenshots/server-url-tablet.png" width="380"> |
-| **Home Screen** — Clean welcome screen with voice input and quick access | <img src="docs/screenshots/home-phone.png" width="280"> | <img src="docs/screenshots/home-tablet.png" width="380"> |
-| **Conversations Sidebar** — Swipe to open your chat history with search, tags, and date grouping | <img src="docs/screenshots/sidebar-phone.gif" width="280"> | <img src="docs/screenshots/sidebar-tablet.gif" width="380"> |
-| **Predictive Back** — Native Android back gesture with peek animation | <img src="docs/screenshots/predictive-back-phone.gif" width="280"> | <img src="docs/screenshots/predictive-back-tablet.gif" width="380"> |
-| **Mermaid Diagrams** — Interactive flowcharts and diagrams rendered in-chat | <img src="docs/screenshots/mermaid-phone.png" width="280"> | <img src="docs/screenshots/mermaid-tablet.png" width="380"> |
-| **LaTeX Math** — Beautifully typeset equations and formulas | <img src="docs/screenshots/latex-phone.png" width="280"> | <img src="docs/screenshots/latex-tablet.png" width="380"> |
-| **Code Blocks** — Syntax-highlighted code with language badge and copy button | <img src="docs/screenshots/code-phone.png" width="280"> | <img src="docs/screenshots/code-tablet.png" width="380"> |
-| **Tables** — Clean, scrollable data tables | <img src="docs/screenshots/table-phone.png" width="280"> | <img src="docs/screenshots/table-tablet.png" width="380"> |
-| **Extended Thinking** — See the model's reasoning process | <img src="docs/screenshots/thinking-phone.png" width="280"> | <img src="docs/screenshots/thinking-tablet.png" width="380"> |
-| **Chat Media** — Browse all media shared in the current chat in one place | <img src="docs/screenshots/chat-media-phone.png" width="280"> | <img src="docs/screenshots/chat-media-tablet.png" width="380"> |
-| **Chat Options** — Attach files, switch models, toggle tools, and tune parameters | <img src="docs/screenshots/chat-options-phone.png" width="280"> | <img src="docs/screenshots/chat-options-tablet.png" width="380"> |
-| **Model Selection** — Searchable bottom sheet with models grouped by provider | <img src="docs/screenshots/model-selection-phone.png" width="280"> | <img src="docs/screenshots/model-selection-tablet.png" width="380"> |
-| **Settings** — Theme, language, layout, and personalization options | <img src="docs/screenshots/settings-phone.png" width="280"> | <img src="docs/screenshots/settings-tablet.png" width="380"> |
-
-## Install (Android)
-
-Pre-built, signed APKs are published on the [Releases](https://github.com/garfiec/Librechat-Mobile/releases) page. No need to build from source.
-
-### Obtainium (recommended)
-
-[Obtainium](https://github.com/ImranR98/Obtainium) installs the app straight from GitHub Releases and keeps it updated automatically.
-
-[![Add to Obtainium](https://img.shields.io/badge/Add%20to-Obtainium-1e88e5?logo=android&logoColor=white)](https://apps.obtainium.imranr.dev/redirect.html?r=obtainium://add/https://github.com/garfiec/Librechat-Mobile)
-
-1. Install Obtainium from its [releases](https://github.com/ImranR98/Obtainium/releases).
-2. Tap the **Add to Obtainium** badge above (or, in Obtainium, *Add App* → paste `https://github.com/garfiec/Librechat-Mobile`).
-3. Obtainium tracks new releases and prompts you to update when one ships.
-
-Release-candidate builds (versions like `2026.07.1-rc1`) are published as GitHub *pre-releases* and are ignored unless you enable **Include prereleases** for the app in Obtainium.
-
-### Manual install
-
-Download the latest `switchboard-vYYYY.MM.P.apk` from [Releases](https://github.com/garfiec/Librechat-Mobile/releases) and open it on your device (you may need to allow installs from your browser/file manager).
-
-### Verifying the signing key
-
-All releases are signed with the same key, so updates install in place. Verify a downloaded APK matches the published certificate:
-
-```bash
-apksigner verify --print-certs switchboard-vYYYY.MM.P.apk
-# or check the .sha256 checksum attached to each release:
-sha256sum -c switchboard-vYYYY.MM.P.apk.sha256
-```
-
-> Signing certificate SHA-256: `66:8A:71:96:6A:07:06:14:D1:44:95:5D:83:E7:23:6A:3C:ED:77:F8:64:08:57:C3:FA:84:B0:3C:CD:E4:0E:59`
-
-If the signing key ever changed, Android would refuse the update — so this key is permanent. Never install a build signed with a different certificate over an existing install.
-
-### Verifying build provenance (optional, strongest)
-
-Every release APK carries a [SLSA build-provenance attestation](https://github.com/garfiec/Librechat-Mobile/attestations), signed by GitHub Actions via Sigstore. Unlike the `.sha256` — which whoever attaches a release could regenerate — the attestation proves the binary was produced by this repo's release workflow at a specific commit, and **cannot be forged outside GitHub's CI**. With the [GitHub CLI](https://cli.github.com):
-
-```bash
-gh attestation verify switchboard-vYYYY.MM.P.apk \
-  --repo garfiec/Librechat-Mobile \
-  --signer-workflow garfiec/Librechat-Mobile/.github/workflows/release.yml
-```
-
-A pass confirms the exact bytes you downloaded came from that workflow. The run and attestation are also linked from each release's notes — but those links are convenience, not proof; only the command above verifies the bytes in your hand.
-
-## Server Setup
-
-The app works with any standard LibreChat server. During onboarding, you'll enter your server URL (e.g., `https://chat.example.com` or `http://192.168.1.100:3080`).
-
-### Required Configuration
-
-Add the following to your LibreChat server's `.env` file:
-
-```env
-# Safety net for native app clients.
-# The app sends a browser User-Agent to pass the uaParser middleware,
-# but if it ever fails to parse, this prevents ban point accumulation.
-NON_BROWSER_VIOLATION_SCORE=0
-```
-
-Without this setting, the server's violation system may accumulate ban points against the mobile client if the User-Agent check fails, eventually locking the account out.
-
-### Notes
-
-- **Registration** — The app respects your server's registration settings. If registration is disabled server-side, only the login form is shown.
-- **Self-signed TLS certificates** — Both platforms enforce certificate requirements stricter than browsers, and Android additionally does not trust user-installed CAs by default. See [FAQ.md](FAQ.md#can-i-use-a-self-signed-tls-certificate) for details and workarounds.
+Signed APKs are built by the release workflow (`.github/workflows/release.yml`) and attached to
+the repository's GitHub Releases, each with a `.sha256` and a SLSA build-provenance attestation.
+See [docs/RELEASING.md](docs/RELEASING.md) for how a release is cut and verified.
 
 ## Requirements
 
 | Tool | Version |
 |------|---------|
-| JDK | 17+ |
-| Android Studio or IntelliJ IDEA | Latest stable (recommended IDE for all code editing) |
-| Xcode | 15+ (iOS only, Apple Silicon Mac required — IDE not needed, CLI only) |
-| iOS Deployment Target | 16.0+ |
+| JDK | 17+ (CI uses 21) |
+| Android Studio or IntelliJ IDEA | Latest stable |
 | Gradle | 9.5.1 (via wrapper) |
 | Kotlin | 2.4.10 |
 
 ## Building from Source
 
-### Android
-
 ```bash
-./gradlew assembleDebug
+./gradlew :app:assembleDebug
 ```
 
-The debug APK will be at `app/build/outputs/apk/debug/app-debug.apk`.
-
-For a release build:
+The debug APK will be at `app/build/outputs/apk/debug/app-debug.apk`. Tests and lint:
 
 ```bash
-./gradlew assembleRelease
+./gradlew test
+./gradlew detekt :app:lint
 ```
 
-### iOS
+## Tech Stack
 
-Xcode builds the Kotlin framework itself via a build phase (direct integration), so there is no separate `link*Framework` step to run by hand.
-
-**Simulator:**
-
-```bash
-xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp \
-  -sdk iphonesimulator \
-  -destination 'platform=iOS Simulator,name=iPhone 16' \
-  -derivedDataPath iosApp/build build
-```
-
-**Physical device:**
-
-```bash
-open iosApp/iosApp.xcodeproj
-```
-
-Then in Xcode: select your device, set your Team under Signing & Capabilities, and press ⌘R.
-
-See [iosApp/README.md](iosApp/README.md) for full build and launch instructions.
-
-### Tech Stack
-
-- Kotlin Multiplatform (KMP) with shared business logic
-- Jetpack Compose (Android) + Compose Multiplatform (iOS)
-- Koin (dependency injection)
-- Ktor Client (OkHttp on Android, Darwin on iOS)
-- Kotlinx Serialization
-- Room (cache), DataStore (preferences), EncryptedSharedPreferences / Keychain (tokens)
-- Kotlin 2.4.10, compileSdk 36, minSdk 26
+- Kotlin Multiplatform modules (Android target), Jetpack Compose / Compose Multiplatform
+- Navigation 3, Koin, Ktor Client (OkHttp), Kotlinx Serialization
+- DataStore (preferences), EncryptedSharedPreferences (the portal's tokens)
+- compileSdk 36, minSdk 26
 
 ## Contributing
 

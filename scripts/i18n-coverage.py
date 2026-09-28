@@ -101,13 +101,7 @@ if EXIT_HARD_FAILURE & FINDING_MASK:  # pragma: no cover — structural invarian
 
 EXPECTED_MODULES = (
     "core/ui",
-    "feature/agents",
     "feature/auth",
-    "feature/chat",
-    "feature/conversations",
-    "feature/files",
-    "feature/settings",
-    "feature/skills",
     "shared",
 )
 
@@ -933,7 +927,7 @@ def _run_record(module: str, locale: str, lf: ResourceFile, run: list[str], line
 # --------------------------------------------------------------------------------------
 
 H_PATH_EXCLUDE = re.compile(
-    r"(^|/)(build|upstream|\.git|\.gradle|iosApp|detekt-rules|build-logic|scripts|docs|config)(/|$)"
+    r"(^|/)(build|\.git|\.gradle|build-logic|scripts|docs|config)(/|$)"
     r"|/src/(androidTest|androidUnitTest|androidInstrumentedTest|commonTest|iosTest|jvmTest|test)/"
     r"|(Test|Tests|Fake|Fakes|Preview|Previews)\.kt$"
     r"|/generated/"
@@ -1558,7 +1552,7 @@ def build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description=(
             "Deterministic i18n coverage checker for the Switchboard compose-resources\n"
-            "localization surface (9 modules x 9 locales)."
+            "localization surface (string modules x 9 locales)."
         ),
         epilog="""
 DETECTORS

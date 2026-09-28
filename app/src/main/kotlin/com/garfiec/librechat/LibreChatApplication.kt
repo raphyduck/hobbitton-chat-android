@@ -15,6 +15,7 @@ import coil3.request.crossfade
 import coil3.svg.SvgDecoder
 import com.garfiec.librechat.core.common.AppInfo
 import com.garfiec.librechat.core.data.di.engineModule
+import com.garfiec.librechat.core.data.legacy.LegacyLibreChatCleanup
 import com.garfiec.librechat.core.logging.PersistentLogWriter
 import com.garfiec.librechat.core.logging.PlatformInfo
 import com.garfiec.librechat.core.logging.RedactingLogWriter
@@ -71,16 +72,19 @@ class LibreChatApplication : Application(), SingletonImageLoader.Factory {
                 }
                 androidContext(this@LibreChatApplication)
                 allowOverride(false)
-                // `engineModule` is Android-only on purpose (D-034): the engine's secrets need a
-                // secure store, and on iOS that is raw Keychain code that cannot be compiled or run
-                // outside CI's macOS runner. It therefore joins here rather than in
-                // `sharedKoinModules`, which both platforms start from.
+                // The engine's graph (`engineModule`, androidMain: its clients and its secure store)
+                // and the Tasks module that needs it, next to the shared list.
                 modules(sharedKoinModules + engineModule + tasksModule)
             }
         } catch (e: Exception) {
             Logger.e(e) { "Koin initialization failed" }
             throw e // Always rethrow — DI failure is unrecoverable
         }
+
+        // What LibreChat left on a device that ran an earlier build (D-077): removed once, in the
+        // background. The engine's preferences and the global profile are not touched.
+        val legacyCleanup: LegacyLibreChatCleanup by inject()
+        legacyCleanup.launchOnce()
 
         // Diagnostic logging is wired AFTER Koin so the writer's dependencies are resolvable.
         // Everything here is best-effort: a logging-setup failure must never block app launch.
@@ -108,8 +112,7 @@ class LibreChatApplication : Application(), SingletonImageLoader.Factory {
             previous?.uncaughtException(thread, throwable)
         }
 
-        // Emit the startup header. detectedBackendVersion is null at cold start (config not yet
-        // fetched); a later config-load path snapshots the detected version separately.
+        // Emit the startup header: build and device context for every diagnostic export.
         val appInfo: AppInfo by inject()
         val platformInfo: PlatformInfo by inject()
         logStartupHeader(appInfo = appInfo, platformInfo = platformInfo)

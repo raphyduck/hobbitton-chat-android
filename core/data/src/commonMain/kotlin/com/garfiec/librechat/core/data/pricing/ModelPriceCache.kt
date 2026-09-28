@@ -28,7 +28,7 @@ fun interface ModelPriceSource {
  * words by [com.garfiec.librechat.core.ui.components.modelPriceLabel], never as a zero.
  *
  * @param source null on a platform or an install with no scheduler — the cache then answers
- *   [ModelPrices.NONE] without ever touching the network, which is what iOS does today (D-034).
+ *   [ModelPrices.NONE] without ever touching the network.
  */
 class ModelPriceCache(
     private val source: ModelPriceSource?,

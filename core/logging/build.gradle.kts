@@ -15,7 +15,6 @@ kotlin {
             implementation(libs.kermit)
             implementation(libs.coroutines.core)
             implementation(libs.kotlinx.serialization.json)
-            api(libs.kotlinx.datetime)
         }
         androidMain.dependencies {
             implementation(libs.coroutines.android)

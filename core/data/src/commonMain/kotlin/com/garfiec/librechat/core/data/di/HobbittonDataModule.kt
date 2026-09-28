@@ -12,12 +12,9 @@ import org.koin.dsl.binds
 import org.koin.dsl.module
 
 /**
- * The hobbitton overlay's own bindings in `:core:data`, out of the upstream `dataModule`.
- *
- * `dataModule` includes this in one line (D-076). Before, each of these sat among the upstream
- * definitions, so every sync with the upstream client had to step around them one hunk at a time;
- * now the patch there is that line. Platform-neutral on purpose: what is Android-only (the engine,
- * the scheduler) stays in `engineModule`, which this module does not touch.
+ * The engine's local records in `:core:data`, included by `dataModule`: reading positions, session
+ * kinds, the global profile's two faces and the price cache. Platform-neutral on purpose: what
+ * needs the engine's clients stays in `engineModule`, which this module does not touch.
  */
 val hobbittonDataModule = module {
     /** Where each mission transcript was left, so the conversation reopens there. */
@@ -42,17 +39,17 @@ val hobbittonDataModule = module {
     }
 
     // The store IS the source; the binding exists so a send path can ask for the value without
-    // taking a DataStore with it. The store itself stays in `dataModule`, where the upstream
-    // chat-profile store it replaced was bound. One definition, two faces: the same store is
+    // taking a DataStore with it. The store itself is bound in `dataModule`. One definition, two
+    // faces: the same store is
     // also the editor of the engine shell's instructions screen (D-077).
     single<GlobalProfileSource> { get<GlobalProfileStore>() } binds arrayOf(GlobalProfileEditor::class)
 
     /**
      * The gateway's price table, shared by the chat's model picker and the tasks tab's.
      *
-     * `getOrNull` and not `get`: its source is bound by `engineModule`, which is Android-only
-     * (D-034). On iOS the cache resolves with no source and answers an empty table without ever
-     * reaching the network — a picker with no prices, rather than a graph that fails to build.
+     * `getOrNull` and not `get`: its source is bound by `engineModule`. Without it the cache
+     * answers an empty table without ever reaching the network — a picker with no prices, rather
+     * than a graph that fails to build.
      */
     single { ModelPriceCache(source = getOrNull()) }
 }

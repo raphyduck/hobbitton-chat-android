@@ -13,10 +13,8 @@ import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
 
 /**
- * Deliberately NOT added to `sharedKoinModules`: the engine's graph is Android-only for now
- * (D-034), so this module is started alongside `engineModule` from the Android application. On iOS
- * it would resolve a repository nothing provides — a crash at first navigation rather than at
- * startup, which is the worst place to find out.
+ * Started next to `engineModule` by the application rather than in `sharedKoinModules`: the
+ * repository below resolves the engine's graph, which `engineModule` alone provides.
  */
 val tasksModule = module {
     single {

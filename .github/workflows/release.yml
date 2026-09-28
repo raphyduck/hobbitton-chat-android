@@ -36,11 +36,6 @@ jobs:
     # Gate signing secrets behind a protected environment (add required reviewers in repo
     # settings). Secrets are unavailable to fork PRs, so this stays off the PR path.
     environment: release
-    # Surface the bumped version + tag so the secondary `ios` job can check out the tagged
-    # commit and name/upload its IPA against the same release.
-    outputs:
-      version_name: ${{ steps.bump.outputs.version_name }}
-      tag: ${{ steps.bump.outputs.tag }}
 
     steps:
       - name: Checkout
@@ -92,41 +87,12 @@ jobs:
         id: bump
         run: ./scripts/bump-version.sh "${{ inputs.bump }}"
 
-      # Same source of truth the app reads (core/common codegen) — surfaced in the
-      # release notes so users know which LibreChat backend this build targets.
-      - name: Read backend target version
-        id: backend
-        run: |
-          v="$(grep '^backendTargetVersion=' version.properties | cut -d= -f2 | tr -d '[:space:]')"
-          echo "target=$v" >> "$GITHUB_OUTPUT"
-
       - name: Decode keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
         run: |
           echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.jks"
           echo "SIGNING_STORE_FILE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
-
-      # The baked backend commit→version table (BackendCommitMap.kt) is NOT regenerated here — it is
-      # committed by /sync-upstream. Regenerating at release time was removed deliberately: it needs
-      # the upstream submodule, and a shallow/partial checkout could regenerate a DEGRADED (smaller)
-      # table and silently ship it — worse than the PR-reviewed committed table.
-      #
-      # Instead, gate the release on the committed table containing the pinned backend commit. PR CI
-      # verifies this more strictly (BackendCommitMapFreshnessTest — presence AND correct version);
-      # this cheap re-check closes the window where a release is dispatched before/independently of a
-      # green develop CI run. Pure file read (no submodule, no compile, no test framework), so it
-      # can't hard-fail on a shallow checkout or a test rename — it fails only if the committed table
-      # genuinely lacks the pinned commit.
-      - name: Verify backend commit map is fresh
-        run: |
-          commit="$(grep '^commit=' UPSTREAM_VERSION | cut -d= -f2 | tr -d '[:space:]')"
-          map="core/common/src/commonMain/kotlin/com/garfiec/librechat/core/common/generated/BackendCommitMap.kt"
-          # The table keys commits by their first 12 hex chars (PREFIX_LEN in generateBackendCommitMap).
-          if ! grep -q "^${commit:0:12} " "$map"; then
-            echo "::error::$map is missing pinned commit ${commit:0:12} — run ./gradlew generateBackendCommitMap and commit it."
-            exit 1
-          fi
 
       - name: Build signed release APK
         env:
@@ -180,7 +146,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ steps.bump.outputs.tag }}
-          BACKEND: ${{ steps.backend.outputs.target }}
           APK: ${{ steps.artifacts.outputs.apk }}
           VERSION: ${{ steps.bump.outputs.version_name }}
         run: |
@@ -189,19 +154,9 @@ jobs:
           gh api --method POST "repos/${{ github.repository }}/releases/generate-notes" \
             -f tag_name="$TAG" --jq .body > "$RUNNER_TEMP/changelog.md"
 
-          # The iOS job uploads this deterministic asset name to the same release; reference it
-          # statically here even though this step runs before that job finishes.
-          IPA="switchboard-v${VERSION}.ipa"
-
-          # Badge row (rendered side-by-side). The Target Backend badge replaces the old
-          # plain-text "Target backend: LibreChat v…" line. The Downloads badges track
-          # download counts for this release's APK / IPA assets.
+          # Badge row: the Downloads badge tracks the download count for this release's APK asset.
           {
-            printf '![Target Backend](https://img.shields.io/badge/Target_Backend-LibreChat_v%s-orange)' "$BACKEND"
-            printf ' '
-            printf '![APK Downloads](https://img.shields.io/github/downloads/garfiec/Librechat-Mobile/%s/%s?displayAssetName=false&logo=android&label=APK%%20Downloads&color=blue)' "$TAG" "$APK"
-            printf ' '
-            printf '![IPA Downloads](https://img.shields.io/github/downloads/garfiec/Librechat-Mobile/%s/%s?displayAssetName=false&logo=apple&label=IPA%%20Downloads&color=blue)\n' "$TAG" "$IPA"
+            printf '![APK Downloads](https://img.shields.io/github/downloads/garfiec/Librechat-Mobile/%s/%s?displayAssetName=false&logo=android&label=APK%%20Downloads&color=blue)\n' "$TAG" "$APK"
             printf '\n'
             cat "$RUNNER_TEMP/changelog.md"
             # Slim provenance footer: discoverability links, not proof. Canonical "how to
@@ -242,113 +197,3 @@ jobs:
       - name: Confirm the release is public
         run: |
           echo "::notice title=Release published::${{ steps.bump.outputs.tag }} was PUBLISHED directly (no draft). Obtainium and direct downloads will pick it up. A hyphenated tag is marked pre-release, which Obtainium skips unless the user opts in."
-
-  # Secondary, NON-BLOCKING iOS job: builds an UNSIGNED, device-arch IPA from the just-tagged
-  # commit and attaches it to the same release. It needs no secrets and no Apple account
-  # — sideload installers (AltStore/SideStore/Sideloadly) re-sign with the user's free Apple ID,
-  # and TrollStore/jailbreak installers accept unsigned IPAs directly. If this macOS job fails,
-  # the Android release (tag + APK + published release) already stands; just re-run it or upload manually.
-  ios:
-    name: Build & attach unsigned IPA
-    needs: release
-    runs-on: macos-latest
-    # No `environment: release` — this job uses no signing secrets. It inherits the
-    # workflow-level permissions (contents: write to upload the asset; id-token/attestations
-    # for provenance parity with the APK).
-    steps:
-      - name: Checkout (tagged commit)
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ needs.release.outputs.tag }}   # the bump commit the release job just pushed
-
-      - name: Select Xcode
-        uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: latest-stable
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v5.6.0
-        with:
-          distribution: temurin
-          java-version: 21
-
-      - name: Setup Gradle
-        # SHA-pinned to match the release job's supply-chain policy (Dependabot bumps it).
-        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
-
-      - name: Cache Kotlin/Native toolchain
-        uses: actions/cache@v6
-        with:
-          path: ~/.konan
-          key: ${{ runner.os }}-konan-${{ hashFiles('gradle/libs.versions.toml') }}
-          restore-keys: ${{ runner.os }}-konan-
-
-      # The Kotlin framework is built by the Xcode "Compile Kotlin Framework" build phase
-      # (./gradlew :shared:embedAndSignAppleFrameworkForXcode), which runs inside the
-      # archive below — no separate link step needed. Direct integration; see iosApp/README.md.
-      - name: Archive & package unsigned IPA
-        id: ipa
-        env:
-          TAG: ${{ needs.release.outputs.tag }}
-          VERSION: ${{ needs.release.outputs.version_name }}
-        run: |
-          set -euo pipefail
-          # Unsigned device archive. Signing is fully disabled: the project's Release config
-          # carries an sdk-scoped `CODE_SIGN_IDENTITY[sdk=iphoneos*] = "Apple Development"` +
-          # `CODE_SIGN_STYLE = Automatic`, which on a device archive would otherwise demand a
-          # provisioning profile on this account-less runner — so we override the sdk-scoped
-          # key, force Manual style, and blank the profile, not just the unscoped identity.
-          # The "Compile Kotlin Framework" build phase shells out to ./gradlew itself
-          # (embedAndSignAppleFrameworkForXcode, which also syncs Compose resources), which
-          # is why JDK + Gradle are set up above.
-          xcodebuild archive \
-            -project iosApp/iosApp.xcodeproj \
-            -scheme iosApp \
-            -configuration Release \
-            -destination 'generic/platform=iOS' \
-            -archivePath "$RUNNER_TEMP/iosApp.xcarchive" \
-            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" "CODE_SIGN_IDENTITY[sdk=iphoneos*]=" \
-            CODE_SIGN_STYLE=Manual PROVISIONING_PROFILE_SPECIFIER="" \
-            DEVELOPMENT_TEAM="" ONLY_ACTIVE_ARCH=NO
-
-          # Repackage the archived .app into an unsigned IPA (Payload/ + zip). The bundle is
-          # globbed rather than named, but the step is only half rename-safe: -scheme and
-          # -archivePath above stay hardcoded to the Xcode target. Payload/ must hold exactly
-          # one bundle — a share extension or watch app added to this scheme would otherwise
-          # ship an IPA sideloaders reject. The ${apps[@]+...} guard is load-bearing: macOS
-          # runners ship bash 3.2, where expanding an empty array under `set -u` aborts before
-          # the ::error:: annotation is emitted, hiding the zero-bundle case it exists to report.
-          cd "$RUNNER_TEMP/iosApp.xcarchive/Products/Applications"
-          shopt -s nullglob
-          apps=(./*.app)
-          if [ "${#apps[@]}" -ne 1 ]; then
-            echo "::error::expected exactly 1 .app in the archive, found ${#apps[@]}: ${apps[@]+${apps[*]}}"
-            exit 1
-          fi
-          mkdir -p Payload && mv "${apps[0]}" Payload/
-          OUT="$RUNNER_TEMP/switchboard-v${VERSION}.ipa"
-          zip -qry "$OUT" Payload
-          ( cd "$RUNNER_TEMP" && shasum -a 256 "switchboard-v${VERSION}.ipa" > "switchboard-v${VERSION}.ipa.sha256" )
-          echo "ipa=$OUT" >> "$GITHUB_OUTPUT"
-          echo "sha=$OUT.sha256" >> "$GITHUB_OUTPUT"
-
-      # Provenance parity with the APK: a keyless SLSA attestation for the IPA bytes.
-      # Non-fatal: this needs the runner's OIDC token endpoint, which occasionally
-      # fails to resolve (transient getaddrinfo ENOTFOUND). Attestation is a nice-to-have
-      # for the sideload IPA — it must not skip the upload step that follows and cost us
-      # the actual deliverable. The APK remains the primary attested artifact.
-      - name: Attest build provenance
-        continue-on-error: true
-        uses: actions/attest-build-provenance@v4
-        with:
-          subject-path: ${{ steps.ipa.outputs.ipa }}
-
-      - name: Upload IPA to the release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ needs.release.outputs.tag }}
-        run: |
-          gh release upload "$TAG" \
-            "${{ steps.ipa.outputs.ipa }}" \
-            "${{ steps.ipa.outputs.sha }}" --clobber

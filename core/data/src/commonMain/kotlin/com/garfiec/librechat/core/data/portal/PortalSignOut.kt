@@ -1,7 +1,6 @@
 package com.garfiec.librechat.core.data.portal
 
 import co.touchlab.kermit.Logger
-import com.garfiec.librechat.core.data.repository.SignOutHook
 import com.garfiec.librechat.core.network.engine.EngineAccess
 import io.ktor.http.Url
 
@@ -22,9 +21,9 @@ class PortalSignOut(
     private val session: PortalSession,
     private val access: suspend () -> EngineAccess?,
     private val cookies: WebCookieJar,
-) : SignOutHook {
+) {
 
-    override suspend fun onSignedOut(serverUrl: String?) {
+    suspend fun onSignedOut(serverUrl: String?) {
         session.forget()
         val origins = portalOrigins(serverUrl, access())
         cookies.expire(origins)

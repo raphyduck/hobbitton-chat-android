@@ -1,8 +1,8 @@
 ---
 name: audit-i18n
 description: >
-  Audit localization / i18n coverage across the compose-resources surface (9 modules
-  x 9 locales). Finds strings that exist in English but not in some or all languages,
+  Audit localization / i18n coverage across the compose-resources surface (the
+  string modules x 9 locales). Finds strings that exist in English but not in some or all languages,
   keys left as untranslated English stubs inside a translated file, stale keys the base
   dropped, and English literals that never reached a strings.xml at all. Use when
   asking "which features shipped English-only?", after landing a feature that added
@@ -74,7 +74,8 @@ Confirm three things before trusting anything downstream:
 1. The header line reads `allowlist: config/l10n/i18n-allowlist.txt`. If it reads
    `allowlist: (none)` you are running unsuppressed — see the blind spot below, this failure is
    silent.
-2. The module table lists **9 modules** and `loc` is **9** on every row. Fewer means discovery
+2. The module table lists the modules of `EXPECTED_MODULES` in `scripts/i18n-coverage.py` and
+   `loc` is **9** on every row. Fewer means discovery
    broke or a locale was dropped wholesale.
 3. The exit code is **below 16**. `16` and above is a hard failure — the script could not find or
    parse the surface. It shares no bits with the finding mask (`1|2|4|8`) so that "the check

@@ -27,7 +27,7 @@ data class RecentMission(
     val status: RecentMissionStatus,
 )
 
-/** Feeds the drawer's recents with missions. Bound only where the engine's graph exists (D-034). */
+/** Feeds the drawer's recents with missions. Bound by `engineModule`. */
 interface RecentMissionsSource {
     suspend fun recentMissions(): List<RecentMission>
 }

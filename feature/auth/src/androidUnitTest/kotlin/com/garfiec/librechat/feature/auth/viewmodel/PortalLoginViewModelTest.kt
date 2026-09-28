@@ -8,7 +8,6 @@ import com.garfiec.librechat.core.data.engine.EngineSignInProgress
 import com.garfiec.librechat.core.data.engine.EngineSignInResult
 import com.garfiec.librechat.core.data.portal.PortalTasksSignIn
 import com.garfiec.librechat.core.network.engine.EngineAccess
-import com.garfiec.librechat.feature.auth.oauth.OAuthLauncher
 import com.google.common.truth.Truth.assertThat
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -37,7 +36,6 @@ class PortalLoginViewModelTest {
 
     private val testDispatcher = StandardTestDispatcher()
 
-    private val oAuthLauncher = mockk<OAuthLauncher>(relaxed = true)
     private val settings = mockk<EngineSettingsStore>(relaxed = true)
 
     private class FakeLauncher : EngineSignInLauncher {
@@ -82,7 +80,6 @@ class PortalLoginViewModelTest {
     @Before
     fun setup() {
         Dispatchers.setMain(testDispatcher)
-        every { oAuthLauncher.embedsPortal } returns true
         every { settings.baseUrl } returns flowOf("")
         every { settings.issuerUrl } returns flowOf("")
         every { settings.schedulerUrl } returns flowOf("")
@@ -96,7 +93,6 @@ class PortalLoginViewModelTest {
     private fun viewModel(withEngine: Boolean = true) = PortalLoginViewModel(
         settings = if (withEngine) settings else null,
         tasks = if (withEngine) PortalTasksSignIn(access = { engine }, launcher = launcher, delivery = delivery) else null,
-        oAuthLauncher = oAuthLauncher,
     )
 
     private fun PortalLoginViewModel.fillIn() {
@@ -106,12 +102,9 @@ class PortalLoginViewModelTest {
     }
 
     @Test
-    fun `the form is offered where the engine graph and the web view both exist`() {
+    fun `the form is offered where the engine graph exists`() {
         assertThat(viewModel().state.value.available).isTrue()
         assertThat(viewModel(withEngine = false).state.value.available).isFalse()
-
-        every { oAuthLauncher.embedsPortal } returns false
-        assertThat(viewModel().state.value.available).isFalse()
     }
 
     @Test

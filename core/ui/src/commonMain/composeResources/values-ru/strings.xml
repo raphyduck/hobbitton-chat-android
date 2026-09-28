@@ -1,24 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Accessibility label for the bottom-sheet drag handle -->
-    <string name="cd_drag_handle">Маркер перемещения</string>
-    <!-- Custom per-server request headers (issue #287); shared by the pre-login
-         server screen and the post-login Settings editor -->
-    <string name="server_headers_title">Пользовательские заголовки запроса</string>
-    <string name="server_headers_description">Отправляются с каждым запросом к этому серверу. Нужны для шлюзов доступа, таких как Cloudflare Access.</string>
-    <string name="server_headers_name">Имя заголовка</string>
-    <string name="server_headers_value">Значение</string>
-    <string name="server_headers_add">Добавить заголовок</string>
-    <string name="server_headers_load_error">Не удалось прочитать сохранённые заголовки. Изменение сейчас может их перезаписать.</string>
-    <string name="server_headers_save_error">Не удалось сохранить — хранилище недоступно.</string>
-    <string name="server_headers_no_server">Не удалось сохранить — сервер ещё не настроен.</string>
-    <string name="server_headers_unverified_delete">Не удалось очистить — сохранённые заголовки не удалось прочитать.</string>
-    <string name="server_headers_remove">Удалить заголовок</string>
-    <string name="server_headers_show_value">Показать значение</string>
-    <string name="server_headers_hide_value">Скрыть значение</string>
-    <string name="server_headers_error_name">Недопустимое имя заголовка.</string>
-    <string name="server_headers_error_value">Значение содержит символы, которые нельзя отправить.</string>
-    <string name="server_headers_error_reserved">Этот заголовок задаётся приложением и не может быть изменён.</string>
     <string name="cd_generating_response">Генерация ответа</string>
     <string name="model_price_per_million">(%1$s / %2$s $/M)</string>
     <string name="model_price_unknown">(цена неизвестна)</string>

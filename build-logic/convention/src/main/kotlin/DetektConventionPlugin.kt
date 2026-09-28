@@ -1,4 +1,3 @@
-import io.gitlab.arturbosch.detekt.Detekt
 import io.gitlab.arturbosch.detekt.DetektCreateBaselineTask
 import io.gitlab.arturbosch.detekt.extensions.DetektExtension
 import org.gradle.api.Plugin
@@ -17,26 +16,23 @@ class DetektConventionPlugin : Plugin<Project> {
                 buildUponDefaultConfig = true
                 allRules = false
                 parallel = true
+                // Sans cible iOS (D-079), un module KMP n'a plus de compilation
+                // « metadata », donc plus de tâche detektMetadataCommonMain : la
+                // tâche `detekt` ne lirait que src/main. commonMain est ajouté
+                // ici pour garder la couverture d'avant.
+                source.setFrom(
+                    "src/main/java", "src/main/kotlin", "src/commonMain/kotlin",
+                )
             }
 
             tasks.withType<DetektCreateBaselineTask>().configureEach {
                 enabled = false
             }
 
-            // Committed generated sources (e.g. BackendCommitMap) are machine-written; skip lint
-            // (large packed literals trip formatting/line-length rules that don't apply to codegen).
-            // Scoped to the specific codegen package so hand-written code elsewhere stays linted.
-            tasks.withType<Detekt>().configureEach {
-                exclude("**/com/garfiec/librechat/core/common/generated/**")
-            }
-
             dependencies {
                 add("detektPlugins", libs.findLibrary("detekt-formatting").get())
                 add("detektPlugins", libs.findLibrary("detekt-koin").get())
                 add("detektPlugins", libs.findLibrary("detekt-compose").get())
-                // Custom row-tenancy ruleset (AccountScopedDao). :detekt-rules deliberately does not
-                // apply this convention, so wiring it here can't create a self-analysis cycle.
-                add("detektPlugins", project(":detekt-rules"))
             }
         }
     }

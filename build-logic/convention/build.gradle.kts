@@ -7,8 +7,6 @@ dependencies {
     compileOnly(libs.kotlin.gradlePlugin)
     compileOnly(libs.compose.gradlePlugin)
     compileOnly(libs.compose.multiplatform.gradlePlugin)
-    compileOnly(libs.ksp.gradlePlugin)
-    compileOnly(libs.room.gradlePlugin)
     compileOnly(libs.detekt.gradlePlugin)
     compileOnly(libs.kover.gradlePlugin)
 }
@@ -19,21 +17,9 @@ gradlePlugin {
             id = "librechat.mobile.application"
             implementationClass = "AndroidApplicationConventionPlugin"
         }
-        register("androidLibrary") {
-            id = "librechat.mobile.library"
-            implementationClass = "AndroidLibraryConventionPlugin"
-        }
         register("androidCompose") {
             id = "librechat.mobile.compose"
             implementationClass = "AndroidComposeConventionPlugin"
-        }
-        register("androidFeature") {
-            id = "librechat.mobile.feature"
-            implementationClass = "AndroidFeatureConventionPlugin"
-        }
-        register("androidRoom") {
-            id = "librechat.mobile.room"
-            implementationClass = "AndroidRoomConventionPlugin"
         }
         register("androidKoin") {
             id = "librechat.mobile.koin"
@@ -58,10 +44,6 @@ gradlePlugin {
         register("kmpKoin") {
             id = "librechat.kmp.koin"
             implementationClass = "KmpKoinConventionPlugin"
-        }
-        register("kmpRoom") {
-            id = "librechat.kmp.room"
-            implementationClass = "KmpRoomConventionPlugin"
         }
         register("kmpFeature") {
             id = "librechat.kmp.feature"

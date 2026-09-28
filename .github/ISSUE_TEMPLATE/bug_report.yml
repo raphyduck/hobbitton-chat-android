@@ -55,8 +55,6 @@ body:
       label: Platform
       options:
         - Android
-        - iOS
-        - Both Android and iOS
     validations:
       required: true
 
@@ -64,7 +62,7 @@ body:
     id: os_version
     attributes:
       label: OS version
-      placeholder: "Android 16 / iOS 26"
+      placeholder: "Android 16"
     validations:
       required: true
 
@@ -99,15 +97,6 @@ body:
         - Other (describe below)
     validations:
       required: true
-
-  - type: input
-    id: server_version
-    attributes:
-      label: LibreChat server version
-      description: "Leave blank if you don't know it. If your server exposes it, Settings → General → About shows the server build commit/branch/date; otherwise the version you deployed."
-      placeholder: "v0.8.7 / self-hosted Docker"
-    validations:
-      required: false
 
   - type: textarea
     id: attachments

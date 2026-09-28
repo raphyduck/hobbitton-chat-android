@@ -37,7 +37,6 @@ Thumbs.db
 .claude/issue-*/
 .claude/inline-artifacts/
 .claude/worktrees/
-.claude/sync-upstream/
 # Raw i18n-coverage JSON — regenerable from scripts/i18n-coverage.py, large, and the
 # committed REPORT-*.md is the durable artifact worth diffing across audits.
 .claude/skills/audit-i18n/artifacts/
