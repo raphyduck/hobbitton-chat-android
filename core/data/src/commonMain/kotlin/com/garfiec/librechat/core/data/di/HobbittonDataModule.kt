@@ -1,6 +1,7 @@
 package com.garfiec.librechat.core.data.di
 
 import com.garfiec.librechat.core.common.di.KoinQualifiers
+import com.garfiec.librechat.core.data.datastore.GlobalProfileEditor
 import com.garfiec.librechat.core.data.datastore.GlobalProfileSource
 import com.garfiec.librechat.core.data.datastore.GlobalProfileStore
 import com.garfiec.librechat.core.data.datastore.MissionReadingPositions
@@ -43,6 +44,9 @@ val hobbittonDataModule = module {
     // taking a DataStore with it. The store itself stays in `dataModule`, where the upstream
     // chat-profile store it replaced was bound.
     single<GlobalProfileSource> { get<GlobalProfileStore>() }
+
+    // Same store, seen by its editor: the engine shell's instructions screen (D-077).
+    single<GlobalProfileEditor> { get<GlobalProfileStore>() }
 
     /**
      * The gateway's price table, shared by the chat's model picker and the tasks tab's.
