@@ -77,14 +77,21 @@
     <!-- Custom server headers (issue #287) -->
     <string name="server_headers_advanced">Advanced</string>
 
-    <!-- Single sign-in through the portal (hobbitton, D-076) -->
+    <!-- The only sign-in: the portal (hobbitton, D-076, D-077) -->
     <string name="portal_sign_in">Sign in with the portal</string>
     <string name="portal_sign_in_hint">One sign-in for chats and tasks: password and second factor at the portal, then one consent.</string>
-    <string name="portal_or_email">Or with email and password</string>
     <string name="portal_title">Sign in</string>
     <string name="portal_close">Close</string>
-    <string name="portal_step_session">Opening your chat session…</string>
-    <string name="portal_step_tasks">Last step: authorize access to your tasks.</string>
-    <string name="portal_problem_no_session">The portal did not open a chat session. Try again, or sign in with email and password.</string>
-    <string name="portal_problem_session_failed">The chat server refused the session the portal opened. Try again.</string>
+    <string name="portal_welcome">Connect to your platform</string>
+    <string name="portal_addresses_hint">The three addresses of your platform. They stay on this device.</string>
+    <string name="portal_engine_url">Engine address</string>
+    <string name="portal_scheduler_url">Scheduler address</string>
+    <string name="portal_issuer_url">Portal address</string>
+    <string name="portal_invalid_url">An https:// address (http:// only on a private network).</string>
+    <string name="portal_step_preparing">Preparing the sign-in…</string>
+    <string name="portal_problem_not_ready">These addresses cannot be used to sign in. Check the portal and the scheduler.</string>
+    <string name="portal_problem_unreachable">The portal could not be reached. Check its address and your connection.</string>
+    <string name="portal_problem_refused">The portal refused the sign-in. Try again.</string>
+    <string name="portal_problem_interrupted">The sign-in was interrupted. Try again.</string>
+    <string name="portal_unavailable">Signing in through the portal is not available on this device yet.</string>
 </resources>

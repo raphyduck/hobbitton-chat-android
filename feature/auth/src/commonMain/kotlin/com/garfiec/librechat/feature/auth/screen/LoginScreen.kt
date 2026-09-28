@@ -39,8 +39,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.garfiec.librechat.feature.auth.resources.*
 import com.garfiec.librechat.feature.auth.resources.Res
 import com.garfiec.librechat.feature.auth.viewmodel.LoginViewModel
-import com.garfiec.librechat.feature.auth.viewmodel.PortalLoginStep
-import com.garfiec.librechat.feature.auth.viewmodel.PortalLoginViewModel
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -53,28 +51,20 @@ fun LoginScreen(
     onNavigateToTwoFactor: (String) -> Unit = {},
     onBack: (() -> Unit)? = null,
     viewModel: LoginViewModel = koinViewModel(),
-    portalViewModel: PortalLoginViewModel = koinViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val portalState by portalViewModel.state.collectAsStateWithLifecycle()
     val currentOnLoginSuccess by rememberUpdatedState(onLoginSuccess)
     val currentOnNavigateToTwoFactor by rememberUpdatedState(onNavigateToTwoFactor)
 
     // Check for OAuth result when returning from Chrome Custom Tab
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
-        // Not while the portal's web view is open (D-076): it owns the refresh cookie it is about
-        // to receive — a resume from the authenticator app must not consume it on the side.
-        if (portalViewModel.state.value.step == PortalLoginStep.Idle) viewModel.checkOAuthResult()
+        viewModel.checkOAuthResult()
     }
 
     LaunchedEffect(uiState.isLoggedIn) {
         if (uiState.isLoggedIn) {
             currentOnLoginSuccess()
         }
-    }
-
-    LaunchedEffect(portalState.signedIn) {
-        if (portalState.signedIn) currentOnLoginSuccess()
     }
 
     LaunchedEffect(uiState.twoFactorTempToken) {
@@ -109,17 +99,6 @@ fun LoginScreen(
             )
 
             Spacer(modifier = Modifier.height(32.dp))
-
-            // hobbitton (D-076): the portal first — chats and tasks in one sign-in. The email form
-            // below stays as the fallback for as long as the server accepts it.
-            if (portalState.offered) {
-                PortalLoginEntry(
-                    state = portalState,
-                    enabled = !uiState.isLoading,
-                    showEmailDivider = uiState.emailLoginEnabled,
-                    onStart = portalViewModel::start,
-                )
-            }
 
             // The email/password form is hidden when the server disables email login
             // (ALLOW_EMAIL_LOGIN=false, #14180) — it 403s the login POST, so offer only the
@@ -199,8 +178,7 @@ fun LoginScreen(
                 }
             }
 
-            // `openid` already has the portal button above when it is offered.
-            val socialLogins = uiState.socialLogins.filterNot { portalState.offered && it.equals("openid", ignoreCase = true) }
+            val socialLogins = uiState.socialLogins
             if (uiState.socialLoginEnabled && socialLogins.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -232,12 +210,6 @@ fun LoginScreen(
         }
 
         BackAffordanceOverlay(onBack)
-
-        PortalLoginOverlay(
-            state = portalState,
-            onNavigation = portalViewModel::onNavigation,
-            onClose = portalViewModel::cancel,
-        )
     }
 }
 

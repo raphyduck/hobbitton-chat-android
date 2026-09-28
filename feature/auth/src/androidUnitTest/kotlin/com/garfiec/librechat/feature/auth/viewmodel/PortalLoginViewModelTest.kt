@@ -1,17 +1,12 @@
 package com.garfiec.librechat.feature.auth.viewmodel
 
-import com.garfiec.librechat.core.common.result.Result
-import com.garfiec.librechat.core.data.datastore.ServerDataStore
+import com.garfiec.librechat.core.data.engine.EngineAddressField
 import com.garfiec.librechat.core.data.engine.EngineCallbackDelivery
+import com.garfiec.librechat.core.data.engine.EngineSettingsStore
 import com.garfiec.librechat.core.data.engine.EngineSignInLauncher
 import com.garfiec.librechat.core.data.engine.EngineSignInProgress
 import com.garfiec.librechat.core.data.engine.EngineSignInResult
 import com.garfiec.librechat.core.data.portal.PortalTasksSignIn
-import com.garfiec.librechat.core.data.repository.AccountSwitcher
-import com.garfiec.librechat.core.data.repository.AuthRepository
-import com.garfiec.librechat.core.data.repository.ConfigRepository
-import com.garfiec.librechat.core.model.User
-import com.garfiec.librechat.core.model.config.StartupConfig
 import com.garfiec.librechat.core.network.engine.EngineAccess
 import com.garfiec.librechat.feature.auth.oauth.OAuthLauncher
 import com.google.common.truth.Truth.assertThat
@@ -19,11 +14,11 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -34,21 +29,16 @@ import org.junit.Before
 import org.junit.Test
 
 /**
- * The single sign-in (D-076): one web view, the chat's session from its cookie, then the tasks'
- * consent in the same view — and the screen left only once both are done.
+ * The only sign-in left (D-077): three addresses, then the portal's round trip in the app's web
+ * view — no LibreChat step, no cookie read, no chat session opened on the side.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class PortalLoginViewModelTest {
 
     private val testDispatcher = StandardTestDispatcher()
 
-    private val authRepository = mockk<AuthRepository>(relaxed = true)
-    private val configRepository = mockk<ConfigRepository>(relaxed = true)
     private val oAuthLauncher = mockk<OAuthLauncher>(relaxed = true)
-    private val serverDataStore = mockk<ServerDataStore>(relaxed = true)
-    private val accountSwitcher = mockk<AccountSwitcher>(relaxed = true)
-
-    private val configFlow = MutableStateFlow<StartupConfig?>(null)
+    private val settings = mockk<EngineSettingsStore>(relaxed = true)
 
     private class FakeLauncher : EngineSignInLauncher {
         val state = MutableStateFlow<EngineSignInProgress>(EngineSignInProgress.Idle)
@@ -92,12 +82,10 @@ class PortalLoginViewModelTest {
     @Before
     fun setup() {
         Dispatchers.setMain(testDispatcher)
-        every { configRepository.startupConfig } returns configFlow
-        every { accountSwitcher.pendingAdd } returns null
-        every { serverDataStore.getBaseUrl() } returns "https://chat.example.com/"
         every { oAuthLauncher.embedsPortal } returns true
-        every { oAuthLauncher.extractTokenFromCookies(any()) } returns "refresh-from-cookie"
-        coEvery { authRepository.loginWithOAuthToken(any()) } returns Result.Success(mockk<User>(relaxed = true))
+        every { settings.baseUrl } returns flowOf("")
+        every { settings.issuerUrl } returns flowOf("")
+        every { settings.schedulerUrl } returns flowOf("")
     }
 
     @After
@@ -105,189 +93,160 @@ class PortalLoginViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun viewModel(withTasks: Boolean = true) = PortalLoginViewModel(
-        authRepository = authRepository,
-        configRepository = configRepository,
+    private fun viewModel(withEngine: Boolean = true) = PortalLoginViewModel(
+        settings = if (withEngine) settings else null,
+        tasks = if (withEngine) PortalTasksSignIn(access = { engine }, launcher = launcher, delivery = delivery) else null,
         oAuthLauncher = oAuthLauncher,
-        serverDataStore = serverDataStore,
-        accountSwitcher = accountSwitcher,
-        tasks = if (withTasks) PortalTasksSignIn(access = { engine }, launcher = launcher, delivery = delivery) else null,
     )
 
-    private fun PortalLoginViewModel.returnToChat() {
-        assertThat(onNavigation("https://chat.example.com/oauth/openid/callback?code=c&state=s")).isFalse()
-        assertThat(onNavigation("https://chat.example.com/")).isTrue()
+    private fun PortalLoginViewModel.fillIn() {
+        onBaseUrl("https://agent.example.com")
+        onSchedulerUrl("https://sched.example.com")
+        onIssuerUrl("https://auth.example.com")
     }
 
     @Test
-    fun `the portal is offered when the server has openid and the platform can host it`() = runTest {
-        val subject = viewModel()
-        configFlow.value = StartupConfig(
-            socialLoginEnabled = true,
-            socialLogins = listOf("openid"),
-            openidLabel = "Se connecter avec hobbitton",
-        )
-        advanceUntilIdle()
+    fun `the form is offered where the engine graph and the web view both exist`() {
+        assertThat(viewModel().state.value.available).isTrue()
+        assertThat(viewModel(withEngine = false).state.value.available).isFalse()
 
-        assertThat(subject.state.value.offered).isTrue()
-        assertThat(subject.state.value.label).isEqualTo("Se connecter avec hobbitton")
-    }
-
-    @Test
-    fun `no portal where the platform cannot read the web view's cookies`() = runTest {
         every { oAuthLauncher.embedsPortal } returns false
-        val subject = viewModel()
-        configFlow.value = StartupConfig(socialLoginEnabled = true, socialLogins = listOf("openid"))
-        advanceUntilIdle()
-
-        assertThat(subject.state.value.offered).isFalse()
+        assertThat(viewModel().state.value.available).isFalse()
     }
 
     @Test
-    fun `start opens the server's own oauth route and drops a stale cookie first`() = runTest {
+    fun `the stored addresses fill the form`() = runTest {
+        every { settings.baseUrl } returns flowOf("https://agent.example.com")
+        every { settings.issuerUrl } returns flowOf("https://auth.example.com")
+        every { settings.schedulerUrl } returns flowOf("https://sched.example.com")
+
         val subject = viewModel()
+        advanceUntilIdle()
+
+        assertThat(subject.state.value.baseUrl).isEqualTo("https://agent.example.com")
+        assertThat(subject.state.value.issuerUrl).isEqualTo("https://auth.example.com")
+        assertThat(subject.state.value.schedulerUrl).isEqualTo("https://sched.example.com")
+    }
+
+    @Test
+    fun `all three addresses are required, the scheduler included`() = runTest {
+        val subject = viewModel()
+        subject.onBaseUrl("agent.example.com")
+        subject.onIssuerUrl("https://auth.example.com")
 
         subject.start()
+        advanceUntilIdle()
 
+        assertThat(subject.state.value.invalid)
+            .containsExactly(EngineAddressField.BASE_URL, EngineAddressField.SCHEDULER_URL)
+        assertThat(subject.state.value.step).isEqualTo(PortalLoginStep.Idle)
+        assertThat(launcher.started).isEqualTo(0)
+        coVerify(exactly = 0) { settings.save(any(), any(), any()) }
+    }
+
+    @Test
+    fun `one round trip saves the addresses, opens the portal and signs in`() = runTest {
+        val subject = viewModel()
+        subject.fillIn()
+
+        subject.start()
+        advanceUntilIdle()
+
+        coVerify { settings.save("https://agent.example.com", "https://auth.example.com", "https://sched.example.com") }
         assertThat(subject.state.value.step).isEqualTo(PortalLoginStep.Portal)
-        // `/oauth/openid`, not the upstream client's `/api/oauth/openid`.
-        assertThat(subject.state.value.page).isEqualTo("https://chat.example.com/oauth/openid")
-        verify { oAuthLauncher.clearOAuthCookie("https://chat.example.com") }
-    }
+        assertThat(launcher.started).isEqualTo(1)
 
-    @Test
-    fun `one round trip signs into the chat, then the tasks, then leaves`() = runTest {
-        val subject = viewModel()
-        subject.start()
-
-        subject.returnToChat()
-        advanceUntilIdle()
-
-        // The chat's session comes from the cookie, through the ordinary OAuth path.
-        coVerify { authRepository.loginWithOAuthToken("refresh-from-cookie") }
-        assertThat(subject.state.value.step).isEqualTo(PortalLoginStep.Tasks)
-        assertThat(subject.state.value.signedIn).isFalse()
-
-        // The tasks' authorization opens in the same web view…
+        // The authorization opens in the app's web view…
         launcher.opener!!.invoke("https://auth.example.com/api/oidc/authorization?request_uri=urn")
         assertThat(subject.state.value.page).isEqualTo("https://auth.example.com/api/oidc/authorization?request_uri=urn")
-        // …and its return to the app scheme is caught there, not loaded.
-        assertThat(subject.onNavigation("at.hobbitton.chat://oauth?code=c2&state=s2")).isTrue()
-        assertThat(delivery.delivered).containsExactly("at.hobbitton.chat://oauth?code=c2&state=s2")
+        // …its pages load there, and the scheduler's hop to the app scheme is caught, not loaded.
+        assertThat(subject.onNavigation("https://auth.example.com/")).isFalse()
+        assertThat(subject.onNavigation("at.hobbitton.chat://oauth?code=c&state=s")).isTrue()
+        assertThat(delivery.delivered).containsExactly("at.hobbitton.chat://oauth?code=c&state=s")
 
         launcher.state.value = EngineSignInProgress.Termine(EngineSignInResult.Authorized)
         advanceUntilIdle()
 
         assertThat(subject.state.value.signedIn).isTrue()
         assertThat(subject.state.value.step).isEqualTo(PortalLoginStep.Idle)
-        assertThat(launcher.state.value).isEqualTo(EngineSignInProgress.Idle)
-        // Read once, then gone from the jar.
-        verify(atLeast = 2) { oAuthLauncher.clearOAuthCookie("https://chat.example.com") }
-    }
-
-    @Test
-    fun `the web client is never loaded, even after the chat's step`() = runTest {
-        val subject = viewModel()
-        subject.start()
-        subject.returnToChat()
-        advanceUntilIdle()
-
-        assertThat(subject.onNavigation("https://chat.example.com/c/new")).isTrue()
-        coVerify(exactly = 1) { authRepository.loginWithOAuthToken(any()) }
-    }
-
-    @Test
-    fun `no refresh cookie means no session, and nothing is sent`() = runTest {
-        every { oAuthLauncher.extractTokenFromCookies(any()) } returns null
-        val subject = viewModel()
-        subject.start()
-
-        subject.returnToChat()
-        advanceUntilIdle()
-
-        assertThat(subject.state.value.problem).isEqualTo(PortalLoginProblem.NO_SESSION)
-        assertThat(subject.state.value.step).isEqualTo(PortalLoginStep.Idle)
-        assertThat(subject.state.value.signedIn).isFalse()
-        coVerify(exactly = 0) { authRepository.loginWithOAuthToken(any()) }
-        assertThat(launcher.started).isEqualTo(0)
-    }
-
-    @Test
-    fun `a session the server refuses is reported before any consent is asked`() = runTest {
-        coEvery { authRepository.loginWithOAuthToken(any()) } returns Result.Error(message = "Refresh token invalid")
-        val subject = viewModel()
-        subject.start()
-
-        subject.returnToChat()
-        advanceUntilIdle()
-
-        assertThat(subject.state.value.problem).isEqualTo(PortalLoginProblem.SESSION_FAILED)
-        assertThat(subject.state.value.problemDetail).isEqualTo("Refresh token invalid")
-        assertThat(launcher.started).isEqualTo(0)
-    }
-
-    @Test
-    fun `without a way back for the tasks, the sign-in ends with the chat`() = runTest {
-        engine = engine!!.copy(schedulerUrl = "")
-        val subject = viewModel()
-        subject.start()
-
-        subject.returnToChat()
-        advanceUntilIdle()
-
-        assertThat(subject.state.value.signedIn).isTrue()
-        assertThat(launcher.started).isEqualTo(0)
-    }
-
-    @Test
-    fun `without the engine graph, the sign-in ends with the chat`() = runTest {
-        val subject = viewModel(withTasks = false)
-        subject.start()
-
-        subject.returnToChat()
-        advanceUntilIdle()
-
-        assertThat(subject.state.value.signedIn).isTrue()
-    }
-
-    @Test
-    fun `closing before the chat is signed in abandons everything`() = runTest {
-        val subject = viewModel()
-        subject.start()
-
-        subject.cancel()
-
-        assertThat(subject.state.value.step).isEqualTo(PortalLoginStep.Idle)
         assertThat(subject.state.value.page).isNull()
-        assertThat(subject.state.value.signedIn).isFalse()
-        coVerify(exactly = 0) { authRepository.loginWithOAuthToken(any()) }
+        assertThat(launcher.state.value).isEqualTo(EngineSignInProgress.Idle)
     }
 
     @Test
-    fun `closing at the consent skips the tasks and keeps the chat`() = runTest {
+    fun `no LibreChat step - the first page is the portal's, never a chat server's`() = runTest {
         val subject = viewModel()
+        subject.fillIn()
         subject.start()
-        subject.returnToChat()
+        advanceUntilIdle()
+
+        // Nothing is loaded before the round trip names its page: no `/oauth/openid` detour.
+        assertThat(subject.state.value.page).isNull()
+    }
+
+    @Test
+    fun `closing the web view cancels the round trip without an error`() = runTest {
+        val subject = viewModel()
+        subject.fillIn()
+        subject.start()
         advanceUntilIdle()
 
         subject.cancel()
         advanceUntilIdle()
 
         assertThat(launcher.cancelled).isEqualTo(1)
-        assertThat(subject.state.value.signedIn).isTrue()
+        assertThat(subject.state.value.step).isEqualTo(PortalLoginStep.Idle)
+        assertThat(subject.state.value.problem).isNull()
+        assertThat(subject.state.value.signedIn).isFalse()
     }
 
     @Test
-    fun `a round trip left in flight by the Tasks tab is cancelled, not waited on`() = runTest {
-        launcher.state.value = EngineSignInProgress.EnCours
+    fun `a refusal is reported and leaves the person signed out`() = runTest {
         val subject = viewModel()
+        subject.fillIn()
         subject.start()
-
-        subject.returnToChat()
         advanceUntilIdle()
 
-        assertThat(launcher.cancelled).isEqualTo(1)
-        assertThat(launcher.started).isEqualTo(1)
-        assertThat(subject.state.value.step).isEqualTo(PortalLoginStep.Tasks)
+        launcher.state.value = EngineSignInProgress.Termine(EngineSignInResult.Refused("access_denied", null))
+        advanceUntilIdle()
+
+        assertThat(subject.state.value.problem).isEqualTo(PortalLoginProblem.REFUSED)
+        assertThat(subject.state.value.signedIn).isFalse()
+    }
+
+    @Test
+    fun `addresses the round trip cannot use are reported before anything opens`() = runTest {
+        engine = null
+        val subject = viewModel()
+        subject.fillIn()
+
+        subject.start()
+        advanceUntilIdle()
+
+        assertThat(subject.state.value.problem).isEqualTo(PortalLoginProblem.NOT_READY)
+        assertThat(launcher.started).isEqualTo(0)
+    }
+
+    @Test
+    fun `a stale outcome left by the Tasks tab is not read as this one's`() = runTest {
+        launcher.state.value = EngineSignInProgress.Termine(EngineSignInResult.Authorized)
+        val subject = viewModel()
+        subject.fillIn()
+
+        subject.start()
+        advanceUntilIdle()
+
+        assertThat(subject.state.value.signedIn).isFalse()
+        assertThat(subject.state.value.step).isEqualTo(PortalLoginStep.Portal)
+    }
+
+    @Test
+    fun `every failure maps to a sentence`() {
+        assertThat(problemOf(EngineSignInResult.NotConfigured)).isEqualTo(PortalLoginProblem.NOT_READY)
+        assertThat(problemOf(EngineSignInResult.NoCallbackHost)).isEqualTo(PortalLoginProblem.NOT_READY)
+        assertThat(problemOf(EngineSignInResult.PortalUnreachable("dns"))).isEqualTo(PortalLoginProblem.UNREACHABLE)
+        assertThat(problemOf(EngineSignInResult.MissingAuthorizationScope(emptyList())))
+            .isEqualTo(PortalLoginProblem.REFUSED)
+        assertThat(problemOf(EngineSignInResult.Interrupted("exchange"))).isEqualTo(PortalLoginProblem.INTERRUPTED)
     }
 }
