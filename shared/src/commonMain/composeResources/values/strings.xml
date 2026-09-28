@@ -37,6 +37,16 @@
     <string name="engine_settings_portal">Portal</string>
     <string name="engine_settings_platform_hint">To change an address, sign out and sign in again.</string>
     <string name="engine_settings_usage">Usage and providers</string>
+    <string name="engine_settings_instructions">Instructions</string>
+    <string name="engine_settings_instructions_hint">Sent with every chat and every task</string>
+    <string name="engine_instructions_title">Instructions</string>
+    <string name="engine_instructions_hint">What every chat and every task starts with, whatever the model: they are sent as the system instructions of each turn.</string>
+    <string name="engine_instructions_enabled">Use these instructions</string>
+    <string name="engine_instructions_enabled_hint">Off keeps them here without sending them.</string>
+    <string name="engine_instructions_label">Instructions</string>
+    <string name="engine_instructions_save">Save</string>
+    <string name="engine_instructions_cancel">Cancel</string>
+    <string name="engine_instructions_save_failed">The instructions could not be saved. Try again.</string>
     <string name="engine_settings_sign_out">Sign out</string>
     <string name="engine_settings_sign_out_hint">Ends the portal session on this device and forgets its chat caches. Your chats and tasks stay on the platform.</string>
     <string name="engine_settings_sign_out_confirm">Sign out</string>

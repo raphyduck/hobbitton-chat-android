@@ -32,6 +32,16 @@
     <string name="engine_settings_portal">Portail</string>
     <string name="engine_settings_platform_hint">Pour changer une adresse, déconnectez-vous puis reconnectez-vous.</string>
     <string name="engine_settings_usage">Consommation et fournisseurs</string>
+    <string name="engine_settings_instructions">Instructions</string>
+    <string name="engine_settings_instructions_hint">Envoyées avec chaque conversation et chaque tâche</string>
+    <string name="engine_instructions_title">Instructions</string>
+    <string name="engine_instructions_hint">Ce par quoi commence chaque conversation et chaque tâche, quel que soit le modèle : elles partent comme instructions système à chaque tour.</string>
+    <string name="engine_instructions_enabled">Utiliser ces instructions</string>
+    <string name="engine_instructions_enabled_hint">Désactivées, elles restent ici sans être envoyées.</string>
+    <string name="engine_instructions_label">Instructions</string>
+    <string name="engine_instructions_save">Enregistrer</string>
+    <string name="engine_instructions_cancel">Annuler</string>
+    <string name="engine_instructions_save_failed">Les instructions n\'ont pas pu être enregistrées. Réessayez.</string>
     <string name="engine_settings_sign_out">Se déconnecter</string>
     <string name="engine_settings_sign_out_hint">Ferme la session du portail sur cet appareil et oublie ses caches de conversation. Vos conversations et vos tâches restent sur la plateforme.</string>
     <string name="engine_settings_sign_out_confirm">Se déconnecter</string>

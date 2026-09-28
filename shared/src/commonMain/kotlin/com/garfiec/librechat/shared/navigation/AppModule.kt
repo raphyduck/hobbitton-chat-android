@@ -4,6 +4,7 @@ import com.garfiec.librechat.core.data.engine.EngineMissionRepository
 import com.garfiec.librechat.core.data.engine.EngineSettingsStore
 import com.garfiec.librechat.core.data.portal.PortalSignOut
 import com.garfiec.librechat.core.network.engine.EngineTokenStore
+import com.garfiec.librechat.shared.engine.EngineInstructionsViewModel
 import com.garfiec.librechat.shared.engine.EngineShellViewModel
 import kotlinx.serialization.modules.SerializersModule
 import org.koin.core.module.dsl.viewModel
@@ -32,4 +33,8 @@ val sharedAppModule = module {
             prefetchScheduler = get(),
         )
     }
+
+    // The global instructions' editor (D-077). Local storage only — `GlobalProfileEditor` is bound
+    // by :core:data on both platforms — so a plain constructor definition.
+    viewModelOf(::EngineInstructionsViewModel)
 }

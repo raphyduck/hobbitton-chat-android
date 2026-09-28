@@ -12,6 +12,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Logout
+import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.QueryStats
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -41,6 +42,8 @@ import com.garfiec.librechat.shared.resources.Res
 import com.garfiec.librechat.shared.resources.engine_settings_back
 import com.garfiec.librechat.shared.resources.engine_settings_cancel
 import com.garfiec.librechat.shared.resources.engine_settings_engine
+import com.garfiec.librechat.shared.resources.engine_settings_instructions
+import com.garfiec.librechat.shared.resources.engine_settings_instructions_hint
 import com.garfiec.librechat.shared.resources.engine_settings_platform
 import com.garfiec.librechat.shared.resources.engine_settings_platform_hint
 import com.garfiec.librechat.shared.resources.engine_settings_portal
@@ -66,13 +69,15 @@ data class EngineSettingsUiState(
 /**
  * The engine shell's settings (D-077): what is left once LibreChat's account, keys, presets,
  * memories, MCP servers and sharing have gone with it — the theme, the platform's addresses (read
- * only: changing one is signing out and in again), the week's usage, and signing out.
+ * only: changing one is signing out and in again), the instructions sent with every turn, the
+ * week's usage, and signing out.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun EngineSettingsScreen(
     state: EngineSettingsUiState,
     onBack: () -> Unit,
+    onOpenInstructions: () -> Unit,
     onOpenUsage: () -> Unit,
     onThemeMode: (ThemeMode) -> Unit,
     onSignOut: () -> Unit,
@@ -99,6 +104,7 @@ internal fun EngineSettingsScreen(
         SettingsBody(
             state = state,
             padding = padding,
+            onOpenInstructions = onOpenInstructions,
             onOpenUsage = onOpenUsage,
             onThemeMode = onThemeMode,
             onSignOut = { confirmSignOut = true },
@@ -137,6 +143,7 @@ private fun SignOutDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
 private fun SettingsBody(
     state: EngineSettingsUiState,
     padding: PaddingValues,
+    onOpenInstructions: () -> Unit,
     onOpenUsage: () -> Unit,
     onThemeMode: (ThemeMode) -> Unit,
     onSignOut: () -> Unit,
@@ -178,6 +185,14 @@ private fun SettingsBody(
         )
         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
+        ListItem(
+            headlineContent = { Text(stringResource(Res.string.engine_settings_instructions)) },
+            supportingContent = { Text(stringResource(Res.string.engine_settings_instructions_hint)) },
+            leadingContent = { Icon(Icons.Outlined.Description, contentDescription = null) },
+            modifier = Modifier
+                .selectable(selected = false, onClick = onOpenInstructions, role = Role.Button)
+                .testTag("settings_instructions"),
+        )
         ListItem(
             headlineContent = { Text(stringResource(Res.string.engine_settings_usage)) },
             leadingContent = { Icon(Icons.Outlined.QueryStats, contentDescription = null) },

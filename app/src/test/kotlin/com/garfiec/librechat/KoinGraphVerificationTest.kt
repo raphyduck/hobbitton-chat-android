@@ -13,6 +13,7 @@ import com.garfiec.librechat.core.common.network.RequestActivityTracker
 import com.garfiec.librechat.core.common.power.PowerStateObserver
 import com.garfiec.librechat.core.data.datastore.AccountRoster
 import com.garfiec.librechat.core.data.datastore.ConfigCacheDataStore
+import com.garfiec.librechat.core.data.datastore.GlobalProfileEditor
 import com.garfiec.librechat.core.data.datastore.GlobalProfileStore
 import com.garfiec.librechat.core.data.datastore.MissionReadingPositions
 import com.garfiec.librechat.core.data.datastore.ServerDataStore
@@ -254,6 +255,9 @@ class KoinGraphVerificationTest {
             SessionKindStore::class,
             MissionReadingPositions::class,
             PrefetchScheduler::class,
+            // The instructions' editor (D-077), also in sharedAppModule: bound by :core:data's
+            // hobbittonDataModule, which verify() does not see from here.
+            GlobalProfileEditor::class,
             // Wrappers/DSL types that verify can't resolve via constructor
             Lazy::class,
             File::class,

@@ -173,6 +173,7 @@ private fun EngineMainLayout(
                     EngineSettingsScreen(
                         state = settings,
                         onBack = { navigator.goBack() },
+                        onOpenInstructions = { navigator.openInstructions() },
                         onOpenUsage = { navigator.openUsage() },
                         onThemeMode = onThemeMode,
                         onSignOut = {
@@ -182,6 +183,9 @@ private fun EngineMainLayout(
                             onSignOut()
                         },
                     )
+                }
+                entry<EngineInstructions> {
+                    EngineInstructionsScreen(onClose = { navigator.goBack() })
                 }
             },
         )

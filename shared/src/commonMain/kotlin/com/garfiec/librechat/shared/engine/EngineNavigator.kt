@@ -18,6 +18,9 @@ import kotlinx.serialization.modules.subclass
 /** The engine shell's settings: appearance, the platform's addresses, usage, sign-out (D-077). */
 @Serializable data object EngineAppSettings : NavKey
 
+/** The global instructions' editor, opened from the settings (D-077). */
+@Serializable data object EngineInstructions : NavKey
+
 /**
  * Every route the engine shell can hold — the chat, the tasks and the settings, and nothing of
  * LibreChat's. A route missing from here deserializes to nothing and a restored stack loses it.
@@ -26,6 +29,7 @@ val engineShellSavedStateConfig = SavedStateConfiguration {
     serializersModule = tasksSerializersModule + SerializersModule {
         polymorphic(NavKey::class) {
             subclass(EngineAppSettings::class)
+            subclass(EngineInstructions::class)
         }
     }
 }
@@ -73,6 +77,11 @@ class EngineNavigator(val backStack: NavBackStack<NavKey>) {
 
     fun openSettings() {
         if (currentRoute != EngineAppSettings) backStack.add(EngineAppSettings)
+    }
+
+    /** The instructions' editor, pushed over the settings. */
+    fun openInstructions() {
+        if (currentRoute != EngineInstructions) backStack.add(EngineInstructions)
     }
 
     fun openMission(sessionId: String, title: String) {

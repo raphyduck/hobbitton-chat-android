@@ -6,6 +6,7 @@ import com.garfiec.librechat.feature.tasks.navigation.EngineChat
 import com.garfiec.librechat.feature.tasks.navigation.MissionChat
 import com.garfiec.librechat.feature.tasks.navigation.TasksList
 import com.garfiec.librechat.shared.engine.EngineAppSettings
+import com.garfiec.librechat.shared.engine.EngineInstructions
 import com.garfiec.librechat.shared.engine.EngineNavigator
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -71,6 +72,18 @@ class EngineNavigatorTest {
         subject.openSettings()
         subject.openSettings()
 
+        assertEquals(listOf<NavKey>(EngineChat(), EngineAppSettings), subject.backStack.toList())
+    }
+
+    @Test
+    fun `the instructions open over the settings, once, and back returns to them`() {
+        val subject = navigator(EngineChat(), EngineAppSettings)
+
+        subject.openInstructions()
+        subject.openInstructions()
+        assertEquals(listOf<NavKey>(EngineChat(), EngineAppSettings, EngineInstructions), subject.backStack.toList())
+
+        subject.goBack()
         assertEquals(listOf<NavKey>(EngineChat(), EngineAppSettings), subject.backStack.toList())
     }
 }
