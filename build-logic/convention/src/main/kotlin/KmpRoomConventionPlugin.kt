@@ -24,8 +24,6 @@ class KmpRoomConventionPlugin : Plugin<Project> {
             dependencies {
                 add("kspCommonMainMetadata", libs.findLibrary("room-compiler").get())
                 add("kspAndroid", libs.findLibrary("room-compiler").get())
-                add("kspIosArm64", libs.findLibrary("room-compiler").get())
-                add("kspIosSimulatorArm64", libs.findLibrary("room-compiler").get())
             }
         }
     }

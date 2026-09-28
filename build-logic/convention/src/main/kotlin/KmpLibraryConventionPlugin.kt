@@ -20,8 +20,6 @@ class KmpLibraryConventionPlugin : Plugin<Project> {
                     )
                 }
                 androidTarget()
-                iosArm64()
-                iosSimulatorArm64()
 
                 sourceSets.commonTest.dependencies {
                     implementation(kotlin("test"))

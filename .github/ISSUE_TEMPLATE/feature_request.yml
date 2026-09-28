@@ -37,18 +37,6 @@ body:
     validations:
       required: true
 
-  - type: dropdown
-    id: platform_scope
-    attributes:
-      label: Which platforms?
-      options:
-        - Both Android and iOS
-        - Android only
-        - iOS only
-        - Not sure
-    validations:
-      required: true
-
   - type: textarea
     id: mobile_angle
     attributes:

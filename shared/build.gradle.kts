@@ -3,7 +3,6 @@ plugins {
     id("librechat.kmp.compose")
     id("librechat.kmp.koin")
     id("librechat.kotlin.serialization")
-    alias(libs.plugins.skie)
 }
 
 android {
@@ -11,18 +10,6 @@ android {
 }
 
 kotlin {
-    listOf(iosArm64(), iosSimulatorArm64()).forEach { target ->
-        target.binaries.framework {
-            baseName = "Shared"
-            isStatic = true
-            // Export core modules so iOS can see all public types through the single framework
-            export(project(":core:common"))
-            export(project(":core:model"))
-            export(project(":core:network"))
-            export(project(":core:data"))
-        }
-    }
-
     sourceSets {
         commonMain.dependencies {
             api(project(":core:common"))
@@ -56,18 +43,6 @@ kotlin {
             implementation(libs.coil3.network.ktor)
             implementation(libs.coil3.svg)
         }
-        iosMain.dependencies {
-            implementation(libs.ktor.client.darwin)
-        }
     }
 }
 
-skie {
-    features {
-        // All features enabled by default:
-        // - Sealed classes → Swift enums (onEnum(of:))
-        // - Flow → AsyncSequence
-        // - Suspend → async/await
-        // No configuration needed for defaults
-    }
-}

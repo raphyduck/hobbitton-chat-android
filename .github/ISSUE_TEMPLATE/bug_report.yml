@@ -55,8 +55,6 @@ body:
       label: Platform
       options:
         - Android
-        - iOS
-        - Both Android and iOS
     validations:
       required: true
 
@@ -64,7 +62,7 @@ body:
     id: os_version
     attributes:
       label: OS version
-      placeholder: "Android 16 / iOS 26"
+      placeholder: "Android 16"
     validations:
       required: true
 

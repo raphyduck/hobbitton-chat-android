@@ -9,14 +9,6 @@ android {
 }
 
 kotlin {
-    listOf(iosArm64(), iosSimulatorArm64()).forEach { target ->
-        target.compilations.getByName("main").cinterops {
-            val nwparams_defaults by creating {
-                defFile(project.file("src/iosMain/cinterop/nwparams_defaults.def"))
-            }
-        }
-    }
-
     sourceSets {
         commonMain.dependencies {
             implementation(project(":core:model"))
@@ -33,9 +25,6 @@ kotlin {
         }
         androidMain.dependencies {
             implementation(libs.ktor.client.okhttp)
-        }
-        iosMain.dependencies {
-            implementation(libs.ktor.client.darwin)
         }
         named("androidUnitTest").dependencies {
             implementation(libs.koin.test)

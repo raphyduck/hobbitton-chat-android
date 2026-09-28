@@ -86,7 +86,6 @@ naming:
       - "**/androidUnitTest/**"
       - "**/androidInstrumentedTest/**"
       - "**/jsTest/**"
-      - "**/iosTest/**"
       - "**/build/generated/compose/resourceGenerator/**"
   TopLevelPropertyNaming:
     constantPattern: "[A-Z][A-Za-z0-9_]*"
@@ -138,7 +137,6 @@ koin-rules:
       - "**/src/main/**"
       - "**/src/commonMain/**"
       - "**/src/androidMain/**"
-      - "**/src/iosMain/**"
   # Project convention is top-level `val xModule = module { }`; rule is a
   # stylistic preference (defer factory-lambda alloc), not a correctness issue.
   ModuleAsTopLevelVal:
