@@ -156,7 +156,7 @@ private fun EngineMainLayout(
             entryProvider = entryProvider {
                 engineChatEntries(
                     onOpenDrawer = openDrawer,
-                    onChatStarted = { sessionId, title ->
+                    onChatStart = { sessionId, title ->
                         navigator.chatStarted(sessionId, title)
                         refreshChats()
                     },

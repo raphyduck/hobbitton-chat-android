@@ -65,7 +65,7 @@ import org.koin.core.parameter.parametersOf
  * same session.
  *
  * [sessionId] is null for a chat that does not exist yet: the first send creates it on the chat
- * profile, and [onChatStarted] hands the new session to the navigation, which opens it in place.
+ * profile, and [onChatStart] hands the new session to the navigation, which opens it in place.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -77,16 +77,16 @@ fun MissionChatScreen(
     /** Non-null when opened from the drawer: the bar then carries the menu, as a chat does. */
     onOpenDrawer: (() -> Unit)? = null,
     profile: EngineProfile = EngineProfile.TASK,
-    onChatStarted: (sessionId: String, title: String) -> Unit = { _, _ -> },
+    onChatStart: (sessionId: String, title: String) -> Unit = { _, _ -> },
     /** Non-null on a chat already under way: the bar offers a fresh one. */
     onNewChat: (() -> Unit)? = null,
     viewModel: MissionChatViewModel = koinViewModel { parametersOf(MissionChatArgs(sessionId, profile)) },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
-    val currentOnChatStarted by rememberUpdatedState(onChatStarted)
+    val currentOnChatStart by rememberUpdatedState(onChatStart)
     LaunchedEffect(state.started) {
-        state.started?.let { started -> currentOnChatStarted(started.sessionId, started.title) }
+        state.started?.let { started -> currentOnChatStart(started.sessionId, started.title) }
     }
 
     // Le cas dominant : le téléphone dort, le flux tombe, la mission continue de parler. Comme le

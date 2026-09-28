@@ -84,7 +84,7 @@ fun EntryProviderScope<NavKey>.tasksEntries(
  */
 fun EntryProviderScope<NavKey>.engineChatEntries(
     onOpenDrawer: () -> Unit,
-    onChatStarted: (sessionId: String, title: String) -> Unit,
+    onChatStart: (sessionId: String, title: String) -> Unit,
     onNewChat: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -95,7 +95,7 @@ fun EntryProviderScope<NavKey>.engineChatEntries(
             onBack = onBack,
             onOpenDrawer = onOpenDrawer,
             profile = EngineProfile.CHAT,
-            onChatStarted = onChatStarted,
+            onChatStart = onChatStart,
             onNewChat = onNewChat.takeIf { key.sessionId != null },
         )
     }
