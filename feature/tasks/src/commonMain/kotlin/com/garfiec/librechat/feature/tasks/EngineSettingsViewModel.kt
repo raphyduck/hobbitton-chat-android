@@ -3,8 +3,8 @@ package com.garfiec.librechat.feature.tasks
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
-import com.garfiec.librechat.core.common.network.CleartextPolicy
 import com.garfiec.librechat.core.data.engine.EngineSettingsStore
+import com.garfiec.librechat.core.data.engine.validateEngineAddresses
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -117,35 +117,13 @@ class EngineSettingsViewModel(
 }
 
 /**
- * What the form refuses to save, as a pure function so it can be tested without a screen.
- *
- * Stricter than [com.garfiec.librechat.core.network.engine.EngineAccess.isConfigured], deliberately:
- * that one only asks whether the addresses are there, while this one asks whether they can *work*.
- *
- * The URL rule looks pedantic and is not: `agent.hobbitton.at` without a scheme is accepted by every
- * text field and rejected by every HTTP client, and the resulting « unknown host » reads as a
- * network outage on a phone whose network is fine.
- *
- * `http://` is accepted towards a private host only (finding F5, 26/09/2026): the portal's bearer
- * goes on every request to the engine and the scheduler, the portal issues it, and the scheduler's
- * address is also where the authorization code comes back. A laptop on `127.0.0.1` needs no certificate; a public
- * host gets one or is refused. [CleartextPolicy] is the one definition of « private », shared with
- * the server URL screen and the HTTP clients.
+ * What the form refuses to save — the shared rule of `:core:data` ([validateEngineAddresses]), read
+ * with this sheet's leniency: a blank scheduler is « I do not have one », not a mistake.
  */
 internal fun validateEngineSettings(
     baseUrl: String,
     issuerUrl: String,
     schedulerUrl: String = "",
-): Set<EngineSettingsField> = buildSet {
-    if (!baseUrl.isAcceptableUrl()) add(EngineSettingsField.BASE_URL)
-    if (!issuerUrl.isAcceptableUrl()) add(EngineSettingsField.ISSUER_URL)
-    // Only when filled in: an empty scheduler URL is « I do not have one », not a mistake.
-    if (schedulerUrl.isNotBlank() && !schedulerUrl.isAcceptableUrl()) add(EngineSettingsField.SCHEDULER_URL)
-}
-
-private fun String.isAcceptableUrl(): Boolean {
-    val trimmed = trim()
-    val hasScheme = (trimmed.startsWith("https://") || trimmed.startsWith("http://")) &&
-        trimmed.substringAfter("://").isNotBlank()
-    return hasScheme && CleartextPolicy.isPermitted(trimmed)
-}
+): Set<EngineSettingsField> =
+    validateEngineAddresses(baseUrl, issuerUrl, schedulerUrl, schedulerRequired = false)
+        .mapTo(HashSet()) { field -> EngineSettingsField.valueOf(field.name) }

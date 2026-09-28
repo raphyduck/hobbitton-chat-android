@@ -1,6 +1,7 @@
 package com.garfiec.librechat.core.data.portal
 
 import co.touchlab.kermit.Logger
+import com.garfiec.librechat.core.network.engine.EngineAccess
 import com.garfiec.librechat.core.network.engine.EngineTokenStore
 import com.garfiec.librechat.core.network.engine.EngineTokens
 import com.garfiec.librechat.core.network.engine.PortalBearerSource
@@ -95,6 +96,12 @@ class PortalSession(
         renewed.accessToken
     }
 
+    /**
+     * Whether a portal session is held at all — tokens stored, fresh or renewable. Not a promise
+     * that the next renewal succeeds: a refused one clears the store, and the next check says so.
+     */
+    suspend fun hasTokens(): Boolean = store.read() != null
+
     /** Stores what the code exchange produced, at the end of a portal round trip. */
     suspend fun onAuthorized(response: EngineTokenResponse) {
         store.write(response.toTokens(now()))
@@ -121,6 +128,14 @@ class PortalSession(
  * rotate or not, and dropping the old one on a non-rotating server would end the session at the
  * following renewal.
  */
+/**
+ * The app's one signed-in state since D-077: the three addresses are set **and** the portal holds
+ * tokens. There is no other login — no LibreChat account, no server URL — so this is what decides
+ * between the sign-in screen and the chat.
+ */
+fun isPortalSignedIn(access: EngineAccess?, tokens: EngineTokens?): Boolean =
+    access != null && access.isConfigured && access.hasScheduler && tokens != null
+
 internal fun EngineTokenResponse.toTokens(
     nowEpochSeconds: Long,
     previous: EngineTokens? = null,
