@@ -215,6 +215,15 @@ class PortalLoginViewModel(
         }
     }
 
+    /**
+     * The screen has handed the sign-in over. This view model outlives the screen (it belongs to
+     * the activity, not to a navigation entry), so without this the next sign-in after a sign-out
+     * would set a flag that is already up — and nobody would hear it.
+     */
+    fun consumeSignedIn() {
+        _state.update { it.copy(signedIn = false) }
+    }
+
     private fun fail(problem: PortalLoginProblem) {
         _state.update { it.copy(step = PortalLoginStep.Idle, page = null, problem = problem) }
     }

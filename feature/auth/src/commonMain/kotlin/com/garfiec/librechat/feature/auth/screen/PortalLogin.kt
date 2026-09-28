@@ -81,7 +81,10 @@ fun PortalSignInScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val currentOnSignedIn by rememberUpdatedState(onSignedIn)
     LaunchedEffect(state.signedIn) {
-        if (state.signedIn) currentOnSignedIn()
+        if (state.signedIn) {
+            viewModel.consumeSignedIn()
+            currentOnSignedIn()
+        }
     }
 
     Box(modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {

@@ -174,6 +174,25 @@ class PortalLoginViewModelTest {
     }
 
     @Test
+    fun `a second sign-in after a sign-out is heard`() = runTest {
+        val subject = viewModel()
+        subject.fillIn()
+        subject.start()
+        advanceUntilIdle()
+        launcher.state.value = EngineSignInProgress.Termine(EngineSignInResult.Authorized)
+        advanceUntilIdle()
+        subject.consumeSignedIn()
+        assertThat(subject.state.value.signedIn).isFalse()
+
+        subject.start()
+        advanceUntilIdle()
+        launcher.state.value = EngineSignInProgress.Termine(EngineSignInResult.Authorized)
+        advanceUntilIdle()
+
+        assertThat(subject.state.value.signedIn).isTrue()
+    }
+
+    @Test
     fun `no LibreChat step - the first page is the portal's, never a chat server's`() = runTest {
         val subject = viewModel()
         subject.fillIn()
