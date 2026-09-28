@@ -8,7 +8,7 @@ import com.garfiec.librechat.core.data.datastore.MissionReadingPositions
 import com.garfiec.librechat.core.data.engine.EngineSessionKinds
 import com.garfiec.librechat.core.data.engine.SessionKindStore
 import com.garfiec.librechat.core.data.pricing.ModelPriceCache
-import org.koin.dsl.bind
+import org.koin.dsl.binds
 import org.koin.dsl.module
 
 /**
@@ -45,7 +45,7 @@ val hobbittonDataModule = module {
     // taking a DataStore with it. The store itself stays in `dataModule`, where the upstream
     // chat-profile store it replaced was bound. One definition, two faces: the same store is
     // also the editor of the engine shell's instructions screen (D-077).
-    single<GlobalProfileSource> { get<GlobalProfileStore>() } bind GlobalProfileEditor::class
+    single<GlobalProfileSource> { get<GlobalProfileStore>() } binds arrayOf(GlobalProfileEditor::class)
 
     /**
      * The gateway's price table, shared by the chat's model picker and the tasks tab's.
