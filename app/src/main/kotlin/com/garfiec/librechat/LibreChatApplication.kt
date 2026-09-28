@@ -15,6 +15,7 @@ import coil3.request.crossfade
 import coil3.svg.SvgDecoder
 import com.garfiec.librechat.core.common.AppInfo
 import com.garfiec.librechat.core.data.di.engineModule
+import com.garfiec.librechat.core.data.legacy.LegacyLibreChatCleanup
 import com.garfiec.librechat.core.logging.PersistentLogWriter
 import com.garfiec.librechat.core.logging.PlatformInfo
 import com.garfiec.librechat.core.logging.RedactingLogWriter
@@ -81,6 +82,11 @@ class LibreChatApplication : Application(), SingletonImageLoader.Factory {
             Logger.e(e) { "Koin initialization failed" }
             throw e // Always rethrow — DI failure is unrecoverable
         }
+
+        // What LibreChat left on a device that ran an earlier build (D-077): removed once, in the
+        // background. The engine's preferences and the global profile are not touched.
+        val legacyCleanup: LegacyLibreChatCleanup by inject()
+        legacyCleanup.launchOnce()
 
         // Diagnostic logging is wired AFTER Koin so the writer's dependencies are resolvable.
         // Everything here is best-effort: a logging-setup failure must never block app launch.

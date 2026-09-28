@@ -1,8 +1,5 @@
 package com.garfiec.librechat.core.common.di
 
-import com.garfiec.librechat.core.common.conversation.OpenConversationRegistry
-import com.garfiec.librechat.core.common.lifecycle.ForegroundSignal
-import com.garfiec.librechat.core.common.network.RequestActivityTracker
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -26,10 +23,4 @@ val commonModule = module {
     single<CoroutineScope>(KoinQualifiers.ApplicationScope) {
         CoroutineScope(SupervisorJob() + get<CoroutineDispatcher>(KoinQualifiers.Default))
     }
-
-    // Activity signals. They belong at the bottom of the module graph: the HTTP layer publishes to
-    // them and the data layer reads them, and neither may depend on the other.
-    single { RequestActivityTracker() }
-    single { ForegroundSignal() }
-    single { OpenConversationRegistry() }
 }

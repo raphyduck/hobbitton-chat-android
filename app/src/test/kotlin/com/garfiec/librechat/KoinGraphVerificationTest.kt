@@ -2,111 +2,22 @@ package com.garfiec.librechat
 
 import android.app.Application
 import android.content.Context
-import com.garfiec.librechat.core.common.AppInfo
-import com.garfiec.librechat.core.common.conversation.OpenConversationRegistry
-import com.garfiec.librechat.core.common.identity.ActiveAccountProvider
-import com.garfiec.librechat.core.common.lifecycle.DeferredWorkWindow
-import com.garfiec.librechat.core.common.lifecycle.ForegroundSignal
-import com.garfiec.librechat.core.common.network.ConnectivityObserver
-import com.garfiec.librechat.core.common.network.NetworkConditionObserver
-import com.garfiec.librechat.core.common.network.RequestActivityTracker
-import com.garfiec.librechat.core.common.power.PowerStateObserver
-import com.garfiec.librechat.core.data.datastore.AccountRoster
-import com.garfiec.librechat.core.data.datastore.ConfigCacheDataStore
 import com.garfiec.librechat.core.data.datastore.GlobalProfileEditor
-import com.garfiec.librechat.core.data.datastore.GlobalProfileStore
 import com.garfiec.librechat.core.data.datastore.MissionReadingPositions
-import com.garfiec.librechat.core.data.datastore.ServerDataStore
-import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.datastore.ThemeDataStore
 import com.garfiec.librechat.core.data.engine.EngineMissionRepository
 import com.garfiec.librechat.core.data.engine.EngineSettingsStore
-import com.garfiec.librechat.core.data.engine.RecentMissionsSource
 import com.garfiec.librechat.core.data.engine.SessionKindStore
 import com.garfiec.librechat.core.data.portal.PortalSignOut
 import com.garfiec.librechat.core.data.portal.PortalTasksSignIn
-import com.garfiec.librechat.core.data.prefetch.AttachmentWarmer
-import com.garfiec.librechat.core.data.prefetch.PrefetchController
-import com.garfiec.librechat.core.data.prefetch.PrefetchScheduler
-import com.garfiec.librechat.core.data.prefetch.PrefetchStatusReporter
-import com.garfiec.librechat.core.data.pricing.ModelPriceCache
 import com.garfiec.librechat.core.data.pricing.ModelPriceSource
-import com.garfiec.librechat.core.data.repository.AccountSwitcher
-import com.garfiec.librechat.core.data.repository.AgentRepository
-import com.garfiec.librechat.core.data.repository.AgentToolsRepository
-import com.garfiec.librechat.core.data.repository.ApiKeyRepository
-import com.garfiec.librechat.core.data.repository.AuthRepository
-import com.garfiec.librechat.core.data.repository.BalanceRepository
-import com.garfiec.librechat.core.data.repository.BannerRepository
-import com.garfiec.librechat.core.data.repository.ChatRepository
-import com.garfiec.librechat.core.data.repository.ConfigRepository
-import com.garfiec.librechat.core.data.repository.ConversationRepository
-import com.garfiec.librechat.core.data.repository.DraftRepository
-import com.garfiec.librechat.core.data.repository.EndpointTokenRepository
-import com.garfiec.librechat.core.data.repository.FavoritesRepository
-import com.garfiec.librechat.core.data.repository.FileRepository
-import com.garfiec.librechat.core.data.repository.KeyRepository
-import com.garfiec.librechat.core.data.repository.McpRepository
-import com.garfiec.librechat.core.data.repository.MemoryRepository
-import com.garfiec.librechat.core.data.repository.MessageRepository
-import com.garfiec.librechat.core.data.repository.PermissionsRepository
-import com.garfiec.librechat.core.data.repository.PresetRepository
-import com.garfiec.librechat.core.data.repository.ProjectRepository
-import com.garfiec.librechat.core.data.repository.PromptRepository
-import com.garfiec.librechat.core.data.repository.ResumePinStore
-import com.garfiec.librechat.core.data.repository.RoleRepository
-import com.garfiec.librechat.core.data.repository.SearchRepository
-import com.garfiec.librechat.core.data.repository.ServerRepository
-import com.garfiec.librechat.core.data.repository.ShareRepository
-import com.garfiec.librechat.core.data.repository.SkillsRepository
-import com.garfiec.librechat.core.data.repository.SpeechRepository
-import com.garfiec.librechat.core.data.repository.TagRepository
-import com.garfiec.librechat.core.data.repository.ToolFavoritesRepository
-import com.garfiec.librechat.core.data.repository.UserRepository
-import com.garfiec.librechat.core.data.util.PermissionGate
-import com.garfiec.librechat.core.data.util.SessionTask
-import com.garfiec.librechat.core.data.util.SessionTaskRunner
-import com.garfiec.librechat.core.logging.DiagnosticLogRepository
-import com.garfiec.librechat.core.network.api.AgentToolsApi
-import com.garfiec.librechat.core.network.api.AgentsApi
-import com.garfiec.librechat.core.network.api.ApiKeysApi
-import com.garfiec.librechat.core.network.api.AuthApi
-import com.garfiec.librechat.core.network.api.BalanceApi
-import com.garfiec.librechat.core.network.api.BannerApi
-import com.garfiec.librechat.core.network.api.ChatApi
-import com.garfiec.librechat.core.network.api.ConfigApi
-import com.garfiec.librechat.core.network.api.ConversationsApi
-import com.garfiec.librechat.core.network.api.EndpointTokenApi
-import com.garfiec.librechat.core.network.api.FavoritesApi
-import com.garfiec.librechat.core.network.api.FilesApi
-import com.garfiec.librechat.core.network.api.FilesExtApi
-import com.garfiec.librechat.core.network.api.KeysApi
-import com.garfiec.librechat.core.network.api.McpApi
-import com.garfiec.librechat.core.network.api.MemoriesApi
-import com.garfiec.librechat.core.network.api.MessagesApi
-import com.garfiec.librechat.core.network.api.PermissionsApi
-import com.garfiec.librechat.core.network.api.PresetsApi
-import com.garfiec.librechat.core.network.api.ProjectsApi
-import com.garfiec.librechat.core.network.api.PromptsApi
-import com.garfiec.librechat.core.network.api.ShareApi
-import com.garfiec.librechat.core.network.api.SkillsApi
-import com.garfiec.librechat.core.network.api.SpeechApi
-import com.garfiec.librechat.core.network.api.TagsApi
-import com.garfiec.librechat.core.network.api.UserApi
-import com.garfiec.librechat.core.network.client.AccountReadyGate
-import com.garfiec.librechat.core.network.client.SecureTokenStorage
-import com.garfiec.librechat.core.network.client.ServerUrlProvider
-import com.garfiec.librechat.core.network.client.SwitchGate
-import com.garfiec.librechat.core.network.client.TokenManager
 import com.garfiec.librechat.core.network.engine.EngineTokenStore
-import com.garfiec.librechat.core.network.sse.SseClient
 import com.garfiec.librechat.shared.di.sharedKoinModules
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import org.junit.Test
 import org.koin.core.annotation.KoinExperimentalAPI
 import org.koin.test.verify.verify
-import java.io.File
 import kotlin.reflect.KClass
 
 class KoinGraphVerificationTest {
@@ -133,130 +44,25 @@ class KoinGraphVerificationTest {
             // core:common provides
             CoroutineDispatcher::class,
             CoroutineScope::class,
-            ConnectivityObserver::class,
-            NetworkConditionObserver::class,
-            PowerStateObserver::class,
-            ForegroundSignal::class,
-            DeferredWorkWindow::class,
-            OpenConversationRegistry::class,
-            RequestActivityTracker::class,
-            ActiveAccountProvider::class,
-            AppInfo::class,
-            // core:logging provides
-            DiagnosticLogRepository::class,
-            // core:network provides
-            TokenManager::class,
-            SecureTokenStorage::class,
-            ServerUrlProvider::class,
-            AccountReadyGate::class,
-            SwitchGate::class,
-            SseClient::class,
-            AgentToolsApi::class,
-            AgentsApi::class,
-            ApiKeysApi::class,
-            AuthApi::class,
-            BalanceApi::class,
-            BannerApi::class,
-            ChatApi::class,
-            ConfigApi::class,
-            ConversationsApi::class,
-            EndpointTokenApi::class,
-            FavoritesApi::class,
-            FilesApi::class,
-            FilesExtApi::class,
-            KeysApi::class,
-            McpApi::class,
-            MemoriesApi::class,
-            MessagesApi::class,
-            PermissionsApi::class,
-            PresetsApi::class,
-            ProjectsApi::class,
-            PromptsApi::class,
-            ShareApi::class,
-            SkillsApi::class,
-            SpeechApi::class,
-            TagsApi::class,
-            UserApi::class,
-            // core:data provides
-            ConfigCacheDataStore::class,
-            ServerDataStore::class,
-            ServerRepository::class,
-            AccountRoster::class,
-            AccountSwitcher::class,
-            SettingsDataStore::class,
-            GlobalProfileStore::class,
+            // core:data provides; verify() resolves one module at a time
             ThemeDataStore::class,
-            AgentRepository::class,
-            AgentToolsRepository::class,
-            ApiKeyRepository::class,
-            AuthRepository::class,
-            BalanceRepository::class,
-            BannerRepository::class,
-            ChatRepository::class,
-            ConfigRepository::class,
-            ConversationRepository::class,
-            DraftRepository::class,
-            EndpointTokenRepository::class,
-            FavoritesRepository::class,
-            FileRepository::class,
-            KeyRepository::class,
-            McpRepository::class,
-            MemoryRepository::class,
-            MessageRepository::class,
-            PermissionsRepository::class,
-            PresetRepository::class,
-            ResumePinStore::class,
-            ProjectRepository::class,
-            PromptRepository::class,
-            RoleRepository::class,
-            SearchRepository::class,
-            ShareRepository::class,
-            SkillsRepository::class,
-            SpeechRepository::class,
-            TagRepository::class,
-            ToolFavoritesRepository::class,
-            UserRepository::class,
-            PermissionGate::class,
-            SessionTask::class,
-            AttachmentWarmer::class,
-            PrefetchStatusReporter::class,
-            PrefetchController::class,
-            SessionTaskRunner::class,
-            // Bound by `engineModule`, which is Android-only and NOT part of sharedKoinModules
-            // (D-034). `ModelPriceCache` resolves it with `getOrNull` precisely because it may be
-            // absent — the verifier reads the constructor's declared type and cannot see that.
+            MissionReadingPositions::class,
+            SessionKindStore::class,
+            GlobalProfileEditor::class,
+            // Bound by `engineModule` / `tasksModule`, which the application starts next to this
+            // list, and resolved with `getOrNull` by the shell, the sign-in and the price cache. The
+            // verifier reads the declared types and cannot see that.
             ModelPriceSource::class,
-            // Same arrangement: bound by `engineModule`, resolved by the drawer with `getOrNull`.
-            RecentMissionsSource::class,
-            // Same again: the single sign-in's tasks half (D-076), resolved by the login screen's
-            // view model with `getOrNull`.
             PortalTasksSignIn::class,
-            // Provided by :core:data's own module; verify() resolves one module at a time.
-            ModelPriceCache::class,
-            // The engine shell's view model (D-077), in sharedAppModule. Its engine half is bound
-            // by the Android-only engineModule / tasksModule and resolved with getOrNull; the rest
-            // by :core:data's modules. The verifier reads the declared types and cannot see that.
             EngineSettingsStore::class,
             EngineTokenStore::class,
             PortalSignOut::class,
             EngineMissionRepository::class,
-            SessionKindStore::class,
-            MissionReadingPositions::class,
-            PrefetchScheduler::class,
-            // The instructions' editor (D-077), also in sharedAppModule: bound by :core:data's
-            // hobbittonDataModule, which verify() does not see from here.
-            GlobalProfileEditor::class,
-            // Wrappers/DSL types that verify can't resolve via constructor
-            Lazy::class,
-            File::class,
         )
 
         // Types whose libraries aren't on the app test classpath (transitive
         // implementation deps). Resolve via reflection at runtime.
         val reflectionTypes = listOf(
-            "io.ktor.client.HttpClient",
-            "io.ktor.client.engine.HttpClientEngine",
-            "io.ktor.client.engine.HttpClientEngineConfig",
             "kotlinx.serialization.json.Json",
             "androidx.datastore.core.DataStore",
         )

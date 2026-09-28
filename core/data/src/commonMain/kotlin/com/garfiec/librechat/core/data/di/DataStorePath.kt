@@ -6,17 +6,16 @@ import androidx.datastore.preferences.core.emptyPreferences
 import co.touchlab.kermit.Logger
 
 /**
- * The base name used for the DataStore preferences file on all platforms.
+ * The base name of the DataStore preferences file. Kept from LibreChat's time: the engine's
+ * addresses and the global profile live in this file, and renaming it would lose them.
  */
 internal const val DATASTORE_FILE_NAME = "librechat_settings"
 
 /**
- * Shared corruption handler for the settings DataStore. A corrupt preferences file (interrupted write,
+ * Corruption handler for the settings DataStore. A corrupt preferences file (interrupted write,
  * backup-restore) would otherwise throw `CorruptionException` on every read/edit forever — permanently
- * bricking a startup that reads it eagerly. Heal by replacing with empty prefs: the user re-onboards /
- * re-logs in (nothing recoverable is lost; a corrupt file is unreadable anyway; on iOS the server URL
- * restores from the keychain fallback in `ServerDataStore`). One definition so both platforms' DI
- * modules can't drift apart.
+ * bricking a startup that reads it eagerly. Heal by replacing with empty prefs: the user enters the
+ * addresses and signs in again (nothing recoverable is lost; a corrupt file is unreadable anyway).
  */
 internal fun settingsCorruptionHandler(): ReplaceFileCorruptionHandler<Preferences> =
     ReplaceFileCorruptionHandler { e ->

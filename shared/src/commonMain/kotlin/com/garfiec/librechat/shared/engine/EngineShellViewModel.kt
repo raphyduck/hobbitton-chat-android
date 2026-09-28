@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.data.datastore.MissionReadingPositions
-import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.datastore.ThemeDataStore
 import com.garfiec.librechat.core.data.datastore.ThemeMode
 import com.garfiec.librechat.core.data.engine.EngineChatSummary
@@ -13,7 +12,6 @@ import com.garfiec.librechat.core.data.engine.EngineSettingsStore
 import com.garfiec.librechat.core.data.engine.SessionKindStore
 import com.garfiec.librechat.core.data.portal.PortalSignOut
 import com.garfiec.librechat.core.data.portal.isPortalSignedIn
-import com.garfiec.librechat.core.data.prefetch.PrefetchScheduler
 import com.garfiec.librechat.core.network.engine.EngineAccess
 import com.garfiec.librechat.core.network.engine.EngineTokenStore
 import kotlinx.coroutines.CancellationException
@@ -44,9 +42,8 @@ data class EngineChatsState(
  * refresh against a chat server — so nothing here touches LibreChat's graph, and nothing started
  * from here calls a LibreChat endpoint.
  *
- * Every engine dependency is nullable: the engine graph is Android-only (D-034), and this binding
- * lives in the shared module both platforms start. On a platform without it the shell reads as
- * signed out, and the sign-in screen says why.
+ * Every engine dependency is nullable, resolved with `getOrNull`: without the engine graph the
+ * shell reads as signed out, and the sign-in screen says why.
  */
 class EngineShellViewModel(
     private val settings: EngineSettingsStore?,
@@ -56,8 +53,6 @@ class EngineShellViewModel(
     private val kinds: SessionKindStore,
     private val positions: MissionReadingPositions,
     private val themeDataStore: ThemeDataStore,
-    settingsDataStore: SettingsDataStore,
-    prefetchScheduler: PrefetchScheduler,
 ) : ViewModel() {
 
     private val _signedIn = MutableStateFlow<Boolean?>(null)
@@ -79,16 +74,6 @@ class EngineShellViewModel(
     private var chatsJob: Job? = null
 
     init {
-        // LibreChat's background prefetch is the one piece of its machinery that runs with no
-        // screen at all (a periodic WorkManager job, opt-in). There is no LibreChat server any
-        // more: switch it off and cancel what an earlier build scheduled, so nothing wakes up to
-        // call it. Local writes only.
-        viewModelScope.launch {
-            runCatching {
-                settingsDataStore.setPrefetchEnabled(false)
-                prefetchScheduler.cancel()
-            }.onFailure { Logger.w(it) { "Could not retire LibreChat's background prefetch" } }
-        }
         recheck()
     }
 

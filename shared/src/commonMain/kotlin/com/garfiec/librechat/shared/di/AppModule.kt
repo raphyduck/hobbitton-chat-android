@@ -24,8 +24,6 @@ val sharedAppModule = module {
             kinds = get(),
             positions = get(),
             themeDataStore = get(),
-            settingsDataStore = get(),
-            prefetchScheduler = get(),
         )
     }
 

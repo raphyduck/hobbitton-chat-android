@@ -19,7 +19,6 @@ import com.garfiec.librechat.core.data.portal.PortalSession
 import com.garfiec.librechat.core.data.portal.PortalSignOut
 import com.garfiec.librechat.core.data.portal.PortalTasksSignIn
 import com.garfiec.librechat.core.data.pricing.ModelPriceSource
-import com.garfiec.librechat.core.data.repository.SignOutHook
 import com.garfiec.librechat.core.data.scheduler.SchedulerRepository
 import com.garfiec.librechat.core.network.api.AgentEngineApi
 import com.garfiec.librechat.core.network.api.SchedulerApi
@@ -44,7 +43,6 @@ import kotlinx.serialization.json.Json
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.Module
 import org.koin.core.scope.Scope
-import org.koin.dsl.bind
 import org.koin.dsl.binds
 import org.koin.dsl.module
 import java.util.Locale
@@ -188,8 +186,7 @@ val engineModule: Module = module {
 
     /**
      * What an explicit sign-out owes the portal (D-076): its tokens and the web view's cookies on
-     * the chat, portal, engine and scheduler hosts. Collected by `AuthRepositoryImpl` through
-     * `getAll<SignOutHook>()`, so the upstream logout gains one call and no knowledge of the portal.
+     * the portal, engine and scheduler hosts. Called by the engine shell's sign-out (D-077).
      */
     single {
         PortalSignOut(
@@ -197,7 +194,7 @@ val engineModule: Module = module {
             access = { get<EngineSettingsStore>().access() },
             cookies = AndroidWebCookieJar(),
         )
-    } bind SignOutHook::class
+    }
 
     /**
      * La boîte aux lettres du lien profond, en **singleton** — et c'est le point qui compte.
