@@ -82,7 +82,7 @@ class EnginePortalClientTest {
         assertThat(client.pluginOrNull(AuthInterceptorPlugin)).isNull()
         assertThat(client.pluginOrNull(ServerHeadersPlugin)).isNull()
         assertThat(client.pluginOrNull(SwitchBarrierPlugin)).isNull()
-        // Nor the engine's own: the Basic has no business at the token endpoint either.
+        // Nor the engine's own: the bearer has no business at the token endpoint either.
         assertThat(client.pluginOrNull(EngineAuthPlugin)).isNull()
         // Nor a retry ladder: a token endpoint answers once, and a replayed exchange spends the code.
         assertThat(client.pluginOrNull(HttpRequestRetry)).isNull()

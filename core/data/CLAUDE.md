@@ -129,6 +129,54 @@ every write there goes to memory and a test would pass for the wrong reason. It 
 - `AgentRepository.getAgentsPaginated()` — server-side paginated agent fetch, maps response to `PaginatedAgents` domain model
 - Both bound in `DataModule.kt` via `singleOf`, both use `safeApiCall`, no local caching
 
+### The portal (`portal/`, hobbitton overlay, D-076)
+
+One Authelia identity for chats and tasks. Everything here is bound by the Android-only
+`engineModule` (D-034); common code resolves it with `getOrNull`.
+
+- **`PortalSession`** — the one holder of the portal's tokens (ex-`EngineSessionManager`). The
+  engine's and the scheduler's clients read their bearer here (`PortalBearerSource`); both sign-in
+  paths write here. Kept apart from LibreChat's `TokenManager`: a chat session expiring must not
+  drop it, nor the reverse.
+- **`PortalTasksSignIn`** — the tasks half of the single login, as a web view host sees it. It
+  delegates to the existing round trip (`EngineSignInLauncher`: PAR, PKCE, `state`, code exchange)
+  and only changes where the page opens; `offer(url)` catches the scheduler page's hop to
+  `at.hobbitton.chat://` and drops it in the callback mailbox.
+- **`classifyPortalNavigation`** — what the sign-in's web view does with a navigation: `http(s)`
+  loads, the app scheme goes to the mailbox, other schemes are refused. (Before D-077 it also
+  stopped on the LibreChat origin to read a refresh cookie; there is no LibreChat any more.)
+- **`isPortalSignedIn`** — the app's one signed-in state since D-077: addresses set and tokens held.
+- **`PortalSignOut`** (a `SignOutHook`) — an explicit logout also forgets the portal's tokens and
+  expires the web view's cookies on the chat, portal, engine and scheduler origins. `AuthRepositoryImpl`
+  runs every `SignOutHook` from `getAll()` at the end of its non-cancellable teardown; that list is the
+  only hobbitton change to the upstream logout.
+- **No engine password.** `EngineSecureStore` holds the portal tokens only and deletes, on first
+  open, the Basic password builds before D-076 stored. `EngineSettingsStore` holds three addresses.
+
+### Engine profiles: chat and task (`engine/`, hobbitton overlay, D-077)
+
+- **`EngineProfile`** — `CHAT` (agent `chat`, provider `hobbitton-chat`) and `TASK` (agent
+  `mission`, the gateway). `offersProvider` narrows each model picker; `forChat()` moves a model
+  onto the chat provider (same model ids on both).
+- **`chatPerimeter()`** — every connector the scheduler's catalogue marks `chat: true`, and only
+  those. `EngineMissionRepository.startChat` builds the session's rules from it with the same
+  `permissionsFor`, records it with the scheduler before the first prompt (as `launch` does), and
+  records the session's kind locally before anything can fail.
+- **Every chat turn names agent `chat` and a `hobbitton-chat` model** (`sendMessage(profile = CHAT)`);
+  a task turn is unchanged (no agent, the session's model unless one is picked).
+- **`classifySession` + `SessionKindStore` (`EngineSessionKinds`)** — recorded kind, then the
+  scheduler's title shape, then the agent on the messages, then the provider. `recentChats` (the
+  drawer) reads at most ten unknown transcripts per refresh and records each verdict;
+  `recentMissions` (the Tasks tab) drops chats. Cleared at sign-out with the reading positions.
+- **`AudioTranscriber` (`SchedulerTranscriber`)** — the composer's speech to text on the scheduler's
+  `POST /transcription`. Answers `TranscriptionOutcome` (the words, or a `TranscriptionFailure` plus
+  the server's `erreur`), never throws past `:core:data`. The language hint is the device's when it
+  is a bare ISO 639-1 code (`isoLanguageOrNull`), nothing otherwise. Bound in `engineModule`.
+- **`GlobalProfileStore`** — account-scoped when a LibreChat account is resolved, **device-scoped
+  otherwise** (every fresh install since D-077; before, the profile was then unreadable and
+  unwritable). `GlobalProfileEditor` is the editor's view of it; `GlobalProfileSource` the send
+  path's.
+
 ### Per-server gateway headers (`servers` table)
 
 `ServerRepository` / `ServerRepositoryImpl` own the gateway headers of issue #287 and are the

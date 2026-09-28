@@ -1,6 +1,7 @@
 package com.garfiec.librechat.core.data.engine
 
 import co.touchlab.kermit.Logger
+import com.garfiec.librechat.core.data.portal.PortalSession
 import com.garfiec.librechat.core.network.engine.EngineAccess
 import com.garfiec.librechat.core.network.engine.auth.EngineAuthorizationAttempt
 import com.garfiec.librechat.core.network.engine.auth.EngineOAuthEndpoints
@@ -16,7 +17,7 @@ import com.garfiec.librechat.core.network.engine.auth.generateStateToken
  *
  * Everything downstream of it existed and was tested: PKCE, the pushed authorization request, the
  * callback parser, the code exchange, the token store, the renewal. Nothing **called**
- * them. [EngineSessionManager.onAuthorized] had no caller in the whole application, and neither did
+ * them. [PortalSession.onAuthorized] had no caller in the whole application, and neither did
  * `pushAuthorizationRequest`, `authorizationUrl` or `parseCallbackUri` outside their own unit
  * tests. The app could therefore renew a token it had no way of ever obtaining.
  *
@@ -43,12 +44,12 @@ import com.garfiec.librechat.core.network.engine.auth.generateStateToken
 class EngineSignIn(
     /**
      * Where the engine and the portal are. A lambda rather than the settings store itself: this
-     * class needs one answer from it, and taking the whole store would drag DataStore and the
-     * encrypted password store into every test of the round trip.
+     * class needs one answer from it, and taking the whole store would drag DataStore into every
+     * test of the round trip.
      */
     private val access: suspend () -> EngineAccess?,
     private val tokens: EngineTokenClient,
-    private val sessions: EngineSessionManager,
+    private val sessions: PortalSession,
     /**
      * La boîte aux lettres du lien profond. Une instance, pas une fabrique : le point d'entrée de
      * la plateforme y dépose, ce tour y relève, et deux instances feraient deux boîtes dont l'une
@@ -111,7 +112,9 @@ class EngineSignIn(
             openBrowser(
                 authorizationUrl(
                     endpoints = discovered,
-                    clientId = engine.clientId,
+                    // The token client's own id, so the URL and the pushed request cannot name
+                    // two different clients (D-076).
+                    clientId = tokens.clientId,
                     requestUri = pushed.requestUri,
                 ),
             )
@@ -204,6 +207,12 @@ sealed interface EngineSignInResult {
     data class Interrupted(val reason: String) : EngineSignInResult
 
     /**
+     * The person closed the portal's page before it finished. Not a failure to report: they know,
+     * they did it. Kept apart from [Interrupted] so the screen says nothing rather than « it broke ».
+     */
+    data object Cancelled : EngineSignInResult
+
+    /**
      * Signed in, and the token still will not open the engine.
      *
      * Its own outcome because it is the one failure that looks like a success: tokens are stored,
@@ -228,6 +237,13 @@ interface EngineSignInLauncher {
 
     /** Lance le tour, ou ne fait rien s'il en reste un en vol. */
     fun lancer(ouvrirNavigateur: (url: String) -> Unit)
+
+    /**
+     * Abandonne le tour en vol, s'il y en a un, et le dit : [etat] passe à `Termine(Cancelled)`.
+     * Ce que la vue web appelle quand on la ferme — sans cela le tour attendrait cinq minutes un
+     * retour que plus personne ne peut produire, et refuserait tout nouvel essai jusque-là.
+     */
+    fun annuler()
 
     /** Remet l'état à zéro une fois le résultat lu, pour qu'un second essai reparte propre. */
     fun acquitter()

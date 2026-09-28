@@ -76,4 +76,22 @@
 
     <!-- Custom server headers (issue #287) -->
     <string name="server_headers_advanced">Avancé</string>
+
+    <!-- La seule connexion : le portail (hobbitton, D-076, D-077) -->
+    <string name="portal_sign_in">Se connecter par le portail</string>
+    <string name="portal_sign_in_hint">Une seule connexion pour les conversations et les tâches : mot de passe et second facteur au portail, puis une autorisation.</string>
+    <string name="portal_title">Connexion</string>
+    <string name="portal_close">Fermer</string>
+    <string name="portal_welcome">Se connecter à votre plateforme</string>
+    <string name="portal_addresses_hint">Les trois adresses de votre plateforme. Elles restent sur cet appareil.</string>
+    <string name="portal_engine_url">Adresse du moteur</string>
+    <string name="portal_scheduler_url">Adresse du planificateur</string>
+    <string name="portal_issuer_url">Adresse du portail</string>
+    <string name="portal_invalid_url">Une adresse https:// (http:// seulement sur un réseau privé).</string>
+    <string name="portal_step_preparing">Préparation de la connexion…</string>
+    <string name="portal_problem_not_ready">Ces adresses ne permettent pas de se connecter. Vérifiez le portail et le planificateur.</string>
+    <string name="portal_problem_unreachable">Le portail est injoignable. Vérifiez son adresse et votre connexion.</string>
+    <string name="portal_problem_refused">Le portail a refusé la connexion. Réessayez.</string>
+    <string name="portal_problem_interrupted">La connexion s'est interrompue. Réessayez.</string>
+    <string name="portal_unavailable">La connexion par le portail n'est pas encore disponible sur cet appareil.</string>
 </resources>

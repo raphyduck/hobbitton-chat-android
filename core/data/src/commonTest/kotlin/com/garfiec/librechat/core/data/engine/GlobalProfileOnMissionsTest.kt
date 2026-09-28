@@ -1,27 +1,14 @@
 package com.garfiec.librechat.core.data.engine
 
 import com.garfiec.librechat.core.model.chat.GlobalProfile
-import com.garfiec.librechat.core.network.api.AgentEngineApi
-import com.garfiec.librechat.core.network.api.SchedulerApi
 import com.garfiec.librechat.core.network.di.librechatJson
-import com.garfiec.librechat.core.network.engine.EngineEventParser
-import com.garfiec.librechat.core.network.engine.EngineEventTransport
-import com.garfiec.librechat.core.network.engine.EngineStreamClient
-import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.request.HttpRequestData
 import io.ktor.content.TextContent
-import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
-import io.ktor.http.contentType
 import io.ktor.http.headersOf
-import io.ktor.serialization.kotlinx.json.json
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonObject
@@ -82,26 +69,8 @@ class GlobalProfileOnMissionsTest {
             (sent.last { it.url.encodedPath.endsWith(pathSuffix) }.body as TextContent).text,
         ).jsonObject
 
-    private fun repository(profile: GlobalProfile, engine: MockEngine) = EngineMissionRepository(
-        api = AgentEngineApi(
-            HttpClient(engine) {
-                install(ContentNegotiation) { json(librechatJson) }
-                defaultRequest { contentType(ContentType.Application.Json) }
-            },
-        ),
-        scheduler = SchedulerApi(
-            HttpClient(engine) {
-                install(ContentNegotiation) { json(librechatJson) }
-                defaultRequest { contentType(ContentType.Application.Json) }
-            },
-            librechatJson,
-        ),
-        streamClient = EngineStreamClient(EngineEventParser(librechatJson)),
-        eventTransport = object : EngineEventTransport {
-            override fun stream(): Flow<ByteArray> = emptyFlow()
-        },
-        globalProfile = { profile },
-    )
+    private fun repository(profile: GlobalProfile, engine: MockEngine) =
+        testMissionRepository(engine, globalProfile = { profile })
 
     /** The `system` of the last body sent, or null when the key was omitted entirely. */
     private fun lastSystem(): String? {
@@ -158,26 +127,7 @@ class GlobalProfileOnMissionsTest {
     fun `the profile is re-read for each turn, so editing it changes the next message`() = runTest {
         val engine = engine()
         var instructions = "Sois bref."
-        val repository = EngineMissionRepository(
-            api = AgentEngineApi(
-                HttpClient(engine) {
-                    install(ContentNegotiation) { json(librechatJson) }
-                    defaultRequest { contentType(ContentType.Application.Json) }
-                },
-            ),
-            scheduler = SchedulerApi(
-                HttpClient(engine) {
-                    install(ContentNegotiation) { json(librechatJson) }
-                    defaultRequest { contentType(ContentType.Application.Json) }
-                },
-                librechatJson,
-            ),
-            streamClient = EngineStreamClient(EngineEventParser(librechatJson)),
-            eventTransport = object : EngineEventTransport {
-                override fun stream(): Flow<ByteArray> = emptyFlow()
-            },
-            globalProfile = { GlobalProfile(instructions = instructions) },
-        )
+        val repository = testMissionRepository(engine, globalProfile = { GlobalProfile(instructions = instructions) })
 
         repository.sendMessage("ses_1", "un")
         assertEquals("Sois bref.", lastSystem())

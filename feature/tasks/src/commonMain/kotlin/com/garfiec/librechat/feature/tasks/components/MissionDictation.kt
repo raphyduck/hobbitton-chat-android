@@ -10,9 +10,9 @@ class MissionDictation(val recording: Boolean, val toggle: () -> Unit)
  * (D-034: Android only today — same contract as [rememberMissionAttachmentPicker]).
  *
  * First tap starts recording, asking for the microphone permission if needed; the second stops it
- * and hands the recording over. The caller sends it to the server's Whisper and puts the words in
- * the **composer** — the dictation contract: the speaker reads what Whisper heard and fixes it
- * before it becomes an instruction. A deposited *file* goes to the thread instead; the two must
+ * and hands the recording over. The caller sends it to the scheduler's transcription and puts the
+ * words in the **composer** — the dictation contract: the speaker reads what was heard and fixes
+ * it before it becomes an instruction. A deposited *file* goes to the thread instead; the two must
  * not swap places (demanded 31/08/2026).
  */
 @Composable

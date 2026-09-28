@@ -95,11 +95,6 @@ class MissionStateTest {
     }
 
     @Test
-    fun `a mission with no session at all is idle`() {
-        assertEquals(MissionState.Idle, judgeMission(null, emptyList(), hasSession = false))
-    }
-
-    @Test
     fun `an explicitly idle status is treated as stopped, not running`() {
         val state = judgeMission(
             status = EngineSessionStatus(type = "idle"),

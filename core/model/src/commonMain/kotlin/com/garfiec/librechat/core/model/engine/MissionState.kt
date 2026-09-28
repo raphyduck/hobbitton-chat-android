@@ -22,9 +22,6 @@ sealed interface MissionState {
 
     /** Finished badly, or never really started. [reason] is meant to be shown as-is. */
     data class Failed(val reason: String, val tokens: Long) : MissionState
-
-    /** No session yet — a mission that has been created but not launched. */
-    data object Idle : MissionState
 }
 
 /** Truncates a nested-JSON engine error into something a list row can show. */
@@ -64,9 +61,7 @@ fun tokensUsed(messages: List<EngineMessage>): Long =
 fun judgeMission(
     status: EngineSessionStatus?,
     messages: List<EngineMessage>,
-    hasSession: Boolean = true,
 ): MissionState {
-    if (!hasSession) return MissionState.Idle
     if (status != null && status.type != "idle") {
         return MissionState.Running(status.message ?: status.type)
     }

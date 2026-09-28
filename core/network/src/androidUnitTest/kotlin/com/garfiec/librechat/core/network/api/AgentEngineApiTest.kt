@@ -6,19 +6,10 @@ import com.garfiec.librechat.core.model.engine.EnginePromptPart
 import com.garfiec.librechat.core.model.engine.EnginePromptRequest
 import com.garfiec.librechat.core.network.di.librechatJson
 import com.google.common.truth.Truth.assertThat
-import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.client.engine.mock.toByteArray
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.plugins.defaultRequest
-import io.ktor.client.request.url
-import io.ktor.http.ContentType
-import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
-import io.ktor.http.contentType
-import io.ktor.http.headersOf
-import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -32,18 +23,6 @@ import org.junit.Test
 class AgentEngineApiTest {
 
     private val json = librechatJson
-
-    private fun api(engine: MockEngine): AgentEngineApi = AgentEngineApi(
-        HttpClient(engine) {
-            install(ContentNegotiation) { json(json) }
-            defaultRequest {
-                url("https://agent.example.com")
-                contentType(ContentType.Application.Json)
-            }
-        },
-    )
-
-    private fun jsonHeaders() = headersOf(HttpHeaders.ContentType, "application/json")
 
     @Test
     fun `session creation sends permissions as a list, not a map`() = runTest {
@@ -68,7 +47,7 @@ class AgentEngineApiTest {
             )
         }
 
-        val session = api(engine).createSession(
+        val session = agentEngineApi(engine).createSession(
             CreateEngineSessionRequest(
                 agent = "cerveau",
                 title = "consolidation",
@@ -93,7 +72,7 @@ class AgentEngineApiTest {
             respond(content = "{}", status = HttpStatusCode.OK, headers = jsonHeaders())
         }
 
-        api(engine).prompt(
+        agentEngineApi(engine).prompt(
             sessionId = "ses_abc",
             request = EnginePromptRequest(parts = listOf(EnginePromptPart(text = "fais le point"))),
         )
@@ -124,7 +103,7 @@ class AgentEngineApiTest {
             )
         }
 
-        val message = api(engine).sendMessage(sessionId = "ses_abc", text = "salut")
+        val message = agentEngineApi(engine).sendMessage(sessionId = "ses_abc", text = "salut")
 
         // `message`, not the v2 `/api/session/…/prompt`: a session launched by `prompt_async` never
         // executes a v2 prompt — it admits it and then does nothing. Measured 29/08/2026.
@@ -147,7 +126,7 @@ class AgentEngineApiTest {
             )
         }
 
-        val statuses = api(engine).status()
+        val statuses = agentEngineApi(engine).status()
 
         assertThat(statuses).containsKey("ses_running")
         assertThat(statuses["ses_running"]!!.type).isEqualTo("retry")
@@ -174,7 +153,7 @@ class AgentEngineApiTest {
             )
         }
 
-        val messages = api(engine).messages("ses_abc")
+        val messages = agentEngineApi(engine).messages("ses_abc")
 
         val assistant = messages.last().info
         assertThat(assistant.error?.data?.message).isEqualTo("No connected db.")
@@ -193,7 +172,7 @@ class AgentEngineApiTest {
             )
         }
 
-        val tokens = api(engine).messages("ses_abc").single().info.tokens!!
+        val tokens = agentEngineApi(engine).messages("ses_abc").single().info.tokens!!
 
         // A budget compared against input+output alone under-counts by the cache, which on a long
         // mission is most of the traffic.
@@ -208,7 +187,7 @@ class AgentEngineApiTest {
             respond(content = "{}", status = HttpStatusCode.OK, headers = jsonHeaders())
         }
 
-        api(engine).abort("ses_abc")
+        agentEngineApi(engine).abort("ses_abc")
 
         // Posting a body here is a 400 from the engine.
         assertThat(bodySize).isEqualTo(0)

@@ -111,6 +111,10 @@ class AgentEngineApi(
         // did not hear the profile — and the profile can change between two messages of the same
         // session. See `EnginePromptRequest.system` for where it lands in the engine's prompt.
         system: String? = null,
+        // The agent to run this turn on, or null for the session's own (an absent key). A chat
+        // names `chat` on every turn (D-077) so a follow-up never falls back to the engine's
+        // default agent; a task's turn leaves it absent, as it always has.
+        agent: String? = null,
     ): EngineMessage =
         client.post {
             url { path("session/${sessionId.encodeURLPathPart()}/message") }
@@ -135,6 +139,7 @@ class AgentEngineApi(
                     // Per message, not per session: the route takes `{providerID, modelID}` and the
                     // engine has no « set the session's model » on the classic surface. Null means
                     // « whatever the session already runs on » — an absent key, not an empty one.
+                    agent = agent,
                     model = model,
                     system = system,
                 ),

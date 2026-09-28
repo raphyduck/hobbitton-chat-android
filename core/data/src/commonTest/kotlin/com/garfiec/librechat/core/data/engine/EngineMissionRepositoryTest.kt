@@ -40,7 +40,7 @@ class PermissionsForTest {
 
     @Test
     fun `the rule list opens with a deny-all`() {
-        val rules = permissionsFor(catalogue, listOf("memoire"), autonomous = true)
+        val rules = permissionsFor(catalogue, listOf("memoire"))
 
         // A profile is a ceiling; the checkboxes narrow it for this mission only. Starting from
         // « allow everything » and subtracting would turn a forgotten connector into a granted one.
@@ -50,7 +50,7 @@ class PermissionsForTest {
 
     @Test
     fun `a ticked connector opens exactly its own patterns`() {
-        val rules = permissionsFor(catalogue, listOf("memoire"), autonomous = true)
+        val rules = permissionsFor(catalogue, listOf("memoire"))
         val allowed = rules.filter { it.action == "allow" }.map { it.permission }
 
         assertTrue(allowed.containsAll(listOf("memoire_lire", "memoire_rechercher")))
@@ -63,24 +63,17 @@ class PermissionsForTest {
     }
 
     @Test
-    fun `shell is refused to an autonomous mission`() {
-        val rules = permissionsFor(catalogue, listOf("memoire", "shell"), autonomous = true)
-
-        // Nobody is watching. An approval prompt nobody answers is not a safeguard — the mission
-        // hangs until the watchdog kills it, and that is the *good* outcome.
-        assertTrue(rules.none { it.permission == "bash" && it.action == "allow" })
-    }
-
-    @Test
     fun `shell is available to an interactive mission`() {
-        val rules = permissionsFor(catalogue, listOf("shell"), autonomous = false)
+        val rules = permissionsFor(catalogue, listOf("shell"))
 
+        // `refusedWhenAutonomous` is the scheduler's business: every mission this app builds rules
+        // for is watched, so the flag must not take shell away from it.
         assertTrue(rules.any { it.permission == "bash" && it.action == "allow" })
     }
 
     @Test
     fun `an unknown connector grants nothing rather than everything`() {
-        val rules = permissionsFor(catalogue, listOf("connecteur-invente"), autonomous = true)
+        val rules = permissionsFor(catalogue, listOf("connecteur-invente"))
 
         // A typo, a renamed connector, a newer server: none of them may end up widening access.
         assertEquals(listOf("*" to "deny", "todowrite" to "allow"), rules.map { it.permission to it.action })
@@ -88,7 +81,7 @@ class PermissionsForTest {
 
     @Test
     fun `no connectors at all is a mission that can only talk`() {
-        val rules = permissionsFor(catalogue, emptyList(), autonomous = true)
+        val rules = permissionsFor(catalogue, emptyList())
 
         // The deny-all, plus the socle the engine grants every session on top of its connectors.
         // Dropping the socle builds incomplete rules, and silently.
@@ -97,7 +90,7 @@ class PermissionsForTest {
 
     @Test
     fun `the same pattern reached twice is granted once`() {
-        val rules = permissionsFor(catalogue, listOf("memoire", "memoire"), autonomous = true)
+        val rules = permissionsFor(catalogue, listOf("memoire", "memoire"))
 
         assertEquals(rules.size, rules.distinctBy { it.permission }.size)
     }
@@ -116,7 +109,7 @@ class PermissionsForTest {
             socle = mapOf("*" to "allow", "todo*" to "allow", "todowrite" to "allow"),
         )
 
-        val rules = permissionsFor(loose, listOf("tout"), autonomous = true)
+        val rules = permissionsFor(loose, listOf("tout"))
         val allowed = rules.filter { it.action == "allow" }.map { it.permission }
 
         assertEquals(listOf("todowrite", "memoire_lire"), allowed)
@@ -128,14 +121,14 @@ class PermissionsForTest {
     fun `what a session was granted is read back from the rules it carries`() {
         // The round trip is the contract: what the sheet ticked is what the chip must report, or
         // the conversation says « No connector » over a mission that is reading mail.
-        val rules = permissionsFor(catalogue, listOf("memoire", "fichiers"), autonomous = false)
+        val rules = permissionsFor(catalogue, listOf("memoire", "fichiers"))
 
         assertEquals(setOf("memoire", "fichiers"), connectorsGranted(catalogue, rules))
     }
 
     @Test
     fun `a session granted nothing reads as nothing`() {
-        val rules = permissionsFor(catalogue, emptyList(), autonomous = false)
+        val rules = permissionsFor(catalogue, emptyList())
 
         assertEquals(emptySet(), connectorsGranted(catalogue, rules))
     }
@@ -165,16 +158,16 @@ class PermissionsForTest {
         // Mesuré le 31/08/2026 : `PATCH /session/{id}` EMPILE ses règles. Une session vivante en
         // portait 1 016, en 21 blocs. Chercher un `allow` n'importe où rendait « accordé » tout
         // connecteur jamais coché — c'est ce que faisait la première version, livrée le matin même.
-        val rules = permissionsFor(catalogue, listOf("memoire", "fichiers"), autonomous = false) +
-            permissionsFor(catalogue, listOf("memoire"), autonomous = false)
+        val rules = permissionsFor(catalogue, listOf("memoire", "fichiers")) +
+            permissionsFor(catalogue, listOf("memoire"))
 
         assertEquals(setOf("memoire"), connectorsGranted(catalogue, rules))
     }
 
     @Test
     fun `the last block counts whether it narrows or widens`() {
-        val rules = permissionsFor(catalogue, listOf("memoire"), autonomous = false) +
-            permissionsFor(catalogue, listOf("memoire", "fichiers"), autonomous = false)
+        val rules = permissionsFor(catalogue, listOf("memoire")) +
+            permissionsFor(catalogue, listOf("memoire", "fichiers"))
 
         assertEquals(setOf("memoire", "fichiers"), connectorsGranted(catalogue, rules))
     }
@@ -220,29 +213,15 @@ class ConnectorOptionsTest {
     )
 
     @Test
-    fun `an autonomous mission cannot tick what the platform bars it from`() {
-        val shell = catalogue.offered(autonomous = true).single { it.name == "shell" }
-
-        // Disabled, not absent: someone who wonders where shell went gets an answer.
-        assertTrue(!shell.enabled)
-        assertTrue(catalogue.offered(autonomous = true).any { it.name == "shell" })
-    }
-
-    @Test
-    fun `a watched conversation may tick everything`() {
-        assertTrue(catalogue.offered(autonomous = false).all { it.enabled })
-    }
-
-    @Test
     fun `each option carries what it costs`() {
         // Every tool a session declares is re-sent to the model on every turn (server-side D-040),
         // so the count is the price, shown where someone chooses to pay it.
-        assertEquals(2, catalogue.offered(autonomous = false).single { it.name == "shell" }.toolCount)
+        assertEquals(2, catalogue.offered().single { it.name == "shell" }.toolCount)
     }
 
     @Test
     fun `an option carries whether the scheduler ticks it by default`() {
-        val offered = catalogue.offered(autonomous = false)
+        val offered = catalogue.offered()
 
         // The socle is the SERVER's call, so the option only relays it — an app-side list of names
         // is exactly the copy that had the picker offering tools nobody serves.
@@ -258,12 +237,12 @@ class ConnectorOptionsTest {
             connecteurs = mapOf("memoire" to ConnectorGrant(outils = listOf("memoire_lire"))),
         )
 
-        assertTrue(older.offered(autonomous = false).none { it.tickedByDefault })
+        assertTrue(older.offered().none { it.tickedByDefault })
     }
 
     @Test
     fun `the options are ordered so the picker does not reshuffle between two openings`() {
-        val names = catalogue.offered(autonomous = false).map { it.name }
+        val names = catalogue.offered().map { it.name }
         assertEquals(names.sorted(), names)
     }
 }

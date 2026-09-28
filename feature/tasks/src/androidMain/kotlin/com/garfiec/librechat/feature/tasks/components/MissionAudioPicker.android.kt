@@ -15,8 +15,9 @@ import kotlinx.coroutines.withContext
 /**
  * The document picker narrowed to audio, its bytes read off the main thread.
  *
- * The size cap is Whisper's own request limit (25 MB); an over-large file becomes no pick at all
- * rather than an upload that the server will refuse after the whole thing has travelled.
+ * An over-large file is still handed over: the composer refuses it before anything travels (the
+ * transcription's 25 MB cap, `ComposerStagingDelegate`) and says why — a pick that silently came
+ * to nothing read as a broken button.
  */
 @Composable
 internal actual fun rememberMissionAudioPicker(
@@ -33,7 +34,7 @@ internal actual fun rememberMissionAudioPicker(
                 runCatching {
                     val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
                     val mime = context.contentResolver.getType(uri) ?: FALLBACK_MIME
-                    bytes?.takeIf { it.isNotEmpty() && it.size <= MAX_AUDIO_BYTES }
+                    bytes?.takeIf { it.isNotEmpty() }
                         ?.let { PickedAudio(it, mime, context.displayNameOf(uri)) }
                 }.getOrNull()
             }
@@ -52,4 +53,3 @@ private fun Context.displayNameOf(uri: Uri): String = runCatching {
 
 private const val FALLBACK_MIME = "audio/mpeg"
 private const val FALLBACK_NAME = "audio"
-private const val MAX_AUDIO_BYTES = 25 * 1024 * 1024

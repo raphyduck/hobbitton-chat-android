@@ -21,7 +21,12 @@ import io.ktor.http.Parameters
  */
 class EngineTokenClient(
     private val client: HttpClient,
-    private val clientId: String,
+    /**
+     * Public so the authorization URL is built from the very value the PAR and the token calls
+     * carry. Until D-076 the URL took its client id from the settings form while these calls used
+     * a literal: two sources for one value, equal only as long as nobody edited the form.
+     */
+    val clientId: String = PORTAL_CLIENT_ID,
 ) {
 
     /** Reads the endpoints from the issuer rather than assuming Authelia's paths. */

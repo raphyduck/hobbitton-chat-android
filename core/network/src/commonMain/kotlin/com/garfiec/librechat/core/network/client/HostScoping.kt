@@ -8,7 +8,9 @@ import io.ktor.http.Url
  * True when [requestUrl] addresses exactly the server [baseUrl] identifies — **scheme, host and
  * effective port all matching**. The one gate for every credential the app attaches: the session
  * bearer ([AuthInterceptorPlugin]), the user-configured gateway headers ([ServerHeadersPlugin]),
- * and the engine's Basic and portal bearer (`EngineAuthPlugin`).
+ * and the portal bearer the engine's and the scheduler's clients present (`EngineAuthPlugin`,
+ * each client scoped to its own service's authority). The engine's Basic used to be a fourth; it
+ * left the app with D-076, and the edge presents it now.
  *
  * Until 26/09/2026 the bearer had its own, looser rule — host only, and open when the base URL was
  * unknown (finding M3). That let a server-supplied absolute URL on the same host but over `http://`

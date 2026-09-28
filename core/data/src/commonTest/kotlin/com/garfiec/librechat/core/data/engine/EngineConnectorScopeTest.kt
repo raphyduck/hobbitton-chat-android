@@ -28,7 +28,7 @@ class EngineConnectorScopeTest {
 
     @Test
     fun `only direct connectors become rules`() {
-        val rules = permissionsFor(catalogue, listOf("memoire", "qonto", "imap-envoi"), autonomous = false)
+        val rules = permissionsFor(catalogue, listOf("memoire", "qonto", "imap-envoi"))
 
         val allowed = rules.filter { it.action == "allow" }.map { it.permission }
         assertEquals(listOf("todowrite", "memoire_lire"), allowed)
@@ -37,7 +37,7 @@ class EngineConnectorScopeTest {
 
     @Test
     fun `a connector the annuaire serves is ticked by default and says so`() {
-        val offered = catalogue.offered(autonomous = false)
+        val offered = catalogue.offered()
 
         val qonto = offered.single { it.name == "qonto" }
         assertTrue(qonto.tickedByDefault)
@@ -54,14 +54,14 @@ class EngineConnectorScopeTest {
             connecteurs = mapOf("shell" to ConnectorGrant(outils = listOf("bash"), tickedByDefault = false)),
         )
 
-        val shell = catalogue.offered(autonomous = false).single()
+        val shell = catalogue.offered().single()
         assertFalse(shell.tickedByDefault)
         assertFalse(shell.viaAnnuaire)
     }
 
     @Test
     fun `the rules read back name only the direct connectors`() {
-        val rules = permissionsFor(catalogue, listOf("memoire", "qonto"), autonomous = false)
+        val rules = permissionsFor(catalogue, listOf("memoire", "qonto"))
 
         assertEquals(setOf("memoire"), connectorsGranted(catalogue, rules))
     }
@@ -72,10 +72,10 @@ class EngineConnectorScopeTest {
             connecteurs = mapOf("qonto" to ConnectorGrant(outils = listOf("qonto_qonto_list_transactions"))),
         )
 
-        val allowed = permissionsFor(old, listOf("qonto"), autonomous = false)
+        val allowed = permissionsFor(old, listOf("qonto"))
             .filter { it.action == "allow" }
             .map { it.permission }
         assertEquals(listOf("qonto_qonto_list_transactions"), allowed)
-        assertFalse(old.offered(autonomous = false).single().tickedByDefault)
+        assertFalse(old.offered().single().tickedByDefault)
     }
 }

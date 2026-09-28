@@ -5,7 +5,7 @@ package com.garfiec.librechat.feature.tasks.util
  *
  * The words are the payload: no model on the gateway hears audio, so what actually travels — and
  * what the thread shows — is the transcription, quoted under the file's name. The bytes are not
- * kept: once Whisper has answered, the file has nothing left to say.
+ * kept: once the transcription has answered, the file has nothing left to say.
  */
 class AudioNote(
     val id: String,

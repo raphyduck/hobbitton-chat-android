@@ -8,13 +8,18 @@ import com.garfiec.librechat.core.model.scheduler.SchedulerState
 import com.garfiec.librechat.core.model.scheduler.SessionScope
 import com.garfiec.librechat.core.network.engine.EngineHttpException
 import io.ktor.client.HttpClient
+import io.ktor.client.plugins.timeout
 import io.ktor.client.request.accept
+import io.ktor.client.request.forms.MultiPartFormDataContent
+import io.ktor.client.request.forms.formData
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.client.statement.request
 import io.ktor.http.ContentType
+import io.ktor.http.Headers
+import io.ktor.http.HttpHeaders
 import io.ktor.http.isSuccess
 import io.ktor.http.path
 import kotlinx.serialization.SerializationException
@@ -182,31 +187,20 @@ class SchedulerApi(
      *
      * Null means « leave it alone ». Setting `cron` clears a one-shot's date and vice versa: a
      * mission is recurring or one-shot, never both.
+     *
+     * The tool takes more (`fuseau`, `modele`, `connecteurs`, the budgets…); only what a screen
+     * actually sends is wired here. A new field comes with the caller that needs it.
      */
     suspend fun updateMission(
         name: String,
         cron: String? = null,
         runAt: String? = null,
-        timeZone: String? = null,
-        model: String? = null,
-        connectors: List<String>? = null,
-        toolCallCeiling: Int? = null,
-        timeoutSeconds: Int? = null,
-        tokenBudget: Int? = null,
-        notifies: Boolean? = null,
     ): String = callTool(
         "modifier",
         buildJsonObject {
             put("nom", name)
             cron?.let { put("cron", it) }
             runAt?.let { put("quand", it) }
-            timeZone?.let { put("fuseau", it) }
-            model?.let { put("modele", it) }
-            connectors?.let { list -> putJsonArray("connecteurs") { list.forEach { add(it) } } }
-            toolCallCeiling?.let { put("plafond_appels", it) }
-            timeoutSeconds?.let { put("timeout_s", it) }
-            tokenBudget?.let { put("budget_tokens", it) }
-            notifies?.let { put("notifier", it) }
         },
     )
 
@@ -216,6 +210,55 @@ class SchedulerApi(
      */
     suspend fun deleteMission(name: String): String =
         callTool("supprimer", buildJsonObject { put("nom", name) })
+
+    /**
+     * Turns an audio recording into text: `POST /transcription`, the scheduler's one plain HTTP
+     * route — a file is not something JSON-RPC carries well, and this is not a tool a model calls.
+     *
+     * Same host, same client, same bearer as the MCP calls. The multipart carries the file as
+     * `audio`, with its real name and its real audio MIME type (the server refuses anything else),
+     * and [language] as `langue` when there is one — an ISO 639-1 code, or nothing at all rather
+     * than a guess the server would then trust.
+     *
+     * Answers the words heard. Every refusal — 400 for a file it will not take, 403 for a caller it
+     * will not serve, 502 when the transcription service is down — raises [TranscriptionRefused]
+     * with the status and the server's own `erreur`, so a screen can say which of them it was.
+     */
+    suspend fun transcribe(
+        audio: ByteArray,
+        mime: String,
+        filename: String,
+        language: String? = null,
+    ): String {
+        val response = client.post {
+            url { path("transcription") }
+            // A long recording takes longer to transcribe than a tool call takes to answer.
+            timeout { requestTimeoutMillis = TRANSCRIPTION_TIMEOUT_MS }
+            accept(ContentType.Application.Json)
+            setBody(
+                MultiPartFormDataContent(
+                    formData {
+                        append(
+                            "audio",
+                            audio,
+                            Headers.build {
+                                append(HttpHeaders.ContentType, mime)
+                                append(HttpHeaders.ContentDisposition, "filename=\"${filename.forHeader()}\"")
+                            },
+                        )
+                        language?.takeIf { it.isNotBlank() }?.let { append("langue", it) }
+                    },
+                ),
+            )
+        }
+        val body = response.bodyAsText()
+        val answer = body.asJsonObjectOrNull()
+        if (!response.status.isSuccess()) {
+            throw TranscriptionRefused(response.status.value, answer?.get("erreur")?.asStringOrNull())
+        }
+        return answer?.get("texte")?.asStringOrNull()
+            ?: throw TranscriptionRefused(response.status.value, answer?.get("erreur")?.asStringOrNull())
+    }
 
     private suspend fun callTool(tool: String, arguments: JsonObject?): String {
         val envelope = buildJsonObject {
@@ -262,9 +305,16 @@ class SchedulerApi(
 
     private fun JsonElement.asStringOrNull(): String? = (this as? JsonPrimitive)?.contentOrNull
 
+    /** A file name as a quoted header value can hold it: no quote, no backslash, no line break. */
+    private fun String.forHeader(): String =
+        filterNot { it == '"' || it == '\\' || it == '\r' || it == '\n' }.ifBlank { "audio" }
+
     private companion object {
         const val HTTP_OK = 200
         const val UNEXPECTED_ANSWER = "unexpected answer from the scheduler"
+
+        /** Twenty-five megabytes of speech is a long file; the server takes its time on it. */
+        const val TRANSCRIPTION_TIMEOUT_MS = 180_000L
 
         /**
          * The payload of an event-stream answer, or the body unchanged when it is plain JSON.

@@ -57,6 +57,11 @@ class MissionReadingPositions(
         }
     }
 
+    /** Forgets every position — part of signing out (D-077), with the rest of the local chat caches. */
+    suspend fun clear() {
+        withContext(ioDispatcher) { dataStore.edit { prefs -> prefs.remove(KEY) } }
+    }
+
     private suspend fun stored(): Map<String, MissionReadingPosition> {
         val raw = dataStore.data.first()[KEY] ?: return emptyMap()
         // A shape this app wrote and can no longer read is a bug that must not take the screen down

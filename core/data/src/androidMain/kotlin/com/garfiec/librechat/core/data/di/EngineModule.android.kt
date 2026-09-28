@@ -1,47 +1,53 @@
 package com.garfiec.librechat.core.data.di
 
 import com.garfiec.librechat.core.common.di.KoinQualifiers
+import com.garfiec.librechat.core.data.engine.AudioTranscriber
 import com.garfiec.librechat.core.data.engine.EngineCallbackDelivery
 import com.garfiec.librechat.core.data.engine.EngineCallbackInbox
 import com.garfiec.librechat.core.data.engine.EngineCallbackMailbox
 import com.garfiec.librechat.core.data.engine.EngineRecentMissionsSource
 import com.garfiec.librechat.core.data.engine.EngineSecureStore
-import com.garfiec.librechat.core.data.engine.EngineSessionManager
+import com.garfiec.librechat.core.data.engine.EngineSettingsStore
 import com.garfiec.librechat.core.data.engine.EngineSignIn
 import com.garfiec.librechat.core.data.engine.EngineSignInCoordinator
 import com.garfiec.librechat.core.data.engine.EngineSignInLauncher
-import com.garfiec.librechat.core.data.engine.EngineSettingsStore
 import com.garfiec.librechat.core.data.engine.RecentMissionsSource
+import com.garfiec.librechat.core.data.engine.SchedulerTranscriber
+import com.garfiec.librechat.core.data.engine.isoLanguageOrNull
+import com.garfiec.librechat.core.data.portal.AndroidWebCookieJar
+import com.garfiec.librechat.core.data.portal.PortalSession
+import com.garfiec.librechat.core.data.portal.PortalSignOut
+import com.garfiec.librechat.core.data.portal.PortalTasksSignIn
 import com.garfiec.librechat.core.data.pricing.ModelPriceSource
+import com.garfiec.librechat.core.data.repository.SignOutHook
 import com.garfiec.librechat.core.data.scheduler.SchedulerRepository
 import com.garfiec.librechat.core.network.api.AgentEngineApi
 import com.garfiec.librechat.core.network.api.SchedulerApi
 import com.garfiec.librechat.core.network.client.CleartextGuardPlugin
-import com.garfiec.librechat.core.network.engine.EngineAuthPlugin
 import com.garfiec.librechat.core.network.engine.EngineEventParser
 import com.garfiec.librechat.core.network.engine.EngineEventTransport
 import com.garfiec.librechat.core.network.engine.EngineStreamClient
-import com.garfiec.librechat.core.network.engine.KtorEngineEventTransport
-import com.garfiec.librechat.core.network.engine.EnginePasswordStore
 import com.garfiec.librechat.core.network.engine.EngineTokenStore
+import com.garfiec.librechat.core.network.engine.KtorEngineEventTransport
+import com.garfiec.librechat.core.network.engine.PortalService
 import com.garfiec.librechat.core.network.engine.auth.EngineOAuthEndpoints
 import com.garfiec.librechat.core.network.engine.auth.EngineTokenClient
+import com.garfiec.librechat.core.network.engine.portalService
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.HttpClientEngineFactory
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.plugins.defaultRequest
-import io.ktor.http.ContentType
-import io.ktor.http.contentType
-import io.ktor.http.takeFrom
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.Module
+import org.koin.core.scope.Scope
+import org.koin.dsl.bind
 import org.koin.dsl.binds
 import org.koin.dsl.module
+import java.util.Locale
 
 /**
  * The Agent engine's own graph: its HTTP client, its OAuth client, its stores.
@@ -60,10 +66,9 @@ val engineModule: Module = module {
 
     single { EngineSecureStore(androidContext(), get(KoinQualifiers.IO)) }
     single<EngineTokenStore> { get<EngineSecureStore>().tokens }
-    single<EnginePasswordStore> { get<EngineSecureStore>().password }
 
     single {
-        EngineSettingsStore(dataStore = get(), passwords = get()).also { store ->
+        EngineSettingsStore(dataStore = get()).also { store ->
             // Warm the snapshot off the startup thread: the first engine request must not find an
             // empty base URL and fail as « unknown host » on a phone whose network is fine.
             get<CoroutineScope>(KoinQualifiers.ApplicationScope).launch { store.access() }
@@ -74,36 +79,10 @@ val engineModule: Module = module {
      * A **second** client, not the chat's.
      *
      * The chat's client is wired to LibreChat's base URL, its bearer, its refresh loop and its
-     * account-switch barrier. Pointing it at the engine would send the chat's session cookie to a
-     * host that has no idea what to do with it, and none of the two credentials the engine wants.
+     * account-switch barrier. Pointing it at the engine would send the chat's session to a host
+     * that has no idea what to do with it, and not the one credential the engine's edge wants.
      */
-    single(KoinQualifiers.Engine) {
-        val settings = get<EngineSettingsStore>()
-        val sessions = get<EngineSessionManager>()
-        HttpClient(get<HttpClientEngineFactory<*>>()) {
-            install(ContentNegotiation) { json(get<Json>()) }
-            install(EngineAuthPlugin) {
-                access = { settings.access() }
-                bearer = { sessions.bearer() }
-                renew = { sessions.renew() }
-            }
-            // The Basic never rotates: in the clear to a public host once is for good (M4).
-            install(CleartextGuardPlugin)
-            install(HttpTimeout) {
-                connectTimeoutMillis = 10_000
-                // A mission is not a request: the engine answers `prompt_async` at once, and every
-                // other call here is small. Long-poll behaviour belongs to the event stream, which
-                // has its own transport.
-                requestTimeoutMillis = 30_000
-            }
-            defaultRequest {
-                // Not a coroutine, hence the snapshot — warmed below and refreshed on every
-                // suspend read. Same constraint as ServerUrlProvider's plain getter.
-                settings.cachedAccess()?.let { url.takeFrom(it.baseUrl) }
-                contentType(ContentType.Application.Json)
-            }
-        }
-    }
+    single(KoinQualifiers.Engine) { portalServiceClient(PortalService.ENGINE) }
 
     single { AgentEngineApi(get(KoinQualifiers.Engine)) }
 
@@ -117,47 +96,34 @@ val engineModule: Module = module {
     /**
      * A **third** client, for the scheduler.
      *
-     * Same portal, another host, and only one of the engine's two credentials applies: the
-     * scheduler has no Basic of its own — Authelia is all that guards it. It reuses
-     * [EngineAuthPlugin] because the bearer, its renewal and the portal-redirect detection are
-     * exactly the same problem; what changes is the base URL and the fact that the Basic it also
-     * sends is ignored downstream rather than required.
+     * Same portal, another host, the same bearer (its audience names both), from the same
+     * [PortalSession]. Built by the same function as the engine's client (D-076): the two were
+     * copies of each other, differing in the one line — the authority the bearer is scoped to —
+     * that a copy is most likely to get wrong. The engine's Basic, which this client used to carry
+     * for nothing, is gone with the password.
      *
-     * Built even when no scheduler URL is set: the client is harmless without one, and the
-     * repository asks the settings before it calls anything.
+     * Built even when no scheduler URL is set: the client is harmless without one (a blank
+     * authority matches nothing), and the repository asks the settings before it calls anything.
      */
-    single(KoinQualifiers.Scheduler) {
-        val settings = get<EngineSettingsStore>()
-        val sessions = get<EngineSessionManager>()
-        HttpClient(get<HttpClientEngineFactory<*>>()) {
-            install(ContentNegotiation) { json(get<Json>()) }
-            install(EngineAuthPlugin) {
-                access = { settings.access() }
-                bearer = { sessions.bearer() }
-                renew = { sessions.renew() }
-                // Its own address, not the engine's (M2, 26/09/2026): the plugin puts the
-                // credentials on requests to this authority only, and a blank one matches nothing.
-                authority = { it.schedulerUrl }
-            }
-            install(CleartextGuardPlugin)
-            install(HttpTimeout) {
-                connectTimeoutMillis = 10_000
-                // `lancer` no longer blocks for the length of a mission — it answers as soon as the
-                // session exists (server-side D-041) — so thirty seconds is generous.
-                requestTimeoutMillis = 30_000
-            }
-            defaultRequest {
-                settings.cachedAccess()?.schedulerUrl
-                    ?.takeIf { it.isNotBlank() }
-                    ?.let { url.takeFrom(it) }
-                contentType(ContentType.Application.Json)
-            }
-        }
-    }
+    single(KoinQualifiers.Scheduler) { portalServiceClient(PortalService.SCHEDULER) }
 
     single { SchedulerApi(client = get(KoinQualifiers.Scheduler), json = get()) }
 
     single { SchedulerRepository(api = get(), settings = get()) }
+
+    /**
+     * Speech to text for the conversation's composer — dictation and audio files alike — on the
+     * scheduler's `POST /transcription` (LibreChat's speech route went with LibreChat, D-077).
+     * Hinted with the device's language when it is a plain ISO code, left to detect otherwise.
+     */
+    single<AudioTranscriber> {
+        val settings = get<EngineSettingsStore>()
+        SchedulerTranscriber(
+            api = get(),
+            configured = { settings.access()?.hasScheduler == true },
+            language = { isoLanguageOrNull(Locale.getDefault().language) },
+        )
+    }
 
     /**
      * The price table's one supplier, bound where the scheduler is — Android only (D-034).
@@ -179,7 +145,7 @@ val engineModule: Module = module {
      * A **fourth** client, bare, for the portal (finding M1, 26/09/2026).
      *
      * The OAuth client talks to the **portal**, not the engine, and carries none of the engine's
-     * credentials: mixing them would put the engine's Basic on every token request. Until
+     * client credentials: mixing them would put the bearer on every token request. Until
      * 26/09/2026 it rode the chat's client instead — the one with LibreChat's bearer, the gateway
      * headers, the account-switch barrier and the retry ladder. On a deployment where the portal
      * and LibreChat share a host, the chat's session bearer went along to the portal's token
@@ -204,16 +170,34 @@ val engineModule: Module = module {
         }
     }
 
-    single { EngineTokenClient(client = get(KoinQualifiers.Portal), clientId = "hobbitton-chat-android") }
+    // The client id is `PORTAL_CLIENT_ID`, the constructor's default: one value, not a setting (D-076).
+    single { EngineTokenClient(client = get(KoinQualifiers.Portal)) }
 
+    /**
+     * The one holder of the portal's tokens (D-076): the engine's client, the scheduler's client
+     * and both sign-in paths — the login screen's and the Tasks tab's — read and write here.
+     */
     single {
-        EngineSessionManager(
+        PortalSession(
             store = get(),
             client = get(),
             endpoints = { get<EngineSettingsStore>().access()?.let { discoveredEndpoints(it.issuerUrl, get()) } },
             now = { kotlin.time.Clock.System.now().epochSeconds },
         )
     }
+
+    /**
+     * What an explicit sign-out owes the portal (D-076): its tokens and the web view's cookies on
+     * the chat, portal, engine and scheduler hosts. Collected by `AuthRepositoryImpl` through
+     * `getAll<SignOutHook>()`, so the upstream logout gains one call and no knowledge of the portal.
+     */
+    single {
+        PortalSignOut(
+            session = get(),
+            access = { get<EngineSettingsStore>().access() },
+            cookies = AndroidWebCookieJar(),
+        )
+    } bind SignOutHook::class
 
     /**
      * La boîte aux lettres du lien profond, en **singleton** — et c'est le point qui compte.
@@ -251,6 +235,40 @@ val engineModule: Module = module {
         EngineSignInCoordinator(
             portail = get(),
             portee = get(KoinQualifiers.ApplicationScope),
+        )
+    }
+
+    /**
+     * The same round trip, hosted by a web view instead of the browser (D-076): the login screen
+     * runs it right after the chat's, in the web view that already holds the portal's session,
+     * and the Tasks tab reuses it to sign in again.
+     */
+    single {
+        PortalTasksSignIn(
+            access = { get<EngineSettingsStore>().access() },
+            launcher = get(),
+            delivery = get(),
+        )
+    }
+}
+
+/**
+ * One client of a service behind the portal, as [portalService] configures it: the same plugins,
+ * the same timeouts, the bearer of the one [PortalSession], scoped to [service]'s own address.
+ */
+private fun Scope.portalServiceClient(service: PortalService): HttpClient {
+    val settings = get<EngineSettingsStore>()
+    val session = get<PortalSession>()
+    val json = get<Json>()
+    return HttpClient(get<HttpClientEngineFactory<*>>()) {
+        portalService(
+            service = service,
+            jsonFormat = json,
+            accessOf = { settings.access() },
+            // Not a coroutine, hence the snapshot — warmed at startup and refreshed on every
+            // suspend read. Same constraint as ServerUrlProvider's plain getter.
+            snapshot = { settings.cachedAccess() },
+            bearers = session,
         )
     }
 }

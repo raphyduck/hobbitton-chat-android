@@ -16,7 +16,10 @@ class IosOAuthLauncher : OAuthLauncher {
     private var authSession: ASWebAuthenticationSession? = null
 
     override fun launchOAuth(provider: String, serverUrl: String) {
-        val oauthUrl = "$serverUrl/api/oauth/$provider"
+        // `/oauth/…`, not `/api/oauth/…` (see oauthEntryUrl). The cookie read below still cannot
+        // see what the authentication session's own jar received — a known, inherited limitation;
+        // the single sign-in (D-076) is Android-only, like the engine graph (D-034).
+        val oauthUrl = oauthEntryUrl(serverUrl, provider)
         val url = NSURL.URLWithString(oauthUrl) ?: run {
             Logger.e { "Invalid OAuth URL: $oauthUrl" }
             return

@@ -1,6 +1,7 @@
 package com.garfiec.librechat.core.data.engine
 
 import co.touchlab.kermit.Logger
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -52,13 +53,23 @@ class EngineSignInCoordinator(
 
         enCours = portee.launch {
             _etat.value = EngineSignInProgress.EnCours
-            val issue = runCatching { portail.signIn(ouvrirNavigateur) }
-                .getOrElse { echec ->
-                    Logger.w("Engine", echec) { "Le tour du portail a échoué d'entrée" }
-                    EngineSignInResult.Interrupted(echec.message ?: "sign-in failed")
-                }
+            val issue = try {
+                portail.signIn(ouvrirNavigateur)
+            } catch (annule: CancellationException) {
+                // [annuler] a déjà publié l'issue ; la republier ferait lire deux fins pour un tour.
+                throw annule
+            } catch (echec: Exception) {
+                Logger.w("Engine", echec) { "Le tour du portail a échoué d'entrée" }
+                EngineSignInResult.Interrupted(echec.message ?: "sign-in failed")
+            }
             _etat.value = EngineSignInProgress.Termine(issue)
         }
+    }
+
+    override fun annuler() {
+        val tour = enCours?.takeIf { it.isActive } ?: return
+        tour.cancel()
+        _etat.value = EngineSignInProgress.Termine(EngineSignInResult.Cancelled)
     }
 
     /** Reprend l'état à zéro une fois le résultat lu, pour qu'un second essai reparte propre. */

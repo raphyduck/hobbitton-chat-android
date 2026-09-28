@@ -20,7 +20,6 @@
     <string name="tasks_state_running">Running</string>
     <string name="tasks_state_succeeded">Done · %1$s tokens</string>
     <string name="tasks_state_failed">Failed</string>
-    <string name="tasks_state_idle">Not started</string>
     <string name="tasks_objective">Objective</string>
     <string name="tasks_model">Model</string>
     <string name="tasks_connectors">Connectors</string>
@@ -32,15 +31,7 @@
     <string name="tasks_settings_base_url_hint">https://agent.example.com — the OpenCode session API.</string>
     <string name="tasks_settings_issuer_url">Portal address</string>
     <string name="tasks_settings_issuer_url_hint">https://auth.example.com — the Authelia portal that issues the token.</string>
-    <string name="tasks_settings_username">Engine user</string>
-    <string name="tasks_settings_password">Engine password</string>
-    <string name="tasks_settings_password_kept">Leave empty to keep the saved one.</string>
-    <string name="tasks_settings_password_required">Required the first time.</string>
-    <string name="tasks_settings_username_required">Required.</string>
     <string name="tasks_settings_invalid_url">Must start with https:// — http:// only for a host on your own network</string>
-    <string name="tasks_settings_reveal">Show the password</string>
-    <string name="tasks_settings_advanced">Only change this if the portal was set up with another client id.</string>
-    <string name="tasks_settings_client_id">Client id</string>
     <string name="tasks_settings_save">Save</string>
     <string name="tasks_settings_forget">Forget</string>
     <string name="tasks_error_authentication">Sign-in to the engine failed</string>
@@ -87,7 +78,15 @@
     <string name="tasks_attach_audio">Audio file (transcribed)</string>
     <string name="tasks_dictate">Dictate</string>
     <string name="tasks_dictate_stop">Stop dictation</string>
-    <string name="tasks_transcription_failed">The audio could not be transcribed. Check that the server has speech-to-text configured, then try again.</string>
+    <string name="tasks_transcription_failed">The audio could not be transcribed. Try again.</string>
+    <string name="tasks_transcription_rejected">The server would not take this audio (empty, over 25 MB, or not audio).</string>
+    <string name="tasks_transcription_forbidden">This account is not allowed to transcribe audio.</string>
+    <string name="tasks_transcription_signed_out">Your session has expired: sign in again to transcribe audio.</string>
+    <string name="tasks_transcription_unavailable">Transcription is unavailable right now. Try again in a moment.</string>
+    <string name="tasks_transcription_unreachable">The scheduler could not be reached. Check the connection, then try again.</string>
+    <string name="tasks_transcription_not_configured">No scheduler address is set, so audio cannot be transcribed.</string>
+    <string name="tasks_recording">Recording… tap stop to transcribe.</string>
+    <string name="tasks_transcribing">Transcribing…</string>
     <string name="tasks_copy_code">Copy the code</string>
     <string name="tasks_chat_add">Add to the message</string>
     <string name="tasks_chat_copy">Copy the answer</string>
@@ -109,7 +108,7 @@
     <string name="tasks_sign_in_no_callback_host">The scheduler address is missing, and that is where the portal sends the authorization code back. Fill it in, then sign in again.</string>
     <string name="tasks_sign_in_unreachable">The portal did not answer. Check the portal address and the network, then try again.</string>
     <string name="tasks_sign_in_refused">The portal refused: consent declined, second factor abandoned, or the request expired. Starting again is safe.</string>
-    <string name="tasks_sign_in_interrupted">The round trip did not finish — the browser was closed, or it took more than five minutes. Try again.</string>
+    <string name="tasks_sign_in_interrupted">The round trip did not finish — it broke on the way, or took more than five minutes. Try again.</string>
     <string name="tasks_sign_in_missing_scope">Signed in, and the token still does not open the engine: the portal did not grant it authorization scope. That one is fixed on the server, not here.</string>
     <string name="tasks_chat_no_connector">No connector</string>
     <string name="tasks_chat_connector_count">%1$d connector(s)</string>
@@ -137,4 +136,8 @@
     <string name="tasks_scheduled_save">Save</string>
     <string name="tasks_chat_output_truncated">%1$d more characters</string>
     <string name="tasks_connector_default">on by default</string>
+    <!-- D-077: the chat, an engine session on the chat profile -->
+    <string name="chat_new">New chat</string>
+    <string name="chat_title">Chat</string>
+    <string name="chat_empty">Ask anything. Memory, the scheduler and the connectors open to chats are at hand.</string>
 </resources>

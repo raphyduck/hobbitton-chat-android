@@ -5,11 +5,11 @@ import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.data.engine.EngineMissionRepository
 import com.garfiec.librechat.core.data.engine.EngineSettingsStore
-import com.garfiec.librechat.core.data.engine.EngineSignInLauncher
 import com.garfiec.librechat.core.data.engine.EngineSignInProgress
 import com.garfiec.librechat.core.data.engine.EngineSignInResult
 import com.garfiec.librechat.core.data.engine.Mission
 import com.garfiec.librechat.core.data.engine.engineFailureKind
+import com.garfiec.librechat.core.data.portal.PortalTasksSignIn
 import com.garfiec.librechat.core.data.pricing.ModelPriceCache
 import com.garfiec.librechat.core.data.scheduler.SchedulerRepository
 import com.garfiec.librechat.core.model.engine.EngineFailureKind
@@ -18,6 +18,8 @@ import com.garfiec.librechat.core.model.engine.EngineSelectableModel
 import com.garfiec.librechat.core.model.scheduler.ConnectorCatalogue
 import com.garfiec.librechat.core.model.scheduler.ModelPrices
 import com.garfiec.librechat.core.model.scheduler.ScheduledMission
+import com.garfiec.librechat.feature.tasks.delegate.CatalogueFetch
+import com.garfiec.librechat.feature.tasks.delegate.MissionCatalogueDelegate
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -72,8 +74,13 @@ data class TasksUiState(
      * in words, because « 0,00 $ » beside a model that charges is the one reading worth avoiding.
      */
     val prices: ModelPrices = ModelPrices.NONE,
-    /** The portal round trip is in flight: the browser is open, the person is proving who they are. */
+    /** The portal round trip is in flight: the portal is open, the person is proving who they are. */
     val signingIn: Boolean = false,
+    /**
+     * The page the portal's web view shows while [signingIn], or null. The same web view as the
+     * login's (D-076), so a portal session still open from it only asks for the consent click.
+     */
+    val portalPage: String? = null,
     /**
      * Why the last sign-in did not end in a token, or null.
      *
@@ -119,11 +126,18 @@ class TasksViewModel(
     private val modelPrices: ModelPriceCache,
     private val scheduler: SchedulerRepository,
     private val settings: EngineSettingsStore,
-    private val portal: EngineSignInLauncher,
+    private val portal: PortalTasksSignIn,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(TasksUiState())
     val state: StateFlow<TasksUiState> = _state.asStateFlow()
+
+    /** No dispatcher: the sheet's fetches ran on the caller's context before D-076, and still do. */
+    private val catalogueLoader = MissionCatalogueDelegate(
+        fetchModels = { repository.models() },
+        fetchPrices = { modelPrices.prices() },
+        fetchConnectors = { repository.connectors() },
+    )
 
     init {
         refresh()
@@ -133,14 +147,25 @@ class TasksViewModel(
     /**
      * Sends the person through the portal, and reloads once a token exists.
      *
-     * [openBrowser] comes from the screen — Compose's `UriHandler` — rather than from this class:
-     * a view model that opens browsers is a view model that cannot be tested without one.
+     * The page opens in the portal's web view ([TasksUiState.portalPage]), not in the browser
+     * (D-076): the browser has its own cookie jar, so the portal session the login opened would not
+     * be there and the password would be asked again. Same round trip as the login's second step —
+     * PAR, PKCE, `state`, the code exchange — through [PortalTasksSignIn].
      *
      * This is the half of the flow that was missing until 24 August. Everything under it had been
      * written and unit-tested; nothing called it, so the tab could only ever report a failed
      * sign-in, and no amount of re-entering the password changed that.
      */
-    fun signIn(openBrowser: (url: String) -> Unit) = portal.lancer(openBrowser)
+    fun signIn() = portal.start { url -> _state.update { it.copy(portalPage = url) } }
+
+    /**
+     * Offered each navigation of the portal's web view. True for the scheduler page's hop to the
+     * app scheme — caught and handed to the round trip; everything else is the portal's to load.
+     */
+    fun onPortalNavigation(url: String): Boolean = portal.offer(url)
+
+    /** The web view was closed: end the round trip now, not after its five minutes. */
+    fun cancelSignIn() = portal.cancel()
 
     /**
      * Follows the portal round trip rather than awaiting it.
@@ -152,19 +177,23 @@ class TasksViewModel(
      */
     private fun followPortal() {
         viewModelScope.launch {
-            portal.etat.collect { progress ->
+            portal.progress.collect { progress ->
                 when (progress) {
-                    EngineSignInProgress.Idle -> _state.update { it.copy(signingIn = false) }
+                    EngineSignInProgress.Idle -> _state.update { it.copy(signingIn = false, portalPage = null) }
                     EngineSignInProgress.EnCours ->
                         _state.update { it.copy(signingIn = true, signInProblem = null) }
                     is EngineSignInProgress.Termine -> {
                         _state.update {
-                            it.copy(signingIn = false, signInProblem = progress.issue.asProblem())
+                            it.copy(
+                                signingIn = false,
+                                portalPage = null,
+                                signInProblem = progress.issue.asProblem(),
+                            )
                         }
                         if (progress.issue is EngineSignInResult.Authorized) refresh()
                         // Acknowledged so a second attempt starts clean — otherwise a recreated
                         // screen's `collect` would replay the old outcome as if it had just landed.
-                        portal.acquitter()
+                        portal.acknowledge()
                     }
                 }
             }
@@ -277,16 +306,15 @@ class TasksViewModel(
     fun loadModels() {
         if (_state.value.models.isNotEmpty()) return
         viewModelScope.launch {
-            runCatching { repository.models() }
-                .onSuccess { choice ->
-                    _state.update { it.copy(models = choice.models, preselectedModel = choice.preselected) }
-                }
-                .onFailure { failure ->
-                    Logger.w(failure, tag = "Tasks") { "Could not list the engine's models" }
-                }
+            val fetched = catalogueLoader.models()
+            if (fetched is CatalogueFetch.Loaded) {
+                val choice = fetched.value
+                _state.update { it.copy(models = choice.models, preselectedModel = choice.preselected) }
+            }
             // Prices come from the scheduler, the models from the engine: a picker that showed no
             // model because a price was missing would trade the feature for its decoration.
-            _state.update { it.copy(prices = modelPrices.prices()) }
+            val prices = catalogueLoader.prices()
+            _state.update { it.copy(prices = prices) }
         }
     }
 
@@ -303,12 +331,10 @@ class TasksViewModel(
     fun loadConnectors() {
         if (_state.value.catalogue.connecteurs.isNotEmpty()) return
         viewModelScope.launch {
-            runCatching { repository.connectors() }
-                .onSuccess { catalogue -> _state.update { it.copy(catalogue = catalogue) } }
-                .onFailure { failure ->
-                    Logger.w(failure, tag = "Tasks") { "Could not list the engine's connectors" }
-                    _state.update { it.copy(connectorsFailed = true) }
-                }
+            when (val fetched = catalogueLoader.connectors()) {
+                is CatalogueFetch.Loaded -> _state.update { it.copy(catalogue = fetched.value) }
+                is CatalogueFetch.Failed -> _state.update { it.copy(connectorsFailed = true) }
+            }
         }
     }
 
@@ -344,4 +370,6 @@ private fun EngineSignInResult.asProblem(): EngineSignInProblem? = when (this) {
     is EngineSignInResult.Refused -> EngineSignInProblem.REFUSED
     is EngineSignInResult.Interrupted -> EngineSignInProblem.INTERRUPTED
     is EngineSignInResult.MissingAuthorizationScope -> EngineSignInProblem.MISSING_SCOPE
+    // The person closed the page: nothing to explain to them.
+    EngineSignInResult.Cancelled -> null
 }

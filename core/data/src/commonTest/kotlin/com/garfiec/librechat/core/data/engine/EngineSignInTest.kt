@@ -1,5 +1,6 @@
 package com.garfiec.librechat.core.data.engine
 
+import com.garfiec.librechat.core.data.portal.PortalSession
 import com.garfiec.librechat.core.network.engine.EngineAccess
 import com.garfiec.librechat.core.network.engine.EngineTokenStore
 import com.garfiec.librechat.core.network.engine.EngineTokens
@@ -69,9 +70,6 @@ class EngineSignInTest {
     private val access = EngineAccess(
         baseUrl = "https://agent.example.com",
         issuerUrl = "https://auth.example.com",
-        clientId = "hobbitton-chat-android",
-        username = "opencode",
-        password = "motdepasse",
         schedulerUrl = "https://sched.example.com",
     )
 
@@ -130,7 +128,7 @@ class EngineSignInTest {
         return EngineSignIn(
             access = { engine },
             tokens = tokens,
-            sessions = EngineSessionManager(
+            sessions = PortalSession(
                 store = store,
                 client = tokens,
                 endpoints = { endpoints },
@@ -155,6 +153,9 @@ class EngineSignInTest {
         assertEquals("renouveau", store.stored?.refreshToken)
         assertTrue(inbox.armed && inbox.released, "la boîte s'arme puis se libère")
         assertTrue(opened!!.contains("request_uri="), "le navigateur reçoit l'URL opaque du PAR")
+        // Un seul identifiant de client, le même dans l'URL et dans la demande poussée (D-076).
+        assertTrue(opened!!.contains("client_id=hobbitton-chat-android"))
+        assertEquals("hobbitton-chat-android", portal.forms["par"]?.get("client_id"))
         assertTrue(
             "code_challenge" !in opened!!,
             "PAR existe justement pour que le défi ne traverse pas le navigateur",

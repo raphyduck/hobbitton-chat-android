@@ -1,8 +1,10 @@
-package com.garfiec.librechat.core.data.engine
+package com.garfiec.librechat.core.data.portal
 
 import co.touchlab.kermit.Logger
+import com.garfiec.librechat.core.network.engine.EngineAccess
 import com.garfiec.librechat.core.network.engine.EngineTokenStore
 import com.garfiec.librechat.core.network.engine.EngineTokens
+import com.garfiec.librechat.core.network.engine.PortalBearerSource
 import com.garfiec.librechat.core.network.engine.auth.EngineGrantRefused
 import com.garfiec.librechat.core.network.engine.auth.EngineOAuthEndpoints
 import com.garfiec.librechat.core.network.engine.auth.EngineTokenClient
@@ -12,18 +14,26 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 /**
- * Keeps the engine's bearer usable, and knows when it can no longer do so.
+ * The one holder of the portal's tokens: keeps the bearer usable, and knows when it can no longer
+ * do so.
+ *
+ * **One for everything the portal opens (D-076).** The engine's client and the scheduler's client
+ * both read their bearer here — the same token, whose audience names both — and the sign-in writes
+ * it here, whether it runs from the login screen or from the Tasks tab. It was called
+ * `EngineSessionManager` while the engine was the only thing it served; the scheduler joined, then
+ * the single login, and the name had stopped saying what it held.
  *
  * Separate from LibreChat's [com.garfiec.librechat.core.network.client.TokenManager] on purpose:
- * two authorities, two lifetimes, two revocations. Sharing one would mean a chat logout silently
- * dropping the portal's refresh token, and a dead portal session leaving the chat looking healthy.
+ * two authorities, two lifetimes, two revocations. A chat session expiring must not drop the
+ * portal's refresh token, nor a dead portal session leave the chat looking healthy. An explicit
+ * sign-out ends both, deliberately: [forget] is called by `PortalSignOut`.
  */
-class EngineSessionManager(
+class PortalSession(
     private val store: EngineTokenStore,
     private val client: EngineTokenClient,
     private val endpoints: suspend () -> EngineOAuthEndpoints?,
     private val now: () -> Long,
-) {
+) : PortalBearerSource {
 
     /**
      * Serialises renewals. Without it, a screen that fires five requests at once on a cold start
@@ -34,7 +44,7 @@ class EngineSessionManager(
     private val gate = Mutex()
 
     /** The token to present, refreshing it first if it is spent. Null means: go through the portal. */
-    suspend fun bearer(): String? {
+    override suspend fun bearer(): String? {
         val current = store.read() ?: return null
         if (current.isFresh(now())) return current.accessToken
         return renew()
@@ -47,14 +57,14 @@ class EngineSessionManager(
      * renewal that already succeeded, and re-sending the token that was just rotated away is how a
      * working session gets thrown out.
      */
-    suspend fun renew(): String? = gate.withLock {
+    override suspend fun renew(): String? = gate.withLock {
         val stored = store.read() ?: return@withLock null
         if (stored.isFresh(now())) return@withLock stored.accessToken
 
         val refreshToken = stored.refreshToken ?: run {
             // No `offline_access`, or a token issued before it was asked for. Nothing to renew
             // with — and pretending otherwise would loop the caller through a doomed retry.
-            Logger.i("Engine") { "No refresh token for the engine — the portal has to be visited again" }
+            Logger.i("Portal") { "No refresh token for the engine — the portal has to be visited again" }
             store.clear()
             return@withLock null
         }
@@ -64,7 +74,7 @@ class EngineSessionManager(
         } catch (refused: EngineGrantRefused) {
             // Destructive, and only here. The portal will not honour this pair again — keeping it
             // reproduces the same refusal on every later call.
-            Logger.i("Engine") { "The portal refused the renewal (${refused.error}) — the portal has to be visited again" }
+            Logger.i("Portal") { "The portal refused the renewal (${refused.error}) — the portal has to be visited again" }
             store.clear()
             return@withLock null
         } catch (cancellation: CancellationException) {
@@ -75,7 +85,7 @@ class EngineSessionManager(
             // No network, a proxy hiccup, a portal being restarted. The tokens are still valid:
             // forgetting them here is how a lost Wi-Fi second becomes a full second-factor login.
             // The caller gets null and fails this one request; the next one renews normally.
-            Logger.w("Engine", unreachable) { "Engine token renewal could not reach the portal — session kept" }
+            Logger.w("Portal", unreachable) { "Engine token renewal could not reach the portal — session kept" }
             return@withLock null
         }
 
@@ -86,12 +96,22 @@ class EngineSessionManager(
         renewed.accessToken
     }
 
+    /**
+     * Whether a portal session is held at all — tokens stored, fresh or renewable. Not a promise
+     * that the next renewal succeeds: a refused one clears the store, and the next check says so.
+     */
+    suspend fun hasTokens(): Boolean = store.read() != null
+
     /** Stores what the code exchange produced, at the end of a portal round trip. */
     suspend fun onAuthorized(response: EngineTokenResponse) {
         store.write(response.toTokens(now()))
     }
 
-    suspend fun forget() {
+    /**
+     * Drops the tokens — the local half of signing out. Serialised with [renew] so a renewal in
+     * flight cannot write a fresh pair back after the store was cleared.
+     */
+    suspend fun forget() = gate.withLock {
         store.clear()
     }
 
@@ -108,6 +128,14 @@ class EngineSessionManager(
  * rotate or not, and dropping the old one on a non-rotating server would end the session at the
  * following renewal.
  */
+/**
+ * The app's one signed-in state since D-077: the three addresses are set **and** the portal holds
+ * tokens. There is no other login — no LibreChat account, no server URL — so this is what decides
+ * between the sign-in screen and the chat.
+ */
+fun isPortalSignedIn(access: EngineAccess?, tokens: EngineTokens?): Boolean =
+    access != null && access.isConfigured && access.hasScheduler && tokens != null
+
 internal fun EngineTokenResponse.toTokens(
     nowEpochSeconds: Long,
     previous: EngineTokens? = null,

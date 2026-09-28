@@ -1,4 +1,4 @@
-package com.garfiec.librechat.core.data.engine
+package com.garfiec.librechat.core.data.portal
 
 import com.garfiec.librechat.core.network.di.librechatJson
 import com.garfiec.librechat.core.network.engine.EngineTokenStore
@@ -22,11 +22,11 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 /**
- * Renewal of the engine's bearer. Every case here is one where getting it wrong logs the user out
+ * Renewal of the portal's bearer — the one the engine and the scheduler both read. Every case here is one where getting it wrong logs the user out
  * of a session that was perfectly alive — the failure mode that is hardest to notice, because the
  * app looks like it is behaving correctly.
  */
-class EngineSessionManagerTest {
+class PortalSessionTest {
 
     private class FakeStore(var tokens: EngineTokens?) : EngineTokenStore {
         var cleared = false
@@ -52,7 +52,7 @@ class EngineSessionManagerTest {
         store: FakeStore,
         engine: MockEngine,
         now: () -> Long = { 1_000 },
-    ) = EngineSessionManager(
+    ) = PortalSession(
         store = store,
         client = EngineTokenClient(
             HttpClient(engine) { install(ContentNegotiation) { json(librechatJson) } },
@@ -202,6 +202,23 @@ class EngineSessionManagerTest {
         val store = FakeStore(EngineTokens("at-1", "rt-1", expiresAtEpochSeconds = null))
 
         assertEquals("at-1", manager(store, engine).bearer())
+        assertEquals(0, calls)
+    }
+
+    @Test
+    fun `forgetting clears the store, and nothing renews it back`() = runTest {
+        // The local half of signing out (D-076). After it, the next bearer() must find nothing:
+        // a session that quietly came back would keep the engine open to whoever holds the phone.
+        var calls = 0
+        val engine = MockEngine { calls++; respond("{}", HttpStatusCode.OK, jsonHeaders()) }
+        val store = FakeStore(EngineTokens("at-1", "rt-1", expiresAtEpochSeconds = 500))
+        val subject = manager(store, engine)
+
+        subject.forget()
+
+        assertEquals(true, store.cleared)
+        assertNull(subject.bearer())
+        assertNull(subject.renew())
         assertEquals(0, calls)
     }
 }

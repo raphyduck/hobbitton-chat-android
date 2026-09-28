@@ -75,6 +75,15 @@ voice, queueing and steering are chat concepts a mission session does not have.
 - `FileAttachmentChip` - File reference chip.
 - `FeedbackButtons` - Thumbs up/down.
 
+### Portal web view (`web/`, hobbitton D-076)
+- `PortalWebView` — the web view the single sign-in runs in (Authelia portal, LibreChat's `/oauth`
+  hops, the tasks' consent page). Here because two features host it (`feature/auth`'s login,
+  `feature/tasks`' re-sign-in) and one web view means one cookie jar, which is the point. It knows no
+  scheme or host: every main-frame navigation is offered to the caller first, only `http(s)` is ever
+  loaded, TLS errors cancel. JavaScript and DOM storage are on — unlike the chat's locked-down content
+  web views — because the portal is a single-page app. iOS actual is an empty box (engine graph
+  Android-only, D-034).
+
 ### PDF (`pdf/`, androidMain only)
 - `PdfDocumentHolder` - Owns the `PdfRenderer`/fd; mutex-serialized on-demand `renderPage` with
   dimension caps and a page-count bound. Created from bytes, closed by the owning composable.

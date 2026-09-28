@@ -14,18 +14,18 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Test
 
 /**
- * The two credentials, and what happens when the proxy says no. Every behaviour here was observed
+ * The portal's bearer, and what happens when the proxy says no. Every behaviour here was observed
  * on the real chain — Authelia redirects rather than answering 401, and `Proxy-Authorization` is
  * hop-by-hop and gets eaten unless the edge puts it back.
+ *
+ * Since D-076 there is no second credential: the edge presents the engine's Basic itself, and
+ * nothing this client sends may carry `Authorization` at all.
  */
 class EngineAuthPluginTest {
 
     private val engineAccess = EngineAccess(
         baseUrl = "https://agent.example.com",
         issuerUrl = "https://auth.example.com",
-        clientId = "hobbitton-chat-android",
-        username = "opencode",
-        password = "engine-secret",
         schedulerUrl = "https://sched.example.com",
     )
 
@@ -49,8 +49,8 @@ class EngineAuthPluginTest {
     private val noCredentials: Pair<String?, String?> = null to null
 
     @Test
-    fun `the engine gets its Basic and the proxy gets the bearer`() = runTest {
-        var authorization: String? = null
+    fun `the proxy gets the bearer, and the engine's own header stays empty`() = runTest {
+        var authorization: String? = "sentinel"
         var proxyAuthorization: String? = null
         val engine = MockEngine { request ->
             authorization = request.headers[HttpHeaders.Authorization]
@@ -60,11 +60,11 @@ class EngineAuthPluginTest {
 
         client(engine).get("https://agent.example.com/doc")
 
-        // The engine refuses anything but its own Basic…
-        assertThat(authorization).startsWith("Basic ")
-        // …and the proxy reads the bearer from the other header. Swapping them locks out one gate
-        // or the other, with an error that names neither.
+        // The proxy reads the bearer from `Proxy-Authorization`…
         assertThat(proxyAuthorization).isEqualTo("Bearer bearer-1")
+        // …and `Authorization` is the edge's to fill with the engine's Basic (D-076). Anything the
+        // app put there would be a service secret on a phone — exactly what D-076 removed.
+        assertThat(authorization).isNull()
     }
 
     @Test
@@ -158,7 +158,7 @@ class EngineAuthPluginTest {
     }
 
     @Test
-    fun `no bearer yet means the Basic still goes, and the portal decides`() = runTest {
+    fun `no bearer yet means nothing is sent, and the portal decides`() = runTest {
         var proxyAuthorization: String? = "sentinel"
         val engine = MockEngine { request ->
             proxyAuthorization = request.headers[HttpHeaders.ProxyAuthorization]
@@ -175,7 +175,7 @@ class EngineAuthPluginTest {
     // ---- Where the two credentials may go (M2, 26/09/2026) ----
 
     @Test
-    fun `a cross-authority redirect drops both credentials`() = runTest {
+    fun `a cross-authority redirect drops the bearer`() = runTest {
         // The contract KtorRedirectContractTest pins: HttpRedirect strips Authorization and copies
         // everything else, Proxy-Authorization included — and that one is the portal's bearer,
         // which opens the engine and the scheduler and renews itself offline.
@@ -196,13 +196,13 @@ class EngineAuthPluginTest {
         client(engine).get("https://agent.example.com/doc")
 
         assertThat(seen).hasSize(2)
-        assertThat(seen[0].credentials()).isEqualTo("Basic b3BlbmNvZGU6ZW5naW5lLXNlY3JldA==" to "Bearer bearer-1")
+        assertThat(seen[0].credentials()).isEqualTo(null to "Bearer bearer-1")
         assertThat(seen[1].url.host).isEqualTo("evil.example.net")
         assertThat(seen[1].credentials()).isEqualTo(noCredentials)
     }
 
     @Test
-    fun `a redirect back into the engine's authority re-attaches both credentials`() = runTest {
+    fun `a redirect back into the engine's authority re-attaches the bearer`() = runTest {
         val seen = mutableListOf<HttpRequestData>()
         val engine = MockEngine { request ->
             seen += request
@@ -246,7 +246,7 @@ class EngineAuthPluginTest {
 
     @Test
     fun `a same-host scheme downgrade carries no engine credentials`() = runTest {
-        // The engine's Basic never rotates; in the clear once is in the clear for good.
+        // The bearer renews itself offline; in the clear once is a session handed over.
         var credentials: Pair<String?, String?>? = null
         val engine = MockEngine { request ->
             credentials = request.credentials()
@@ -290,7 +290,7 @@ class EngineAuthPluginTest {
     @Test
     fun `a client whose service is not configured sends no credential anywhere`() = runTest {
         // The scheduler is optional and its address blank by default; blank must match nothing,
-        // or the engine's Basic would go to whatever host the request happened to name.
+        // or the bearer would go to whatever host the request happened to name.
         var credentials: Pair<String?, String?>? = null
         val engine = MockEngine { request ->
             credentials = request.credentials()

@@ -24,7 +24,16 @@ The framework is static (`isStatic = true`) and named `Shared`.
 
 - `LibreChatSDK.kt` — Facade class aggregating all API services, token manager, and SSE client
 - `di/SharedKoinModules.kt` — `sharedKoinModules`, the single Koin module list both platforms start from (Android loads it directly; iOS `includes` it). Add a feature module here, not in the per-platform entry points. Verified against Android actuals by `:app` `KoinGraphVerificationTest` and against iOS actuals by `iosTest/IosKoinGraphTest` (`:shared:iosSimulatorArm64Test`).
-- `navigation/` — Nav 3 route definitions and entry providers shared across platforms
+- `engine/` — **the Android root since D-077**: `EngineNavHost` (portal sign-in when signed out,
+  the chat under a drawer when signed in), `EngineShellViewModel` (signed-in state, drawer chats,
+  theme, sign-out = `PortalSignOut` + local chat caches, LibreChat prefetch retired at start),
+  `EngineNavigator` (chat as root; a new chat's blank entry is replaced in place once the engine
+  has the session), `EngineAppSettings`, and `EngineInstructions` — the global instructions' editor
+  (`EngineInstructionsViewModel` over `GlobalProfileEditor`: Enregistrer / Annuler, the MCP servers
+  LibreChat used are kept as stored, never edited here). Its engine dependencies are `getOrNull`:
+  iOS has no engine graph (D-034) and keeps starting from the legacy shell below.
+- `navigation/` — Nav 3 route definitions and entry providers shared across platforms (the LibreChat
+  shell; iOS only since D-077)
 - `app/` — Shared app-level composables (root navigation host)
 
 ## SKIE

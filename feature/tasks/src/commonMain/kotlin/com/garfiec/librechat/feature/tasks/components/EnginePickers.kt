@@ -57,26 +57,19 @@ internal fun ConnectorPickerSheet(
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .clickable(enabled = option.enabled) { onToggle(option.name) }
+                    .clickable { onToggle(option.name) }
                     .padding(horizontal = 24.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Checkbox(
                     checked = option.name in ticked,
-                    // Greyed rather than hidden: whoever wonders where shell went gets an answer,
-                    // instead of a missing row to puzzle over.
-                    enabled = option.enabled,
                     onCheckedChange = { onToggle(option.name) },
                 )
                 Column(Modifier.padding(start = 4.dp)) {
                     Text(
                         option.name,
                         style = MaterialTheme.typography.bodyLarge,
-                        color = if (option.enabled) {
-                            MaterialTheme.colorScheme.onSurface
-                        } else {
-                            MaterialTheme.colorScheme.outline
-                        },
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
                         // « 5 outils · par défaut » — the socle is ticked when the sheet opens, and

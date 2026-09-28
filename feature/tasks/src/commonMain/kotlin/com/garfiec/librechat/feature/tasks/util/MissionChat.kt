@@ -86,10 +86,6 @@ data class ToolArgument(val name: String, val value: String)
 
 enum class ToolState { RUNNING, OK, FAILED }
 
-/** Fold a whole sequence — a replayed transcript, a live run, or a test's script — into one state. */
-fun missionChatFrom(events: List<EngineStreamEvent>): MissionChatState =
-    events.fold(MissionChatState()) { state, event -> state.reduce(event) }
-
 /**
  * Apply one event. Idempotent under replay: a message or part seen twice is updated in place rather
  * than duplicated, which is what lets the screen seed from history and then tail the feed without the

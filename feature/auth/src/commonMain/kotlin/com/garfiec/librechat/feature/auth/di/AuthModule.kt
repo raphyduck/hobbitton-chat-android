@@ -1,7 +1,10 @@
 package com.garfiec.librechat.feature.auth.di
 
+import com.garfiec.librechat.core.data.engine.EngineSettingsStore
+import com.garfiec.librechat.core.data.portal.PortalTasksSignIn
 import com.garfiec.librechat.feature.auth.viewmodel.ForgotPasswordViewModel
 import com.garfiec.librechat.feature.auth.viewmodel.LoginViewModel
+import com.garfiec.librechat.feature.auth.viewmodel.PortalLoginViewModel
 import com.garfiec.librechat.feature.auth.viewmodel.RegisterViewModel
 import com.garfiec.librechat.feature.auth.viewmodel.ResetPasswordViewModel
 import com.garfiec.librechat.feature.auth.viewmodel.ServerUrlViewModel
@@ -61,4 +64,15 @@ val authModule = module {
         )
     }
     viewModelOf(::TermsViewModel)
+    // hobbitton (D-076, D-077): the only sign-in, the portal. Lambda form for `getOrNull`: the
+    // addresses and the round trip are bound by the Android-only engineModule, and absent on iOS,
+    // where the screen says the sign-in is not available rather than failing.
+    @Suppress("DeprecatedKoinApi")
+    viewModel {
+        PortalLoginViewModel(
+            settings = getOrNull<EngineSettingsStore>(),
+            tasks = getOrNull<PortalTasksSignIn>(),
+            oAuthLauncher = get(),
+        )
+    }
 }

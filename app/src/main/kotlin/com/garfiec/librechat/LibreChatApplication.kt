@@ -21,9 +21,11 @@ import com.garfiec.librechat.core.logging.RedactingLogWriter
 import com.garfiec.librechat.core.logging.logStartupHeader
 import com.garfiec.librechat.core.logging.redact.LogRedactor
 import com.garfiec.librechat.core.logging.startMainThreadWatchdog
+import com.garfiec.librechat.core.network.client.CleartextGuardPlugin
 import com.garfiec.librechat.feature.tasks.di.tasksModule
 import com.garfiec.librechat.shared.di.sharedKoinModules
 import io.ktor.client.HttpClient
+import io.ktor.client.engine.HttpClientEngineFactory
 import kotlinx.coroutines.CoroutineExceptionHandler
 import org.koin.android.ext.android.inject
 import org.koin.android.ext.koin.androidContext
@@ -33,7 +35,18 @@ import org.koin.core.logger.Level
 
 class LibreChatApplication : Application(), SingletonImageLoader.Factory {
 
-    private val httpClient: HttpClient by inject()
+    private val engineFactory: HttpClientEngineFactory<*> by inject()
+
+    /**
+     * The image loader's own client, bare (D-077). It used to be LibreChat's — the one carrying
+     * LibreChat's bearer, its refresh loop and its account barrier — so a picture in a chat could
+     * wake a token refresh against a server that no longer exists. Images now come from wherever a
+     * message points (or from data URLs, which never touch the network), with the cleartext guard
+     * every client carries and no identity at all.
+     */
+    private val imageClient: HttpClient by lazy {
+        HttpClient(engineFactory) { install(CleartextGuardPlugin) }
+    }
 
     /**
      * Logcat, floored and scrubbed in release (finding F1, 26/09/2026). Installed before Koin so
@@ -110,7 +123,7 @@ class LibreChatApplication : Application(), SingletonImageLoader.Factory {
     override fun newImageLoader(context: coil3.PlatformContext): ImageLoader {
         return ImageLoader.Builder(context)
             .components {
-                add(KtorNetworkFetcherFactory(httpClient))
+                add(KtorNetworkFetcherFactory(imageClient))
                 add(SvgDecoder.Factory())
             }
             .memoryCache {

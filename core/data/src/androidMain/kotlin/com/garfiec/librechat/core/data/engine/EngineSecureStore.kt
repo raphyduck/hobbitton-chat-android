@@ -6,26 +6,25 @@ import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.data.datastore.createWithRecovery
-import com.garfiec.librechat.core.network.engine.EnginePasswordStore
 import com.garfiec.librechat.core.network.engine.EngineTokenStore
 import com.garfiec.librechat.core.network.engine.EngineTokens
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 
 /**
- * The engine's secrets on disk: the Basic password the person configured, and the portal's tokens.
+ * The portal's tokens on disk — and nothing else since D-076.
  *
- * In its own encrypted file, not LibreChat's. Two authorities, two lifetimes — sharing one would
- * mean a chat logout wiping the engine's refresh token, and the engine's password surviving a
- * « forget this server ».
+ * In its own encrypted file, not LibreChat's. Two authorities, two lifetimes: a chat session
+ * expiring must not take the portal's refresh token with it, and the reverse. An explicit sign-out
+ * purges both, deliberately (`PortalSignOut`).
  *
- * The two interfaces are exposed as [tokens] and [password] rather than implemented by this class
- * directly: `read()`, `write()` and `clear()` collide by name, and forcing them onto one type would
- * mean renaming the operations for a reason that has nothing to do with what they do.
+ * The engine's Basic password used to live here too, typed into the settings and sent on every
+ * request. The edge presents it now, and the app must not keep a copy: the first time this store
+ * is opened, a password left by an older build is deleted ([LEGACY_PASSWORD]).
  *
  * If the device keystore is beyond repair, [createWithRecovery] returns null and everything lives
- * in memory until the process dies: the person re-enters the password and re-visits the portal,
- * which is a bad afternoon rather than a crash loop at startup.
+ * in memory until the process dies: the person re-visits the portal, which is a bad afternoon
+ * rather than a crash loop at startup.
  */
 class EngineSecureStore(
     context: Context,
@@ -52,6 +51,11 @@ class EngineSecureStore(
         ).also {
             if (it == null) {
                 Logger.e("Engine") { "Engine secure store unavailable — session kept in memory only" }
+            } else if (it.contains(LEGACY_PASSWORD)) {
+                // `commit`, not `apply`: this is the one write whose whole point is that the value
+                // is gone from disk, and the lazy block already runs on the IO dispatcher.
+                it.edit().remove(LEGACY_PASSWORD).commit()
+                Logger.i("Engine") { "Removed the engine password an earlier build had stored (D-076)" }
             }
         }
     }
@@ -91,18 +95,6 @@ class EngineSecureStore(
             put(KEY_ACCESS, null)
             put(KEY_REFRESH, null)
             put(KEY_EXPIRES, null)
-            // Deliberately NOT the password: ending a session must not undo the configuration.
-        }
-    }
-
-    val password: EnginePasswordStore = object : EnginePasswordStore {
-        override suspend fun read(): String? = get(KEY_PASSWORD)
-        override suspend fun write(password: String) {
-            put(KEY_PASSWORD, password)
-        }
-
-        override suspend fun clear() {
-            put(KEY_PASSWORD, null)
         }
     }
 
@@ -111,6 +103,8 @@ class EngineSecureStore(
         const val KEY_ACCESS = "access_token"
         const val KEY_REFRESH = "refresh_token"
         const val KEY_EXPIRES = "expires_at"
-        const val KEY_PASSWORD = "basic_password"
+
+        /** Where builds before D-076 kept the engine's Basic password. Only ever deleted now. */
+        const val LEGACY_PASSWORD = "basic_password"
     }
 }

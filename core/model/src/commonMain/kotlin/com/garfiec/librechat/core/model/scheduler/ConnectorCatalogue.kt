@@ -33,7 +33,8 @@ data class ConnectorGrant(
     val outils: List<String> = emptyList(),
     /**
      * Refused to an autonomous mission (brief §4.2): nobody is watching one, so an approval prompt
-     * is not a safeguard. The picker greys it out rather than letting the server refuse the launch.
+     * is not a safeguard. The scheduler applies it to its own missions; this app launches only
+     * watched ones (26/09/2026), so it decodes the field and does not act on it.
      */
     @SerialName("refuse_si_autonome")
     val refusedWhenAutonomous: Boolean = false,
@@ -60,6 +61,15 @@ data class ConnectorGrant(
      * every ticked connector was declared.
      */
     val direct: Boolean = true,
+    /**
+     * Open to a **chat** session (D-077). A chat's perimeter is every connector carrying this flag
+     * and no other: the engine's `chat` profile is the ceiling anyway, but the app must not ask for
+     * more than the scheduler offers a conversation (`shell`, the workspace and the web stay out).
+     *
+     * Defaults to false, so a scheduler that does not serve the field yet opens nothing to a chat
+     * rather than everything.
+     */
+    val chat: Boolean = false,
 )
 
 /**
