@@ -1,6 +1,7 @@
 package com.garfiec.librechat.core.data.di
 
 import com.garfiec.librechat.core.common.di.KoinQualifiers
+import com.garfiec.librechat.core.data.engine.AudioTranscriber
 import com.garfiec.librechat.core.data.engine.EngineCallbackDelivery
 import com.garfiec.librechat.core.data.engine.EngineCallbackInbox
 import com.garfiec.librechat.core.data.engine.EngineCallbackMailbox
@@ -11,6 +12,8 @@ import com.garfiec.librechat.core.data.engine.EngineSignIn
 import com.garfiec.librechat.core.data.engine.EngineSignInCoordinator
 import com.garfiec.librechat.core.data.engine.EngineSignInLauncher
 import com.garfiec.librechat.core.data.engine.RecentMissionsSource
+import com.garfiec.librechat.core.data.engine.SchedulerTranscriber
+import com.garfiec.librechat.core.data.engine.isoLanguageOrNull
 import com.garfiec.librechat.core.data.portal.AndroidWebCookieJar
 import com.garfiec.librechat.core.data.portal.PortalSession
 import com.garfiec.librechat.core.data.portal.PortalSignOut
@@ -44,6 +47,7 @@ import org.koin.core.scope.Scope
 import org.koin.dsl.bind
 import org.koin.dsl.binds
 import org.koin.dsl.module
+import java.util.Locale
 
 /**
  * The Agent engine's own graph: its HTTP client, its OAuth client, its stores.
@@ -106,6 +110,20 @@ val engineModule: Module = module {
     single { SchedulerApi(client = get(KoinQualifiers.Scheduler), json = get()) }
 
     single { SchedulerRepository(api = get(), settings = get()) }
+
+    /**
+     * Speech to text for the conversation's composer — dictation and audio files alike — on the
+     * scheduler's `POST /transcription` (LibreChat's speech route went with LibreChat, D-077).
+     * Hinted with the device's language when it is a plain ISO code, left to detect otherwise.
+     */
+    single<AudioTranscriber> {
+        val settings = get<EngineSettingsStore>()
+        SchedulerTranscriber(
+            api = get(),
+            configured = { settings.access()?.hasScheduler == true },
+            language = { isoLanguageOrNull(Locale.getDefault().language) },
+        )
+    }
 
     /**
      * The price table's one supplier, bound where the scheduler is — Android only (D-034).
