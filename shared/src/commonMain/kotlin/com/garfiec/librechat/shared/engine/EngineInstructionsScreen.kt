@@ -75,7 +75,7 @@ internal fun EngineInstructionsScreen(
     EngineInstructionsContent(
         state = state,
         onInstructions = viewModel::setInstructions,
-        onEnabled = viewModel::setEnabled,
+        onEnabledChange = viewModel::setEnabled,
         onSave = viewModel::save,
         onCancel = onClose,
         modifier = modifier,
@@ -87,7 +87,7 @@ internal fun EngineInstructionsScreen(
 private fun EngineInstructionsContent(
     state: EngineInstructionsUiState,
     onInstructions: (String) -> Unit,
-    onEnabled: (Boolean) -> Unit,
+    onEnabledChange: (Boolean) -> Unit,
     onSave: () -> Unit,
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
@@ -125,7 +125,7 @@ private fun EngineInstructionsContent(
                 state = state,
                 padding = padding,
                 onInstructions = onInstructions,
-                onEnabled = onEnabled,
+                onEnabledChange = onEnabledChange,
             )
         }
     }
@@ -136,7 +136,7 @@ private fun InstructionsForm(
     state: EngineInstructionsUiState,
     padding: PaddingValues,
     onInstructions: (String) -> Unit,
-    onEnabled: (Boolean) -> Unit,
+    onEnabledChange: (Boolean) -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -154,7 +154,7 @@ private fun InstructionsForm(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .toggleable(value = state.enabled, onValueChange = onEnabled, role = Role.Switch),
+                .toggleable(value = state.enabled, onValueChange = onEnabledChange, role = Role.Switch),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f)) {
