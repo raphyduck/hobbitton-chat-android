@@ -1,8 +1,6 @@
 package com.garfiec.librechat
 
 import android.content.Intent
-import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -24,12 +22,8 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
-import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
@@ -38,12 +32,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.dp
-import androidx.core.net.toUri
 import androidx.core.view.WindowCompat
-import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.repeatOnLifecycle
 import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.common.network.ConnectivityObserver
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
@@ -52,19 +42,9 @@ import com.garfiec.librechat.core.data.datastore.ThemeMode
 import com.garfiec.librechat.core.data.engine.EngineCallbackDelivery
 import com.garfiec.librechat.core.network.engine.auth.CALLBACK_SCHEME
 import com.garfiec.librechat.core.ui.theme.LibreChatTheme
-import com.garfiec.librechat.feature.chat.ShareIntentConsumer
-import com.garfiec.librechat.feature.chat.SharedContent
-import com.garfiec.librechat.feature.chat.acceptableSharedUris
-import com.garfiec.librechat.navigation.LibreChatNavHost
-import com.garfiec.librechat.navigation.toDeepLinkUri
-import com.garfiec.librechat.shared.navigation.DeepLinkResolution
-import com.garfiec.librechat.shared.navigation.DeepLinks
+import com.garfiec.librechat.shared.engine.EngineNavHost
 import com.garfiec.librechat.shortcuts.ModelShortcuts
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
-
-private const val KEY_PENDING_DEEP_LINK = "pending_deep_link"
 
 class MainActivity : ComponentActivity() {
 
@@ -73,41 +53,20 @@ class MainActivity : ComponentActivity() {
     private val settingsDataStore: SettingsDataStore by inject()
     private val engineCallbacks: EngineCallbackDelivery by inject()
 
-    private var deepLinkUri by mutableStateOf<Uri?>(null)
-
-    @OptIn(ExperimentalMaterial3WindowSizeClassApi::class, ExperimentalComposeUiApi::class)
+    @OptIn(ExperimentalComposeUiApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // Only process the launch intent on a genuinely fresh start. On recreation (rotation,
-        // theme/locale change, restore) it is still sticky; re-processing would re-fire the deep link
-        // and yank the user back to it. Instead restore any not-yet-consumed link (see onSaveInstanceState):
-        // if the nav host hadn't composed to consume it before a recreation — e.g. a config change during
-        // the theme/locale warm-up gate below — it would otherwise be lost, since deepLinkUri isn't saved
-        // state and the back stack has nothing to restore yet. A consumed link was already nulled.
-        if (savedInstanceState == null) {
-            handleIntent(intent)
-        } else {
-            deepLinkUri = savedInstanceState.getString(KEY_PENDING_DEEP_LINK)?.toUri()
-        }
+        // Only process the launch intent on a genuinely fresh start: on recreation it is still sticky,
+        // and the portal's callback it may carry has already been delivered.
+        if (savedInstanceState == null) handleIntent(intent)
 
-        // Keep home-screen model shortcuts in sync with the account's most-used models. The flow
-        // emits an empty list once the account resolves logged-out, which clears the shortcuts.
-        lifecycleScope.launch {
-            repeatOnLifecycle(Lifecycle.State.STARTED) {
-                settingsDataStore.topUsedModels(ModelShortcuts.maxCount)
-                    // The backing flow re-emits on every settings write; only republish when the
-                    // ranked list actually changes to avoid redundant main-thread setDynamicShortcuts IPC.
-                    .distinctUntilChanged()
-                    .collect { models ->
-                        ModelShortcuts.publish(this@MainActivity, models)
-                    }
-            }
-        }
+        // The home-screen model shortcuts deep-linked into LibreChat's chat (`librechat://model`),
+        // which no longer exists (D-077). Clear whatever an earlier build published.
+        ModelShortcuts.publish(this, emptyList())
 
         setContent {
-            val windowSizeClass = calculateWindowSizeClass(this)
             val isConnected by connectivityObserver.isConnected.collectAsStateWithLifecycle(initialValue = true)
             // Hold off drawing themed content until the persisted theme has resolved, so a
             // dark-mode user on a light-system device never sees a one-frame flash of the wrong
@@ -176,10 +135,9 @@ class MainActivity : ComponentActivity() {
                                     )
                                 }
                             }
-                            LibreChatNavHost(
-                                windowSizeClass = windowSizeClass,
-                                deepLinkUri = deepLinkUri,
-                                onDeepLinkConsume = { deepLinkUri = null },
+                            // The engine shell (D-077): the portal's sign-in, then the chat on the engine.
+                            // LibreChat's shell is no longer composed on Android.
+                            EngineNavHost(
                                 appLocaleTag = appLocale,
                                 modifier = Modifier
                                     .weight(1f)
@@ -198,13 +156,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    override fun onSaveInstanceState(outState: Bundle) {
-        super.onSaveInstanceState(outState)
-        // Preserve a link that hasn't been placed on the back stack yet, so a recreation during the
-        // warm-up gate doesn't drop it (restored in onCreate). A consumed link is already null.
-        deepLinkUri?.let { outState.putString(KEY_PENDING_DEEP_LINK, it.toString()) }
-    }
-
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         // Keep getIntent() pointing at the latest intent so a later recreation doesn't re-read a stale one.
@@ -212,84 +163,19 @@ class MainActivity : ComponentActivity() {
         handleIntent(intent)
     }
 
+    /**
+     * The only link this app still acts on (D-077): the portal's return. LibreChat's own deep links
+     * (`librechat://`, a conversation, a model shortcut, an OAuth hop) and shares into a chat named
+     * screens that no longer exist; they are ignored, and the manifest no longer asks for them.
+     */
     private fun handleIntent(intent: Intent?) {
-        if (intent == null) return
-
-        when (intent.action) {
-            Intent.ACTION_SEND -> handleShareIntent(intent)
-            Intent.ACTION_SEND_MULTIPLE -> handleShareMultipleIntent(intent)
-            else -> handleDeepLink(intent)
-        }
-    }
-
-    private fun handleDeepLink(intent: Intent) {
-        intent.data?.let { uri ->
-            // Le retour du portail d'authentification. Traité ici et pas par le graphe de
-            // navigation : ce lien ne désigne aucun écran — il porte un code d'autorisation que le
-            // tour de connexion attend, et rien à afficher. Le laisser suivre la route ordinaire le
-            // ferait juste rejeter comme « lien non géré », avec le code perdu dedans.
-            if (uri.scheme.equals(CALLBACK_SCHEME, ignoreCase = true)) {
-                engineCallbacks.deposer(uri.toString())
-                return@let
-            }
-            if (uri.scheme != DeepLinks.SCHEME) return@let
-            // Same resolver the nav host uses — the accept decision and the routing decision can't
-            // drift because they're one source of truth. Anything it doesn't route is dropped here.
-            if (DeepLinks.resolve(uri.toDeepLinkUri()) is DeepLinkResolution.None) {
-                Logger.w { "Ignoring unhandled deep link: scheme=${uri.scheme} host=${uri.host}" }
-            } else {
-                deepLinkUri = uri
-            }
-        }
-    }
-
-    private fun handleShareIntent(intent: Intent) {
-        val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
-
-        @Suppress("DEPRECATION")
-        val sharedUri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+        val uri = intent?.data ?: return
+        // Le retour du portail d'authentification. Il ne désigne aucun écran — il porte un code
+        // d'autorisation que le tour de connexion attend — et va donc droit à la boîte aux lettres.
+        if (uri.scheme.equals(CALLBACK_SCHEME, ignoreCase = true)) {
+            engineCallbacks.deposer(uri.toString())
         } else {
-            intent.getParcelableExtra(Intent.EXTRA_STREAM)
-        }
-
-        val fileUris = acceptableSharedUris(listOfNotNull(sharedUri), fileProviderAuthority())
-        if (sharedUri != null && fileUris.isEmpty()) {
-            Logger.w { "Share intent: dropped a stream that is not a content URI from another app" }
-        }
-
-        if (sharedText != null || fileUris.isNotEmpty()) {
-            Logger.d { "Share intent received: text=${sharedText != null}, uris=${fileUris.size}" }
-            // Staged only — the nav host addresses it to whichever chat is on screen.
-            ShareIntentConsumer.setPendingShare(
-                SharedContent(text = sharedText, fileUris = fileUris),
-            )
+            Logger.w { "Ignoring a link this app no longer handles: scheme=${uri.scheme}" }
         }
     }
-
-    private fun handleShareMultipleIntent(intent: Intent) {
-        @Suppress("DEPRECATION")
-        val sharedUris = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM, Uri::class.java)
-        } else {
-            intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM)
-        }
-
-        if (sharedUris.isNullOrEmpty()) return
-        // Only `content:` URIs from other apps, and a bounded number of them (review C6,
-        // 26/09/2026): a `file:` URI would be read with this app's own rights.
-        val accepted = acceptableSharedUris(sharedUris, fileProviderAuthority())
-        if (accepted.size != sharedUris.size) {
-            Logger.w { "Share multiple intent: dropped ${sharedUris.size - accepted.size} of ${sharedUris.size} streams" }
-        }
-        if (accepted.isNotEmpty()) {
-            Logger.d { "Share multiple intent received: uris=${accepted.size}" }
-            ShareIntentConsumer.setPendingShare(
-                SharedContent(fileUris = accepted),
-            )
-        }
-    }
-
-    /** The authority under which this app's own FileProvider serves its cache — never a valid share source. */
-    private fun fileProviderAuthority(): String = "$packageName.fileprovider"
 }

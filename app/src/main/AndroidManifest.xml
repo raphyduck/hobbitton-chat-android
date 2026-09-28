@@ -40,14 +40,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- Deep links -->
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="librechat" />
-            </intent-filter>
-
             <!--
                 Le retour du portail d'authentification.
 
@@ -80,39 +72,11 @@
                     android:scheme="at.hobbitton.chat" />
             </intent-filter>
 
-            <!-- Receive shared text -->
-            <intent-filter>
-                <action android:name="android.intent.action.SEND" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <data android:mimeType="text/plain" />
-            </intent-filter>
-
-            <!-- Receive shared images -->
-            <intent-filter>
-                <action android:name="android.intent.action.SEND" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <data android:mimeType="image/*" />
-            </intent-filter>
-
-            <!-- Receive shared files -->
-            <intent-filter>
-                <action android:name="android.intent.action.SEND" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <data android:mimeType="*/*" />
-            </intent-filter>
-
-            <!-- Receive multiple shared items -->
-            <intent-filter>
-                <action android:name="android.intent.action.SEND_MULTIPLE" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <data android:mimeType="image/*" />
-            </intent-filter>
-
-            <intent-filter>
-                <action android:name="android.intent.action.SEND_MULTIPLE" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <data android:mimeType="*/*" />
-            </intent-filter>
+            <!--
+                D-077 : plus de liens `librechat://` ni de partage vers une conversation. Les écrans
+                qu'ils ouvraient appartenaient à LibreChat, qui n'existe plus ; seul le retour du
+                portail ci-dessus est encore reçu.
+            -->
         </activity>
         <provider
             android:name="androidx.core.content.FileProvider"
