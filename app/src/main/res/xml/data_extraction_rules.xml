@@ -8,6 +8,10 @@
     none declared the whole private storage follows the user to the new phone. The items below are
     the ones that must not:
 
+      LibreChat's stores (librechat.db, librechat_tokens.xml) are gone since D-077 and removed
+      from upgraded devices at first start (LegacyLibreChatCleanup); their rules stay for a
+      device backed up before that first start.
+
       - librechat.db (and its WAL/SHM/journal companions): the Room cache of conversations and
         messages, and the `servers` table — the per-server gateway headers, which are long-lived,
         non-rotating credentials stored in plain text by design (see core/data/CLAUDE.md);
@@ -19,8 +23,8 @@
       - diag_logs/: the redacted diagnostic log — still a record of usage nobody agreed to move.
 
     Nothing is listed as included: with only excludes, everything else keeps the default. The
-    cache directory is never backed up or transferred by the platform, so the image cache and the
-    FileProvider directories need no rule. Both sections are kept identical on purpose — one
+    cache directory is never backed up or transferred by the platform, so the image cache needs
+    no rule. Both sections are kept identical on purpose — one
     behaviour for both paths, and a review of one is a review of the other.
 -->
 <data-extraction-rules>
