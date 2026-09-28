@@ -3,6 +3,7 @@ package com.garfiec.librechat.feature.tasks.di
 import com.garfiec.librechat.core.common.di.KoinQualifiers
 import com.garfiec.librechat.core.data.engine.EngineMissionRepository
 import com.garfiec.librechat.feature.tasks.EngineSettingsViewModel
+import com.garfiec.librechat.feature.tasks.MissionChatArgs
 import com.garfiec.librechat.feature.tasks.MissionChatViewModel
 import com.garfiec.librechat.feature.tasks.MissionRunsViewModel
 import com.garfiec.librechat.feature.tasks.TasksViewModel
@@ -33,17 +34,22 @@ val tasksModule = module {
     viewModelOf(::UsageViewModel)
     @Suppress("DeprecatedKoinApi")
     viewModel { params -> MissionRunsViewModel(name = params.get(), repository = get()) }
-    // sessionId arrives from the navigation layer via parametersOf, so the lambda-form viewModel is
-    // the only DSL that can read it (viewModelOf wires every arg via get()).
+    // The session and its profile arrive from the navigation layer via parametersOf, as one
+    // MissionChatArgs, so the lambda-form viewModel is the only DSL that can read them (viewModelOf
+    // wires every arg via get()).
     @Suppress("DeprecatedKoinApi")
     viewModel { params ->
+        val args = params.get<MissionChatArgs>()
         MissionChatViewModel(
-            sessionId = params.get(),
+            sessionId = args.sessionId,
+            profile = args.profile,
             repository = get(),
             modelPrices = get(),
             settings = get(),
             positions = get(),
-            speech = get(),
+            // No transcription (D-077): the only one this composer had was LibreChat's speech route,
+            // and LibreChat is gone. The mic and the audio entry disappear with it.
+            speech = null,
             ioDispatcher = get(KoinQualifiers.IO),
         )
     }

@@ -147,7 +147,12 @@ internal fun MissionChatInput(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    AddButton(openPhoto = openPhoto, openAudio = openAudio, audioEnabled = !state.transcribing)
+                    // Audio needs a transcription service; without one (D-077) the entry is absent.
+                    AddButton(
+                        openPhoto = openPhoto,
+                        openAudio = openAudio.takeIf { state.transcriptionAvailable },
+                        audioEnabled = !state.transcribing,
+                    )
                     // The pills scroll among themselves, so a long model name never pushes send
                     // off the row.
                     Row(
@@ -162,7 +167,7 @@ internal fun MissionChatInput(
                             onRetryCatalogue = onRetryCatalogue,
                         )
                     }
-                    if (dictation != null) {
+                    if (dictation != null && state.transcriptionAvailable) {
                         if (state.transcribing) {
                             Box(Modifier.size(ChatInputDefaults.controlSize), contentAlignment = Alignment.Center) {
                                 CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)

@@ -128,4 +128,8 @@
     <string name="tasks_scheduled_save">Enregistrer</string>
     <string name="tasks_chat_output_truncated">%1$d caractères de plus</string>
     <string name="tasks_connector_default">par défaut</string>
+    <!-- D-077 : la conversation, une session du moteur sur le profil chat -->
+    <string name="chat_new">Nouvelle conversation</string>
+    <string name="chat_title">Conversation</string>
+    <string name="chat_empty">Demandez ce que vous voulez. La mémoire, le planificateur et les connecteurs ouverts aux conversations sont à portée.</string>
 </resources>

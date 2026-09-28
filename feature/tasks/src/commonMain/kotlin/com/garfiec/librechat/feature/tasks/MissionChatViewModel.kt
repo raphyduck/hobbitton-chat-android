@@ -2,11 +2,13 @@ package com.garfiec.librechat.feature.tasks
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.garfiec.librechat.core.common.result.Result
 import com.garfiec.librechat.core.data.datastore.MissionReadingPosition
 import com.garfiec.librechat.core.data.datastore.MissionReadingPositions
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.engine.ConnectorOption
 import com.garfiec.librechat.core.data.engine.EngineMissionRepository
+import com.garfiec.librechat.core.data.engine.EngineProfile
 import com.garfiec.librechat.core.data.engine.engineFailureKind
 import com.garfiec.librechat.core.data.engine.offered
 import com.garfiec.librechat.core.data.pricing.ModelPriceCache
@@ -121,6 +123,24 @@ data class MissionChatUiState(
     val restoredPosition: MissionReadingPosition? = null,
     /** False until the stored position has been read. Distinguishes « none » from « not yet ». */
     val positionKnown: Boolean = false,
+    /** A chat or a task (D-077): which agent, which provider, whether connectors are offered. */
+    val profile: EngineProfile = EngineProfile.TASK,
+    /**
+     * The chat provider's own default, shown on the chip of a chat that has not run yet — so a new
+     * conversation names the model it is about to use. Never set for a task.
+     */
+    val defaultModel: EngineSelectableModel? = null,
+    /**
+     * Whether audio can be turned into words here. False since D-077: the transcription this
+     * composer used was LibreChat's, and nothing on the engine side replaces it yet — the mic and
+     * the audio entry are then absent rather than present and failing.
+     */
+    val transcriptionAvailable: Boolean = false,
+    /**
+     * Set once a **new** chat exists on the engine: the screen hands it to the navigation, which
+     * replaces the blank conversation with the real one. Null for an existing session.
+     */
+    val started: StartedChat? = null,
 ) {
     /**
      * What the model chip says, and what the picker shows as current.
@@ -138,27 +158,54 @@ data class MissionChatUiState(
                     modelId = ref.modelId,
                     label = ref.modelId,
                 )
-        }
+        } ?: defaultModel
 }
 
+/** A chat the composer just created on the engine, as the navigation needs it. */
+data class StartedChat(val sessionId: String, val title: String)
+
+/**
+ * What the navigation hands the conversation's view model: which session — none for a chat not
+ * started yet — and on which profile. One value rather than two parameters, so the Koin lookup is
+ * by this type and cannot confuse a missing session id with something else.
+ */
+data class MissionChatArgs(
+    val sessionId: String?,
+    val profile: EngineProfile = EngineProfile.TASK,
+)
+
 class MissionChatViewModel(
-    private val sessionId: String,
+    /**
+     * The session on screen, or null for a chat that does not exist yet (D-077): its first send
+     * creates it ([EngineMissionRepository.startChat]) and the navigation then opens the real one.
+     */
+    private val sessionId: String?,
     private val repository: EngineMissionRepository,
     private val modelPrices: ModelPriceCache,
     private val settings: SettingsDataStore,
     private val positions: MissionReadingPositions,
-    private val speech: SpeechRepository,
+    /** Null where no transcription service exists — see [MissionChatUiState.transcriptionAvailable]. */
+    private val speech: SpeechRepository?,
     private val ioDispatcher: CoroutineDispatcher,
+    private val profile: EngineProfile = EngineProfile.TASK,
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(MissionChatUiState())
+    private val _uiState = MutableStateFlow(
+        MissionChatUiState(
+            profile = profile,
+            transcriptionAvailable = speech != null,
+            // Nothing to load for a chat that does not exist yet: no transcript, no saved position.
+            loadingHistory = sessionId != null,
+            positionKnown = sessionId == null,
+        ),
+    )
     val uiState: StateFlow<MissionChatUiState> = _uiState.asStateFlow()
 
     private var streamJob: Job? = null
 
     // Declared before `init`, which reads the catalogue: initializers run in textual order.
     private val catalogueLoader = MissionCatalogueDelegate(
-        fetchModels = { repository.models() },
+        fetchModels = { repository.models(profile) },
         fetchPrices = { modelPrices.prices() },
         fetchConnectors = { repository.connectors() },
         context = ioDispatcher,
@@ -167,18 +214,22 @@ class MissionChatViewModel(
     private val staging = ComposerStagingDelegate(
         state = _uiState,
         scope = viewModelScope,
-        transcribe = { bytes, mime -> speech.transcribeAudio(bytes, mime) },
+        transcribe = { bytes, mime ->
+            speech?.transcribeAudio(bytes, mime) ?: Result.Error()
+        },
         context = ioDispatcher,
     )
 
     init {
-        loadHistory()
-        openStream()
-        loadCatalogue()
-        viewModelScope.launch {
-            val saved = runCatching { positions.positionOf(sessionId) }.getOrNull()
-            _uiState.update { it.copy(restoredPosition = saved, positionKnown = true) }
+        if (sessionId != null) {
+            loadHistory()
+            openStream()
+            viewModelScope.launch {
+                val saved = runCatching { positions.positionOf(sessionId) }.getOrNull()
+                _uiState.update { it.copy(restoredPosition = saved, positionKnown = true) }
+            }
         }
+        loadCatalogue()
         viewModelScope.launch {
             settings.chatFontSize.collect { size ->
                 _uiState.update { it.copy(fontScale = size.multiplier) }
@@ -200,7 +251,9 @@ class MissionChatViewModel(
      * without both.
      */
     private fun loadCatalogue() {
-        loadConnectors()
+        // A chat is not configured connector by connector (D-077): its perimeter is every connector
+        // open to a chat, set at creation. No chip, so no catalogue to fetch for one.
+        if (profile == EngineProfile.TASK) loadConnectors()
         loadModels()
     }
 
@@ -215,6 +268,7 @@ class MissionChatViewModel(
      * then the ticks stay unknown rather than becoming a false « none ».
      */
     private fun loadConnectors() {
+        val sessionId = sessionId ?: return
         viewModelScope.launch {
             when (val fetched = catalogueLoader.connectors()) {
                 is CatalogueFetch.Failed -> _uiState.update { it.copy(connectorsError = fetched.kind) }
@@ -244,7 +298,13 @@ class MissionChatViewModel(
             when (val fetched = catalogueLoader.models()) {
                 is CatalogueFetch.Failed -> _uiState.update { it.copy(modelsError = fetched.kind) }
                 is CatalogueFetch.Loaded -> {
-                    _uiState.update { it.copy(models = fetched.value.models, modelsError = null) }
+                    _uiState.update {
+                        it.copy(
+                            models = fetched.value.models,
+                            modelsError = null,
+                            defaultModel = fetched.value.preselected.takeIf { profile == EngineProfile.CHAT },
+                        )
+                    }
                     // After the models and never instead of them: the price table comes from another
                     // service, and its absence must cost the prices, not the picker.
                     val prices = catalogueLoader.prices()
@@ -275,6 +335,7 @@ class MissionChatViewModel(
      * reason nothing on screen explains.
      */
     fun toggleConnector(name: String) {
+        val sessionId = sessionId ?: return
         val before = _uiState.value.enabledConnectors.orEmpty()
         val after = if (name in before) before - name else before + name
         _uiState.update { it.copy(enabledConnectors = after) }
@@ -302,6 +363,7 @@ class MissionChatViewModel(
      * the same state and the reducer is idempotent, so whichever lands first, the result is the same.
      */
     private fun loadHistory() {
+        val sessionId = sessionId ?: return
         viewModelScope.launch {
             try {
                 val events = withContext(ioDispatcher) { repository.history(sessionId) }
@@ -345,6 +407,7 @@ class MissionChatViewModel(
      * appended twice.
      */
     fun refresh() {
+        if (sessionId == null) return
         _uiState.update { it.copy(refreshing = true, chat = it.chat.copy(streaming = false)) }
         loadHistory()
     }
@@ -354,6 +417,7 @@ class MissionChatViewModel(
      * there leaves the transcript on screen instead of tearing the collector down.
      */
     private fun openStream() {
+        val sessionId = sessionId ?: return
         streamJob?.cancel()
         streamJob = viewModelScope.launch {
             repository.events(sessionId)
@@ -402,7 +466,8 @@ class MissionChatViewModel(
         // The typed words plus each audio note as a quoted block — what the thread will show.
         val text = outgoingMessageText(staged.input, staged.audioNotes)
         val attachments = staged.attachments
-        if ((text.isEmpty() && attachments.isEmpty()) || staged.sending) return
+        if ((text.isEmpty() && attachments.isEmpty()) || staged.sending || staged.started != null) return
+        val sessionId = sessionId ?: return startChat(text, staged)
         val input = staged.input
         val notes = staged.audioNotes
         val before = staged.chat
@@ -420,6 +485,7 @@ class MissionChatViewModel(
                         text,
                         model,
                         files = attachments.map { it.asPromptPart() },
+                        profile = profile,
                     )
                 }
                 _uiState.update { current ->
@@ -448,14 +514,55 @@ class MissionChatViewModel(
         }
     }
 
+    /**
+     * The first message of a chat that does not exist yet (D-077): the session is created on the
+     * chat profile with this message as its first prompt, and [MissionChatUiState.started] tells the
+     * screen to open it. `sending` stays up until then — the answer is already on its way.
+     *
+     * A failure puts everything back in the composer, as a failed send does: nothing was created
+     * that the person could see, and their words are theirs.
+     */
+    private fun startChat(text: String, staged: MissionChatUiState) {
+        val attachments = staged.attachments
+        _uiState.update {
+            it.copy(input = "", attachments = emptyList(), audioNotes = emptyList(), sending = true, sendError = null)
+        }
+        viewModelScope.launch {
+            try {
+                val created = withContext(ioDispatcher) {
+                    repository.startChat(
+                        text = text,
+                        model = _uiState.value.model?.ref,
+                        files = attachments.map { it.asPromptPart() },
+                    )
+                }
+                _uiState.update { it.copy(started = StartedChat(created, chatTitle(text))) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        input = staged.input,
+                        attachments = attachments,
+                        audioNotes = staged.audioNotes,
+                        sending = false,
+                        sendError = e.engineFailureKind(),
+                    )
+                }
+            }
+        }
+    }
+
     /** Stop a reply in progress. The engine ends the run; the feed reports the session going idle. */
     fun stop() {
+        val sessionId = sessionId ?: return
         viewModelScope.launch {
             runCatching { withContext(ioDispatcher) { repository.abort(sessionId) } }
         }
     }
 
     fun retryHistory() {
+        if (sessionId == null) return
         _uiState.update { it.copy(loadingHistory = true, historyError = null) }
         loadHistory()
     }
@@ -468,6 +575,7 @@ class MissionChatViewModel(
      * launch because a store that cannot be written must not tear the screen's scope down.
      */
     fun rememberPosition(index: Int, offset: Int) {
+        val sessionId = sessionId ?: return
         viewModelScope.launch {
             runCatching { positions.remember(sessionId, MissionReadingPosition(index, offset)) }
         }
@@ -477,3 +585,9 @@ class MissionChatViewModel(
         _uiState.update { it.copy(sendError = null) }
     }
 }
+
+/** The drawer's name for a new chat: its first line, as the engine titles the session. */
+internal fun chatTitle(text: String): String =
+    text.lineSequence().firstOrNull { it.isNotBlank() }?.trim()?.take(CHAT_TITLE_LENGTH).orEmpty()
+
+private const val CHAT_TITLE_LENGTH = 60

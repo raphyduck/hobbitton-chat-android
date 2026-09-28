@@ -128,4 +128,8 @@
     <string name="tasks_scheduled_save">Save</string>
     <string name="tasks_chat_output_truncated">%1$d more characters</string>
     <string name="tasks_connector_default">on by default</string>
+    <!-- D-077: the chat, an engine session on the chat profile -->
+    <string name="chat_new">New chat</string>
+    <string name="chat_title">Chat</string>
+    <string name="chat_empty">Ask anything. Memory, the scheduler and the connectors open to chats are at hand.</string>
 </resources>

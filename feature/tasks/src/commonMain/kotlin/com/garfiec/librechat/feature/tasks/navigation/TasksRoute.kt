@@ -2,6 +2,7 @@ package com.garfiec.librechat.feature.tasks.navigation
 
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
+import com.garfiec.librechat.core.data.engine.EngineProfile
 import com.garfiec.librechat.feature.tasks.MissionChatScreen
 import com.garfiec.librechat.feature.tasks.MissionRunsScreen
 import com.garfiec.librechat.feature.tasks.TasksScreen
@@ -27,6 +28,17 @@ import kotlinx.serialization.modules.subclass
     val sessionId: String,
     val title: String = "",
     val fromDrawer: Boolean = false,
+) : TasksRoute
+
+/**
+ * A chat (D-077): an engine session on the chat profile. [sessionId] is null for a new one, which
+ * its first message creates; the navigation then replaces this entry with the real session's.
+ *
+ * The app's home: the drawer opens from it, and a fresh one is where « New chat » leads.
+ */
+@Serializable data class EngineChat(
+    val sessionId: String? = null,
+    val title: String = "",
 ) : TasksRoute
 
 /** One scheduled mission's runs, opened from its card on the Tasks tab. */
@@ -67,6 +79,29 @@ fun EntryProviderScope<NavKey>.tasksEntries(
 }
 
 /**
+ * The chat's entry (D-077), apart from [tasksEntries] because only the engine shell hosts it.
+ * A chat is always a drawer destination: it carries the menu, never the back arrow.
+ */
+fun EntryProviderScope<NavKey>.engineChatEntries(
+    onOpenDrawer: () -> Unit,
+    onChatStarted: (sessionId: String, title: String) -> Unit,
+    onNewChat: () -> Unit,
+    onBack: () -> Unit,
+) {
+    entry<EngineChat> { key ->
+        MissionChatScreen(
+            sessionId = key.sessionId,
+            title = key.title,
+            onBack = onBack,
+            onOpenDrawer = onOpenDrawer,
+            profile = EngineProfile.CHAT,
+            onChatStarted = onChatStarted,
+            onNewChat = onNewChat.takeIf { key.sessionId != null },
+        )
+    }
+}
+
+/**
  * Registered like every other feature's routes so a saved back stack survives process death. A
  * destination missing from here deserializes to nothing and the stack silently loses it.
  */
@@ -76,5 +111,6 @@ val tasksSerializersModule = SerializersModule {
         subclass(MissionChat::class)
         subclass(MissionRuns::class)
         subclass(TasksUsage::class)
+        subclass(EngineChat::class)
     }
 }

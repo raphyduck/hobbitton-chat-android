@@ -11,6 +11,7 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -36,8 +37,12 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.garfiec.librechat.core.data.datastore.MissionReadingPosition
+import com.garfiec.librechat.core.data.engine.EngineProfile
 import com.garfiec.librechat.feature.tasks.components.Explanation
 import com.garfiec.librechat.feature.tasks.resources.Res
+import com.garfiec.librechat.feature.tasks.resources.chat_empty
+import com.garfiec.librechat.feature.tasks.resources.chat_new
+import com.garfiec.librechat.feature.tasks.resources.chat_title
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_back
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_empty
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_title
@@ -55,21 +60,34 @@ import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
 /**
- * One mission session, as a conversation. The transcript is replayed on open and the reply streams in
- * token by token; the box at the bottom talks back to the same session.
+ * One engine session, as a conversation — a mission's, or since D-077 a chat's. The transcript is
+ * replayed on open and the reply streams in token by token; the box at the bottom talks back to the
+ * same session.
+ *
+ * [sessionId] is null for a chat that does not exist yet: the first send creates it on the chat
+ * profile, and [onChatStarted] hands the new session to the navigation, which opens it in place.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MissionChatScreen(
-    sessionId: String,
+    sessionId: String?,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     title: String = "",
     /** Non-null when opened from the drawer: the bar then carries the menu, as a chat does. */
     onOpenDrawer: (() -> Unit)? = null,
-    viewModel: MissionChatViewModel = koinViewModel { parametersOf(sessionId) },
+    profile: EngineProfile = EngineProfile.TASK,
+    onChatStarted: (sessionId: String, title: String) -> Unit = { _, _ -> },
+    /** Non-null on a chat already under way: the bar offers a fresh one. */
+    onNewChat: (() -> Unit)? = null,
+    viewModel: MissionChatViewModel = koinViewModel { parametersOf(MissionChatArgs(sessionId, profile)) },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+
+    val currentOnChatStarted by rememberUpdatedState(onChatStarted)
+    LaunchedEffect(state.started) {
+        state.started?.let { started -> currentOnChatStarted(started.sessionId, started.title) }
+    }
 
     // Le cas dominant : le téléphone dort, le flux tombe, la mission continue de parler. Comme le
     // flux classique reprend à « maintenant » et ne rejoue rien, revenir au premier plan est le
@@ -85,7 +103,7 @@ fun MissionChatScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text(title.ifBlank { stringResource(Res.string.tasks_chat_title) }) },
+                title = { Text(title.ifBlank { stringResource(defaultTitle(profile, sessionId)) }) },
                 navigationIcon = {
                     if (onOpenDrawer != null) {
                         IconButton(onClick = onOpenDrawer) {
@@ -99,6 +117,16 @@ fun MissionChatScreen(
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = stringResource(Res.string.tasks_chat_back),
+                            )
+                        }
+                    }
+                },
+                actions = {
+                    if (onNewChat != null) {
+                        IconButton(onClick = onNewChat) {
+                            Icon(
+                                imageVector = Icons.Outlined.Edit,
+                                contentDescription = stringResource(Res.string.chat_new),
                             )
                         }
                     }
@@ -165,7 +193,9 @@ private fun MissionChatBody(
                 )
 
                 state.chat.turns.isEmpty() -> Text(
-                    text = stringResource(Res.string.tasks_chat_empty),
+                    text = stringResource(
+                        if (state.profile == EngineProfile.CHAT) Res.string.chat_empty else Res.string.tasks_chat_empty,
+                    ),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
@@ -265,6 +295,13 @@ private fun MissionTurns(
             }
         }
     }
+}
+
+/** What the bar says when the session has no title of its own. */
+private fun defaultTitle(profile: EngineProfile, sessionId: String?) = when {
+    profile == EngineProfile.TASK -> Res.string.tasks_chat_title
+    sessionId == null -> Res.string.chat_new
+    else -> Res.string.chat_title
 }
 
 private fun tailLength(chat: MissionChatState): Int {
