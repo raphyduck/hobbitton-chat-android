@@ -18,24 +18,22 @@
 ## OAuth Flow
 - LibreChat mounts its OAuth routes at **`/oauth/{provider}`** (v0.8.7), not `/api/oauth/…`:
   `oauthEntryUrl()` builds it for every launcher.
-- **`openid` on Android — the single sign-in (hobbitton, D-076).** `PortalLoginViewModel` runs it in
-  an embedded web view (`PortalWebView`, `:core:ui`) over the login screen:
-  1. load `{server}/oauth/openid`; the edge sends it through the Authelia portal (password + 2FA);
-  2. the navigation back out of `/oauth` on the chat origin (`classifyPortalNavigation`, `:core:data`)
-     is stopped — never loaded: the web client would spend the refresh token itself — and the
-     `refreshToken` cookie is read from `CookieManager` (retried briefly), cleared, and handed to
-     `AuthRepository.loginWithOAuthToken`, the path every sign-in ends on;
-  3. in the **same** web view (same jar, so the portal session is there), the tasks' portal round trip
-     runs (`PortalTasksSignIn` → `EngineSignInLauncher`): only the consent click is left. The
-     scheduler page's hop to `at.hobbitton.chat://oauth` is caught by the web view and dropped in the
-     callback mailbox.
-  The screen is left once both steps are over; closing the view during step 3 keeps the chat and skips
-  the tasks. The email/password form stays below as a fallback while the server accepts it.
+- **The portal — the only sign-in (hobbitton, D-076, then D-077).** `PortalSignInScreen` +
+  `PortalLoginViewModel`: the three addresses (engine, scheduler, portal — `EngineSettingsStore`,
+  validated by `validateEngineAddresses`, scheduler required), then the portal's round trip
+  (`PortalTasksSignIn` → `EngineSignInLauncher`: PAR, PKCE, `state`, code relayed by the scheduler)
+  hosted in the app's own `PortalWebView`. The scheduler page's hop to `at.hobbitton.chat://oauth`
+  is caught by the web view (`classifyPortalNavigation`) and dropped in the callback mailbox.
+  **Since D-077 there is no LibreChat step**: no `/oauth/openid`, no `refreshToken` cookie read, no
+  chat session. The view model belongs to the activity — `consumeSignedIn()` lowers its flag once
+  the screen has handed over, or a sign-in after a sign-out would go unheard. On iOS (no engine
+  graph) the screen says the sign-in is not available.
+- `LoginScreen` is back to its upstream form (email/password + social providers); only the legacy
+  shell (iOS) still shows it.
 - Other providers (and iOS): Custom Tab / `ASWebAuthenticationSession`, then `extractTokenFromCookies`
   on resume. **Known, inherited limitation:** a browser tab has its own cookie jar, so that read cannot
   see the cookie the server set there. Only `openid` is configured on the servers this fork targets.
-- Cookie is cleared after extraction to prevent stale reads; `checkOAuthResult` is skipped while the
-  portal web view is open (it owns that cookie).
+- Cookie is cleared after extraction to prevent stale reads.
 
 ## Token Storage
 - Tokens stored in `EncryptedSharedPreferences` via `TokenDataStore` in `:core:data`

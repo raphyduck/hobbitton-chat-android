@@ -142,15 +142,32 @@ One Authelia identity for chats and tasks. Everything here is bound by the Andro
   delegates to the existing round trip (`EngineSignInLauncher`: PAR, PKCE, `state`, code exchange)
   and only changes where the page opens; `offer(url)` catches the scheduler page's hop to
   `at.hobbitton.chat://` and drops it in the callback mailbox.
-- **`classifyPortalNavigation`** — where the login's web view stops: the chat origin outside
-  `/oauth` is the return (read the `refreshToken` cookie, never load the web client — it would spend
-  that token itself); the app scheme goes to the mailbox; other schemes are refused.
+- **`classifyPortalNavigation`** — what the sign-in's web view does with a navigation: `http(s)`
+  loads, the app scheme goes to the mailbox, other schemes are refused. (Before D-077 it also
+  stopped on the LibreChat origin to read a refresh cookie; there is no LibreChat any more.)
+- **`isPortalSignedIn`** — the app's one signed-in state since D-077: addresses set and tokens held.
 - **`PortalSignOut`** (a `SignOutHook`) — an explicit logout also forgets the portal's tokens and
   expires the web view's cookies on the chat, portal, engine and scheduler origins. `AuthRepositoryImpl`
   runs every `SignOutHook` from `getAll()` at the end of its non-cancellable teardown; that list is the
   only hobbitton change to the upstream logout.
 - **No engine password.** `EngineSecureStore` holds the portal tokens only and deletes, on first
   open, the Basic password builds before D-076 stored. `EngineSettingsStore` holds three addresses.
+
+### Engine profiles: chat and task (`engine/`, hobbitton overlay, D-077)
+
+- **`EngineProfile`** — `CHAT` (agent `chat`, provider `hobbitton-chat`) and `TASK` (agent
+  `mission`, the gateway). `offersProvider` narrows each model picker; `forChat()` moves a model
+  onto the chat provider (same model ids on both).
+- **`chatPerimeter()`** — every connector the scheduler's catalogue marks `chat: true`, and only
+  those. `EngineMissionRepository.startChat` builds the session's rules from it with the same
+  `permissionsFor`, records it with the scheduler before the first prompt (as `launch` does), and
+  records the session's kind locally before anything can fail.
+- **Every chat turn names agent `chat` and a `hobbitton-chat` model** (`sendMessage(profile = CHAT)`);
+  a task turn is unchanged (no agent, the session's model unless one is picked).
+- **`classifySession` + `SessionKindStore` (`EngineSessionKinds`)** — recorded kind, then the
+  scheduler's title shape, then the agent on the messages, then the provider. `recentChats` (the
+  drawer) reads at most ten unknown transcripts per refresh and records each verdict;
+  `recentMissions` (the Tasks tab) drops chats. Cleared at sign-out with the reading positions.
 
 ### Per-server gateway headers (`servers` table)
 

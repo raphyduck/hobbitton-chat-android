@@ -166,6 +166,9 @@ masked value.
   bearer to the other's host, nor to a redirect target off its authority.
 - One client id, `PORTAL_CLIENT_ID`, used by the PAR, the token calls and the authorization URL alike.
 
+`AgentEngineApi.sendMessage` takes an optional `agent` (absent by default): a chat names `chat` on
+every turn (D-077) so a follow-up never falls back to the engine's default agent.
+
 ## The Agent engine has two disjoint API worlds
 
 `AgentEngineApi` talks to OpenCode, and OpenCode exposes the *same* session twice: a **classic**

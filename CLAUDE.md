@@ -32,6 +32,30 @@ feature/files/        → File upload, management, image viewer
 
 Each module has its own `CLAUDE.md` with specific guidance.
 
+## hobbitton: one engine (D-077)
+
+LibreChat is gone server-side. On Android the app runs entirely on the OpenCode engine, and the
+LibreChat shell is no longer composed:
+
+- **One login**: the Authelia portal (PKCE), from `PortalSignInScreen` (`:feature:auth`). Onboarding
+  asks for the engine, scheduler and portal addresses (`EngineSettingsStore`), never a LibreChat
+  server URL. Signed in = addresses set **and** portal tokens held (`isPortalSignedIn`).
+- **Root = `EngineNavHost`** (`shared/.../engine/`): the chat under a drawer (new chat, recent chats,
+  Tasks, Settings). `MainActivity` composes it; nothing of LibreChat is reachable from it, so none of
+  LibreChat's startup calls run (config, banners, version check, token refresh, session tasks).
+- **Chat and tasks are engine profiles** (`EngineProfile`, `:core:data`): a chat is a session on agent
+  `chat` whose model always comes from provider `hobbitton-chat`, with every connector the scheduler
+  marks `chat: true` as its perimeter (registered through the scheduler exactly like a mission's);
+  a task keeps agent `mission` and the gateway. The UI is the mission chat (`MissionChatScreen`) with
+  `EngineProfile.CHAT`.
+- **Telling chats from tasks** (`classifySession`): the kind the app **recorded locally when it
+  created the session** (`SessionKindStore`) wins; then the scheduler's title shape (a task); then
+  the **agent written on the session's messages** (`chat` = chat); then the answering provider.
+  Verdicts learned from a transcript are recorded, so each foreign session is read once.
+- The upstream modules (agents, files, conversations, settings, LibreChat chat, the legacy shell)
+  are **still in the tree and still compile** — iOS starts from the legacy shell, the engine graph
+  being Android-only (D-034) — but Android no longer reaches them. A later lot deletes them.
+
 ## Architecture Rules
 
 - Feature modules depend on `:core:*` only, never on each other
