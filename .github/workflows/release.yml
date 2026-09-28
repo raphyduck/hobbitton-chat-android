@@ -87,41 +87,12 @@ jobs:
         id: bump
         run: ./scripts/bump-version.sh "${{ inputs.bump }}"
 
-      # Same source of truth the app reads (core/common codegen) — surfaced in the
-      # release notes so users know which LibreChat backend this build targets.
-      - name: Read backend target version
-        id: backend
-        run: |
-          v="$(grep '^backendTargetVersion=' version.properties | cut -d= -f2 | tr -d '[:space:]')"
-          echo "target=$v" >> "$GITHUB_OUTPUT"
-
       - name: Decode keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
         run: |
           echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.jks"
           echo "SIGNING_STORE_FILE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
-
-      # The baked backend commit→version table (BackendCommitMap.kt) is NOT regenerated here — it is
-      # committed by /sync-upstream. Regenerating at release time was removed deliberately: it needs
-      # the upstream submodule, and a shallow/partial checkout could regenerate a DEGRADED (smaller)
-      # table and silently ship it — worse than the PR-reviewed committed table.
-      #
-      # Instead, gate the release on the committed table containing the pinned backend commit. PR CI
-      # verifies this more strictly (BackendCommitMapFreshnessTest — presence AND correct version);
-      # this cheap re-check closes the window where a release is dispatched before/independently of a
-      # green develop CI run. Pure file read (no submodule, no compile, no test framework), so it
-      # can't hard-fail on a shallow checkout or a test rename — it fails only if the committed table
-      # genuinely lacks the pinned commit.
-      - name: Verify backend commit map is fresh
-        run: |
-          commit="$(grep '^commit=' UPSTREAM_VERSION | cut -d= -f2 | tr -d '[:space:]')"
-          map="core/common/src/commonMain/kotlin/com/garfiec/librechat/core/common/generated/BackendCommitMap.kt"
-          # The table keys commits by their first 12 hex chars (PREFIX_LEN in generateBackendCommitMap).
-          if ! grep -q "^${commit:0:12} " "$map"; then
-            echo "::error::$map is missing pinned commit ${commit:0:12} — run ./gradlew generateBackendCommitMap and commit it."
-            exit 1
-          fi
 
       - name: Build signed release APK
         env:
@@ -175,7 +146,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ steps.bump.outputs.tag }}
-          BACKEND: ${{ steps.backend.outputs.target }}
           APK: ${{ steps.artifacts.outputs.apk }}
           VERSION: ${{ steps.bump.outputs.version_name }}
         run: |
@@ -184,12 +154,8 @@ jobs:
           gh api --method POST "repos/${{ github.repository }}/releases/generate-notes" \
             -f tag_name="$TAG" --jq .body > "$RUNNER_TEMP/changelog.md"
 
-          # Badge row (rendered side-by-side). The Target Backend badge replaces the old
-          # plain-text "Target backend: LibreChat v…" line. The Downloads badge tracks the
-          # download count for this release's APK asset.
+          # Badge row: the Downloads badge tracks the download count for this release's APK asset.
           {
-            printf '![Target Backend](https://img.shields.io/badge/Target_Backend-LibreChat_v%s-orange)' "$BACKEND"
-            printf ' '
             printf '![APK Downloads](https://img.shields.io/github/downloads/garfiec/Librechat-Mobile/%s/%s?displayAssetName=false&logo=android&label=APK%%20Downloads&color=blue)\n' "$TAG" "$APK"
             printf '\n'
             cat "$RUNNER_TEMP/changelog.md"

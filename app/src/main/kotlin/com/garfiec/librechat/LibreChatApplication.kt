@@ -114,8 +114,7 @@ class LibreChatApplication : Application(), SingletonImageLoader.Factory {
             previous?.uncaughtException(thread, throwable)
         }
 
-        // Emit the startup header. detectedBackendVersion is null at cold start (config not yet
-        // fetched); a later config-load path snapshots the detected version separately.
+        // Emit the startup header: build and device context for every diagnostic export.
         val appInfo: AppInfo by inject()
         val platformInfo: PlatformInfo by inject()
         logStartupHeader(appInfo = appInfo, platformInfo = platformInfo)
