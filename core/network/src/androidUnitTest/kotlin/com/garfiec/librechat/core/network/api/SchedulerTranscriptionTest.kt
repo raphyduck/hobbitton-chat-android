@@ -40,12 +40,12 @@ class SchedulerTranscriptionTest {
         assertThat(path).isEqualTo("/transcription")
         assertThat(bodyType?.withoutParameters()).isEqualTo(ContentType.MultiPart.FormData)
         // The file part: named `audio`, with its real name and its real type, then the bytes.
-        assertThat(sent).contains("name=audio")
+        assertThat(sent).containsMatch("name=\"?audio\"?")
         assertThat(sent).contains("filename=\"memo.m4a\"")
         assertThat(sent).contains("Content-Type: audio/mp4")
         assertThat(sent).contains(String(audio, Charsets.ISO_8859_1))
         // The language, as a plain text field.
-        assertThat(sent).contains("name=langue")
+        assertThat(sent).containsMatch("name=\"?langue\"?")
         assertThat(sent).contains("\r\n\r\nfr\r\n")
     }
 
@@ -59,7 +59,7 @@ class SchedulerTranscriptionTest {
 
         api.transcribe(audio, mime = "audio/ogg", filename = "dictee.ogg")
 
-        assertThat(sent).contains("name=audio")
+        assertThat(sent).containsMatch("name=\"?audio\"?")
         assertThat(sent).doesNotContain("langue")
     }
 
