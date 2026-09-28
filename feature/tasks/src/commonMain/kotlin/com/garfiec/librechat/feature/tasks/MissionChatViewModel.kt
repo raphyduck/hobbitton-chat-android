@@ -478,7 +478,7 @@ class MissionChatViewModel(
             try {
                 // The answer streams in over the feed while this call is in flight; what it returns is
                 // the finished turn, folded in to reconcile anything the feed missed.
-                val model = _uiState.value.model?.ref
+                val model = nextModel()
                 val settled = withContext(ioDispatcher) {
                     repository.sendMessage(
                         sessionId,
@@ -532,7 +532,7 @@ class MissionChatViewModel(
                 val created = withContext(ioDispatcher) {
                     repository.startChat(
                         text = text,
-                        model = _uiState.value.model?.ref,
+                        model = nextModel(),
                         files = attachments.map { it.asPromptPart() },
                     )
                 }
@@ -551,6 +551,16 @@ class MissionChatViewModel(
                 }
             }
         }
+    }
+
+    /**
+     * The model the next message names. A task leaves it to the session unless one was picked. A
+     * chat names what its chip shows — the pick, else the model its last turn ran on, else the chat
+     * provider's default — so the budget a turn spends is never a surprise (D-077).
+     */
+    private fun nextModel() = when (profile) {
+        EngineProfile.TASK -> _uiState.value.model?.ref
+        EngineProfile.CHAT -> _uiState.value.effectiveModel?.ref
     }
 
     /** Stop a reply in progress. The engine ends the run; the feed reports the session going idle. */

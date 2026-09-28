@@ -101,7 +101,7 @@ class ChatProfileTest {
     fun `a scheduler that does not serve the flag opens nothing to a chat`() {
         val older = ConnectorCatalogue(connecteurs = mapOf("memoire" to ConnectorGrant(outils = listOf("memoire_lire"))))
 
-        assertEquals(emptyList(), older.chatPerimeter())
+        assertEquals(emptyList<String>(), older.chatPerimeter())
     }
 
     @Test
