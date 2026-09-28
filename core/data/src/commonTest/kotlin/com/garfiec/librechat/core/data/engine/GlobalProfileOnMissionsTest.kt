@@ -70,7 +70,7 @@ class GlobalProfileOnMissionsTest {
         ).jsonObject
 
     private fun repository(profile: GlobalProfile, engine: MockEngine) =
-        testMissionRepository(engine) { profile }
+        testMissionRepository(engine, globalProfile = { profile })
 
     /** The `system` of the last body sent, or null when the key was omitted entirely. */
     private fun lastSystem(): String? {
@@ -127,7 +127,7 @@ class GlobalProfileOnMissionsTest {
     fun `the profile is re-read for each turn, so editing it changes the next message`() = runTest {
         val engine = engine()
         var instructions = "Sois bref."
-        val repository = testMissionRepository(engine) { GlobalProfile(instructions = instructions) }
+        val repository = testMissionRepository(engine, globalProfile = { GlobalProfile(instructions = instructions) })
 
         repository.sendMessage("ses_1", "un")
         assertEquals("Sois bref.", lastSystem())
