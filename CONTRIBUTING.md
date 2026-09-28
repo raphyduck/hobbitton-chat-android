@@ -77,5 +77,5 @@ configuration. See `CLAUDE.md` and the modules' own `CLAUDE.md` files for detail
 
 ```bash
 ./gradlew test
-./gradlew detekt detektMetadataCommonMain :app:lint
+./gradlew detekt :app:lint
 ```

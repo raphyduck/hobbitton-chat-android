@@ -44,7 +44,7 @@ The debug APK will be at `app/build/outputs/apk/debug/app-debug.apk`. Tests and 
 
 ```bash
 ./gradlew test
-./gradlew detekt detektMetadataCommonMain :app:lint
+./gradlew detekt :app:lint
 ```
 
 ## Tech Stack

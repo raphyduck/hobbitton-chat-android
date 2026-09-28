@@ -16,6 +16,13 @@ class DetektConventionPlugin : Plugin<Project> {
                 buildUponDefaultConfig = true
                 allRules = false
                 parallel = true
+                // Sans cible iOS (D-079), un module KMP n'a plus de compilation
+                // « metadata », donc plus de tâche detektMetadataCommonMain : la
+                // tâche `detekt` ne lirait que src/main. commonMain est ajouté
+                // ici pour garder la couverture d'avant.
+                source.setFrom(
+                    "src/main/java", "src/main/kotlin", "src/commonMain/kotlin",
+                )
             }
 
             tasks.withType<DetektCreateBaselineTask>().configureEach {

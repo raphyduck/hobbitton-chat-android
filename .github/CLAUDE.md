@@ -12,7 +12,7 @@ File: `.github/workflows/ci.yml`
 ### Jobs
 
 #### `lint`
-- `./gradlew detekt detektMetadataCommonMain :app:lint --continue`
+- `./gradlew detekt :app:lint --continue`
 - Uploads merged detekt SARIF to GitHub Code Scanning + lint HTML report
 
 #### `test`
