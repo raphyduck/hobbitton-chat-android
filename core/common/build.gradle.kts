@@ -28,8 +28,6 @@ kotlin {
         commonMain {
             dependencies {
                 implementation(libs.coroutines.core)
-                implementation(libs.okio)
-                api(libs.kotlinx.datetime)
                 // Kermit only — :core:logging depends on this module, so `Diag` is unreachable here.
                 // Its PersistentLogWriter is a Kermit LogWriter, so plain Kermit still reaches the
                 // diagnostic export.
@@ -42,9 +40,6 @@ kotlin {
         androidMain.dependencies {
             implementation(libs.coroutines.android)
             implementation(libs.koin.android)
-            // ContextCompat.registerReceiver, for the exported/not-exported flag the power-save
-            // receiver needs. Declared rather than relied on transitively through koin-android.
-            implementation(libs.androidx.core.ktx)
         }
         named("androidUnitTest").dependencies {
             implementation(libs.koin.test)

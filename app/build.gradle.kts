@@ -53,11 +53,6 @@ dependencies {
 
     implementation(libs.activity.compose)
     implementation(libs.navigation3.ui.kmp)
-    implementation(libs.lifecycle.viewmodel.navigation3.kmp)
-    implementation(libs.koin.compose)
-    implementation(libs.koin.compose.viewmodel)
-    implementation(libs.koin.compose.viewmodel.navigation)
-    implementation(libs.compose.material3.wsc)
     implementation(libs.bundles.lifecycle)
     implementation(libs.coil3.compose)
     implementation(libs.coil3.network.ktor)
@@ -65,7 +60,4 @@ dependencies {
     implementation(libs.kermit)
 
     debugImplementation(libs.leakcanary)
-
-    androidTestImplementation(libs.compose.ui.test)
-    debugImplementation(libs.compose.ui.test.manifest)
 }

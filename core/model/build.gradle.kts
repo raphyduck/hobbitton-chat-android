@@ -10,7 +10,6 @@ android {
 kotlin {
     sourceSets {
         commonMain.dependencies {
-            implementation(project(":core:common"))
             implementation(libs.kotlinx.serialization.json)
         }
     }

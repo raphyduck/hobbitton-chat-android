@@ -19,40 +19,20 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             implementation(project(":core:model"))
-            implementation(project(":core:common"))
             // `api`, not `implementation`: chatMarkdownColors/Typography return the library's own
             // MarkdownColors and MarkdownTypography, so those types are part of this module's
             // public signature and every caller has to see them.
             api(libs.markdown.renderer.m3)
-            implementation(libs.coil3.compose)
-            implementation(libs.coil3.network.ktor)
-            // C7 (26/09/2026): the unauthenticated image loader decodes SVGs like the
-            // singleton does and builds its own bare Ktor client.
-            implementation(libs.coil3.svg)
-            implementation(libs.ktor.client.core)
             implementation(libs.kermit)
-            implementation(libs.zoomimage.compose.coil3.core)
             implementation(libs.material.kolor)
             implementation(libs.compose.ui.backhandler)
         }
         androidMain.dependencies {
-            // Runtime-permission launcher for saving images to the gallery (API < 29).
-            implementation(libs.activity.compose)
             // The ONLY Koin here, and not a module: `copyToClipboard` needs the application
             // `Context` to reach the system clipboard, and a global lookup is what the chat's copy
             // button already did before this moved up. No Koin module is declared in this module
             // and nothing is injected into a class — see this module's CLAUDE.md.
             implementation(libs.koin.core)
-        }
-        named("androidInstrumentedTest").dependencies {
-            implementation(libs.junit)
-            implementation(libs.android.test.runner)
-            implementation(libs.android.test.ext.junit)
-            implementation(libs.compose.ui.test)
-            implementation(libs.compose.ui.test.manifest)
-            // Pin espresso ≥3.7.0: the 3.5.x pulled in transitively by ui-test-junit4 injects
-            // input via InputManager.getInstance, which no longer exists on API 36+.
-            implementation(libs.espresso.core)
         }
     }
 }

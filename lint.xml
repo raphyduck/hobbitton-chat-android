@@ -4,10 +4,6 @@
          at the compiler level, so compose-lint-checks warnings are false positives. -->
     <issue id="ComposeUnstableCollections" severity="ignore" />
 
-    <!-- VectorPath warnings for brand icons (OpenAI, Bedrock) — these are externally-sourced
-         SVG paths that cannot be simplified without visual degradation. -->
-    <issue id="VectorPath" severity="ignore" />
-
     <!-- PluralsCandidate: cosmetic suggestion to use plural resources. Strings work correctly
          as-is and converting requires call-site changes across the codebase. -->
     <issue id="PluralsCandidate" severity="ignore" />
