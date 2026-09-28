@@ -28,8 +28,10 @@ The framework is static (`isStatic = true`) and named `Shared`.
   the chat under a drawer when signed in), `EngineShellViewModel` (signed-in state, drawer chats,
   theme, sign-out = `PortalSignOut` + local chat caches, LibreChat prefetch retired at start),
   `EngineNavigator` (chat as root; a new chat's blank entry is replaced in place once the engine
-  has the session), `EngineAppSettings`. Its engine dependencies are `getOrNull`: iOS has no engine
-  graph (D-034) and keeps starting from the legacy shell below.
+  has the session), `EngineAppSettings`, and `EngineInstructions` — the global instructions' editor
+  (`EngineInstructionsViewModel` over `GlobalProfileEditor`: Enregistrer / Annuler, the MCP servers
+  LibreChat used are kept as stored, never edited here). Its engine dependencies are `getOrNull`:
+  iOS has no engine graph (D-034) and keeps starting from the legacy shell below.
 - `navigation/` — Nav 3 route definitions and entry providers shared across platforms (the LibreChat
   shell; iOS only since D-077)
 - `app/` — Shared app-level composables (root navigation host)

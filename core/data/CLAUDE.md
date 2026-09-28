@@ -168,6 +168,14 @@ One Authelia identity for chats and tasks. Everything here is bound by the Andro
   scheduler's title shape, then the agent on the messages, then the provider. `recentChats` (the
   drawer) reads at most ten unknown transcripts per refresh and records each verdict;
   `recentMissions` (the Tasks tab) drops chats. Cleared at sign-out with the reading positions.
+- **`AudioTranscriber` (`SchedulerTranscriber`)** — the composer's speech to text on the scheduler's
+  `POST /transcription`. Answers `TranscriptionOutcome` (the words, or a `TranscriptionFailure` plus
+  the server's `erreur`), never throws past `:core:data`. The language hint is the device's when it
+  is a bare ISO 639-1 code (`isoLanguageOrNull`), nothing otherwise. Bound in `engineModule`.
+- **`GlobalProfileStore`** — account-scoped when a LibreChat account is resolved, **device-scoped
+  otherwise** (every fresh install since D-077; before, the profile was then unreadable and
+  unwritable). `GlobalProfileEditor` is the editor's view of it; `GlobalProfileSource` the send
+  path's.
 
 ### Per-server gateway headers (`servers` table)
 

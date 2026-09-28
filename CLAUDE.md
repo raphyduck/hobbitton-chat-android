@@ -52,6 +52,13 @@ LibreChat shell is no longer composed:
   created the session** (`SessionKindStore`) wins; then the scheduler's title shape (a task); then
   the **agent written on the session's messages** (`chat` = chat); then the answering provider.
   Verdicts learned from a transcript are recorded, so each foreign session is read once.
+- **Dictation and audio files** (chat and task composer) go to the scheduler's `POST /transcription`
+  (`SchedulerApi.transcribe` → `SchedulerTranscriber`), never to LibreChat's speech route. A
+  dictation lands in the composer and is never sent on its own; an audio file leaves with the
+  message as a quoted transcription.
+- **Global instructions** (`GlobalProfile`, sent as `system` on every chat and task turn) are edited
+  from the shell's Settings → Instructions (`EngineInstructionsScreen`). Without a LibreChat account
+  the profile is stored per device (`GlobalProfileStore`).
 - The upstream modules (agents, files, conversations, settings, LibreChat chat, the legacy shell)
   are **still in the tree and still compile** — iOS starts from the legacy shell, the engine graph
   being Android-only (D-034) — but Android no longer reaches them. A later lot deletes them.

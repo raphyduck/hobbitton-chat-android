@@ -166,6 +166,11 @@ masked value.
   bearer to the other's host, nor to a redirect target off its authority.
 - One client id, `PORTAL_CLIENT_ID`, used by the PAR, the token calls and the authorization URL alike.
 
+`SchedulerApi.transcribe` is the scheduler's one plain-HTTP route, `POST /transcription`
+(multipart: file part `audio` with its real name and `audio/*` type, optional text `langue`; 25 MB
+at most; 200 `{"texte"}`, 400/502 `{"erreur"}`, 403). Same client and bearer as the MCP calls, a
+longer per-request timeout; every refusal raises `TranscriptionRefused(status, reason)`.
+
 `AgentEngineApi.sendMessage` takes an optional `agent` (absent by default): a chat names `chat` on
 every turn (D-077) so a follow-up never falls back to the engine's default agent.
 
