@@ -78,7 +78,15 @@
     <string name="tasks_attach_audio">Audio file (transcribed)</string>
     <string name="tasks_dictate">Dictate</string>
     <string name="tasks_dictate_stop">Stop dictation</string>
-    <string name="tasks_transcription_failed">The audio could not be transcribed. Check that the server has speech-to-text configured, then try again.</string>
+    <string name="tasks_transcription_failed">The audio could not be transcribed. Try again.</string>
+    <string name="tasks_transcription_rejected">The server would not take this audio (empty, over 25 MB, or not audio).</string>
+    <string name="tasks_transcription_forbidden">This account is not allowed to transcribe audio.</string>
+    <string name="tasks_transcription_signed_out">Your session has expired: sign in again to transcribe audio.</string>
+    <string name="tasks_transcription_unavailable">Transcription is unavailable right now. Try again in a moment.</string>
+    <string name="tasks_transcription_unreachable">The scheduler could not be reached. Check the connection, then try again.</string>
+    <string name="tasks_transcription_not_configured">No scheduler address is set, so audio cannot be transcribed.</string>
+    <string name="tasks_recording">Recording… tap stop to transcribe.</string>
+    <string name="tasks_transcribing">Transcribing…</string>
     <string name="tasks_copy_code">Copy the code</string>
     <string name="tasks_chat_add">Add to the message</string>
     <string name="tasks_chat_copy">Copy the answer</string>

@@ -48,6 +48,7 @@ import com.garfiec.librechat.core.ui.input.ChatInputDefaults
 import com.garfiec.librechat.core.ui.input.ChatInputPill
 import com.garfiec.librechat.core.ui.input.ComposerSendButton
 import com.garfiec.librechat.feature.tasks.components.ConnectorPickerSheet
+import com.garfiec.librechat.feature.tasks.components.MissionDictation
 import com.garfiec.librechat.feature.tasks.components.ModelPickerSheet
 import com.garfiec.librechat.feature.tasks.components.rememberMissionAttachmentPicker
 import com.garfiec.librechat.feature.tasks.components.rememberMissionAudioPicker
@@ -66,9 +67,11 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_connectors
 import com.garfiec.librechat.feature.tasks.resources.tasks_dictate
 import com.garfiec.librechat.feature.tasks.resources.tasks_dictate_stop
 import com.garfiec.librechat.feature.tasks.resources.tasks_model_default_short
+import com.garfiec.librechat.feature.tasks.resources.tasks_recording
 import com.garfiec.librechat.feature.tasks.resources.tasks_stop
-import com.garfiec.librechat.feature.tasks.resources.tasks_transcription_failed
+import com.garfiec.librechat.feature.tasks.resources.tasks_transcribing
 import com.garfiec.librechat.feature.tasks.util.StagedAttachment
+import com.garfiec.librechat.feature.tasks.util.message
 import com.garfiec.librechat.feature.tasks.util.title
 import org.jetbrains.compose.resources.stringResource
 
@@ -98,7 +101,7 @@ internal fun MissionChatInput(
     onRetryCatalogue: () -> Unit,
     onAddAttachments: (List<StagedAttachment>) -> Unit,
     onRemoveAttachment: (String) -> Unit,
-    onTranscribeAudio: (ByteArray, String) -> Unit,
+    onTranscribeAudio: (bytes: ByteArray, mime: String, filename: String) -> Unit,
     onAttachAudio: (bytes: ByteArray, mime: String, filename: String) -> Unit,
     onRemoveAudioNote: (String) -> Unit,
     onDismissTranscriptionError: () -> Unit,
@@ -108,11 +111,12 @@ internal fun MissionChatInput(
     // entry that does nothing. Called here, unconditionally: they remember launchers.
     val openPhoto = rememberMissionAttachmentPicker(onPick = onAddAttachments)
     // A deposited audio file goes to the THREAD: transcribed on pick, staged as a quoted note, sent
-    // with the message. Whisper because no model on the gateway hears audio.
+    // with the message. Transcribed by the scheduler because no model on the gateway hears audio.
     val openAudio = rememberMissionAudioPicker(onPick = { onAttachAudio(it.bytes, it.mime, it.filename) })
     // The mic DICTATES: tap to record, tap to stop, and the words land in the box — where the
-    // speaker reads what Whisper heard before it becomes an instruction (asked for on 31/08/2026).
-    val dictation = rememberMissionDictation(onCapture = { onTranscribeAudio(it.bytes, it.mime) })
+    // speaker reads what was heard before it becomes an instruction (asked for on 31/08/2026).
+    // Nothing is sent on its own.
+    val dictation = rememberMissionDictation(onCapture = { onTranscribeAudio(it.bytes, it.mime, it.filename) })
 
     Surface {
         // The keyboard, then the navigation bar — whichever is taller, never both stacked.
@@ -121,8 +125,14 @@ internal fun MissionChatInput(
         // Scaffold's bottomBar, so nothing lifts it on its own (reported 30/08/2026). Adding
         // `imePadding()` on top would stack the two; `union` takes the larger.
         Column(Modifier.windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime))) {
-            if (state.transcriptionFailed) {
-                ComposerNotice(stringResource(Res.string.tasks_transcription_failed), onDismissTranscriptionError)
+            state.transcriptionError?.let { failed ->
+                // The translated cause, then the server's own words when it gave some.
+                val text = listOfNotNull(stringResource(failed.failure.message()), failed.reason).joinToString(" — ")
+                ComposerNotice(text, onDismissTranscriptionError)
+            }
+            when {
+                dictation?.recording == true -> ComposerStatus(stringResource(Res.string.tasks_recording))
+                state.transcribing -> ComposerStatus(stringResource(Res.string.tasks_transcribing))
             }
             state.sendError?.let { kind ->
                 // The send failed and the text was put back — say why, once, dismissible on tap.
@@ -147,10 +157,9 @@ internal fun MissionChatInput(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    // Audio needs a transcription service; without one (D-077) the entry is absent.
                     AddButton(
                         openPhoto = openPhoto,
-                        openAudio = openAudio.takeIf { state.transcriptionAvailable },
+                        openAudio = openAudio,
                         audioEnabled = !state.transcribing,
                     )
                     // The pills scroll among themselves, so a long model name never pushes send
@@ -167,29 +176,7 @@ internal fun MissionChatInput(
                             onRetryCatalogue = onRetryCatalogue,
                         )
                     }
-                    if (dictation != null && state.transcriptionAvailable) {
-                        if (state.transcribing) {
-                            Box(Modifier.size(ChatInputDefaults.controlSize), contentAlignment = Alignment.Center) {
-                                CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-                            }
-                        } else {
-                            IconButton(onClick = dictation.toggle, modifier = Modifier.size(ChatInputDefaults.controlSize)) {
-                                if (dictation.recording) {
-                                    Icon(
-                                        Icons.Filled.Stop,
-                                        contentDescription = stringResource(Res.string.tasks_dictate_stop),
-                                        tint = MaterialTheme.colorScheme.error,
-                                    )
-                                } else {
-                                    Icon(
-                                        Icons.Outlined.Mic,
-                                        contentDescription = stringResource(Res.string.tasks_dictate),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
-                            }
-                        }
-                    }
+                    if (dictation != null) DictationButton(dictation, transcribing = state.transcribing)
                     ComposerSendButton(
                         // `sending` counts as running: the gap between the POST and the answer's
                         // first token is exactly when someone wants to be able to call it off.
@@ -241,6 +228,48 @@ private fun ComposerNotice(text: String, onDismiss: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onDismiss)
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+    )
+}
+
+/**
+ * The mic: tap to record, tap again to stop and transcribe. While the words are on their way it
+ * turns into a spinner, so a second recording cannot start behind the first.
+ */
+@Composable
+private fun DictationButton(dictation: MissionDictation, transcribing: Boolean) {
+    Box(Modifier.size(ChatInputDefaults.controlSize), contentAlignment = Alignment.Center) {
+        if (transcribing) {
+            CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+        } else {
+            IconButton(onClick = dictation.toggle, modifier = Modifier.size(ChatInputDefaults.controlSize)) {
+                if (dictation.recording) {
+                    Icon(
+                        Icons.Filled.Stop,
+                        contentDescription = stringResource(Res.string.tasks_dictate_stop),
+                        tint = MaterialTheme.colorScheme.error,
+                    )
+                } else {
+                    Icon(
+                        Icons.Outlined.Mic,
+                        contentDescription = stringResource(Res.string.tasks_dictate),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** One quiet line above the box that says what the mic is doing: recording, or transcribing. */
+@Composable
+private fun ComposerStatus(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier
+            .fillMaxWidth()
             .padding(horizontal = 14.dp, vertical = 8.dp),
     )
 }

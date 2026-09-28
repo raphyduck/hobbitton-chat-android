@@ -56,7 +56,7 @@ internal actual fun rememberMissionDictation(
                 scope.launch {
                     val bytes = withContext(Dispatchers.IO) { recorder.stop() }
                     bytes?.takeIf { it.isNotEmpty() }
-                        ?.let { onCapture(PickedAudio(it, recorder.mime, DICTATION_NAME)) }
+                        ?.let { onCapture(PickedAudio(it, recorder.mime, recorder.filename)) }
                 }
             } else {
                 val granted = ContextCompat.checkSelfPermission(
@@ -71,19 +71,26 @@ internal actual fun rememberMissionDictation(
 
 /**
  * The chat's recorder choices, restated here because a feature module cannot see another's code:
- * OGG/Opus on API 29+, 3GP/AMR before — Whisper takes both — 16 kHz mono, a cache file that is
- * read once and deleted. Every method is blocking and expects the IO dispatcher.
+ * OGG/Opus on API 29+, AAC in MP4 (m4a) before — both types the scheduler's transcription takes,
+ * where the chat's older 3GP/AMR is not — 16 kHz mono, a cache file that is read once and
+ * deleted. Every method is blocking and expects the IO dispatcher.
  */
 private class DictationRecorder(private val context: Context) {
     private var recorder: MediaRecorder? = null
     private var output: File? = null
 
     val mime: String
-        get() = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) "audio/ogg" else "audio/3gpp"
+        get() = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) "audio/ogg" else "audio/mp4"
+
+    /** The name the recording travels under: the server reads the type, and a file wants a name. */
+    val filename: String
+        get() = "$DICTATION_NAME.$extension"
+
+    private val extension: String
+        get() = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) "ogg" else "m4a"
 
     fun begin(): Boolean = runCatching {
         discard()
-        val extension = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) "ogg" else "3gp"
         val dir = File(context.cacheDir, "mission_dictation").apply { mkdirs() }
         val file = File(dir, "dictation_${System.currentTimeMillis()}.$extension")
         val fresh = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -98,8 +105,8 @@ private class DictationRecorder(private val context: Context) {
                 setOutputFormat(MediaRecorder.OutputFormat.OGG)
                 setAudioEncoder(MediaRecorder.AudioEncoder.OPUS)
             } else {
-                setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP)
-                setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB)
+                setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+                setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
             }
             setAudioSamplingRate(SAMPLING_RATE_HZ)
             setAudioChannels(1)
@@ -144,4 +151,4 @@ private class DictationRecorder(private val context: Context) {
 }
 
 private const val SAMPLING_RATE_HZ = 16_000
-private const val DICTATION_NAME = "dictée"
+private const val DICTATION_NAME = "dictee"

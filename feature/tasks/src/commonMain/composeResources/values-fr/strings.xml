@@ -78,7 +78,15 @@
     <string name="tasks_attach_audio">Fichier audio (transcrit)</string>
     <string name="tasks_dictate">Dicter</string>
     <string name="tasks_dictate_stop">Arrêter la dictée</string>
-    <string name="tasks_transcription_failed">L\'audio n\'a pas pu être transcrit. Vérifiez que le serveur a la reconnaissance vocale configurée, puis réessayez.</string>
+    <string name="tasks_transcription_failed">L\'audio n\'a pas pu être transcrit. Réessayez.</string>
+    <string name="tasks_transcription_rejected">Le serveur n\'a pas accepté cet audio (vide, plus de 25 Mo, ou pas un audio).</string>
+    <string name="tasks_transcription_forbidden">Ce compte n\'a pas le droit de transcrire de l\'audio.</string>
+    <string name="tasks_transcription_signed_out">Votre session a expiré : reconnectez-vous pour transcrire.</string>
+    <string name="tasks_transcription_unavailable">La transcription est indisponible pour le moment. Réessayez dans un instant.</string>
+    <string name="tasks_transcription_unreachable">Le planificateur est injoignable. Vérifiez la connexion, puis réessayez.</string>
+    <string name="tasks_transcription_not_configured">Aucune adresse de planificateur n\'est définie : impossible de transcrire.</string>
+    <string name="tasks_recording">Enregistrement… touchez stop pour transcrire.</string>
+    <string name="tasks_transcribing">Transcription en cours…</string>
     <string name="tasks_copy_code">Copier le code</string>
     <string name="tasks_chat_add">Ajouter au message</string>
     <string name="tasks_chat_copy">Copier la réponse</string>

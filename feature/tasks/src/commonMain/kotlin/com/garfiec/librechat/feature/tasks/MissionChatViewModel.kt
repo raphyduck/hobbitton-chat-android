@@ -2,17 +2,17 @@ package com.garfiec.librechat.feature.tasks
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.garfiec.librechat.core.common.result.Result
 import com.garfiec.librechat.core.data.datastore.MissionReadingPosition
 import com.garfiec.librechat.core.data.datastore.MissionReadingPositions
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
+import com.garfiec.librechat.core.data.engine.AudioTranscriber
 import com.garfiec.librechat.core.data.engine.ConnectorOption
 import com.garfiec.librechat.core.data.engine.EngineMissionRepository
 import com.garfiec.librechat.core.data.engine.EngineProfile
+import com.garfiec.librechat.core.data.engine.TranscriptionOutcome
 import com.garfiec.librechat.core.data.engine.engineFailureKind
 import com.garfiec.librechat.core.data.engine.offered
 import com.garfiec.librechat.core.data.pricing.ModelPriceCache
-import com.garfiec.librechat.core.data.repository.SpeechRepository
 import com.garfiec.librechat.core.model.engine.EngineFailureKind
 import com.garfiec.librechat.core.model.engine.EngineSelectableModel
 import com.garfiec.librechat.core.model.scheduler.ModelPrices
@@ -63,12 +63,15 @@ data class MissionChatUiState(
     /** Audio files already transcribed, leaving with the next message as quoted blocks in the thread. */
     val audioNotes: List<AudioNote> = emptyList(),
     /**
-     * Some audio is at the server's Whisper right now — a dictation about to land in [input], or a
-     * deposited file about to join [audioNotes]. One flag for both: Whisper takes one at a time here.
+     * Some audio is at the scheduler's transcription right now — a dictation about to land in
+     * [input], or a deposited file about to join [audioNotes]. One flag for both: one at a time.
      */
     val transcribing: Boolean = false,
-    /** The transcription failed — the one error here that is not the engine's. */
-    val transcriptionFailed: Boolean = false,
+    /**
+     * Why the last transcription failed, or null — the one error here that is not the engine's.
+     * Carries the server's own words when it gave some, shown under the translated reason.
+     */
+    val transcriptionError: TranscriptionOutcome.Failed? = null,
     /** Why the transcript would not load, or null. */
     val historyError: EngineFailureKind? = null,
     /** Why the last send did not reach the engine, or null. The text is put back when this is set. */
@@ -131,12 +134,6 @@ data class MissionChatUiState(
      */
     val defaultModel: EngineSelectableModel? = null,
     /**
-     * Whether audio can be turned into words here. False since D-077: the transcription this
-     * composer used was LibreChat's, and nothing on the engine side replaces it yet — the mic and
-     * the audio entry are then absent rather than present and failing.
-     */
-    val transcriptionAvailable: Boolean = false,
-    /**
      * Set once a **new** chat exists on the engine: the screen hands it to the navigation, which
      * replaces the blank conversation with the real one. Null for an existing session.
      */
@@ -184,8 +181,8 @@ class MissionChatViewModel(
     private val modelPrices: ModelPriceCache,
     private val settings: SettingsDataStore,
     private val positions: MissionReadingPositions,
-    /** Null where no transcription service exists — see [MissionChatUiState.transcriptionAvailable]. */
-    private val speech: SpeechRepository?,
+    /** Speech to text for the dictation and the audio files: the scheduler's, since D-077. */
+    private val transcriber: AudioTranscriber,
     private val ioDispatcher: CoroutineDispatcher,
     private val profile: EngineProfile = EngineProfile.TASK,
 ) : ViewModel() {
@@ -193,7 +190,6 @@ class MissionChatViewModel(
     private val _uiState = MutableStateFlow(
         MissionChatUiState(
             profile = profile,
-            transcriptionAvailable = speech != null,
             // Nothing to load for a chat that does not exist yet: no transcript, no saved position.
             loadingHistory = sessionId != null,
             positionKnown = sessionId == null,
@@ -214,9 +210,7 @@ class MissionChatViewModel(
     private val staging = ComposerStagingDelegate(
         state = _uiState,
         scope = viewModelScope,
-        transcribe = { bytes, mime ->
-            speech?.transcribeAudio(bytes, mime) ?: Result.Error()
-        },
+        transcribe = { bytes, mime, filename -> transcriber.transcribe(bytes, mime, filename) },
         context = ioDispatcher,
     )
 
@@ -434,8 +428,9 @@ class MissionChatViewModel(
 
     // The composer's staging — dictation, audio files, photos — lives in ComposerStagingDelegate.
 
-    /** A dictation, transcribed into the composer. */
-    fun transcribeAudio(bytes: ByteArray, mime: String) = staging.transcribeAudio(bytes, mime)
+    /** A dictation, transcribed into the composer — never sent on its own. */
+    fun transcribeAudio(bytes: ByteArray, mime: String, filename: String) =
+        staging.transcribeAudio(bytes, mime, filename)
 
     /** A deposited audio file, transcribed into a quoted note for the thread. */
     fun attachAudio(bytes: ByteArray, mime: String, filename: String) = staging.attachAudio(bytes, mime, filename)

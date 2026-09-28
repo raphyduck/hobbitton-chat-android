@@ -47,9 +47,8 @@ val tasksModule = module {
             modelPrices = get(),
             settings = get(),
             positions = get(),
-            // No transcription (D-077): the only one this composer had was LibreChat's speech route,
-            // and LibreChat is gone. The mic and the audio entry disappear with it.
-            speech = null,
+            // The scheduler's transcription (`engineModule`): LibreChat's speech route went with it.
+            transcriber = get(),
             ioDispatcher = get(KoinQualifiers.IO),
         )
     }
