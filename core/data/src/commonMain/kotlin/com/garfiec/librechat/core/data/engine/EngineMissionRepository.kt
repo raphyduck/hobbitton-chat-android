@@ -21,6 +21,8 @@ import com.garfiec.librechat.core.network.api.SchedulerApi
 import com.garfiec.librechat.core.network.engine.EngineEventTransport
 import com.garfiec.librechat.core.network.engine.EngineStreamClient
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * One mission as the tab shows it: what it is, and what it is doing.
@@ -359,6 +361,9 @@ class EngineMissionRepository(
         // what an unticked box promised. The engine keeps an empty, never-prompted session; that
         // is harmless, and cheaper than an abort call whose behaviour on an idle session is
         // unmeasured.
+        // The agent is known: it is the one just written on the session. Every later turn names it
+        // without reading the transcript back (see [sendMessage]).
+        rememberAgent(session.id, MISSION_AGENT)
         scheduler.setScope(session.id, connectors)
         api.prompt(
             sessionId = session.id,
@@ -382,8 +387,13 @@ class EngineMissionRepository(
      * tailing [events] afterwards is what makes the chat open on a conversation instead of a blank
      * page — the bug the tab shipped with on 29/08/2026.
      */
-    suspend fun history(sessionId: String): List<EngineStreamEvent> =
-        engineHistoryEvents(api.messages(sessionId))
+    suspend fun history(sessionId: String): List<EngineStreamEvent> {
+        val messages = api.messages(sessionId)
+        // The transcript is here anyway: the session's agent is read off it for free, so the
+        // next task turn does not fetch it again (see [taskAgentOf]).
+        agentWrittenOn(messages)?.let { rememberAgent(sessionId, taskAgent(it), onlyIfUnknown = true) }
+        return engineHistoryEvents(messages)
+    }
 
     /**
      * What is happening in the session right now. The engine's feed is global; the client keeps only
@@ -403,10 +413,11 @@ class EngineMissionRepository(
         files: List<EnginePromptPart> = emptyList(),
         profile: EngineProfile = EngineProfile.TASK,
     ): List<EngineStreamEvent> {
-        // A chat names its agent and its provider on EVERY turn (D-077): the classic route takes
-        // both per message, and a turn that named neither would run on whatever the engine
-        // defaults to — not the chat's profile, not the chat's budget. A task's turn stays as it
-        // always was: the session's own.
+        // EVERY turn names its agent. A turn that names none does NOT stay on the session's agent:
+        // the engine runs it on its default agent, `build`, which has none of the session's rules —
+        // a task's follow-up ran there on 29/09/2026. A chat names `chat` and its provider (D-077),
+        // or it would also leave the chat's budget; a task names the session's own agent
+        // ([taskAgentOf]) and keeps the session's model unless one is picked.
         val chat = profile == EngineProfile.CHAT
         return engineHistoryEvents(
             listOf(
@@ -416,10 +427,36 @@ class EngineMissionRepository(
                     model = if (chat) chatModel(model) else model,
                     files = files,
                     system = instructions(),
-                    agent = if (chat) CHAT_AGENT else null,
+                    agent = if (chat) CHAT_AGENT else taskAgentOf(sessionId),
                 ),
             ),
         )
+    }
+
+    /**
+     * The agent a task session runs on, for its next turn: remembered for the process, read once
+     * off the transcript otherwise ([agentWrittenOn], the same reading [classifySession] uses),
+     * and [MISSION_AGENT] when nothing can be read. Never null, never `build` nor `plan`
+     * ([taskAgent]).
+     *
+     * A transcript that cannot be fetched is not remembered: the fallback holds for this turn,
+     * and the next one tries again.
+     */
+    private suspend fun taskAgentOf(sessionId: String): String {
+        agentsMutex.withLock { sessionAgents[sessionId] }?.let { return it }
+        val messages = runCatching { api.messages(sessionId) }
+            .onFailure { Logger.w(it) { "Could not read a task's agent; the turn names $MISSION_AGENT" } }
+            .getOrNull()
+            ?: return MISSION_AGENT
+        val agent = taskAgent(agentWrittenOn(messages))
+        rememberAgent(sessionId, agent)
+        return agent
+    }
+
+    private suspend fun rememberAgent(sessionId: String, agent: String, onlyIfUnknown: Boolean = false) {
+        agentsMutex.withLock {
+            if (!onlyIfUnknown || sessionId !in sessionAgents) sessionAgents[sessionId] = agent
+        }
     }
 
     /**
@@ -477,6 +514,13 @@ class EngineMissionRepository(
     }
 
     private var cachedConnectors: ConnectorCatalogue? = null
+
+    /**
+     * Each task session's agent, as [taskAgentOf] resolved it: for the process only. A session's
+     * agent never changes, so there is nothing to invalidate; a restart reads it once more.
+     */
+    private val sessionAgents = mutableMapOf<String, String>()
+    private val agentsMutex = Mutex()
 
     private companion object {
         const val TITLE_LENGTH = 60
