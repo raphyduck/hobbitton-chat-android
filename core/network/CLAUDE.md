@@ -37,8 +37,9 @@ HTTP layer of the engine, the scheduler and the portal. Ktor Client on OkHttp.
 at most; 200 `{"texte"}`, 400/502 `{"erreur"}`, 403). Same client and bearer as the MCP calls, a
 longer per-request timeout; every refusal raises `TranscriptionRefused(status, reason)`.
 
-`AgentEngineApi.sendMessage` takes an optional `agent` (absent by default): a chat names `chat` on
-every turn (D-077) so a follow-up never falls back to the engine's default agent.
+`AgentEngineApi.sendMessage` takes an optional `agent`, but a turn without one runs on the engine's
+default agent (`build`), with none of the session's rules — not on the session's own agent. Every
+caller names one: a chat `chat` (D-077), a task the session's own agent (29/09/2026).
 
 ## The Agent engine has two disjoint API worlds
 

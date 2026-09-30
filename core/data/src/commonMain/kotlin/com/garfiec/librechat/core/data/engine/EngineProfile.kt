@@ -96,12 +96,42 @@ fun classifySession(
 ): EngineSessionKind? {
     recorded?.let { return it }
     if (title != null && isScheduledRun(title)) return EngineSessionKind.TASK
-    val infos = messages.orEmpty().map { it.info }
-    infos.firstNotNullOfOrNull { info -> info.agent?.takeIf { it.isNotBlank() } }?.let { agent ->
+    agentWrittenOn(messages)?.let { agent ->
         return if (agent == CHAT_AGENT) EngineSessionKind.CHAT else EngineSessionKind.TASK
     }
-    infos.firstNotNullOfOrNull { info -> info.providerId?.takeIf { it.isNotBlank() } }?.let { provider ->
-        return if (provider == CHAT_PROVIDER) EngineSessionKind.CHAT else EngineSessionKind.TASK
+    val provider = messages.orEmpty().firstNotNullOfOrNull { message ->
+        message.info.providerId?.takeIf { it.isNotBlank() }
     }
-    return null
+    return provider?.let { if (it == CHAT_PROVIDER) EngineSessionKind.CHAT else EngineSessionKind.TASK }
 }
+
+/**
+ * The agent the engine wrote on a session's messages: the first user message's, or else the first
+ * message that names one. Null when no message names an agent (a session with no message yet).
+ *
+ * The first **user** message is the session's own agent: it is the one its creator prompted it
+ * with, before any later turn could have been sent on another agent.
+ */
+internal fun agentWrittenOn(messages: List<EngineMessage>?): String? {
+    val infos = messages.orEmpty().map { it.info }
+    return (infos.filter { it.role == USER_ROLE } + infos)
+        .firstNotNullOfOrNull { info -> info.agent?.takeIf { it.isNotBlank() } }
+}
+
+/**
+ * The agent a task's turn names: the session's own ([written], read off its messages), or
+ * [MISSION_AGENT] when nothing was read. Never null — a turn that names no agent does **not** stay
+ * on the session's agent: the engine runs it on its default agent, `build`, which carries none of
+ * the mission's permission rules (29/09/2026: a task's « Go ssh » ran on `build`).
+ *
+ * `build` and `plan` read off a transcript are refused for the same reason: they are the engine's
+ * built-in agents, with no rules of this platform, and a session that shows one got there through
+ * that very fallback. The turn goes back to [MISSION_AGENT] instead.
+ */
+internal fun taskAgent(written: String?): String =
+    written?.takeIf { it.isNotBlank() && it !in BUILT_IN_AGENTS } ?: MISSION_AGENT
+
+/** The engine's built-in agents: no rules of this platform, never a task's agent. */
+private val BUILT_IN_AGENTS = setOf("build", "plan")
+
+private const val USER_ROLE = "user"

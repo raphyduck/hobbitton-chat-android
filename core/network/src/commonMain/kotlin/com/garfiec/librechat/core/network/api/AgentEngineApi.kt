@@ -111,9 +111,10 @@ class AgentEngineApi(
         // did not hear the profile — and the profile can change between two messages of the same
         // session. See `EnginePromptRequest.system` for where it lands in the engine's prompt.
         system: String? = null,
-        // The agent to run this turn on, or null for the session's own (an absent key). A chat
-        // names `chat` on every turn (D-077) so a follow-up never falls back to the engine's
-        // default agent; a task's turn leaves it absent, as it always has.
+        // The agent to run this turn on. Null is an absent key, and an absent key is NOT the
+        // session's own agent: the engine runs the turn on its default agent (`build`), with none
+        // of the session's rules (29/09/2026). Callers name one on every turn: a chat `chat`
+        // (D-077), a task the session's own agent (`EngineMissionRepository.sendMessage`).
         agent: String? = null,
     ): EngineMessage =
         client.post {

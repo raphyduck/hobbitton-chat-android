@@ -174,12 +174,86 @@ class EngineChatSessionTest {
     }
 
     @Test
-    fun `a task turn is left as it was`() = runTest {
-        testMissionRepository(engine()).sendMessage(sessionId = "ses_task", text = "et ensuite ?")
+    fun `a task turn names the mission agent and keeps the session's model`() = runTest {
+        messagesBySession = mapOf(
+            "ses_task" to """[{"info":{"id":"m1","role":"user","agent":"mission"},"parts":[]}]""",
+        )
+        testMissionRepository(engine()).sendMessage(sessionId = "ses_task", text = "Go ssh")
 
+        // Never absent: a turn without an agent runs on the engine's default one, `build`, with
+        // none of the mission's rules (29/09/2026).
         val body = bodyOf(isPost("/session/ses_task/message"))
-        assertNull(body["agent"])
+        assertEquals("mission", body["agent"]?.jsonPrimitive?.content)
         assertNull(body["model"])
+    }
+
+    @Test
+    fun `a task launched here names the mission agent without reading its transcript`() = runTest {
+        val repository = testMissionRepository(engine())
+        repository.launch(objective = "Ranger les factures", connectors = emptyList())
+
+        repository.sendMessage(sessionId = "ses_chat", text = "Go ssh")
+        repository.sendMessage(sessionId = "ses_chat", text = "Et ensuite ?")
+
+        assertEquals("mission", bodyOf(isPost("/session/ses_chat/message"))["agent"]?.jsonPrimitive?.content)
+        assertTrue(sent.none { it.method == HttpMethod.Get && it.url.encodedPath == "/session/ses_chat/message" })
+    }
+
+    @Test
+    fun `a task on another agent keeps that agent, read once`() = runTest {
+        messagesBySession = mapOf(
+            "ses_run" to """[
+                {"info":{"id":"m1","role":"user","agent":"veille"},"parts":[]},
+                {"info":{"id":"m2","role":"assistant","agent":"veille"},"parts":[]}
+            ]""",
+        )
+        val repository = testMissionRepository(engine())
+
+        repository.sendMessage(sessionId = "ses_run", text = "Et la suite ?")
+        repository.sendMessage(sessionId = "ses_run", text = "Merci")
+
+        assertEquals("veille", bodyOf(isPost("/session/ses_run/message"))["agent"]?.jsonPrimitive?.content)
+        assertEquals(
+            1,
+            sent.count { it.method == HttpMethod.Get && it.url.encodedPath == "/session/ses_run/message" },
+        )
+    }
+
+    @Test
+    fun `a transcript that says build sends the mission agent instead`() = runTest {
+        messagesBySession = mapOf(
+            "ses_task" to """[
+                {"info":{"id":"m1","role":"assistant","agent":"mission"},"parts":[]},
+                {"info":{"id":"m2","role":"user","agent":"build"},"parts":[]}
+            ]""",
+        )
+        testMissionRepository(engine()).sendMessage(sessionId = "ses_task", text = "Go ssh")
+
+        assertEquals("mission", bodyOf(isPost("/session/ses_task/message"))["agent"]?.jsonPrimitive?.content)
+    }
+
+    @Test
+    fun `a task whose transcript names no agent sends the mission agent`() = runTest {
+        testMissionRepository(engine()).sendMessage(sessionId = "ses_task", text = "Go ssh")
+
+        assertEquals("mission", bodyOf(isPost("/session/ses_task/message"))["agent"]?.jsonPrimitive?.content)
+    }
+
+    @Test
+    fun `a task opened on screen takes its agent from the history already read`() = runTest {
+        messagesBySession = mapOf(
+            "ses_run" to """[{"info":{"id":"m1","role":"user","agent":"veille"},"parts":[]}]""",
+        )
+        val repository = testMissionRepository(engine())
+        repository.history("ses_run")
+
+        repository.sendMessage(sessionId = "ses_run", text = "Et la suite ?")
+
+        assertEquals("veille", bodyOf(isPost("/session/ses_run/message"))["agent"]?.jsonPrimitive?.content)
+        assertEquals(
+            1,
+            sent.count { it.method == HttpMethod.Get && it.url.encodedPath == "/session/ses_run/message" },
+        )
     }
 
     @Test

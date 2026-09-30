@@ -50,8 +50,14 @@ One Authelia identity for chats and tasks. Everything here is bound by `engineMo
   those. `EngineMissionRepository.startChat` builds the session's rules from it with the same
   `permissionsFor`, records it with the scheduler before the first prompt (as `launch` does), and
   records the session's kind locally before anything can fail.
-- **Every chat turn names agent `chat` and a `hobbitton-chat` model** (`sendMessage(profile = CHAT)`);
-  a task turn is unchanged (no agent, the session's model unless one is picked).
+- **Every turn names its agent** — a turn without one runs on the engine's default agent, `build`,
+  with none of the session's rules (29/09/2026: a task's follow-up ran there). A chat turn names
+  agent `chat` and a `hobbitton-chat` model (`sendMessage(profile = CHAT)`). A task turn names the
+  session's own agent (`taskAgentOf`): known when `launch` created the session (`mission`), read
+  otherwise off the first user message of the transcript (`agentWrittenOn`, the reading
+  `classifySession` uses; `history` records it for free), kept in memory per session; `mission`
+  when nothing is readable, and in place of `build` or `plan` (`taskAgent`). Its model stays the
+  session's unless one is picked.
 - **`classifySession` + `SessionKindStore` (`EngineSessionKinds`)** — recorded kind, then the
   scheduler's title shape, then the agent on the messages, then the provider. `recentChats` (the
   drawer) reads at most ten unknown transcripts per refresh and records each verdict;
