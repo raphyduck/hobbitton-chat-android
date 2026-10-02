@@ -138,6 +138,8 @@ data class MissionChatUiState(
      * replaces the blank conversation with the real one. Null for an existing session.
      */
     val started: StartedChat? = null,
+    /** A conversation its first message has yet to create — a new chat, or a new task. */
+    val isNew: Boolean = false,
 ) {
     /**
      * What the model chip says, and what the picker shows as current.
@@ -173,7 +175,7 @@ data class MissionChatArgs(
 
 class MissionChatViewModel(
     /**
-     * The session on screen, or null for a chat that does not exist yet (D-077): its first send
+     * The session on screen, or null for a conversation that does not exist yet (D-077): its first send
      * creates it ([EngineMissionRepository.startChat]) and the navigation then opens the real one.
      */
     private val sessionId: String?,
@@ -193,6 +195,7 @@ class MissionChatViewModel(
             // Nothing to load for a chat that does not exist yet: no transcript, no saved position.
             loadingHistory = sessionId != null,
             positionKnown = sessionId == null,
+            isNew = sessionId == null,
         ),
     )
     val uiState: StateFlow<MissionChatUiState> = _uiState.asStateFlow()
@@ -262,14 +265,19 @@ class MissionChatViewModel(
      * then the ticks stay unknown rather than becoming a false « none ».
      */
     private fun loadConnectors() {
-        val sessionId = sessionId ?: return
         viewModelScope.launch {
             when (val fetched = catalogueLoader.connectors()) {
                 is CatalogueFetch.Failed -> _uiState.update { it.copy(connectorsError = fetched.kind) }
                 is CatalogueFetch.Loaded -> {
-                    val granted = runCatching {
-                        withContext(ioDispatcher) { repository.sessionConnectors(sessionId) }
-                    }.getOrNull()
+                    // A task not started yet holds nothing: it starts from the scheduler's socle,
+                    // ticked as the creation sheet ticked it, and the person adjusts before sending.
+                    val granted = if (sessionId == null) {
+                        fetched.value.offered().filter { it.tickedByDefault }.map { it.name }.toSet()
+                    } else {
+                        runCatching {
+                            withContext(ioDispatcher) { repository.sessionConnectors(sessionId) }
+                        }.getOrNull()
+                    }
                     _uiState.update {
                         it.copy(
                             // Someone is watching this conversation, so nothing is barred as it would
@@ -329,10 +337,11 @@ class MissionChatViewModel(
      * reason nothing on screen explains.
      */
     fun toggleConnector(name: String) {
-        val sessionId = sessionId ?: return
         val before = _uiState.value.enabledConnectors.orEmpty()
         val after = if (name in before) before - name else before + name
         _uiState.update { it.copy(enabledConnectors = after) }
+        // A task not started yet keeps its ticks here: its first message carries them.
+        val sessionId = sessionId ?: return
         viewModelScope.launch {
             try {
                 withContext(ioDispatcher) { repository.setConnectors(sessionId, after.toList()) }
@@ -462,7 +471,7 @@ class MissionChatViewModel(
         val text = outgoingMessageText(staged.input, staged.audioNotes)
         val attachments = staged.attachments
         if ((text.isEmpty() && attachments.isEmpty()) || staged.sending || staged.started != null) return
-        val sessionId = sessionId ?: return startChat(text, staged)
+        val sessionId = sessionId ?: return start(text, staged)
         val input = staged.input
         val notes = staged.audioNotes
         val before = staged.chat
@@ -510,28 +519,36 @@ class MissionChatViewModel(
     }
 
     /**
-     * The first message of a chat that does not exist yet (D-077): the session is created on the
-     * chat profile with this message as its first prompt, and [MissionChatUiState.started] tells the
-     * screen to open it. `sending` stays up until then — the answer is already on its way.
+     * The first message of a conversation that does not exist yet — a chat (D-077), or since
+     * 02/10/2026 a task, started from the same screen and composer as an existing one rather than
+     * from a form. The session is created with this message as its first prompt — a task with the
+     * connectors ticked on its chip — and [MissionChatUiState.started] tells the screen to open it.
+     * `sending` stays up until then — the answer is already on its way.
      *
      * A failure puts everything back in the composer, as a failed send does: nothing was created
      * that the person could see, and their words are theirs.
      */
-    private fun startChat(text: String, staged: MissionChatUiState) {
+    private fun start(text: String, staged: MissionChatUiState) {
         val attachments = staged.attachments
         _uiState.update {
             it.copy(input = "", attachments = emptyList(), audioNotes = emptyList(), sending = true, sendError = null)
         }
         viewModelScope.launch {
             try {
+                val files = attachments.map { it.asPromptPart() }
                 val created = withContext(ioDispatcher) {
-                    repository.startChat(
-                        text = text,
-                        model = nextModel(),
-                        files = attachments.map { it.asPromptPart() },
-                    )
+                    when (profile) {
+                        EngineProfile.CHAT -> repository.startChat(text = text, model = nextModel(), files = files)
+                        EngineProfile.TASK -> repository.launch(
+                            objective = text,
+                            connectors = staged.enabledConnectors.orEmpty().toList(),
+                            model = nextModel(),
+                            files = files,
+                        )
+                    }
                 }
-                _uiState.update { it.copy(started = StartedChat(created, chatTitle(text))) }
+                val title = chatTitle(text).ifBlank { attachments.firstOrNull()?.filename.orEmpty() }
+                _uiState.update { it.copy(started = StartedChat(created, title)) }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

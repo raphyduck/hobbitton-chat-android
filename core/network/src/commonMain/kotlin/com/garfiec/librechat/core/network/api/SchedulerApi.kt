@@ -232,8 +232,15 @@ class SchedulerApi(
     ): String {
         val response = client.post {
             url { path("transcription") }
-            // A long recording takes longer to transcribe than a tool call takes to answer.
-            timeout { requestTimeoutMillis = TRANSCRIPTION_TIMEOUT_MS }
+            // A long recording takes longer to transcribe than a tool call takes to answer — and the
+            // server says nothing until the text is ready. The socket's own limit has to be lifted
+            // too: left at OkHttp's 10 s read timeout, every dictation that stt-gpu took longer
+            // than that to hear (language detection, then the transcription) ended in « scheduler
+            // unreachable » (02/10/2026).
+            timeout {
+                requestTimeoutMillis = TRANSCRIPTION_TIMEOUT_MS
+                socketTimeoutMillis = TRANSCRIPTION_TIMEOUT_MS
+            }
             accept(ContentType.Application.Json)
             setBody(
                 MultiPartFormDataContent(

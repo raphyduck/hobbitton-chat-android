@@ -8,12 +8,13 @@ The engine shell, and the Koin module list the application starts from. KMP libr
 - `EngineNavHost` — the app's root (D-077): the portal sign-in (`PortalSignInScreen`) when signed
   out, the chat under a drawer when signed in. Re-checks the signed-in state on every return to the
   foreground. Provides `SafeUriHandler` (http(s) and mailto only) to everything below it.
-- `EngineShellViewModel` — signed-in state (`isPortalSignedIn`), the drawer's recent chats, the
-  theme, and sign-out: `PortalSignOut` (the portal's tokens and web-view cookies), then this device's
+- `EngineShellViewModel` — signed-in state (`isPortalSignedIn`), the drawer's recent conversations
+  (chats, and the tasks a person started — not the scheduler's runs), the theme, and sign-out: `PortalSignOut` (the portal's tokens and web-view cookies), then this device's
   session kinds and reading positions. Every engine dependency is nullable (`getOrNull`).
-- `EngineNavigator` — the back stack: the chat as root, a new chat's blank entry replaced in place
-  once the engine has the session; Tasks, mission runs, usage, settings and instructions pushed on
-  top.
+- `EngineNavigator` — the back stack: the chat (or a task opened from the drawer) as root, a new
+  chat's blank entry replaced in place once the engine has the session; Tasks, mission runs, usage,
+  settings and instructions pushed on top. « New task » pushes a blank `MissionChat` whose composer
+  starts the task, replaced in place the same way (`taskStarted`).
 - `EngineDrawer`, `EngineSettingsScreen` (theme, platform addresses read-only, sign-out),
   `EngineInstructionsScreen` + `EngineInstructionsViewModel` — the global instructions' editor over
   `GlobalProfileEditor` (Enregistrer / Annuler; the MCP servers an earlier build stored are kept as

@@ -21,7 +21,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -72,6 +71,11 @@ fun TasksScreen(
     /** A scheduled mission's card opens the list of its runs. */
     onOpenMissionRuns: (name: String) -> Unit = {},
     /**
+     * « New task » opens a blank task conversation (02/10/2026): the same screen and composer as an
+     * existing task — photos, videos, files, dictation, model and connectors — instead of a form.
+     */
+    onNewTask: () -> Unit = {},
+    /**
      * The menu button, as on the chat. Until 23/09/2026 this bar had no leading button at all: the
      * screen is reached from the drawer, and the only way back to it was the system back gesture.
      */
@@ -79,7 +83,6 @@ fun TasksScreen(
     viewModel: TasksViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    var composing by remember { mutableStateOf(false) }
     var configuring by remember { mutableStateOf(false) }
     // Folded by default, and saved across rotation: whether the schedule is open is the reader's
     // choice, and a rotation must not undo it.
@@ -120,7 +123,7 @@ fun TasksScreen(
         floatingActionButton = {
             if (state.engineConfigured) {
                 ExtendedFloatingActionButton(
-                    onClick = { composing = true },
+                    onClick = onNewTask,
                     text = { Text(stringResource(Res.string.tasks_new)) },
                     icon = {},
                 )
@@ -290,29 +293,6 @@ fun TasksScreen(
             page = page,
             onNavigation = viewModel::onPortalNavigation,
             onClose = viewModel::cancelSignIn,
-        )
-    }
-
-    if (composing) {
-        // The catalogue is asked for when the sheet appears, not with the rest of the tab: it is
-        // 11,8 kB for something that changes about once a month, and it is useless anywhere else.
-        // `LaunchedEffect(Unit)` rather than a call in the composition — a body that runs on every
-        // recomposition would re-ask on each keystroke in the objective field.
-        LaunchedEffect(Unit) {
-            viewModel.loadModels()
-            viewModel.loadConnectors()
-        }
-        NewMissionSheet(
-            onDismiss = { composing = false },
-            onLaunch = { objective, connectors, model ->
-                composing = false
-                viewModel.launch(objective, connectors, model)
-            },
-            models = state.models,
-            prices = state.prices,
-            preselectedModel = state.preselectedModel,
-            catalogue = state.catalogue,
-            catalogueFailed = state.connectorsFailed,
         )
     }
 }

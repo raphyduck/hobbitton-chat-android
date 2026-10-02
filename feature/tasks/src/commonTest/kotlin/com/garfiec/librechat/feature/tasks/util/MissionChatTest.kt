@@ -391,4 +391,23 @@ class ChatBlockTest {
         assertIs<ChatBlock.Media>(blocks[1])
         assertIs<ChatBlock.Prose>(blocks[2])
     }
+
+    @Test
+    fun consecutiveAssistantStepsAreDrawnAsOneTurnWithOneGrowingActivityLine() {
+        // One engine message per step: seven lines for one piece of work until 02/10/2026.
+        val turns = listOf(
+            ChatTurn.User("u1", listOf(text("q", "Ajoute le film"))),
+            ChatTurn.Assistant("a1", listOf(thinking("r1"), tool("t1"))),
+            ChatTurn.Assistant("a2", listOf(tool("t2"), tool("t3"))),
+            ChatTurn.Assistant("a3", listOf(tool("t4", ToolState.FAILED))),
+            ChatTurn.User("u2", listOf(text("q2", "Non, celui de 2017"))),
+            ChatTurn.Assistant("a4", listOf(text("p1", "Compris."), tool("t5"))),
+        ).mergedAssistantRuns()
+
+        assertEquals(listOf("u1", "a1", "u2", "a4"), turns.map { it.key })
+        val blocks = (turns[1] as ChatTurn.Assistant).parts.asBlocks()
+        val activity = assertIs<ChatBlock.Activity>(blocks.single())
+        assertEquals(4, activity.toolCount())
+        assertTrue(activity.hasFailure())
+    }
 }

@@ -39,13 +39,14 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   for the engine, scheduler and portal addresses (`EngineSettingsStore`). Signed in = addresses set
   **and** portal tokens held (`isPortalSignedIn`).
 - **Root = `EngineNavHost`** (`shared/.../engine/`): the chat under a drawer (new chat, recent
-  chats, Tasks, Settings). `MainActivity` composes it; the only link it acts on is the portal's
-  return (`at.hobbitton.chat://oauth`).
+  conversations — chats and started tasks —, Tasks, Settings). `MainActivity` composes it; the
+  only link it acts on is the portal's return (`at.hobbitton.chat://oauth`).
 - **Chat and tasks are engine profiles** (`EngineProfile`, `:core:data`): a chat is a session on
   agent `chat` whose model always comes from provider `hobbitton-chat`, with every connector the
   scheduler marks `chat: true` as its perimeter (registered through the scheduler exactly like a
   mission's); a task keeps agent `mission` and the gateway. The UI is the mission chat
-  (`MissionChatScreen`) with `EngineProfile.CHAT`.
+  (`MissionChatScreen`) with `EngineProfile.CHAT`. A new task opens the same screen, blank, on
+  `EngineProfile.TASK`: its first message (files and ticked connectors included) creates it.
 - **Telling chats from tasks** (`classifySession`): the kind the app **recorded locally when it
   created the session** (`SessionKindStore`) wins; then the scheduler's title shape (a task); then
   the **agent written on the session's messages** (`chat` = chat); then the answering provider.

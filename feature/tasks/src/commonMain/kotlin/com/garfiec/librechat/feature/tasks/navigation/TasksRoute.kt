@@ -19,13 +19,16 @@ import kotlinx.serialization.modules.subclass
 /**
  * One mission session, opened as a live conversation. [title] names it in the chat's top bar.
  *
+ * [sessionId] is null for a new task (02/10/2026): the conversation's own composer starts it, as a
+ * new chat's does, and the navigation then replaces this entry with the real session's.
+ *
  * [fromDrawer] decides the top bar's leading button, by the rule the rest of the app follows:
  * what is opened from the drawer carries the menu, like a chat does; what is opened from a list
  * carries the back arrow to that list. Defaulted, so a back stack saved before the field existed
  * still restores.
  */
 @Serializable data class MissionChat(
-    val sessionId: String,
+    val sessionId: String? = null,
     val title: String = "",
     val fromDrawer: Boolean = false,
 ) : TasksRoute
@@ -55,12 +58,15 @@ fun EntryProviderScope<NavKey>.tasksEntries(
     onOpenMissionChat: (sessionId: String, title: String) -> Unit,
     onBack: () -> Unit,
     onOpenMissionRuns: (name: String) -> Unit,
+    onNewTask: () -> Unit,
+    onTaskStart: (sessionId: String, title: String) -> Unit,
     onOpenDrawer: (() -> Unit)? = null,
 ) {
     entry<TasksList> {
         TasksScreen(
             onOpenMissionChat = onOpenMissionChat,
             onOpenMissionRuns = onOpenMissionRuns,
+            onNewTask = onNewTask,
             onOpenDrawer = onOpenDrawer,
         )
     }
@@ -74,6 +80,7 @@ fun EntryProviderScope<NavKey>.tasksEntries(
             title = key.title,
             onBack = onBack,
             onOpenDrawer = onOpenDrawer.takeIf { key.fromDrawer },
+            onChatStart = onTaskStart,
         )
     }
 }

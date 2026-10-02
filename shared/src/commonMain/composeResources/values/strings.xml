@@ -4,8 +4,9 @@
     <string name="engine_drawer_new_chat">New chat</string>
     <string name="engine_drawer_tasks">Tasks</string>
     <string name="engine_drawer_settings">Settings</string>
-    <string name="engine_drawer_recent">Recent chats</string>
-    <string name="engine_drawer_empty">No chat yet.</string>
+    <string name="engine_drawer_recent">Recent</string>
+    <string name="engine_drawer_task">Task</string>
+    <string name="engine_drawer_empty">Nothing yet.</string>
     <string name="engine_drawer_failed">The chats could not be loaded.</string>
     <string name="engine_drawer_retry">Retry</string>
     <string name="engine_chat_running">Answering…</string>

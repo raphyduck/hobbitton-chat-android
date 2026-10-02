@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.outlined.AddPhotoAlternate
+import androidx.compose.material.icons.outlined.AttachFile
 import androidx.compose.material.icons.outlined.AudioFile
 import androidx.compose.material.icons.outlined.Build
 import androidx.compose.material.icons.outlined.Mic
@@ -53,8 +54,10 @@ import com.garfiec.librechat.feature.tasks.components.ModelPickerSheet
 import com.garfiec.librechat.feature.tasks.components.rememberMissionAttachmentPicker
 import com.garfiec.librechat.feature.tasks.components.rememberMissionAudioPicker
 import com.garfiec.librechat.feature.tasks.components.rememberMissionDictation
+import com.garfiec.librechat.feature.tasks.components.rememberMissionFilePicker
 import com.garfiec.librechat.feature.tasks.resources.Res
 import com.garfiec.librechat.feature.tasks.resources.tasks_attach_audio
+import com.garfiec.librechat.feature.tasks.resources.tasks_attach_file
 import com.garfiec.librechat.feature.tasks.resources.tasks_attach_photo
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_add
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_connector_count
@@ -110,6 +113,7 @@ internal fun MissionChatInput(
     // Null where the platform has nothing to offer (iOS today) — then no menu entry, rather than an
     // entry that does nothing. Called here, unconditionally: they remember launchers.
     val openPhoto = rememberMissionAttachmentPicker(onPick = onAddAttachments)
+    val openFile = rememberMissionFilePicker(onPick = onAddAttachments)
     // A deposited audio file goes to the THREAD: transcribed on pick, staged as a quoted note, sent
     // with the message. Transcribed by the scheduler because no model on the gateway hears audio.
     val openAudio = rememberMissionAudioPicker(onPick = { onAttachAudio(it.bytes, it.mime, it.filename) })
@@ -159,6 +163,7 @@ internal fun MissionChatInput(
                 ) {
                     AddButton(
                         openPhoto = openPhoto,
+                        openFile = openFile,
                         openAudio = openAudio,
                         audioEnabled = !state.transcribing,
                     )
@@ -279,8 +284,13 @@ private fun ComposerStatus(text: String) {
  * picker — a button that opens an empty menu is worse than no button.
  */
 @Composable
-private fun AddButton(openPhoto: (() -> Unit)?, openAudio: (() -> Unit)?, audioEnabled: Boolean) {
-    if (openPhoto == null && openAudio == null) return
+private fun AddButton(
+    openPhoto: (() -> Unit)?,
+    openFile: (() -> Unit)?,
+    openAudio: (() -> Unit)?,
+    audioEnabled: Boolean,
+) {
+    if (openPhoto == null && openFile == null && openAudio == null) return
     var open by remember { mutableStateOf(false) }
     Box {
         FilledTonalIconButton(onClick = { open = true }, modifier = Modifier.size(ChatInputDefaults.controlSize)) {
@@ -291,6 +301,16 @@ private fun AddButton(openPhoto: (() -> Unit)?, openAudio: (() -> Unit)?, audioE
                 DropdownMenuItem(
                     text = { Text(stringResource(Res.string.tasks_attach_photo)) },
                     leadingIcon = { Icon(Icons.Outlined.AddPhotoAlternate, null) },
+                    onClick = {
+                        open = false
+                        pick()
+                    },
+                )
+            }
+            openFile?.let { pick ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(Res.string.tasks_attach_file)) },
+                    leadingIcon = { Icon(Icons.Outlined.AttachFile, null) },
                     onClick = {
                         open = false
                         pick()
