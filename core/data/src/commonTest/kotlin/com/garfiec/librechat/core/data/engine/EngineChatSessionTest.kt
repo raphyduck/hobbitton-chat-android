@@ -315,7 +315,7 @@ class EngineChatSessionTest {
             .launch(objective = "Classe ce reçu", connectors = emptyList(), files = listOf(photo))
 
         assertEquals(EngineSessionKind.TASK, kinds.recorded["ses_chat"])
-        val parts = bodyOf(isPost("/session/ses_chat/message"))["parts"]!!.jsonArray
+        val parts = bodyOf(isPost("/session/ses_chat/prompt_async"))["parts"]!!.jsonArray
         assertEquals(listOf("file", "text"), parts.map { it.jsonObject["type"]?.jsonPrimitive?.content })
     }
 }
