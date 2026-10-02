@@ -45,9 +45,10 @@ data class Mission(
 )
 
 /**
- * One chat as the drawer lists it (D-077): an engine session run on the `chat` profile.
+ * One conversation as the drawer lists it (D-077): a chat, or since 02/10/2026 a task someone
+ * started from the app — [kind] says which, and so which screen opens it.
  *
- * [running] claims only what the status map proves, like the drawer's mission rows did: a chat
+ * [running] claims only what the status map proves, like the drawer's mission rows did: a session
  * that is answering right now. Nothing else is read to build a row.
  */
 data class EngineChatSummary(
@@ -55,6 +56,7 @@ data class EngineChatSummary(
     val title: String,
     val lastActivityMillis: Long?,
     val running: Boolean,
+    val kind: EngineSessionKind = EngineSessionKind.CHAT,
 )
 
 /**
@@ -218,18 +220,22 @@ class EngineMissionRepository(
     }
 
     /**
-     * The chats of the drawer (D-077), most recently active first.
+     * The drawer's recent conversations (D-077), most recently active first: the chats, and since
+     * 02/10/2026 the tasks a person started — the drawer showed « No chat yet » to someone who had
+     * spent the morning in tasks. The scheduler's own runs stay in the Tasks tab: nine a day would
+     * push every conversation off the list.
      *
      * Classified by [classifySession]: what this device recorded first, then the scheduler's title
      * shape, and only then the transcript — read for at most [MAX_CLASSIFICATION_READS] unknown
      * sessions per refresh, and the verdict recorded so it is never read again. A session that says
-     * nothing yet (no message) is left out: it is either a chat being created right now, which its
-     * creator recorded, or nobody's conversation.
+     * nothing yet (no message) is left out: it is either a conversation being created right now,
+     * which its creator recorded, or nobody's.
      */
     suspend fun recentChats(limit: Int = RECENT_CHATS_SHOWN): List<EngineChatSummary> {
         val statuses = runCatching { api.status() }.getOrDefault(emptyMap())
         val recorded = recordedKinds()
         val sessions = api.sessions()
+            .filterNot { session -> session.title?.let(::isScheduledRun) == true }
             .sortedByDescending { it.time?.updated ?: it.time?.created ?: Long.MIN_VALUE }
         val learned = mutableMapOf<String, EngineSessionKind>()
         var reads = 0
@@ -243,13 +249,14 @@ class EngineMissionRepository(
                 kind = classifySession(session.title, null, messages)
                 if (kind != null) learned[session.id] = kind
             }
-            if (kind == EngineSessionKind.CHAT) {
+            if (kind != null) {
                 val active = statuses[session.id]
                 chats += EngineChatSummary(
                     sessionId = session.id,
                     title = session.title.orEmpty().ifBlank { session.id },
                     lastActivityMillis = session.time?.updated ?: session.time?.created,
                     running = active != null && active.type != IDLE_STATUS,
+                    kind = kind,
                 )
             }
         }
@@ -347,11 +354,12 @@ class EngineMissionRepository(
         objective: String,
         connectors: List<String>,
         model: EngineModelRef? = null,
+        files: List<EnginePromptPart> = emptyList(),
     ): String {
         val session = api.createSession(
             CreateEngineSessionRequest(
                 agent = MISSION_AGENT,
-                title = objective.take(TITLE_LENGTH),
+                title = objective.trim().ifBlank { files.firstOrNull()?.filename.orEmpty() }.take(TITLE_LENGTH),
                 permission = permissionsFor(connectors(), connectors),
             ),
         )
@@ -364,11 +372,15 @@ class EngineMissionRepository(
         // The agent is known: it is the one just written on the session. Every later turn names it
         // without reading the transcript back (see [sendMessage]).
         rememberAgent(session.id, MISSION_AGENT)
+        // Recorded as a task at once, as a chat is: the drawer lists it without reading it back.
+        runCatching { kinds.record(session.id, EngineSessionKind.TASK) }
+            .onFailure { Logger.w(it) { "Could not record a new task's kind" } }
         scheduler.setScope(session.id, connectors)
         api.prompt(
             sessionId = session.id,
             request = EnginePromptRequest(
-                parts = listOf(EnginePromptPart(text = objective)),
+                // Files first, text last, as a chat's first message.
+                parts = files + listOfNotNull(objective.takeIf { it.isNotBlank() }?.let { EnginePromptPart.text(it) }),
                 agent = MISSION_AGENT,
                 model = model,
                 system = instructions(),

@@ -5,6 +5,7 @@
     <string name="engine_drawer_tasks">Tâches</string>
     <string name="engine_drawer_settings">Réglages</string>
     <string name="engine_drawer_recent">Conversations récentes</string>
+    <string name="engine_drawer_task">Tâche</string>
     <string name="engine_drawer_empty">Aucune conversation pour l'instant.</string>
     <string name="engine_drawer_failed">Les conversations n'ont pas pu être chargées.</string>
     <string name="engine_drawer_retry">Réessayer</string>

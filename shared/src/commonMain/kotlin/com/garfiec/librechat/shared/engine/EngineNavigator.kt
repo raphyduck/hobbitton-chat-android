@@ -88,6 +88,29 @@ class EngineNavigator(val backStack: NavBackStack<NavKey>) {
         backStack.add(MissionChat(sessionId = sessionId, title = title))
     }
 
+    /** A task from the drawer's recent conversations: the root, like a chat, with the menu. */
+    fun openTask(sessionId: String, title: String) =
+        openAsRoot(MissionChat(sessionId = sessionId, title = title, fromDrawer = true))
+
+    /**
+     * « New task » (02/10/2026): a blank task conversation pushed over the Tasks tab, whose own
+     * composer starts the task — the screen an existing task opens on, not a form.
+     */
+    fun newTask() {
+        backStack.add(MissionChat())
+    }
+
+    /**
+     * The new task exists on the engine: its blank entry is replaced in place by the real
+     * session's, as a new chat's is, so backing out lands on the Tasks tab and not on an empty
+     * composer.
+     */
+    fun taskStarted(sessionId: String, title: String) {
+        val index = backStack.indexOfLast { it is MissionChat && it.sessionId == null }
+        val started = MissionChat(sessionId = sessionId, title = title)
+        if (index >= 0) backStack[index] = started else backStack.add(started)
+    }
+
     fun openMissionRuns(name: String) {
         backStack.add(MissionRuns(name))
     }

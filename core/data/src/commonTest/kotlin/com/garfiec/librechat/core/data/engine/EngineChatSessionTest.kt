@@ -1,6 +1,7 @@
 package com.garfiec.librechat.core.data.engine
 
 import com.garfiec.librechat.core.model.engine.EngineModelRef
+import com.garfiec.librechat.core.model.engine.EnginePromptPart
 import com.garfiec.librechat.core.network.di.librechatJson
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
@@ -266,7 +267,7 @@ class EngineChatSessionTest {
     }
 
     @Test
-    fun `the drawer lists chats, and the Tasks tab does not`() = runTest {
+    fun `the drawer lists chats and started tasks, and the Tasks tab no chat`() = runTest {
         sessionsJson = """[
             {"id":"ses_here","title":"Une conversation d'ici","time":{"updated":400}},
             {"id":"ses_other","title":"Une conversation d'ailleurs","time":{"updated":300}},
@@ -282,7 +283,12 @@ class EngineChatSessionTest {
         val repository = testMissionRepository(engine(), kinds = kinds)
 
         val chats = repository.recentChats()
-        assertEquals<List<String>>(listOf("ses_here", "ses_other"), chats.map { it.sessionId })
+        // The task someone started is a conversation too (02/10/2026); the scheduler's run is not.
+        assertEquals<List<String>>(listOf("ses_here", "ses_other", "ses_mission"), chats.map { it.sessionId })
+        assertEquals(
+            listOf(EngineSessionKind.CHAT, EngineSessionKind.CHAT, EngineSessionKind.TASK),
+            chats.map { it.kind },
+        )
         // What was learned from a transcript is kept, so it is never read again.
         assertEquals(EngineSessionKind.CHAT, kinds.recorded["ses_other"])
         assertEquals(EngineSessionKind.TASK, kinds.recorded["ses_mission"])
@@ -298,5 +304,18 @@ class EngineChatSessionTest {
         testMissionRepository(engine()).recentChats()
 
         assertTrue(sent.none { it.url.encodedPath == "/session/ses_run/message" })
+    }
+
+    @Test
+    fun `a task launched with files records its kind and sends the files before the words`() = runTest {
+        val kinds = InMemorySessionKinds()
+        val photo = EnginePromptPart.file(mime = "image/jpeg", dataUrl = "data:image/jpeg;base64,AA==", filename = "a.jpg")
+
+        testMissionRepository(engine(), kinds = kinds)
+            .launch(objective = "Classe ce reçu", connectors = emptyList(), files = listOf(photo))
+
+        assertEquals(EngineSessionKind.TASK, kinds.recorded["ses_chat"])
+        val parts = bodyOf(isPost("/session/ses_chat/message"))["parts"]!!.jsonArray
+        assertEquals(listOf("file", "text"), parts.map { it.jsonObject["type"]?.jsonPrimitive?.content })
     }
 }

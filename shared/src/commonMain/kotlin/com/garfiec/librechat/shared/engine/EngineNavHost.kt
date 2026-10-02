@@ -26,10 +26,12 @@ import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import com.garfiec.librechat.core.data.datastore.ThemeMode
+import com.garfiec.librechat.core.data.engine.EngineSessionKind
 import com.garfiec.librechat.core.ui.theme.AppLocale
 import com.garfiec.librechat.core.ui.util.SafeUriHandler
 import com.garfiec.librechat.feature.auth.screen.PortalSignInScreen
 import com.garfiec.librechat.feature.tasks.navigation.EngineChat
+import com.garfiec.librechat.feature.tasks.navigation.MissionChat
 import com.garfiec.librechat.feature.tasks.navigation.engineChatEntries
 import com.garfiec.librechat.feature.tasks.navigation.tasksEntries
 import kotlinx.coroutines.launch
@@ -39,7 +41,8 @@ import org.koin.compose.viewmodel.koinViewModel
  * The app's root since D-077: one engine, two profiles.
  *
  * Signed out, the portal's sign-in ([PortalSignInScreen]); signed in, the chat — an engine session
- * on the `chat` profile — with a drawer of recent chats, the Tasks tab and the settings.
+ * on the `chat` profile — with a drawer of recent conversations (chats and tasks), the Tasks tab
+ * and the settings.
  */
 @Composable
 fun EngineNavHost(
@@ -108,7 +111,11 @@ private fun EngineMainLayout(
 
     val openDrawer: () -> Unit = { scope.launch { drawerState.open() } }
     val closeDrawer: () -> Unit = { scope.launch { drawerState.close() } }
-    val activeChat = (navigator.currentRoute as? EngineChat)?.sessionId
+    val activeChat = when (val route = navigator.currentRoute) {
+        is EngineChat -> route.sessionId
+        is MissionChat -> route.sessionId
+        else -> null
+    }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -124,7 +131,10 @@ private fun EngineMainLayout(
                     },
                     onOpenChat = { chat ->
                         closeDrawer()
-                        navigator.openChat(chat.sessionId, chat.title)
+                        when (chat.kind) {
+                            EngineSessionKind.CHAT -> navigator.openChat(chat.sessionId, chat.title)
+                            EngineSessionKind.TASK -> navigator.openTask(chat.sessionId, chat.title)
+                        }
                     },
                     onOpenTasks = {
                         closeDrawer()
@@ -161,6 +171,11 @@ private fun EngineMainLayout(
                     onOpenMissionChat = { sessionId, title -> navigator.openMission(sessionId, title) },
                     onBack = { navigator.goBack() },
                     onOpenMissionRuns = { name -> navigator.openMissionRuns(name) },
+                    onNewTask = { navigator.newTask() },
+                    onTaskStart = { sessionId, title ->
+                        navigator.taskStarted(sessionId, title)
+                        refreshChats()
+                    },
                     onOpenDrawer = openDrawer,
                 )
                 entry<EngineAppSettings> {

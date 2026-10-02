@@ -25,6 +25,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.garfiec.librechat.core.data.engine.EngineChatSummary
+import com.garfiec.librechat.core.data.engine.EngineSessionKind
 import com.garfiec.librechat.shared.resources.Res
 import com.garfiec.librechat.shared.resources.engine_chat_running
 import com.garfiec.librechat.shared.resources.engine_drawer_empty
@@ -33,13 +34,15 @@ import com.garfiec.librechat.shared.resources.engine_drawer_new_chat
 import com.garfiec.librechat.shared.resources.engine_drawer_recent
 import com.garfiec.librechat.shared.resources.engine_drawer_retry
 import com.garfiec.librechat.shared.resources.engine_drawer_settings
+import com.garfiec.librechat.shared.resources.engine_drawer_task
 import com.garfiec.librechat.shared.resources.engine_drawer_tasks
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * The drawer of the engine shell (D-077): a new chat, the recent chats, the Tasks tab, the
- * settings. The chats are engine sessions on the `chat` profile ([EngineChatSummary]); the tasks
- * stay in their tab and never appear here.
+ * The drawer of the engine shell (D-077): a new chat, the recent conversations, the Tasks tab, the
+ * settings. The conversations are the chats and, since 02/10/2026, the tasks a person started
+ * ([EngineChatSummary.kind]) — a task carries its tab's icon. The scheduler's own runs stay in the
+ * Tasks tab.
  */
 @Composable
 internal fun EngineDrawerContent(
@@ -124,7 +127,16 @@ private fun RecentChats(
                 )
             }
             else -> items(state.chats, key = { it.sessionId }) { chat ->
+                // A task carries its tab's icon; a chat, the drawer's default, has none.
+                val taskIcon: (@Composable () -> Unit)? = if (chat.kind == EngineSessionKind.TASK) {
+                    {
+                        Icon(Icons.Outlined.TaskAlt, contentDescription = stringResource(Res.string.engine_drawer_task))
+                    }
+                } else {
+                    null
+                }
                 NavigationDrawerItem(
+                    icon = taskIcon,
                     label = {
                         Column {
                             Text(chat.title, maxLines = 1, overflow = TextOverflow.Ellipsis)

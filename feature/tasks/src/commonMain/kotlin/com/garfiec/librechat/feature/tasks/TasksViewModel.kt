@@ -10,16 +10,9 @@ import com.garfiec.librechat.core.data.engine.EngineSignInResult
 import com.garfiec.librechat.core.data.engine.Mission
 import com.garfiec.librechat.core.data.engine.engineFailureKind
 import com.garfiec.librechat.core.data.portal.PortalTasksSignIn
-import com.garfiec.librechat.core.data.pricing.ModelPriceCache
 import com.garfiec.librechat.core.data.scheduler.SchedulerRepository
 import com.garfiec.librechat.core.model.engine.EngineFailureKind
-import com.garfiec.librechat.core.model.engine.EngineModelRef
-import com.garfiec.librechat.core.model.engine.EngineSelectableModel
-import com.garfiec.librechat.core.model.scheduler.ConnectorCatalogue
-import com.garfiec.librechat.core.model.scheduler.ModelPrices
 import com.garfiec.librechat.core.model.scheduler.ScheduledMission
-import com.garfiec.librechat.feature.tasks.delegate.CatalogueFetch
-import com.garfiec.librechat.feature.tasks.delegate.MissionCatalogueDelegate
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -52,28 +45,6 @@ data class TasksUiState(
     val schedulerConfigured: Boolean = false,
     /** Why the last call failed, or null. The screen turns it into a sentence and an offer. */
     val error: EngineFailureKind? = null,
-    /**
-     * The models a new mission may be launched on, and the one to tick when the sheet opens.
-     *
-     * Loaded when the sheet is opened, not with the rest of the tab: the catalogue is 11,8 kB and
-     * changes about once a month, so paying for it on every pull-to-refresh buys nothing. Empty
-     * until then, and empty is a valid state — the sheet simply offers no choice and the mission
-     * runs on the profile's own model, exactly as it did before this existed.
-     */
-    val models: List<EngineSelectableModel> = emptyList(),
-    /** The connectors this deployment offers — fetched from the scheduler, never a local copy. */
-    val catalogue: ConnectorCatalogue = ConnectorCatalogue(),
-    /** The catalogue would not load: the sheet says so rather than offering an empty list. */
-    val connectorsFailed: Boolean = false,
-    val preselectedModel: EngineSelectableModel? = null,
-    /**
-     * What each of those models costs, so the choice is not made blind.
-     *
-     * Empty until the sheet opens, and empty is a valid state: a price is decoration on a list
-     * that works without it. Nothing here is ever rendered as a zero — an unknown price says so
-     * in words, because « 0,00 $ » beside a model that charges is the one reading worth avoiding.
-     */
-    val prices: ModelPrices = ModelPrices.NONE,
     /** The portal round trip is in flight: the portal is open, the person is proving who they are. */
     val signingIn: Boolean = false,
     /**
@@ -123,7 +94,6 @@ enum class EngineSignInProblem {
 
 class TasksViewModel(
     private val repository: EngineMissionRepository,
-    private val modelPrices: ModelPriceCache,
     private val scheduler: SchedulerRepository,
     private val settings: EngineSettingsStore,
     private val portal: PortalTasksSignIn,
@@ -131,13 +101,6 @@ class TasksViewModel(
 
     private val _state = MutableStateFlow(TasksUiState())
     val state: StateFlow<TasksUiState> = _state.asStateFlow()
-
-    /** No dispatcher: the sheet's fetches ran on the caller's context before D-076, and still do. */
-    private val catalogueLoader = MissionCatalogueDelegate(
-        fetchModels = { repository.models() },
-        fetchPrices = { modelPrices.prices() },
-        fetchConnectors = { repository.connectors() },
-    )
 
     init {
         refresh()
@@ -291,72 +254,6 @@ class TasksViewModel(
             runCatching { action() }
                 .onFailure { failure -> Logger.w(failure, tag = "Tasks") { "Could not $what" } }
             refresh()
-        }
-    }
-
-    /**
-     * Fetches the model catalogue, once.
-     *
-     * Called when the New-mission sheet opens. A failure is **swallowed on purpose**: not being
-     * able to list the models must not stop someone from launching a mission — it costs the
-     * choice, not the feature, and the mission then runs on the profile's own model. Turning this
-     * into the tab's red banner would report « the engine is unreachable » on a screen whose
-     * mission list had just loaded fine.
-     */
-    fun loadModels() {
-        if (_state.value.models.isNotEmpty()) return
-        viewModelScope.launch {
-            val fetched = catalogueLoader.models()
-            if (fetched is CatalogueFetch.Loaded) {
-                val choice = fetched.value
-                _state.update { it.copy(models = choice.models, preselectedModel = choice.preselected) }
-            }
-            // Prices come from the scheduler, the models from the engine: a picker that showed no
-            // model because a price was missing would trade the feature for its decoration.
-            val prices = catalogueLoader.prices()
-            _state.update { it.copy(prices = prices) }
-        }
-    }
-
-    /**
-     * Fetches the connector catalogue, once, when the New-mission sheet opens.
-     *
-     * Unlike the models, a failure here is **not** swallowed into an empty list. The sheet used to
-     * offer four connectors from a table written by hand here — out of the platform's nineteen —
-     * naming tools that do not exist for `fichiers`. Nothing failed and the mission launched with an
-     * empty toolbox (30/08/2026). An empty picker would reproduce exactly that outcome from a
-     * different cause, so the sheet says the catalogue is missing instead of pretending the
-     * platform has nothing to offer.
-     */
-    fun loadConnectors() {
-        if (_state.value.catalogue.connecteurs.isNotEmpty()) return
-        viewModelScope.launch {
-            when (val fetched = catalogueLoader.connectors()) {
-                is CatalogueFetch.Loaded -> _state.update { it.copy(catalogue = fetched.value) }
-                is CatalogueFetch.Failed -> _state.update { it.copy(connectorsFailed = true) }
-            }
-        }
-    }
-
-    fun launch(
-        objective: String,
-        connectors: List<String>,
-        model: EngineModelRef? = null,
-    ) {
-        viewModelScope.launch {
-            _state.update { it.copy(loading = true, error = null) }
-            runCatching {
-                repository.launch(
-                    objective,
-                    connectors,
-                    model = model,
-                )
-            }
-                .onSuccess { refresh() }
-                .onFailure { failure ->
-                    Logger.w(failure, tag = "Tasks") { "Could not start the mission" }
-                    _state.update { it.copy(loading = false, error = failure.engineFailureKind()) }
-                }
         }
     }
 }

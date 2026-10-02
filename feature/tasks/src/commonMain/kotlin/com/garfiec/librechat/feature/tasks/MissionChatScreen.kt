@@ -25,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -46,12 +47,15 @@ import com.garfiec.librechat.feature.tasks.resources.chat_title
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_back
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_empty
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_title
+import com.garfiec.librechat.feature.tasks.resources.tasks_new
+import com.garfiec.librechat.feature.tasks.resources.tasks_new_empty
 import com.garfiec.librechat.feature.tasks.resources.tasks_open_drawer
 import com.garfiec.librechat.feature.tasks.resources.tasks_retry
 import com.garfiec.librechat.feature.tasks.util.ChatPart
 import com.garfiec.librechat.feature.tasks.util.ChatTurn
 import com.garfiec.librechat.feature.tasks.util.MissionChatState
 import com.garfiec.librechat.feature.tasks.util.hint
+import com.garfiec.librechat.feature.tasks.util.mergedAssistantRuns
 import com.garfiec.librechat.feature.tasks.util.title
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
@@ -194,7 +198,12 @@ private fun MissionChatBody(
 
                 state.chat.turns.isEmpty() -> Text(
                     text = stringResource(
-                        if (state.profile == EngineProfile.CHAT) Res.string.chat_empty else Res.string.tasks_chat_empty,
+                        when {
+                            state.profile == EngineProfile.CHAT -> Res.string.chat_empty
+                            // A task not started yet: nothing to talk to, only something to describe.
+                            state.isNew -> Res.string.tasks_new_empty
+                            else -> Res.string.tasks_chat_empty
+                        },
                     ),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -223,6 +232,8 @@ private fun MissionTurns(
     onRememberPosition: (index: Int, offset: Int) -> Unit,
 ) {
     val listState = rememberLazyListState()
+    // One drawn turn per run of assistant steps: their tool calls fold into one growing line.
+    val turns = remember(chat.turns) { chat.turns.mergedAssistantRuns() }
     // Open where the reader left off. Once — hence the flag, saved across rotation: a second
     // restore would yank the list back out from under someone who has since scrolled.
     //
@@ -230,9 +241,9 @@ private fun MissionTurns(
     // because scrolling to item 40 of an empty list is a no-op the follow effect below then
     // finishes by dropping to the tail. Without a saved position the tail IS the right place, and
     // that is what this screen did for everyone before 31/08/2026.
-    var restored by rememberSaveable(chat.turns.isNotEmpty()) { mutableStateOf(false) }
-    LaunchedEffect(positionKnown, chat.turns.isNotEmpty()) {
-        if (restored || !positionKnown || chat.turns.isEmpty()) return@LaunchedEffect
+    var restored by rememberSaveable(turns.isNotEmpty()) { mutableStateOf(false) }
+    LaunchedEffect(positionKnown, turns.isNotEmpty()) {
+        if (restored || !positionKnown || turns.isEmpty()) return@LaunchedEffect
         restoredPosition?.let { listState.scrollToItem(it.index, it.offset) }
         restored = true
     }
@@ -259,12 +270,12 @@ private fun MissionTurns(
     // Gated on `restored` too, or the very first emission would scroll to the bottom before the
     // saved position has been applied — the follow reads an empty `visibleItemsInfo` as « at the
     // tail », which is exactly the state a list that has not drawn yet is in.
-    LaunchedEffect(chat.turns.size, tailLength(chat), restored) {
+    LaunchedEffect(turns.size, tailLength(chat), restored) {
         if (!restored) return@LaunchedEffect
         val info = listState.layoutInfo
         val nearTail = info.visibleItemsInfo.lastOrNull()
             ?.let { it.index >= info.totalItemsCount - 2 } ?: true
-        if (nearTail) listState.animateScrollToItem((chat.turns.size - 1).coerceAtLeast(0))
+        if (nearTail) listState.animateScrollToItem((turns.size - 1).coerceAtLeast(0))
     }
     LazyColumn(
         state = listState,
@@ -274,14 +285,14 @@ private fun MissionTurns(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         items(
-            count = chat.turns.size,
+            count = turns.size,
             // Keyed by message id: a delta rewrites the last turn on every token, and without a key
             // Compose reuses by position and re-composes every bubble below it.
-            key = { index -> chat.turns[index].key },
-            contentType = { index -> chat.turns[index]::class },
+            key = { index -> turns[index].key },
+            contentType = { index -> turns[index]::class },
         ) { index ->
-            val turn = chat.turns[index]
-            val live = chat.streaming && index == chat.turns.lastIndex
+            val turn = turns[index]
+            val live = chat.streaming && index == turns.lastIndex
             // Per TURN, not around the LazyColumn. A SelectionContainer only tracks what is
             // composed, and a lazy list recycles: one container around the whole list loses the
             // selection the moment a scroll drops its anchor off screen. The chat scopes its own
@@ -299,6 +310,7 @@ private fun MissionTurns(
 
 /** What the bar says when the session has no title of its own. */
 private fun defaultTitle(profile: EngineProfile, sessionId: String?) = when {
+    profile == EngineProfile.TASK && sessionId == null -> Res.string.tasks_new
     profile == EngineProfile.TASK -> Res.string.tasks_chat_title
     sessionId == null -> Res.string.chat_new
     else -> Res.string.chat_title

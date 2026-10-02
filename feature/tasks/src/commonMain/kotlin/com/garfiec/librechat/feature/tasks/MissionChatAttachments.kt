@@ -13,6 +13,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.AudioFile
+import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.Movie
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -78,6 +80,28 @@ internal fun StagedAttachmentsRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         attachments.forEach { staged ->
+            // A picture shows itself; a video or a document names itself, as an audio note does.
+            if (!staged.mime.startsWith("image/")) {
+                AssistChip(
+                    onClick = { onRemoveAttachment(staged.id) },
+                    leadingIcon = {
+                        Icon(
+                            if (staged.mime.startsWith("video/")) Icons.Outlined.Movie else Icons.Outlined.Description,
+                            null,
+                            Modifier.size(16.dp),
+                        )
+                    },
+                    label = { Text(staged.filename ?: staged.mime) },
+                    trailingIcon = {
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = stringResource(Res.string.tasks_attachment_remove),
+                            modifier = Modifier.size(16.dp),
+                        )
+                    },
+                )
+                return@forEach
+            }
             Box {
                 AsyncImage(
                     model = staged.bytes,
