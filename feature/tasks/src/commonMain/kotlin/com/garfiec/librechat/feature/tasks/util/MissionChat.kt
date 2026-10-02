@@ -229,6 +229,31 @@ sealed interface ChatBlock {
     data class Activity(val key: String, val parts: List<ChatPart>) : ChatBlock
 }
 
+/**
+ * The transcript as it is drawn: every run of consecutive assistant turns made one.
+ *
+ * The engine writes one assistant message per step, and a mission that calls a tool, thinks, and
+ * calls another wrote one message for each — so the screen stacked « 1 outil · réflexion », « 4
+ * outils · réflexion », « 2 outils · réflexion »… one line per step, seven lines for one piece of
+ * work (Raphaël, 02/10/2026). Drawn as one turn, those steps fall into [asBlocks]' rule: activity
+ * with no prose between it is one block, whose count grows as the mission works.
+ *
+ * The run keeps its first turn's key, so the list item — and the fold the reader opened — stays put
+ * while steps are appended to it.
+ */
+fun List<ChatTurn>.mergedAssistantRuns(): List<ChatTurn> {
+    val merged = mutableListOf<ChatTurn>()
+    forEach { turn ->
+        val previous = merged.lastOrNull()
+        if (turn is ChatTurn.Assistant && previous is ChatTurn.Assistant) {
+            merged[merged.lastIndex] = previous.copy(parts = previous.parts + turn.parts)
+        } else {
+            merged += turn
+        }
+    }
+    return merged
+}
+
 /** Cut a turn's parts into readable blocks. Empty prose is dropped; empty activity never appears. */
 fun List<ChatPart>.asBlocks(): List<ChatBlock> {
     val blocks = mutableListOf<ChatBlock>()
