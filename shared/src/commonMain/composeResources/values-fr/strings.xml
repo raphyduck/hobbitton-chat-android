@@ -9,7 +9,7 @@
     <string name="engine_drawer_empty">Aucune conversation pour l'instant.</string>
     <string name="engine_drawer_failed">Les conversations n'ont pas pu être chargées.</string>
     <string name="engine_drawer_retry">Réessayer</string>
-    <string name="engine_chat_running">En train de répondre…</string>
+    <string name="engine_chat_running">En cours</string>
     <string name="engine_settings_title">Réglages</string>
     <string name="engine_settings_back">Retour</string>
     <string name="engine_settings_theme">Thème</string>
@@ -36,4 +36,12 @@
     <string name="engine_settings_sign_out_hint">Ferme la session du portail sur cet appareil et oublie ses caches de conversation. Vos conversations et vos tâches restent sur la plateforme.</string>
     <string name="engine_settings_sign_out_confirm">Se déconnecter</string>
     <string name="engine_settings_cancel">Annuler</string>
+    <string name="engine_drawer_chat">Conversation</string>
+    <string name="engine_drawer_today">Aujourd\'hui</string>
+    <string name="engine_drawer_yesterday">Hier</string>
+    <string name="engine_drawer_previous_week">7 derniers jours</string>
+    <string name="engine_drawer_older">Plus ancien</string>
+    <string name="engine_age_minutes">%1$d min</string>
+    <string name="engine_age_hours">%1$d h</string>
+    <string name="engine_age_days">%1$d j</string>
 </resources>

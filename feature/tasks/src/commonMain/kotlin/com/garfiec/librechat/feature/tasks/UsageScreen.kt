@@ -63,6 +63,7 @@ import com.garfiec.librechat.feature.tasks.util.byCostDescending
 import com.garfiec.librechat.feature.tasks.util.groupThousands
 import com.garfiec.librechat.feature.tasks.util.money
 import com.garfiec.librechat.feature.tasks.util.observedPricePerMillion
+import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -194,8 +195,10 @@ private fun ProvidersSection(
                                 Res.string.tasks_providers_all_ok, health.providers.size,
                             )
                         } else {
-                            stringResource(
-                                Res.string.tasks_providers_failing, health.failing.size,
+                            pluralStringResource(
+                                Res.plurals.tasks_providers_failing,
+                                health.failing.size,
+                                health.failing.size,
                             )
                         },
                         style = MaterialTheme.typography.titleSmall,
@@ -322,7 +325,7 @@ private fun SpendSection(report: Consumption) {
                                 Text(
                                     listOfNotNull(
                                         groupThousands(model.tokens),
-                                        stringResource(Res.string.tasks_spend_calls, model.calls),
+                                        pluralStringResource(Res.plurals.tasks_spend_calls, model.calls, model.calls),
                                         // What the million actually cost: the figure that explains
                                         // why the row above it is ranked where it is. Absent rather
                                         // than guessed when the spend is unknown or partial.

@@ -9,7 +9,7 @@
     <string name="engine_drawer_empty">Nothing yet.</string>
     <string name="engine_drawer_failed">The chats could not be loaded.</string>
     <string name="engine_drawer_retry">Retry</string>
-    <string name="engine_chat_running">Answering…</string>
+    <string name="engine_chat_running">Running</string>
     <string name="engine_settings_title">Settings</string>
     <string name="engine_settings_back">Back</string>
     <string name="engine_settings_theme">Theme</string>
@@ -36,4 +36,12 @@
     <string name="engine_settings_sign_out_hint">Ends the portal session on this device and forgets its chat caches. Your chats and tasks stay on the platform.</string>
     <string name="engine_settings_sign_out_confirm">Sign out</string>
     <string name="engine_settings_cancel">Cancel</string>
+    <string name="engine_drawer_chat">Chat</string>
+    <string name="engine_drawer_today">Today</string>
+    <string name="engine_drawer_yesterday">Yesterday</string>
+    <string name="engine_drawer_previous_week">Previous 7 days</string>
+    <string name="engine_drawer_older">Older</string>
+    <string name="engine_age_minutes">%1$d min</string>
+    <string name="engine_age_hours">%1$d h</string>
+    <string name="engine_age_days">%1$d d</string>
 </resources>

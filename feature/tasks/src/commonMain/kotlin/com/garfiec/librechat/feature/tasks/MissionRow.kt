@@ -6,9 +6,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -23,6 +25,7 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_state_failed
 import com.garfiec.librechat.feature.tasks.resources.tasks_state_running
 import com.garfiec.librechat.feature.tasks.resources.tasks_state_succeeded
 import com.garfiec.librechat.feature.tasks.resources.tasks_stop
+import com.garfiec.librechat.feature.tasks.util.groupThousands
 import com.garfiec.librechat.feature.tasks.util.missionAge
 import org.jetbrains.compose.resources.stringResource
 
@@ -84,7 +87,7 @@ private fun MissionChip(state: MissionState) {
         is MissionState.Running ->
             stringResource(Res.string.tasks_state_running) to MaterialTheme.colorScheme.primary
         is MissionState.Succeeded ->
-            stringResource(Res.string.tasks_state_succeeded, state.tokens.toString()) to
+            stringResource(Res.string.tasks_state_succeeded, groupThousands(state.tokens)) to
                 MaterialTheme.colorScheme.secondary
         is MissionState.Failed ->
             stringResource(Res.string.tasks_state_failed) to MaterialTheme.colorScheme.error
@@ -92,6 +95,18 @@ private fun MissionChip(state: MissionState) {
     AssistChip(
         onClick = {},
         label = { Text(label) },
+        // A running task shows the spinner the drawer and the tool rows show beside the same word.
+        leadingIcon = if (state is MissionState.Running) {
+            {
+                CircularProgressIndicator(
+                    Modifier.size(AssistChipDefaults.IconSize),
+                    color = colour,
+                    strokeWidth = 2.dp,
+                )
+            }
+        } else {
+            null
+        },
         colors = AssistChipDefaults.assistChipColors(labelColor = colour),
     )
 }

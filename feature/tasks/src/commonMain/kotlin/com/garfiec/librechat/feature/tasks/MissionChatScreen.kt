@@ -1,23 +1,29 @@
 package com.garfiec.librechat.feature.tasks
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -33,6 +39,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
@@ -50,6 +57,9 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_chat_title
 import com.garfiec.librechat.feature.tasks.resources.tasks_new
 import com.garfiec.librechat.feature.tasks.resources.tasks_new_empty
 import com.garfiec.librechat.feature.tasks.resources.tasks_open_drawer
+import com.garfiec.librechat.feature.tasks.resources.tasks_prompt_calendar
+import com.garfiec.librechat.feature.tasks.resources.tasks_prompt_document
+import com.garfiec.librechat.feature.tasks.resources.tasks_prompt_emails
 import com.garfiec.librechat.feature.tasks.resources.tasks_retry
 import com.garfiec.librechat.feature.tasks.util.ChatPart
 import com.garfiec.librechat.feature.tasks.util.ChatTurn
@@ -107,7 +117,13 @@ fun MissionChatScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text(title.ifBlank { stringResource(defaultTitle(profile, sessionId)) }) },
+                title = {
+                    Text(
+                        text = title.ifBlank { stringResource(defaultTitle(profile, sessionId)) },
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
                 navigationIcon = {
                     if (onOpenDrawer != null) {
                         IconButton(onClick = onOpenDrawer) {
@@ -162,6 +178,7 @@ fun MissionChatScreen(
             onRetryHistory = viewModel::retryHistory,
             onRefresh = viewModel::refresh,
             onRememberPosition = viewModel::rememberPosition,
+            onPickPrompt = viewModel::onInputChange,
         )
     }
 }
@@ -173,6 +190,7 @@ private fun MissionChatBody(
     onRetryHistory: () -> Unit,
     onRefresh: () -> Unit,
     onRememberPosition: (index: Int, offset: Int) -> Unit,
+    onPickPrompt: (String) -> Unit,
 ) {
     // Le geste que Raphaël a cherché le 21/09/2026 avant de contourner par la liste. Il ne masque
     // pas le défaut — le flux reprend toujours à « maintenant », voir MissionChatViewModel.refresh —
@@ -187,8 +205,7 @@ private fun MissionChatBody(
             when {
                 // The transcript is the conversation's past; while it loads, an empty screen would be a
                 // lie about a session that has been talking for hours.
-                state.loadingHistory && state.chat.turns.isEmpty() ->
-                    CircularProgressIndicator(Modifier.align(Alignment.Center))
+                state.loadingHistory && state.chat.turns.isEmpty() -> TranscriptSkeleton()
 
                 historyFailure != null && state.chat.turns.isEmpty() -> Explanation(
                     title = stringResource(historyFailure.title()),
@@ -196,7 +213,7 @@ private fun MissionChatBody(
                     action = stringResource(Res.string.tasks_retry) to onRetryHistory,
                 )
 
-                state.chat.turns.isEmpty() -> Text(
+                state.chat.turns.isEmpty() -> EmptyConversation(
                     text = stringResource(
                         when {
                             state.profile == EngineProfile.CHAT -> Res.string.chat_empty
@@ -205,10 +222,10 @@ private fun MissionChatBody(
                             else -> Res.string.tasks_chat_empty
                         },
                     ),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.align(Alignment.Center).padding(32.dp),
+                    // Examples only where a first message is still to be written: a task that already
+                    // ran has its own subject, and a generic prompt there would be noise.
+                    onPickPrompt = if (state.profile == EngineProfile.CHAT || state.isNew) onPickPrompt else null,
+                    modifier = Modifier.align(Alignment.Center),
                 )
 
                 else -> MissionTurns(
@@ -308,6 +325,73 @@ private fun MissionTurns(
     }
 }
 
+/**
+ * The empty conversation: one sentence, then a few example prompts. A tap puts the prompt in the
+ * composer — never sends it — so it can be read and edited first.
+ */
+@Composable
+private fun EmptyConversation(
+    text: String,
+    onPickPrompt: ((String) -> Unit)?,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier.padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
+        if (onPickPrompt != null) {
+            Spacer(Modifier.height(8.dp))
+            EXAMPLE_PROMPTS.forEach { prompt ->
+                val label = stringResource(prompt)
+                SuggestionChip(
+                    onClick = { onPickPrompt(label) },
+                    label = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Stand-in bubbles while the transcript loads: the shape of a conversation, so the screen does not
+ * read as empty, and no shimmer — plain blocks on the raised surface colour.
+ */
+@Composable
+private fun TranscriptSkeleton() {
+    val fill = MaterialTheme.colorScheme.surfaceContainerHighest
+    Column(
+        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        repeat(SKELETON_EXCHANGES) {
+            Box(
+                Modifier
+                    .align(Alignment.End)
+                    .fillMaxWidth(SKELETON_USER_WIDTH)
+                    .height(SKELETON_BUBBLE_HEIGHT)
+                    .background(fill, RoundedCornerShape(16.dp)),
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                SKELETON_LINE_WIDTHS.forEach { width ->
+                    Box(
+                        Modifier
+                            .fillMaxWidth(width)
+                            .height(SKELETON_LINE_HEIGHT)
+                            .background(fill, RoundedCornerShape(4.dp)),
+                    )
+                }
+            }
+        }
+    }
+}
+
 /** What the bar says when the session has no title of its own. */
 private fun defaultTitle(profile: EngineProfile, sessionId: String?) = when {
     profile == EngineProfile.TASK && sessionId == null -> Res.string.tasks_new
@@ -327,3 +411,15 @@ private fun tailLength(chat: MissionChatState): Int {
 
 /** A pause long enough to mean « stopped here », short enough to survive a quick exit. */
 private const val POSITION_SETTLE_MS = 400L
+
+private val EXAMPLE_PROMPTS = listOf(
+    Res.string.tasks_prompt_emails,
+    Res.string.tasks_prompt_calendar,
+    Res.string.tasks_prompt_document,
+)
+
+private const val SKELETON_EXCHANGES = 2
+private const val SKELETON_USER_WIDTH = 0.55f
+private val SKELETON_LINE_WIDTHS = listOf(0.9f, 0.75f, 0.5f)
+private val SKELETON_BUBBLE_HEIGHT = 40.dp
+private val SKELETON_LINE_HEIGHT = 14.dp

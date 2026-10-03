@@ -5,8 +5,8 @@
     <string name="portal_sign_in_hint">One sign-in for chats and tasks: password and second factor at the portal, then one consent.</string>
     <string name="portal_title">Sign in</string>
     <string name="portal_close">Close</string>
-    <string name="portal_welcome">Connect to your platform</string>
-    <string name="portal_addresses_hint">The three addresses of your platform. They stay on this device.</string>
+    <string name="portal_welcome">Welcome to your assistant</string>
+    <string name="portal_addresses_hint">The three addresses of your assistant. They stay on this device.</string>
     <string name="portal_engine_url">Engine address</string>
     <string name="portal_scheduler_url">Scheduler address</string>
     <string name="portal_issuer_url">Portal address</string>

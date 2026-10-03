@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import com.garfiec.librechat.feature.tasks.resources.Res
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_collapse
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_expand
+import com.garfiec.librechat.feature.tasks.resources.tasks_state_running
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -158,5 +159,26 @@ internal fun Explanation(
                 TextButton(onClick = onClick) { Text(label) }
             }
         }
+    }
+}
+
+/**
+ * « Running », drawn the same way wherever something is under way — a tool call, a task's row — and
+ * by the drawer from its own strings: a small spinner, then the word. Three spellings of the same
+ * state (a bare spinner, « Running », « Answering… ») is what this replaced.
+ */
+@Composable
+internal fun RunningIndicator(modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        CircularProgressIndicator(Modifier.size(12.dp), strokeWidth = 2.dp)
+        Text(
+            text = stringResource(Res.string.tasks_state_running),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.primary,
+        )
     }
 }

@@ -15,7 +15,12 @@ The engine shell, and the Koin module list the application starts from. KMP libr
   chat's blank entry replaced in place once the engine has the session; Tasks, mission runs, usage,
   settings and instructions pushed on top. « New task » pushes a blank `MissionChat` whose composer
   starts the task, replaced in place the same way (`taskStarted`).
-- `EngineDrawer`, `EngineSettingsScreen` (theme, platform addresses read-only, sign-out),
+- `EngineDrawer` — new chat, Tasks, the recent conversations under day headers (Today / Yesterday
+  / Previous 7 days / Older, in the phone's time zone: `groupRecent` in `RecentGrouping.kt`, the
+  offset from `localUtcOffsetMillis`, actual in `androidMain`), each with its kind's icon (bubble
+  for a chat, `TaskAlt` for a task), a short age, and « Running » with a spinner while it answers;
+  placeholder rows on a first load. Settings at the bottom.
+- `EngineSettingsScreen` (theme, platform addresses read-only, sign-out),
   `EngineInstructionsScreen` + `EngineInstructionsViewModel` — the global instructions' editor over
   `GlobalProfileEditor` (Enregistrer / Annuler; the MCP servers an earlier build stored are kept as
   they are, never edited here).
