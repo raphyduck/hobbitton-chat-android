@@ -27,6 +27,7 @@ import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import com.garfiec.librechat.core.data.datastore.ThemeMode
 import com.garfiec.librechat.core.data.engine.EngineSessionKind
+import com.garfiec.librechat.core.data.engine.OpenConversation
 import com.garfiec.librechat.core.ui.theme.AppLocale
 import com.garfiec.librechat.core.ui.util.SafeUriHandler
 import com.garfiec.librechat.feature.auth.screen.PortalSignInScreen
@@ -48,12 +49,19 @@ import org.koin.compose.viewmodel.koinViewModel
 fun EngineNavHost(
     modifier: Modifier = Modifier,
     appLocaleTag: String? = null,
+    /**
+     * Asks the platform for the right to post notifications (Android 13+), when the Settings switch
+     * is turned on. The activity owns the request; without one the switch still saves.
+     */
+    onRequestNotificationPermission: () -> Unit = {},
     viewModel: EngineShellViewModel = koinViewModel(),
 ) {
     val signedIn by viewModel.signedIn.collectAsStateWithLifecycle()
     val chats by viewModel.chats.collectAsStateWithLifecycle()
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val addresses by viewModel.addresses.collectAsStateWithLifecycle()
+    val attentionSound by viewModel.attentionSound.collectAsStateWithLifecycle()
+    val openRequest by viewModel.openRequest.collectAsStateWithLifecycle()
 
     // Back in the foreground: a renewal refused while away has emptied the token store, and the
     // shell must go back to the sign-in rather than fail every request of the chat.
@@ -72,9 +80,19 @@ fun EngineNavHost(
                     false -> PortalSignInScreen(onSignedIn = viewModel::onSignedIn)
                     true -> EngineMainLayout(
                         chats = chats,
-                        settings = EngineSettingsUiState(themeMode = themeMode, addresses = addresses),
+                        settings = EngineSettingsUiState(
+                            themeMode = themeMode,
+                            addresses = addresses,
+                            attentionSound = attentionSound,
+                        ),
+                        openRequest = openRequest,
+                        onConsumeOpenRequest = viewModel::consumeOpenRequest,
                         onRefreshChats = viewModel::refreshChats,
                         onThemeMode = viewModel::setThemeMode,
+                        onAttentionSound = { enabled ->
+                            viewModel.setAttentionSound(enabled)
+                            if (enabled) onRequestNotificationPermission()
+                        },
                         onSignOut = viewModel::signOut,
                     )
                 }
@@ -92,8 +110,11 @@ fun EngineNavHost(
 private fun EngineMainLayout(
     chats: EngineChatsState,
     settings: EngineSettingsUiState,
+    openRequest: OpenConversation?,
+    onConsumeOpenRequest: (OpenConversation) -> Unit,
     onRefreshChats: () -> Unit,
     onThemeMode: (ThemeMode) -> Unit,
+    onAttentionSound: (Boolean) -> Unit,
     onSignOut: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -107,6 +128,20 @@ private fun EngineMainLayout(
     // answered while the drawer was shut, moves to the top.
     LaunchedEffect(drawerState.isOpen) {
         if (drawerState.isOpen) refreshChats()
+    }
+
+    // A tapped notification: its conversation as the root, as the drawer would open it. A session
+    // this device never recorded opens as a task: the screen reads its agent off the transcript.
+    val consumeOpenRequest by rememberUpdatedState(onConsumeOpenRequest)
+    LaunchedEffect(openRequest) {
+        val request = openRequest ?: return@LaunchedEffect
+        val title = request.title.orEmpty()
+        when (request.kind) {
+            EngineSessionKind.CHAT -> navigator.openChat(request.sessionId, title)
+            EngineSessionKind.TASK, null -> navigator.openTask(request.sessionId, title)
+        }
+        drawerState.close()
+        consumeOpenRequest(request)
     }
 
     val openDrawer: () -> Unit = { scope.launch { drawerState.open() } }
@@ -185,6 +220,7 @@ private fun EngineMainLayout(
                         onOpenInstructions = { navigator.openInstructions() },
                         onOpenUsage = { navigator.openUsage() },
                         onThemeMode = onThemeMode,
+                        onAttentionSound = onAttentionSound,
                         onSignOut = {
                             // The stack first: its conversations close with their entries — their
                             // view models, their live feeds — before the portal's tokens go.

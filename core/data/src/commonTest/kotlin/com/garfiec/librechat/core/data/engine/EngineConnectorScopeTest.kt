@@ -31,7 +31,7 @@ class EngineConnectorScopeTest {
         val rules = permissionsFor(catalogue, listOf("memoire", "qonto", "imap-envoi"))
 
         val allowed = rules.filter { it.action == "allow" }.map { it.permission }
-        assertEquals(listOf("todowrite", "memoire_lire"), allowed)
+        assertEquals(listOf("todowrite", "question", "memoire_lire"), allowed)
         assertFalse(allowed.any { it.startsWith("qonto") || it.startsWith("imap") })
     }
 
@@ -75,7 +75,7 @@ class EngineConnectorScopeTest {
         val allowed = permissionsFor(old, listOf("qonto"))
             .filter { it.action == "allow" }
             .map { it.permission }
-        assertEquals(listOf("qonto_qonto_list_transactions"), allowed)
+        assertEquals(listOf("question", "qonto_qonto_list_transactions"), allowed)
         assertFalse(old.offered().single().tickedByDefault)
     }
 }

@@ -57,6 +57,18 @@ sealed interface EngineStreamEvent {
 
     /** The session went idle: nothing is running any more. This is what ends the spinner. */
     data object Idle : EngineStreamEvent
+
+    /**
+     * The agent asked the person something (`question.asked`) and its turn is now waiting on the
+     * answer. Live feed only: the transcript does not carry pending requests, `GET /question` does.
+     */
+    data class QuestionAsked(val request: EngineQuestionRequest) : EngineStreamEvent
+
+    /**
+     * A question stopped waiting, answered (`question.replied`) or dismissed (`question.rejected`),
+     * from this phone or from anywhere else. Either way its form has nothing left to do.
+     */
+    data class QuestionClosed(val requestId: String) : EngineStreamEvent
 }
 
 /** The shape of a part, whether it came from the live feed or from a fetched transcript. */

@@ -55,6 +55,18 @@ Most modules have their own `CLAUDE.md` with specific guidance.
 - **Dictation and audio files** (chat and task composer) go to the scheduler's `POST /transcription`
   (`SchedulerApi.transcribe` → `SchedulerTranscriber`). A dictation lands in the composer and is
   never sent on its own; an audio file leaves with the message as a quoted transcription.
+- **Questions from the agent** (OpenCode's `question` tool, 03/10/2026): the engine announces one on
+  the feed (`question.asked`) and blocks the turn until `POST /question/{id}/reply` or `/reject`.
+  The conversation shows it as a form in place of the composer (`MissionQuestionForm`, options,
+  multiple choice, a free answer), and reads `GET /question` at opening so a question asked before
+  the screen opened is not missed. The server opens the tool to the `chat` and `mission` profiles;
+  the app grants it on every session it builds rules for (`permissionsFor`), the scheduler's
+  autonomous missions never get it.
+- **Sound and notifications** (Settings → Notifications, on by default): a question chimes when its
+  conversation is on screen and is notified otherwise (`EngineAttentionWatcher`, run by the shell
+  over the global feed, every session); a reply the screen saw start is notified when it ends out
+  of sight. The decision is common (`AttentionSignals`), the sound and channels are `:app`'s
+  (`AndroidAttentionNotifier`); a tap opens the conversation (`ConversationRequests`).
 - **Global instructions** (`GlobalProfile`, sent as `system` on every chat and task turn) are edited
   from Settings → Instructions (`EngineInstructionsScreen`) and stored on the device
   (`GlobalProfileStore`, `device:` keys).

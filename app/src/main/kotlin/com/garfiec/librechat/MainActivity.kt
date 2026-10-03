@@ -1,10 +1,14 @@
 package com.garfiec.librechat
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
@@ -32,18 +36,25 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.core.content.edit
 import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
 import co.touchlab.kermit.Logger
+import com.garfiec.librechat.attention.AndroidAttentionNotifier
 import com.garfiec.librechat.core.common.network.ConnectivityObserver
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.datastore.ThemeDataStore
 import com.garfiec.librechat.core.data.datastore.ThemeMode
+import com.garfiec.librechat.core.data.engine.ConversationRequests
 import com.garfiec.librechat.core.data.engine.EngineCallbackDelivery
 import com.garfiec.librechat.core.network.engine.auth.CALLBACK_SCHEME
 import com.garfiec.librechat.core.ui.theme.LibreChatTheme
 import com.garfiec.librechat.shared.engine.EngineNavHost
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
 
 class MainActivity : ComponentActivity() {
@@ -52,6 +63,13 @@ class MainActivity : ComponentActivity() {
     private val themeDataStore: ThemeDataStore by inject()
     private val settingsDataStore: SettingsDataStore by inject()
     private val engineCallbacks: EngineCallbackDelivery by inject()
+    private val conversationRequests: ConversationRequests by inject()
+
+    /** Android 13+: posting a notification needs the person's leave, asked at run time. */
+    private val notificationPermission =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            Logger.i { "Notification permission ${if (granted) "granted" else "refused"}" }
+        }
 
     @OptIn(ExperimentalComposeUiApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -61,6 +79,11 @@ class MainActivity : ComponentActivity() {
         // Only process the launch intent on a genuinely fresh start: on recreation it is still sticky,
         // and the portal's callback it may carry has already been delivered.
         if (savedInstanceState == null) handleIntent(intent)
+
+        // Sound and notifications are on by default (03/10/2026); a question asked while the app is
+        // out of sight is only heard through a notification. Asked once, on a fresh start: the
+        // Settings switch asks again when turned back on.
+        if (savedInstanceState == null) askForNotificationsOnce()
 
         // The home-screen model shortcuts deep-linked into LibreChat's chat (`librechat://model`),
         // which no longer exists (D-077). Clear whatever an earlier build published.
@@ -139,6 +162,7 @@ class MainActivity : ComponentActivity() {
                             // LibreChat's shell is no longer composed on Android.
                             EngineNavHost(
                                 appLocaleTag = appLocale,
+                                onRequestNotificationPermission = ::requestNotificationPermission,
                                 modifier = Modifier
                                     .weight(1f)
                                     .then(
@@ -163,12 +187,39 @@ class MainActivity : ComponentActivity() {
         handleIntent(intent)
     }
 
+    private fun askForNotificationsOnce() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || notificationsAllowed()) return
+        val prefs = getSharedPreferences(ATTENTION_PREFS, MODE_PRIVATE)
+        if (prefs.getBoolean(KEY_NOTIFICATIONS_ASKED, false)) return
+        lifecycleScope.launch {
+            if (!settingsDataStore.attentionSound.first()) return@launch
+            prefs.edit { putBoolean(KEY_NOTIFICATIONS_ASKED, true) }
+            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
+    /** The Settings switch turned on: ask, unless granted already. Android stops asking after two refusals. */
+    private fun requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || notificationsAllowed()) return
+        notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+    }
+
+    private fun notificationsAllowed(): Boolean =
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
+
     /**
      * The only link this app still acts on (D-077): the portal's return. LibreChat's own deep links
      * (`librechat://`, a conversation, a model shortcut, an OAuth hop) and shares into a chat named
      * screens that no longer exist; they are ignored, and the manifest no longer asks for them.
      */
     private fun handleIntent(intent: Intent?) {
+        // A tapped notification (a question, a reply ready): the shell opens its conversation.
+        AndroidAttentionNotifier.conversationOf(intent)?.let { conversation ->
+            conversationRequests.open(conversation)
+            return
+        }
         val uri = intent?.data ?: return
         // Le retour du portail d'authentification. Il ne désigne aucun écran — il porte un code
         // d'autorisation que le tour de connexion attend — et va donc droit à la boîte aux lettres.
@@ -177,5 +228,10 @@ class MainActivity : ComponentActivity() {
         } else {
             Logger.w { "Ignoring a link this app no longer handles: scheme=${uri.scheme}" }
         }
+    }
+
+    private companion object {
+        const val ATTENTION_PREFS = "attention"
+        const val KEY_NOTIFICATIONS_ASKED = "notifications_asked"
     }
 }

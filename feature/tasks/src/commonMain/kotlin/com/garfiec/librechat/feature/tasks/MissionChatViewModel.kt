@@ -5,26 +5,33 @@ import androidx.lifecycle.viewModelScope
 import com.garfiec.librechat.core.data.datastore.MissionReadingPosition
 import com.garfiec.librechat.core.data.datastore.MissionReadingPositions
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
+import com.garfiec.librechat.core.data.engine.AttentionSignals
 import com.garfiec.librechat.core.data.engine.AudioTranscriber
 import com.garfiec.librechat.core.data.engine.ConnectorOption
 import com.garfiec.librechat.core.data.engine.EngineMissionRepository
 import com.garfiec.librechat.core.data.engine.EngineProfile
+import com.garfiec.librechat.core.data.engine.EngineSessionKind
+import com.garfiec.librechat.core.data.engine.OpenConversation
 import com.garfiec.librechat.core.data.engine.TranscriptionOutcome
 import com.garfiec.librechat.core.data.engine.engineFailureKind
 import com.garfiec.librechat.core.data.engine.offered
 import com.garfiec.librechat.core.data.pricing.ModelPriceCache
 import com.garfiec.librechat.core.model.engine.EngineFailureKind
+import com.garfiec.librechat.core.model.engine.EngineQuestionRequest
 import com.garfiec.librechat.core.model.engine.EngineSelectableModel
+import com.garfiec.librechat.core.model.engine.EngineStreamEvent
 import com.garfiec.librechat.core.model.scheduler.ModelPrices
 import com.garfiec.librechat.feature.tasks.delegate.CatalogueFetch
 import com.garfiec.librechat.feature.tasks.delegate.ComposerStagingDelegate
 import com.garfiec.librechat.feature.tasks.delegate.MissionCatalogueDelegate
 import com.garfiec.librechat.feature.tasks.util.AudioNote
 import com.garfiec.librechat.feature.tasks.util.MissionChatState
+import com.garfiec.librechat.feature.tasks.util.QuestionDraft
 import com.garfiec.librechat.feature.tasks.util.StagedAttachment
 import com.garfiec.librechat.feature.tasks.util.asPromptPart
 import com.garfiec.librechat.feature.tasks.util.outgoingMessageText
 import com.garfiec.librechat.feature.tasks.util.reduce
+import com.garfiec.librechat.feature.tasks.util.withPendingQuestions
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Job
@@ -140,7 +147,24 @@ data class MissionChatUiState(
     val started: StartedChat? = null,
     /** A conversation its first message has yet to create — a new chat, or a new task. */
     val isNew: Boolean = false,
+    /**
+     * The person's answer to the first pending question, as they fill the form, kept here rather
+     * than in the composable so a rotation does not wipe it. Null, or naming another request,
+     * means a blank form ([questionDraftFor]).
+     */
+    val questionDraft: QuestionDraft? = null,
+    /** An answer or a dismissal is on its way to the engine. */
+    val answeringQuestion: Boolean = false,
+    /** Why the last answer did not reach the engine, or null. The form stays, filled as it was. */
+    val questionError: EngineFailureKind? = null,
 ) {
+    /** The question the form shows: the oldest one the agent is waiting on. */
+    val pendingQuestion get() = chat.questions.firstOrNull()
+
+    /** The draft for [pendingQuestion], blank when none was started for it. */
+    fun questionDraftFor(request: EngineQuestionRequest): QuestionDraft =
+        questionDraft?.takeIf { it.requestId == request.id } ?: QuestionDraft.blank(request)
+
     /**
      * What the model chip says, and what the picker shows as current.
      *
@@ -185,6 +209,8 @@ class MissionChatViewModel(
     private val positions: MissionReadingPositions,
     /** Speech to text for the dictation and the audio files: the scheduler's, since D-077. */
     private val transcriber: AudioTranscriber,
+    /** Sound and notification when a reply this screen was waiting on finishes out of sight. */
+    private val attention: AttentionSignals,
     private val ioDispatcher: CoroutineDispatcher,
     private val profile: EngineProfile = EngineProfile.TASK,
 ) : ViewModel() {
@@ -201,6 +227,13 @@ class MissionChatViewModel(
     val uiState: StateFlow<MissionChatUiState> = _uiState.asStateFlow()
 
     private var streamJob: Job? = null
+
+    /**
+     * A turn this screen saw start (a message sent from it, or a reply streaming in live) whose
+     * end has not come yet. Its `Idle` is the « reply ready » signal; an `Idle` for a turn nobody
+     * here watched start (a re-read, the feed's own reconnect) rings nothing.
+     */
+    private var awaitingReply = false
 
     // Declared before `init`, which reads the catalogue: initializers run in textual order.
     private val catalogueLoader = MissionCatalogueDelegate(
@@ -376,6 +409,7 @@ class MissionChatViewModel(
                     val seeded = events.fold(current.chat) { state, event -> state.reduce(event) }
                     current.copy(chat = seeded, loadingHistory = false, refreshing = false)
                 }
+                loadPendingQuestions(sessionId)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -388,6 +422,18 @@ class MissionChatViewModel(
                 }
             }
         }
+    }
+
+    /**
+     * The questions the agent is already waiting on. The feed announces a question once: a screen
+     * opened after it (a new chat whose first turn asked straight away, a task opened from the
+     * drawer, a feed that dropped) would show a session « running » for ever, its form nowhere.
+     * A failure costs the catch-up only; the feed still brings the next question.
+     */
+    private suspend fun loadPendingQuestions(sessionId: String) {
+        val pending = runCatching { withContext(ioDispatcher) { repository.pendingQuestions(sessionId) } }
+            .getOrNull() ?: return
+        if (pending.isNotEmpty()) _uiState.update { it.copy(chat = it.chat.withPendingQuestions(pending)) }
     }
 
     /**
@@ -427,8 +473,121 @@ class MissionChatViewModel(
                 .flowOn(ioDispatcher)
                 .collect { event ->
                     _uiState.update { it.copy(chat = it.chat.reduce(event)) }
+                    watchForReply(sessionId, event)
                 }
         }
+    }
+
+    /**
+     * « Reply ready », for a turn this screen saw start and that ended while the person was not
+     * looking at it. Whether they were is [AttentionSignals]'s call, as is the Settings switch.
+     */
+    private fun watchForReply(sessionId: String, event: EngineStreamEvent) {
+        when (event) {
+            is EngineStreamEvent.PartDelta -> awaitingReply = true
+            EngineStreamEvent.Idle -> if (awaitingReply) {
+                awaitingReply = false
+                viewModelScope.launch {
+                    attention.replyReady(sessionId) {
+                        OpenConversation(
+                            sessionId = sessionId,
+                            title = withContext(ioDispatcher) { repository.sessionTitle(sessionId) },
+                            kind = if (profile == EngineProfile.CHAT) EngineSessionKind.CHAT else EngineSessionKind.TASK,
+                        )
+                    }
+                }
+            }
+            else -> Unit
+        }
+    }
+
+    /** The screen is in front of the person: a question here chimes rather than notifies. */
+    fun onVisible() {
+        sessionId?.let(attention::enter)
+    }
+
+    fun onHidden() {
+        sessionId?.let(attention::leave)
+    }
+
+    override fun onCleared() {
+        onHidden()
+        super.onCleared()
+    }
+
+    /** Ticks or unticks an option of the pending question's [index]-th question. */
+    fun pickQuestionOption(index: Int, label: String) {
+        editQuestionDraft { request, draft ->
+            draft.pick(index, label, multiple = request.questions.getOrNull(index)?.multiple == true)
+        }
+    }
+
+    /** The free answer of the pending question's [index]-th question. */
+    fun typeQuestionAnswer(index: Int, text: String) {
+        editQuestionDraft { request, draft ->
+            draft.type(index, text, multiple = request.questions.getOrNull(index)?.multiple == true)
+        }
+    }
+
+    private inline fun editQuestionDraft(
+        edit: (EngineQuestionRequest, QuestionDraft) -> QuestionDraft,
+    ) {
+        _uiState.update { state ->
+            val request = state.pendingQuestion ?: return@update state
+            state.copy(questionDraft = edit(request, state.questionDraftFor(request)), questionError = null)
+        }
+    }
+
+    /**
+     * Sends the form's answers. The agent's turn resumes at once and streams on the feed. The form
+     * goes as soon as the engine has the answer; the feed's `question.replied` would close it too,
+     * a moment later.
+     *
+     * A question no longer waiting (answered from another device, or its turn stopped) closes the
+     * same way: the repository reads the engine's 404 as « nothing left to answer ».
+     */
+    fun answerQuestion() {
+        val state = _uiState.value
+        val request = state.pendingQuestion ?: return
+        val draft = state.questionDraftFor(request)
+        if (state.answeringQuestion || !draft.isComplete()) return
+        settleQuestion(request.id) { repository.answerQuestion(request.id, draft.answers()) }
+    }
+
+    /** Dismisses the pending question: the agent goes on without the answer. */
+    fun dismissQuestion() {
+        val state = _uiState.value
+        val request = state.pendingQuestion ?: return
+        if (state.answeringQuestion) return
+        settleQuestion(request.id) { repository.dismissQuestion(request.id) }
+    }
+
+    private fun settleQuestion(requestId: String, call: suspend () -> Unit) {
+        _uiState.update { it.copy(answeringQuestion = true, questionError = null) }
+        // The turn resumes now: its end is a reply this screen is waiting on.
+        awaitingReply = true
+        viewModelScope.launch {
+            try {
+                withContext(ioDispatcher) { call() }
+                closeQuestion(requestId)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _uiState.update { it.copy(questionError = e.engineFailureKind()) }
+            } finally {
+                _uiState.update { it.copy(answeringQuestion = false) }
+            }
+        }
+    }
+
+    private fun closeQuestion(requestId: String) {
+        _uiState.update {
+            it.copy(
+                chat = it.chat.reduce(EngineStreamEvent.QuestionClosed(requestId)),
+                questionDraft = it.questionDraft?.takeIf { draft -> draft.requestId != requestId },
+            )
+        }
+        attention.questionClosed(requestId)
     }
 
     fun onInputChange(text: String) {
@@ -478,6 +637,7 @@ class MissionChatViewModel(
         _uiState.update {
             it.copy(input = "", attachments = emptyList(), audioNotes = emptyList(), sending = true, sendError = null)
         }
+        awaitingReply = true
         viewModelScope.launch {
             try {
                 // The answer streams in over the feed while this call is in flight; what it returns is

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Connectivity -->
+    <string name="no_connection">Pas de connexion internet</string>
+
+    <!-- Attention : une question qui attend une réponse, une réponse prête -->
+    <string name="attention_channel_questions">Questions</string>
+    <string name="attention_channel_questions_hint">Butler attend votre réponse pour continuer.</string>
+    <string name="attention_channel_replies">Réponses</string>
+    <string name="attention_channel_replies_hint">Une réponse s’est terminée pendant que vous étiez ailleurs.</string>
+    <string name="attention_question">Butler a une question</string>
+    <string name="attention_question_in">Question · %1$s</string>
+    <string name="attention_question_hint">Butler attend votre réponse.</string>
+    <string name="attention_reply_ready">Réponse prête</string>
+    <string name="attention_reply_ready_hint">Butler a répondu.</string>
+</resources>

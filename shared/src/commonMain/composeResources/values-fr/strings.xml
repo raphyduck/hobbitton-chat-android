@@ -22,6 +22,9 @@
     <string name="engine_settings_portal">Portail</string>
     <string name="engine_settings_platform_hint">Pour changer une adresse, déconnectez-vous puis reconnectez-vous.</string>
     <string name="engine_settings_usage">Consommation et fournisseurs</string>
+    <string name="engine_settings_notifications">Notifications</string>
+    <string name="engine_settings_attention">Son et notifications</string>
+    <string name="engine_settings_attention_hint">Quand Butler vous pose une question, ou qu’une réponse se termine pendant que vous êtes ailleurs.</string>
     <string name="engine_settings_instructions">Instructions</string>
     <string name="engine_settings_instructions_hint">Envoyées avec chaque conversation et chaque tâche</string>
     <string name="engine_instructions_title">Instructions</string>

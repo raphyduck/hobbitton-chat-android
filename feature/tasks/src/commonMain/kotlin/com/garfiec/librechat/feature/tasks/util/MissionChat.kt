@@ -2,6 +2,7 @@ package com.garfiec.librechat.feature.tasks.util
 
 import com.garfiec.librechat.core.model.engine.EngineModelRef
 import com.garfiec.librechat.core.model.engine.EnginePartSnapshot
+import com.garfiec.librechat.core.model.engine.EngineQuestionRequest
 import com.garfiec.librechat.core.model.engine.EngineStreamEvent
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -36,6 +37,12 @@ data class MissionChatState(
      * until 30/08/2026, which named the right model only by coincidence.
      */
     val model: EngineModelRef? = null,
+    /**
+     * The questions the agent is waiting on, oldest first: its turn is blocked until each is
+     * answered or dismissed. Filled by the live feed and by `GET /question` (the feed announces a
+     * question once, and a screen opened after it would never hear of it otherwise).
+     */
+    val questions: List<EngineQuestionRequest> = emptyList(),
 )
 
 sealed interface ChatTurn {
@@ -123,8 +130,22 @@ fun MissionChatState.reduce(event: EngineStreamEvent): MissionChatState = when (
             copy(turns = turns.appendingText(event.messageId, event.partId, event.delta), streaming = true)
         }
 
-    EngineStreamEvent.Idle -> copy(streaming = false)
+    // An idle session has nothing waiting: a question still listed here was abandoned with its
+    // turn (stopped, or failed) and the engine dropped it without a `question.rejected`.
+    EngineStreamEvent.Idle -> copy(streaming = false, questions = emptyList())
+
+    is EngineStreamEvent.QuestionAsked ->
+        if (questions.any { it.id == event.request.id }) this else copy(questions = questions + event.request)
+
+    is EngineStreamEvent.QuestionClosed -> copy(questions = questions.filterNot { it.id == event.requestId })
 }
+
+/**
+ * Pending questions read from the engine (`GET /question`), merged under what the feed said: a
+ * question announced while the read was in flight is kept, a question the read lists is added.
+ */
+fun MissionChatState.withPendingQuestions(pending: List<EngineQuestionRequest>): MissionChatState =
+    copy(questions = (questions + pending).distinctBy { it.id })
 
 private const val ROLE_USER = "user"
 private const val FIELD_TEXT = "text"

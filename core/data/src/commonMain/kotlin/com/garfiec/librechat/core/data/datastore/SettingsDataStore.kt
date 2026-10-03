@@ -2,6 +2,8 @@ package com.garfiec.librechat.core.data.datastore
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
@@ -16,9 +18,9 @@ import kotlinx.coroutines.launch
 import kotlin.concurrent.Volatile
 
 /**
- * The two display preferences the app still reads: the language applied at the root and the size
- * of the conversation's text. Both were set from LibreChat's settings screens; they are read as
- * stored, and default to the device locale and the medium size.
+ * The display preferences the app still reads (the language applied at the root and the size of
+ * the conversation's text, both set from LibreChat's settings screens and read as stored) and the
+ * one it writes: whether a question or a finished reply rings ([attentionSound]).
  */
 class SettingsDataStore(
     private val dataStore: DataStore<Preferences>,
@@ -68,6 +70,17 @@ class SettingsDataStore(
         ChatFontSize.fromString(prefs[KEY_CHAT_FONT_SIZE])
     }
 
+    /**
+     * Sound and notifications when a conversation needs the person: a question waiting for an
+     * answer, a reply ready while they were elsewhere (03/10/2026). On unless switched off in
+     * Settings: a question nobody hears about blocks its turn until somebody happens to look.
+     */
+    val attentionSound: Flow<Boolean> = dataStore.data.map { prefs -> prefs[KEY_ATTENTION_SOUND] ?: true }
+
+    suspend fun setAttentionSound(enabled: Boolean) {
+        dataStore.edit { it[KEY_ATTENTION_SOUND] = enabled }
+    }
+
     companion object {
         /**
          * Sentinel meaning "follow the device locale" — the default until the user picks a
@@ -78,5 +91,6 @@ class SettingsDataStore(
 
         private val KEY_SELECTED_LANGUAGE = stringPreferencesKey("selected_language")
         private val KEY_CHAT_FONT_SIZE = stringPreferencesKey("chat_font_size")
+        private val KEY_ATTENTION_SOUND = booleanPreferencesKey("attention_sound")
     }
 }

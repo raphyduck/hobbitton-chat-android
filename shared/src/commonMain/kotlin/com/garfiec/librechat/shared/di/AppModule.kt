@@ -1,5 +1,7 @@
 package com.garfiec.librechat.shared.di
 
+import com.garfiec.librechat.core.data.engine.ConversationRequests
+import com.garfiec.librechat.core.data.engine.EngineAttentionWatcher
 import com.garfiec.librechat.core.data.engine.EngineMissionRepository
 import com.garfiec.librechat.core.data.engine.EngineSettingsStore
 import com.garfiec.librechat.core.data.portal.PortalSignOut
@@ -24,6 +26,9 @@ val sharedAppModule = module {
             kinds = get(),
             positions = get(),
             themeDataStore = get(),
+            settingsDataStore = get(),
+            attentionWatcher = getOrNull<EngineAttentionWatcher>(),
+            conversationRequests = getOrNull<ConversationRequests>(),
         )
     }
 
