@@ -161,4 +161,10 @@
     <string name="tasks_prompt_emails">Summarise my unread emails</string>
     <string name="tasks_prompt_calendar">What\'s on my calendar this week?</string>
     <string name="tasks_prompt_document">Find a document on the NAS</string>
+    <string name="tasks_question_title">Butler is asking</string>
+    <string name="tasks_question_other">Your own answer…</string>
+    <string name="tasks_question_pick_several">Several choices possible</string>
+    <string name="tasks_question_send">Reply</string>
+    <string name="tasks_question_dismiss">Dismiss</string>
+    <string name="tasks_question_waiting">Sending…</string>
 </resources>

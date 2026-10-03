@@ -4,11 +4,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.data.datastore.MissionReadingPositions
+import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.datastore.ThemeDataStore
 import com.garfiec.librechat.core.data.datastore.ThemeMode
+import com.garfiec.librechat.core.data.engine.ConversationRequests
+import com.garfiec.librechat.core.data.engine.EngineAttentionWatcher
 import com.garfiec.librechat.core.data.engine.EngineChatSummary
 import com.garfiec.librechat.core.data.engine.EngineMissionRepository
 import com.garfiec.librechat.core.data.engine.EngineSettingsStore
+import com.garfiec.librechat.core.data.engine.OpenConversation
 import com.garfiec.librechat.core.data.engine.SessionKindStore
 import com.garfiec.librechat.core.data.portal.PortalSignOut
 import com.garfiec.librechat.core.data.portal.isPortalSignedIn
@@ -53,6 +57,12 @@ class EngineShellViewModel(
     private val kinds: SessionKindStore,
     private val positions: MissionReadingPositions,
     private val themeDataStore: ThemeDataStore,
+    /** The Settings switch for sound and notifications (03/10/2026). */
+    private val settingsDataStore: SettingsDataStore,
+    /** Questions asked anywhere on the engine, rung while signed in. Null without the engine graph. */
+    private val attentionWatcher: EngineAttentionWatcher? = null,
+    /** The conversation a tapped notification asks to open. Null without the engine graph. */
+    private val conversationRequests: ConversationRequests? = null,
 ) : ViewModel() {
 
     private val _signedIn = MutableStateFlow<Boolean?>(null)
@@ -71,7 +81,16 @@ class EngineShellViewModel(
     val themeMode: StateFlow<ThemeMode> = themeDataStore.themeMode
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), themeDataStore.initialThemeMode)
 
+    /** Sound and notifications when a conversation needs the person, on by default. */
+    val attentionSound: StateFlow<Boolean> = settingsDataStore.attentionSound
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), true)
+
+    /** A conversation a notification asked to open, until the shell has opened it. */
+    val openRequest: StateFlow<OpenConversation?> = conversationRequests?.pending
+        ?: MutableStateFlow<OpenConversation?>(null).asStateFlow()
+
     private var chatsJob: Job? = null
+    private var attentionJob: Job? = null
 
     init {
         recheck()
@@ -91,7 +110,41 @@ class EngineShellViewModel(
             val before = _signedIn.value
             _signedIn.value = now
             if (now && before != true) refreshChats()
+            if (now) watchAttention() else stopAttention()
         }
+    }
+
+    /**
+     * Listens for questions across the engine while signed in: a task left running asks, and the
+     * person hears it wherever they are in the app, or outside it while the process lives. The
+     * watch outlives the screen, not the activity: as long as this view model does.
+     */
+    private fun watchAttention() {
+        val watcher = attentionWatcher ?: return
+        if (attentionJob?.isActive == true) return
+        attentionJob = viewModelScope.launch {
+            try {
+                watcher.watch()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Logger.w(e) { "Attention: the question watch stopped" }
+            }
+        }
+    }
+
+    private fun stopAttention() {
+        attentionJob?.cancel()
+        attentionJob = null
+    }
+
+    fun setAttentionSound(enabled: Boolean) {
+        viewModelScope.launch { settingsDataStore.setAttentionSound(enabled) }
+    }
+
+    /** The shell opened the conversation a notification named: it is not opened twice. */
+    fun consumeOpenRequest(conversation: OpenConversation) {
+        conversationRequests?.consume(conversation)
     }
 
     fun onSignedIn() {
@@ -140,6 +193,7 @@ class EngineShellViewModel(
                 runCatching { positions.clear() }.onFailure { Logger.w(it) { "Could not clear the reading positions" } }
             }
             chatsJob?.cancel()
+            stopAttention()
             _chats.value = EngineChatsState()
             _signedIn.value = false
         }

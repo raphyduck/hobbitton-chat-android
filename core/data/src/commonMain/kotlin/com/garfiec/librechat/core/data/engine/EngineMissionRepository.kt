@@ -8,6 +8,7 @@ import com.garfiec.librechat.core.model.engine.EngineModelRef
 import com.garfiec.librechat.core.model.engine.EnginePromptPart
 import com.garfiec.librechat.core.model.engine.EnginePromptRequest
 import com.garfiec.librechat.core.model.engine.EngineProviderModel
+import com.garfiec.librechat.core.model.engine.EngineQuestionRequest
 import com.garfiec.librechat.core.model.engine.EngineSelectableModel
 import com.garfiec.librechat.core.model.engine.EngineSession
 import com.garfiec.librechat.core.model.engine.EngineSessionStatus
@@ -19,6 +20,7 @@ import com.garfiec.librechat.core.model.scheduler.ConnectorCatalogue
 import com.garfiec.librechat.core.network.api.AgentEngineApi
 import com.garfiec.librechat.core.network.api.SchedulerApi
 import com.garfiec.librechat.core.network.engine.EngineEventTransport
+import com.garfiec.librechat.core.network.engine.EngineHttpException
 import com.garfiec.librechat.core.network.engine.EngineStreamClient
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.sync.Mutex
@@ -414,6 +416,50 @@ class EngineMissionRepository(
     fun events(sessionId: String): Flow<EngineStreamEvent> = streamClient.connect(sessionId, eventTransport)
 
     /**
+     * Every session's events, each naming its session: what the attention watcher listens to, so a
+     * question asked in a conversation nobody has open still reaches the person.
+     */
+    fun allEvents(): Flow<EngineStreamClient.SessionEvent> = streamClient.connectAll(eventTransport)
+
+    /**
+     * The questions this session's agent is waiting on. The feed announces each one once; a screen
+     * opened after it (a new chat whose first turn asked straight away, a feed that dropped) reads
+     * it here, or the turn stays blocked behind a form nobody sees.
+     */
+    suspend fun pendingQuestions(sessionId: String): List<EngineQuestionRequest> =
+        allPendingQuestions().filter { it.sessionId == sessionId }
+
+    /** Every question waiting on the engine, all sessions: the attention watcher's catch-up. */
+    suspend fun allPendingQuestions(): List<EngineQuestionRequest> = api.pendingQuestions()
+
+    /**
+     * Answers a question; the agent's turn resumes. One list of labels per question, in order.
+     *
+     * A question that is no longer pending (answered from another device, or its turn stopped)
+     * answers 404; that is not a failure to show, the form simply has nothing left to answer.
+     */
+    suspend fun answerQuestion(requestId: String, answers: List<List<String>>) =
+        unlessGone { api.replyQuestion(requestId, answers) }
+
+    /** Dismisses a question: the agent carries on without the answer. A 404 is ignored as above. */
+    suspend fun dismissQuestion(requestId: String) = unlessGone { api.rejectQuestion(requestId) }
+
+    private suspend fun unlessGone(call: suspend () -> Unit) {
+        try {
+            call()
+        } catch (e: EngineHttpException) {
+            if (e.status != HTTP_NOT_FOUND) throw e
+        }
+    }
+
+    /** A session's title as the engine holds it, for a notification; null when it cannot be read. */
+    suspend fun sessionTitle(sessionId: String): String? =
+        runCatching { api.session(sessionId).title }.getOrNull()?.takeIf { it.isNotBlank() }
+
+    /** The kind this device recorded for a session it created, or null for one it never made. */
+    suspend fun recordedKind(sessionId: String): EngineSessionKind? = recordedKinds()[sessionId]
+
+    /**
      * Sends a message and waits for the finished answer. The turn also streams on [events] while this
      * call is in flight, so the screen fills in token by token and this return value is the
      * reconciliation rather than the first thing the user sees.
@@ -536,6 +582,9 @@ class EngineMissionRepository(
 
     private companion object {
         const val TITLE_LENGTH = 60
+
+        /** The engine's answer about a question that is no longer pending. */
+        const val HTTP_NOT_FOUND = 404
 
         /** The engine's word for a session that is doing nothing; any other status is work. */
         const val IDLE_STATUS = "idle"

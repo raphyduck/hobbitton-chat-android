@@ -12,7 +12,9 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.launch
 import kotlin.math.min
 
@@ -33,7 +35,27 @@ class EngineStreamClient(
 ) {
     private val lineParser = SseLineParser()
 
-    fun connect(sessionId: String, transport: EngineEventTransport): Flow<EngineStreamEvent> = flow {
+    fun connect(sessionId: String, transport: EngineEventTransport): Flow<EngineStreamEvent> =
+        frames(transport)
+            // The feed carries every session; keep only the one on screen.
+            .filter { it.sessionId == null || it.sessionId == sessionId }
+            .mapNotNull { it.event }
+
+    /**
+     * Every session's events, each with the session it names: what a watcher over the whole engine
+     * needs (a question asked in a task nobody has open). Frames that name no session are dropped:
+     * nothing could be done with them here. Same retries, same lifetime as [connect].
+     */
+    fun connectAll(transport: EngineEventTransport): Flow<SessionEvent> =
+        frames(transport).mapNotNull { parsed ->
+            val sessionId = parsed.sessionId ?: return@mapNotNull null
+            parsed.event?.let { SessionEvent(sessionId, it) }
+        }
+
+    /** One event of the global feed and the session it belongs to. */
+    data class SessionEvent(val sessionId: String, val event: EngineStreamEvent)
+
+    private fun frames(transport: EngineEventTransport): Flow<EngineEventParser.Parsed> = flow {
         var attempt = 0
 
         while (true) {
@@ -57,10 +79,7 @@ class EngineStreamClient(
                     }
                     try {
                         lineParser.parse(byteChannel).collect { frame ->
-                            val parsed = parser.parse(frame) ?: return@collect
-                            // The feed carries every session; keep only the one on screen.
-                            if (parsed.sessionId != null && parsed.sessionId != sessionId) return@collect
-                            parsed.event?.let { emit(it) }
+                            parser.parse(frame)?.let { emit(it) }
                         }
                     } finally {
                         pump.cancel()

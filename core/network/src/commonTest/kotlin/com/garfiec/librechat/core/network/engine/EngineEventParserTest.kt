@@ -94,4 +94,43 @@ class EngineEventParserTest {
         assertEquals("ses_1", parsed?.sessionId)
         assertNull(parsed?.event)
     }
+
+    @Test
+    fun aQuestionCarriesTheWholeRequest() {
+        // The shape of the engine's own OpenAPI, `EventQuestionAsked` (1.18.21).
+        val parsed = frame(
+            """{"id":"evt_q","type":"question.asked","properties":{"id":"que_1","sessionID":"ses_1",""" +
+                """"questions":[{"question":"Quel compte ?","header":"Compte","options":[""" +
+                """{"label":"Qonto (Recommended)","description":"Le compte pro"},{"label":"CMB","description":"Banque privée"}],""" +
+                """"multiple":false}],"tool":{"messageID":"msg_a","callID":"call_9"}}}""",
+        )
+        assertEquals("ses_1", parsed?.sessionId)
+        val request = (parsed?.event as EngineStreamEvent.QuestionAsked).request
+        assertEquals("que_1", request.id)
+        assertEquals("ses_1", request.sessionId)
+        val question = request.questions.single()
+        assertEquals("Compte", question.header)
+        assertEquals(listOf("Qonto (Recommended)", "CMB"), question.options.map { it.label })
+        assertEquals(false, question.multiple)
+        // Absent on the wire, true on the engine's side: the free answer is offered by default.
+        assertEquals(true, question.custom)
+        assertEquals("call_9", request.tool?.callId)
+    }
+
+    @Test
+    fun aQuestionWithNothingToAskProducesNoEvent() {
+        val parsed = frame("""{"type":"question.asked","properties":{"id":"que_1","sessionID":"ses_1","questions":[]}}""")
+        assertNull(parsed?.event)
+    }
+
+    @Test
+    fun aRepliedOrRejectedQuestionCloses() {
+        val replied = frame(
+            """{"type":"question.replied","properties":{"sessionID":"ses_1","requestID":"que_1","answers":[["CMB"]]}}""",
+        )
+        val rejected = frame("""{"type":"question.rejected","properties":{"sessionID":"ses_1","requestID":"que_2"}}""")
+        assertEquals(EngineStreamEvent.QuestionClosed("que_1"), replied?.event)
+        assertEquals(EngineStreamEvent.QuestionClosed("que_2"), rejected?.event)
+        assertEquals("ses_1", rejected?.sessionId)
+    }
 }

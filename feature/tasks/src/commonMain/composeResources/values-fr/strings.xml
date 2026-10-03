@@ -161,4 +161,10 @@
     <string name="tasks_prompt_emails">Résume mes e-mails non lus</string>
     <string name="tasks_prompt_calendar">Qu\'y a-t-il dans mon agenda cette semaine ?</string>
     <string name="tasks_prompt_document">Trouve un document sur le NAS</string>
+    <string name="tasks_question_title">Butler vous demande</string>
+    <string name="tasks_question_other">Votre propre réponse…</string>
+    <string name="tasks_question_pick_several">Plusieurs choix possibles</string>
+    <string name="tasks_question_send">Répondre</string>
+    <string name="tasks_question_dismiss">Ignorer</string>
+    <string name="tasks_question_waiting">Envoi…</string>
 </resources>

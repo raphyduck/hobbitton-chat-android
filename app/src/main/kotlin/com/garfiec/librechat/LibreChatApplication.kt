@@ -13,6 +13,7 @@ import coil3.memory.MemoryCache
 import coil3.network.ktor3.KtorNetworkFetcherFactory
 import coil3.request.crossfade
 import coil3.svg.SvgDecoder
+import com.garfiec.librechat.attention.attentionModule
 import com.garfiec.librechat.core.common.AppInfo
 import com.garfiec.librechat.core.data.di.engineModule
 import com.garfiec.librechat.core.data.legacy.LegacyLibreChatCleanup
@@ -73,8 +74,9 @@ class LibreChatApplication : Application(), SingletonImageLoader.Factory {
                 androidContext(this@LibreChatApplication)
                 allowOverride(false)
                 // The engine's graph (`engineModule`, androidMain: its clients and its secure store)
-                // and the Tasks module that needs it, next to the shared list.
-                modules(sharedKoinModules + engineModule + tasksModule)
+                // and the Tasks module that needs it, next to the shared list; then the platform's
+                // sound and notifications, which `engineModule`'s attention signals ring through.
+                modules(sharedKoinModules + engineModule + tasksModule + attentionModule)
             }
         } catch (e: Exception) {
             Logger.e(e) { "Koin initialization failed" }

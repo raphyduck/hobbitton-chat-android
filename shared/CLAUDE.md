@@ -20,7 +20,10 @@ The engine shell, and the Koin module list the application starts from. KMP libr
   offset from `localUtcOffsetMillis`, actual in `androidMain`), each with its kind's icon (bubble
   for a chat, `TaskAlt` for a task), a short age, and « Running » with a spinner while it answers;
   placeholder rows on a first load. Settings at the bottom.
-- `EngineSettingsScreen` (theme, platform addresses read-only, sign-out),
+- `EngineShellViewModel` also runs the question watch (`EngineAttentionWatcher`) while signed in,
+  and exposes the Settings switch for sound and notifications and the conversation a tapped
+  notification asks to open (`ConversationRequests`), which `EngineMainLayout` opens as the root.
+- `EngineSettingsScreen` (theme, notifications switch, platform addresses read-only, sign-out),
   `EngineInstructionsScreen` + `EngineInstructionsViewModel` — the global instructions' editor over
   `GlobalProfileEditor` (Enregistrer / Annuler; the MCP servers an earlier build stored are kept as
   they are, never edited here).

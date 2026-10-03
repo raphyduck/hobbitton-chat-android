@@ -12,13 +12,18 @@ Single Activity. `MainActivity` is the sole entry point; `LibreChatApplication` 
   why the code comes back through the scheduler and a deep link). `handleIntent` hands it to
   `EngineCallbackDelivery`; anything else is logged and ignored. The launch intent is processed on a
   fresh start only; `onNewIntent` handles the rest.
+- A tapped notification carries its conversation in extras (`AndroidAttentionNotifier.conversationOf`),
+  handed to `ConversationRequests`. Asks for `POST_NOTIFICATIONS` once on a fresh start (Android 13+,
+  switch on), and again when the Settings switch is turned on.
 - Clears the dynamic home-screen shortcuts earlier builds published (they deep-linked into
   LibreChat's chat).
 
 ## LibreChatApplication
 
 - Logcat through `RedactingLogWriter` (floored and scrubbed in release), installed before Koin.
-- `startKoin`: `sharedKoinModules + engineModule + tasksModule`, `allowOverride(false)`.
+- `startKoin`: `sharedKoinModules + engineModule + tasksModule + attentionModule`, `allowOverride(false)`.
+- `attention/`: `AndroidAttentionNotifier` (the notification sound, the « Questions » and
+  « Replies » channels, the notification that opens a conversation) and `attentionModule`.
 - Starts `LegacyLibreChatCleanup` once: removes what LibreChat left on an upgraded device.
 - Diagnostics after Koin: the persistent log writer, the crash record, the startup header, the
   main-thread watchdog. Best-effort — a failure there never blocks launch.

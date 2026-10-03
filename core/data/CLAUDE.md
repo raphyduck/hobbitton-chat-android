@@ -12,7 +12,7 @@ The engine's and the portal's data layer, and the app's preferences.
 - **`portal/`** — `PortalSession`, `PortalTasksSignIn`, `PortalSignOut`, navigation classification.
 - **`scheduler/SchedulerRepository`**, **`pricing/ModelPriceCache`** (the gateway's price table,
   `ModelPriceSource` bound to the scheduler).
-- **`datastore/`** — `ThemeDataStore`, `SettingsDataStore` (language and text size, read-only),
+- **`datastore/`** — `ThemeDataStore`, `SettingsDataStore` (language and text size, read-only; the attention switch),
   `GlobalProfileStore`, `MissionReadingPositions`. One DataStore file (`librechat_settings`, name
   kept so an upgrade keeps its preferences).
 - **`legacy/`** — `LegacyLibreChatCleanup`: removes, once, what LibreChat left on an upgraded
@@ -66,6 +66,13 @@ One Authelia identity for chats and tasks. Everything here is bound by `engineMo
   `POST /transcription`. Answers `TranscriptionOutcome` (the words, or a `TranscriptionFailure` plus
   the server's `erreur`), never throws past `:core:data`. The language hint is the device's when it
   is a bare ISO 639-1 code (`isoLanguageOrNull`), nothing otherwise. Bound in `engineModule`.
+- **Attention (`Attention.kt`, 03/10/2026)**: `AttentionSignals` decides when a question or a
+  finished reply rings (chime when its conversation is on screen, notification otherwise, nothing
+  when `SettingsDataStore.attentionSound` is off, each question once per process);
+  `EngineAttentionWatcher` folds the global feed for questions and reads the pending list at start;
+  `ConversationRequests` holds the conversation a tapped notification opens. `AttentionNotifier` is
+  the platform's, bound by `:app`. `AttentionSignals` and `ConversationRequests` are bound in
+  `engineModule`, the watcher in `tasksModule`.
 - **`GlobalProfileStore`** — the device's (`device:` keys). `GlobalProfileEditor` is the editor's
   view of it; `GlobalProfileSource` the send path's.
 
