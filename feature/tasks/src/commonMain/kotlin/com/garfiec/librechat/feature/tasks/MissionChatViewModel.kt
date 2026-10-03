@@ -99,8 +99,8 @@ data class MissionChatUiState(
      *
      * Deliberately NOT seeded from the deployment's catalogue default. That seeding is what made the
      * chip lie until 30/08/2026: it named the first declared provider's default on every session,
-     * including the many that had never run on it. Null here means « unchanged », which is also what
-     * the engine reads from an absent model on the wire.
+     * including the many that had never run on it. Null here means « the model on the chip », which
+     * the next message names explicitly — see [nextModel].
      */
     val model: EngineSelectableModel? = null,
     /**
@@ -566,14 +566,16 @@ class MissionChatViewModel(
     }
 
     /**
-     * The model the next message names. A task leaves it to the session unless one was picked. A
-     * chat names what its chip shows — the pick, else the model its last turn ran on, else the chat
-     * provider's default — so the budget a turn spends is never a surprise (D-077).
+     * The model the next message names: what the chip shows — the pick, else the model the last turn
+     * ran on, else (a chat) the chat provider's default. A chat and a task alike.
+     *
+     * A task used to send nothing unless a model had just been picked, on the belief that the engine
+     * keeps a session's model. It does not: a message without one runs on the **agent's** model. So
+     * a task switched to another model went back to the mission agent's default as soon as the app
+     * restarted and forgot the pick (Raphaël, 03/10/2026). The last turn's model is the session's
+     * model, and it is now sent as such.
      */
-    private fun nextModel() = when (profile) {
-        EngineProfile.TASK -> _uiState.value.model?.ref
-        EngineProfile.CHAT -> _uiState.value.effectiveModel?.ref
-    }
+    private fun nextModel() = _uiState.value.effectiveModel?.ref
 
     /** Stop a reply in progress. The engine ends the run; the feed reports the session going idle. */
     fun stop() {
