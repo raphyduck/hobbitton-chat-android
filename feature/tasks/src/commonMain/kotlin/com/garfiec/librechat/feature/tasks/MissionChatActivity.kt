@@ -32,15 +32,23 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.garfiec.librechat.feature.tasks.components.DisclosureRow
+import com.garfiec.librechat.feature.tasks.components.RunningIndicator
 import com.garfiec.librechat.feature.tasks.resources.Res
+import com.garfiec.librechat.feature.tasks.resources.tasks_chat_argument
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_collapse
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_expand
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_output_truncated
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_reasoning
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_tool_count
+import com.garfiec.librechat.feature.tasks.resources.tasks_state_running
+import com.garfiec.librechat.feature.tasks.resources.tasks_tool_failed
+import com.garfiec.librechat.feature.tasks.resources.tasks_tool_succeeded
 import com.garfiec.librechat.feature.tasks.util.ChatBlock
 import com.garfiec.librechat.feature.tasks.util.ChatPart
 import com.garfiec.librechat.feature.tasks.util.ToolState
@@ -48,6 +56,7 @@ import com.garfiec.librechat.feature.tasks.util.hasFailure
 import com.garfiec.librechat.feature.tasks.util.hasReasoning
 import com.garfiec.librechat.feature.tasks.util.isRunning
 import com.garfiec.librechat.feature.tasks.util.toolCount
+import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -82,17 +91,24 @@ internal fun ActivityBlock(block: ChatBlock.Activity) {
                 MaterialTheme.colorScheme.onSurfaceVariant
             },
             leading = {
+                // Each state is named for TalkBack: colour and a spinner say nothing to it.
                 when {
-                    running -> CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp)
+                    running -> {
+                        val description = stringResource(Res.string.tasks_state_running)
+                        CircularProgressIndicator(
+                            Modifier.size(14.dp).semantics { contentDescription = description },
+                            strokeWidth = 2.dp,
+                        )
+                    }
                     failed -> Icon(
                         Icons.Filled.Close,
-                        null,
+                        stringResource(Res.string.tasks_tool_failed),
                         Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.error,
                     )
                     else -> Icon(
                         Icons.Filled.Build,
-                        null,
+                        stringResource(Res.string.tasks_tool_succeeded),
                         Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -108,9 +124,11 @@ internal fun ActivityBlock(block: ChatBlock.Activity) {
                 block.parts.forEach { part ->
                     when (part) {
                         is ChatPart.Tool -> ToolRow(part)
+                        // bodyMedium: thinking is read as prose, and at bodySmall in the secondary
+                        // colour it fell short of a comfortable contrast on the dark theme.
                         is ChatPart.Reasoning -> Text(
                             text = part.text,
-                            style = MaterialTheme.typography.bodySmall,
+                            style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         // Neither ever reaches an activity group: prose and attachments open
@@ -129,7 +147,7 @@ internal fun ActivityBlock(block: ChatBlock.Activity) {
 private fun activityLabel(block: ChatBlock.Activity): String {
     val tools = block.toolCount()
     val parts = buildList {
-        if (tools > 0) add(stringResource(Res.string.tasks_chat_tool_count, tools))
+        if (tools > 0) add(pluralStringResource(Res.plurals.tasks_chat_tool_count, tools, tools))
         if (block.hasReasoning()) add(stringResource(Res.string.tasks_chat_reasoning))
     }
     return parts.joinToString(" · ").ifEmpty { stringResource(Res.string.tasks_chat_reasoning) }
@@ -168,12 +186,24 @@ private fun ToolRow(tool: ChatPart.Tool) {
                 tool.name,
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f, fill = false),
             )
             when (tool.state) {
-                ToolState.RUNNING -> CircularProgressIndicator(Modifier.size(12.dp), strokeWidth = 2.dp)
-                ToolState.OK -> Icon(Icons.Filled.Check, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
-                ToolState.FAILED -> Icon(Icons.Filled.Close, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.error)
+                ToolState.RUNNING -> RunningIndicator()
+                ToolState.OK -> Icon(
+                    Icons.Filled.Check,
+                    stringResource(Res.string.tasks_tool_succeeded),
+                    Modifier.size(14.dp),
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+                ToolState.FAILED -> Icon(
+                    Icons.Filled.Close,
+                    stringResource(Res.string.tasks_tool_failed),
+                    Modifier.size(14.dp),
+                    tint = MaterialTheme.colorScheme.error,
+                )
             }
             if (hasPayload) {
                 Spacer(Modifier.weight(1f))
@@ -194,7 +224,7 @@ private fun ToolRow(tool: ChatPart.Tool) {
             ) {
                 tool.arguments.forEach { argument ->
                     Text(
-                        text = argument.name + " : " + argument.value,
+                        text = stringResource(Res.string.tasks_chat_argument, argument.name, argument.value),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -230,12 +260,10 @@ private fun ToolOutput(output: String) {
             color = MaterialTheme.colorScheme.onSurface,
         )
         if (output.length > TOOL_OUTPUT_LIMIT) {
+            val hidden = output.length - TOOL_OUTPUT_LIMIT
             Text(
-                text = stringResource(
-                    Res.string.tasks_chat_output_truncated,
-                    output.length - TOOL_OUTPUT_LIMIT,
-                ),
-                style = MaterialTheme.typography.labelSmall,
+                text = pluralStringResource(Res.plurals.tasks_chat_output_truncated, hidden, hidden),
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }

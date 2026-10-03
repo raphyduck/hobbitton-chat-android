@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
@@ -41,7 +42,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.garfiec.librechat.core.model.engine.EngineSelectableModel
 import com.garfiec.librechat.core.ui.input.ChatInputBox
@@ -75,7 +83,9 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_stop
 import com.garfiec.librechat.feature.tasks.resources.tasks_transcribing
 import com.garfiec.librechat.feature.tasks.util.StagedAttachment
 import com.garfiec.librechat.feature.tasks.util.message
+import com.garfiec.librechat.feature.tasks.util.shortModelLabel
 import com.garfiec.librechat.feature.tasks.util.title
+import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -168,9 +178,14 @@ internal fun MissionChatInput(
                         audioEnabled = !state.transcribing,
                     )
                     // The pills scroll among themselves, so a long model name never pushes send
-                    // off the row.
+                    // off the row. The edge fades while more is hidden, so a cut pill reads as
+                    // « there is more » rather than as a clipped one.
+                    val pillsScroll = rememberScrollState()
                     Row(
-                        Modifier.weight(1f).horizontalScroll(rememberScrollState()),
+                        Modifier
+                            .weight(1f)
+                            .fadingEnd(visible = pillsScroll.canScrollForward)
+                            .horizontalScroll(pillsScroll),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -359,9 +374,13 @@ private fun ComposerChips(
             icon = Icons.Outlined.Refresh,
             onClick = onRetryCatalogue,
         )
+        // Capped: the model's name is the longest thing on the row, and the connectors' pill
+        // beside it should stay in view. The provider is in the picker, not on the pill.
         state.models.isNotEmpty() -> ComposerPill(
-            label = state.effectiveModel?.label ?: stringResource(Res.string.tasks_model_default_short),
+            label = state.effectiveModel?.label?.let(::shortModelLabel)
+                ?: stringResource(Res.string.tasks_model_default_short),
             onClick = onOpenModels,
+            modifier = Modifier.widthIn(max = MODEL_PILL_MAX_WIDTH),
         )
     }
     when {
@@ -378,7 +397,7 @@ private fun ComposerChips(
                     // grounds for, and it was wrong on every mission the scheduler launched.
                     granted == null -> stringResource(Res.string.tasks_connectors)
                     granted.isEmpty() -> stringResource(Res.string.tasks_chat_no_connector)
-                    else -> stringResource(Res.string.tasks_chat_connector_count, granted.size)
+                    else -> pluralStringResource(Res.plurals.tasks_chat_connector_count, granted.size, granted.size)
                 },
                 icon = Icons.Outlined.Build,
                 onClick = onOpenConnectors,
@@ -389,14 +408,46 @@ private fun ComposerChips(
 
 /** [ChatInputPill] with this screen's optional leading icon. */
 @Composable
-private fun ComposerPill(label: String, onClick: () -> Unit, icon: ImageVector? = null) {
+private fun ComposerPill(
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    icon: ImageVector? = null,
+) {
     ChatInputPill(
         label = label,
         onClick = onClick,
+        modifier = modifier,
         leadingIcon = icon?.let {
             { Icon(it, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant) }
         },
     )
 }
 
+/**
+ * Fades the end of a scrolling row out while [visible] — more of it is scrolled away — by masking
+ * what was drawn rather than painting a colour over it, so it holds on any background.
+ */
+private fun Modifier.fadingEnd(visible: Boolean): Modifier = if (!visible) {
+    this
+} else {
+    graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+        .drawWithContent {
+            drawContent()
+            val fade = PILLS_FADE_WIDTH.toPx()
+            val rtl = layoutDirection == LayoutDirection.Rtl
+            val kept = listOf(Color.Black, Color.Transparent)
+            drawRect(
+                brush = Brush.horizontalGradient(
+                    colors = if (rtl) kept.reversed() else kept,
+                    startX = if (rtl) 0f else size.width - fade,
+                    endX = if (rtl) fade else size.width,
+                ),
+                blendMode = BlendMode.DstIn,
+            )
+        }
+}
+
 private const val MAX_INPUT_LINES = 6
+private val MODEL_PILL_MAX_WIDTH = 140.dp
+private val PILLS_FADE_WIDTH = 24.dp

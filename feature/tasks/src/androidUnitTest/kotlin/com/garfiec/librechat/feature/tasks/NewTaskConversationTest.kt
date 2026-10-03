@@ -5,6 +5,8 @@ import com.garfiec.librechat.core.data.engine.AudioTranscriber
 import com.garfiec.librechat.core.data.engine.EngineMissionRepository
 import com.garfiec.librechat.core.data.engine.EngineProfile
 import com.garfiec.librechat.core.data.engine.TranscriptionOutcome
+import com.garfiec.librechat.core.model.engine.EngineModelRef
+import com.garfiec.librechat.core.model.engine.EngineStreamEvent
 import com.garfiec.librechat.core.model.scheduler.ConnectorCatalogue
 import com.garfiec.librechat.core.model.scheduler.ConnectorGrant
 import com.garfiec.librechat.feature.tasks.util.StagedAttachment
@@ -16,6 +18,7 @@ import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
@@ -55,8 +58,8 @@ class NewTaskConversationTest {
         Dispatchers.resetMain()
     }
 
-    private fun viewModel() = MissionChatViewModel(
-        sessionId = null,
+    private fun viewModel(sessionId: String? = null) = MissionChatViewModel(
+        sessionId = sessionId,
         repository = repository,
         modelPrices = mockk(relaxed = true),
         settings = settings,
@@ -92,5 +95,22 @@ class NewTaskConversationTest {
         coVerify(exactly = 0) { repository.startChat(any(), any(), any()) }
         assertThat(vm.uiState.value.started?.sessionId).isEqualTo("ses_tache")
         assertThat(vm.uiState.value.attachments).isEmpty()
+    }
+
+    @Test
+    fun `a reopened task sends the model its last turn ran on, not the agent's default`() {
+        // Picked on another day, then the app restarted: the pick is gone, the transcript is not.
+        val deepseek = EngineModelRef("hobbitton-gateway", "deepseek-v4-pro")
+        coEvery { repository.history("ses_suivie") } returns listOf(
+            EngineStreamEvent.MessageStarted("m1", "user"),
+            EngineStreamEvent.MessageStarted("m2", "assistant", deepseek),
+        )
+        every { repository.events("ses_suivie") } returns flowOf()
+        val vm = viewModel(sessionId = "ses_suivie")
+
+        vm.onInputChange("Envoie")
+        vm.send()
+
+        coVerify { repository.sendMessage("ses_suivie", "Envoie", deepseek, any(), EngineProfile.TASK) }
     }
 }

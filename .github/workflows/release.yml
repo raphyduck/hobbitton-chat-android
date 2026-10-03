@@ -107,7 +107,7 @@ jobs:
           VERSION: ${{ steps.bump.outputs.version_name }}
         run: |
           src="app/build/outputs/apk/release/app-release.apk"
-          out="switchboard-v${VERSION}.apk"
+          out="butler-v${VERSION}.apk"
           cp "$src" "$out"
           sha256sum "$out" > "${out}.sha256"
           echo "apk=$out" >> "$GITHUB_OUTPUT"
@@ -156,7 +156,7 @@ jobs:
 
           # Badge row: the Downloads badge tracks the download count for this release's APK asset.
           {
-            printf '![APK Downloads](https://img.shields.io/github/downloads/garfiec/Librechat-Mobile/%s/%s?displayAssetName=false&logo=android&label=APK%%20Downloads&color=blue)\n' "$TAG" "$APK"
+            printf '![APK Downloads](https://img.shields.io/github/downloads/${{ github.repository }}/%s/%s?displayAssetName=false&logo=android&label=APK%%20Downloads&color=blue)\n' "$TAG" "$APK"
             printf '\n'
             cat "$RUNNER_TEMP/changelog.md"
             # Slim provenance footer: discoverability links, not proof. Canonical "how to

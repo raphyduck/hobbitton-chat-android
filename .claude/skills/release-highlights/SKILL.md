@@ -146,7 +146,7 @@ say what happened.
 
 - Repo is `garfiec/Librechat-Mobile`; the local directory is `LibreChat-Android` for legacy
   reasons.
-- The app is the hobbitton platform's Android client (launcher name still **Switchboard**); it
+- The app is the hobbitton platform's Android client (launcher name **Butler** since 03/10/2026); it
   talks to the OpenCode engine, the scheduler and the portal. LibreChat is gone (D-077).
 - **GitHub stores release bodies with CRLF line endings.** Any pipeline that normalizes them
   rewrites every line below the marker — the content survives, but the tail is no longer the

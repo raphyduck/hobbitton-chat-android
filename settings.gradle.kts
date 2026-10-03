@@ -16,7 +16,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Switchboard"
+rootProject.name = "Butler"
 
 include(":app")
 include(":core:common")

@@ -48,6 +48,8 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_suspended
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_timezone
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_tools
 import com.garfiec.librechat.feature.tasks.resources.tasks_state_running
+import com.garfiec.librechat.feature.tasks.util.groupThousands
+import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -80,7 +82,11 @@ internal fun ScheduledMissionRow(
                 listOfNotNull(
                     mission.profile,
                     mission.cron ?: mission.runAt,
-                    stringResource(Res.string.tasks_scheduled_tools, mission.declaredTools),
+                    pluralStringResource(
+                        Res.plurals.tasks_scheduled_tools,
+                        mission.declaredTools,
+                        mission.declaredTools,
+                    ),
                 ).joinToString(" · "),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -310,7 +316,7 @@ private fun LastRunLine(mission: ScheduledMission) {
             stringResource(
                 Res.string.tasks_scheduled_last_ok,
                 last.startedAt.orEmpty(),
-                (last.tokens ?: 0).toString(),
+                groupThousands((last.tokens ?: 0).toLong()),
             ),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,

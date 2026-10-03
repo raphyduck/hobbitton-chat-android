@@ -1,6 +1,7 @@
-# hobbitton chat (Android)
+# Butler — hobbitton chat (Android)
 
-Native Android client of the hobbitton platform: chats and tasks run on the **OpenCode engine**,
+Native Android client of the hobbitton platform, named **Butler** on the launcher since 03/10/2026
+(`app_name`; release asset `butler-v<version>.apk`): chats and tasks run on the **OpenCode engine**,
 behind the **scheduler** and the **Authelia portal**. The app started as a fork of Switchboard, a
 LibreChat client; LibreChat is gone from the server (D-077) and from this tree. iOS was dropped
 with it: the modules stay Kotlin Multiplatform (`commonMain` / `androidMain`) but Android is the

@@ -5,8 +5,8 @@
     <string name="portal_sign_in_hint">Une seule connexion pour les conversations et les tâches : mot de passe et second facteur au portail, puis une autorisation.</string>
     <string name="portal_title">Connexion</string>
     <string name="portal_close">Fermer</string>
-    <string name="portal_welcome">Se connecter à votre plateforme</string>
-    <string name="portal_addresses_hint">Les trois adresses de votre plateforme. Elles restent sur cet appareil.</string>
+    <string name="portal_welcome">Bienvenue sur votre assistant</string>
+    <string name="portal_addresses_hint">Les trois adresses de votre assistant. Elles restent sur cet appareil.</string>
     <string name="portal_engine_url">Adresse du moteur</string>
     <string name="portal_scheduler_url">Adresse du planificateur</string>
     <string name="portal_issuer_url">Adresse du portail</string>

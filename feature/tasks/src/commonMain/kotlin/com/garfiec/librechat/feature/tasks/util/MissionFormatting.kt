@@ -20,6 +20,14 @@ internal fun groupThousands(value: Long): String =
     value.toString().reversed().chunked(3).joinToString("\u202f").reversed()
 
 /**
+ * A model's name without its provider in front: « vendor/model-x » and « Vendor: Model X » both
+ * come back as the model alone, for the composer's narrow pill. A label with nothing to strip, or
+ * nothing left once stripped, comes back as it was.
+ */
+internal fun shortModelLabel(label: String): String =
+    label.substringAfterLast('/').substringAfter(": ").trim().ifEmpty { label }
+
+/**
  * How long ago a row last moved, compact like a messaging list: minutes under an hour, hours under
  * a day, then days.
  *

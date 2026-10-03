@@ -26,6 +26,7 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_connector_default
 import com.garfiec.librechat.feature.tasks.resources.tasks_connectors
 import com.garfiec.librechat.feature.tasks.resources.tasks_model
 import com.garfiec.librechat.feature.tasks.resources.tasks_model_default_short
+import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import com.garfiec.librechat.core.ui.resources.Res as CoreRes
 
@@ -75,7 +76,7 @@ internal fun ConnectorPickerSheet(
                         // « 5 outils · par défaut » — the socle is ticked when the sheet opens, and
                         // a row that says so is the difference between a considered default and
                         // five boxes someone assumes they ticked by accident.
-                        stringResource(Res.string.tasks_chat_tool_count, option.toolCount) +
+                        pluralStringResource(Res.plurals.tasks_chat_tool_count, option.toolCount, option.toolCount) +
                             if (option.tickedByDefault) {
                                 " · " + stringResource(Res.string.tasks_connector_default)
                             } else {
