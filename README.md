@@ -1,6 +1,6 @@
-# hobbitton chat (Android)
+# Butler
 
-The Android client of the hobbitton platform: chats and tasks on the OpenCode engine, behind the
+The Android client of the hobbitton platform (formerly « hobbitton chat »): chats and tasks on the OpenCode engine, behind the
 platform's scheduler and its Authelia portal.
 
 It began as a fork of [Switchboard](https://github.com/garfiec/Librechat-Mobile), a native client

@@ -21,7 +21,7 @@ adb install app/build/outputs/apk/debug/app-debug.apk
 Or run directly via Android Studio's run configuration.
 
 Debug builds carry a `.debug` applicationId suffix, so they install as `at.hobbitton.chat.debug`
-under the launcher name **Switchboard Dev** (with a distinct icon backdrop) and coexist with a
+under the launcher name **Butler Dev** (with a distinct icon backdrop) and coexist with a
 released install instead of colliding with it. The two are separate apps to Android: each keeps its
 own sign-in and preferences. Release builds keep the bare `at.hobbitton.chat` — update channels
 track that package name, so it must not gain a suffix.
