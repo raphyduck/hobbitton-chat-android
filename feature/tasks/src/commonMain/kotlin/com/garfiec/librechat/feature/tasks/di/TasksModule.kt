@@ -1,6 +1,7 @@
 package com.garfiec.librechat.feature.tasks.di
 
 import com.garfiec.librechat.core.common.di.KoinQualifiers
+import com.garfiec.librechat.core.data.engine.EngineAttentionWatcher
 import com.garfiec.librechat.core.data.engine.EngineMissionRepository
 import com.garfiec.librechat.feature.tasks.EngineSettingsViewModel
 import com.garfiec.librechat.feature.tasks.MissionChatArgs
@@ -27,6 +28,9 @@ val tasksModule = module {
             kinds = get(),
         )
     }
+    // Questions asked anywhere on the engine, rung through the attention signals: the shell runs it
+    // while signed in.
+    single { EngineAttentionWatcher(repository = get(), signals = get()) }
     viewModelOf(::TasksViewModel)
     viewModelOf(::EngineSettingsViewModel)
     viewModelOf(::UsageViewModel)
@@ -47,6 +51,7 @@ val tasksModule = module {
             positions = get(),
             // The scheduler's transcription (`engineModule`): LibreChat's speech route went with it.
             transcriber = get(),
+            attention = get(),
             ioDispatcher = get(KoinQualifiers.IO),
         )
     }

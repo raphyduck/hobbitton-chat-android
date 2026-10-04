@@ -1,7 +1,11 @@
 package com.garfiec.librechat.core.data.di
 
 import com.garfiec.librechat.core.common.di.KoinQualifiers
+import com.garfiec.librechat.core.data.datastore.SettingsDataStore
+import com.garfiec.librechat.core.data.engine.AttentionPreference
+import com.garfiec.librechat.core.data.engine.AttentionSignals
 import com.garfiec.librechat.core.data.engine.AudioTranscriber
+import com.garfiec.librechat.core.data.engine.ConversationRequests
 import com.garfiec.librechat.core.data.engine.EngineCallbackDelivery
 import com.garfiec.librechat.core.data.engine.EngineCallbackInbox
 import com.garfiec.librechat.core.data.engine.EngineCallbackMailbox
@@ -38,6 +42,7 @@ import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import org.koin.android.ext.koin.androidContext
@@ -55,6 +60,15 @@ val engineModule: Module = module {
 
     single { EngineSecureStore(androidContext(), get(KoinQualifiers.IO)) }
     single<EngineTokenStore> { get<EngineSecureStore>().tokens }
+
+    // When a conversation needs the person (a question, a reply ready): the decision, common and
+    // tested; the sound and the notifications are the platform's `AttentionNotifier`, bound by
+    // `:app`. The conversation a notification opens waits in `ConversationRequests` for the shell.
+    single {
+        val settings = get<SettingsDataStore>()
+        AttentionSignals(notifier = get(), preference = AttentionPreference { settings.attentionSound.first() })
+    }
+    single { ConversationRequests() }
 
     single {
         EngineSettingsStore(dataStore = get()).also { store ->

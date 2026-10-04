@@ -37,6 +37,13 @@ HTTP layer of the engine, the scheduler and the portal. Ktor Client on OkHttp.
 at most; 200 `{"texte"}`, 400/502 `{"erreur"}`, 403). Same client and bearer as the MCP calls, a
 longer per-request timeout; every refusal raises `TranscriptionRefused(status, reason)`.
 
+`AgentEngineApi.pendingQuestions` / `replyQuestion` / `rejectQuestion` are the classic question
+routes (`GET /question`, all sessions; `POST /question/{id}/reply` with one list of labels per
+question; `POST /question/{id}/reject`, no body). `EngineEventParser` maps `question.asked` to
+`QuestionAsked` (the whole request) and `question.replied` / `question.rejected` to
+`QuestionClosed`. `EngineStreamClient.connectAll` is the same feed unfiltered, each event with its
+session: the attention watcher's.
+
 `AgentEngineApi.sendMessage` takes an optional `agent`, but a turn without one runs on the engine's
 default agent (`build`), with none of the session's rules — not on the session's own agent. Every
 caller names one: a chat `chat` (D-077), a task the session's own agent (29/09/2026).

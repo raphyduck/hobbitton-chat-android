@@ -70,6 +70,7 @@ class MissionChatTranscriptionTest {
         settings = settings,
         positions = mockk(relaxed = true),
         transcriber = transcriber(outcome),
+        attention = mockk(relaxed = true),
         ioDispatcher = dispatcher,
         profile = profile,
     )

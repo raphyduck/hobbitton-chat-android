@@ -7,6 +7,8 @@ import com.garfiec.librechat.core.model.engine.EnginePermissionRule
 import com.garfiec.librechat.core.model.engine.EnginePromptPart
 import com.garfiec.librechat.core.model.engine.EnginePromptRequest
 import com.garfiec.librechat.core.model.engine.EngineProviderCatalogue
+import com.garfiec.librechat.core.model.engine.EngineQuestionReply
+import com.garfiec.librechat.core.model.engine.EngineQuestionRequest
 import com.garfiec.librechat.core.model.engine.EngineSession
 import com.garfiec.librechat.core.model.engine.EngineSessionPatch
 import com.garfiec.librechat.core.model.engine.EngineSessionStatus
@@ -27,9 +29,9 @@ import io.ktor.http.path
 /**
  * The Agent engine, spoken to **directly** — no façade in front of it (server-side D-026).
  *
- * Nine routes out of the engine's 162. The full generated client lives server-side under
+ * Twelve routes out of the engine's 162. The full generated client lives server-side under
  * `clients/kotlin`, regenerated from the engine's own OpenAPI on every upgrade so that a breaking
- * change shows up as a reviewable diff; carrying its 2 000 files into a KMP app to call nine
+ * change shows up as a reviewable diff; carrying its 2 000 files into a KMP app to call twelve
  * routes would cost far more than it explains. This class is written against that contract.
  *
  * It takes its own [HttpClient] — qualifier `KoinQualifiers.Engine` — because the engine is a
@@ -189,6 +191,34 @@ class AgentEngineApi(
         client.get {
             url { path("session/${sessionId.encodeURLPathPart()}/message") }
         }.decoded()
+
+    /**
+     * Every question the agents are waiting on, all sessions together: `GET /question`, the
+     * classic route. The feed announces a question once (`question.asked`) and never again, so a
+     * screen opened after it, or a feed that dropped meanwhile, reads it here.
+     */
+    suspend fun pendingQuestions(): List<EngineQuestionRequest> =
+        client.get { url { path("question") } }.decoded()
+
+    /**
+     * Answers a question: one list of labels per question, in order. The agent's turn resumes as soon
+     * as the engine has it. 404 when the request is no longer pending (answered elsewhere, or the
+     * turn was stopped).
+     */
+    suspend fun replyQuestion(requestId: String, answers: List<List<String>>) {
+        client.post {
+            url { path("question/${requestId.encodeURLPathPart()}/reply") }
+            setBody(EngineQuestionReply(answers))
+        }.orThrow()
+    }
+
+    /**
+     * Dismisses a question without answering it. The tool fails with « the user dismissed this
+     * question » and the agent carries on without the answer. No body, like [abort].
+     */
+    suspend fun rejectQuestion(requestId: String) {
+        client.post { url { path("question/${requestId.encodeURLPathPart()}/reject") } }.orThrow()
+    }
 
     /** Stops a running session. The engine expects **no body**; sending one is a 400. */
     suspend fun abort(sessionId: String) {

@@ -49,6 +49,11 @@ fun permissionsFor(
     catalogue.socle.forEach { (tool, action) ->
         if (namesOneTool(tool)) rules += EnginePermissionRule(permission = tool, action = action)
     }
+    // The agent may ask the person (03/10/2026): somebody is watching every session this app builds
+    // rules for, and the form answers. Not the catalogue's socle, which the scheduler's autonomous
+    // missions also receive: a question nobody answers blocks a turn for good. The profile (`chat`,
+    // `mission`) opens it server side; this rule keeps the session from closing it again.
+    rules += EnginePermissionRule(permission = QUESTION_TOOL, action = ACTION_ALLOW)
     granted.flatMap { (_, grant) -> grant.outils }
         .distinct()
         .filter(::namesOneTool)
@@ -113,6 +118,9 @@ private const val ACTION_ALLOW = "allow"
 /** The catch-all every ruleset opens with, and so the marker of where the last one begins. */
 private const val ACTION_DENY = "deny"
 private const val ANY_TOOL = "*"
+
+/** OpenCode's tool for asking the person a question, answered by the conversation's form. */
+private const val QUESTION_TOOL = "question"
 
 /**
  * The connectors this catalogue offers a mission, in the order the picker should show them.

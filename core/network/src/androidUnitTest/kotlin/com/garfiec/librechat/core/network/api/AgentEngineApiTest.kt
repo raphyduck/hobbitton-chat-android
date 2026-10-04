@@ -192,4 +192,59 @@ class AgentEngineApiTest {
         // Posting a body here is a 400 from the engine.
         assertThat(bodySize).isEqualTo(0)
     }
+
+    @Test
+    fun `pending questions are read from the classic route`() = runTest {
+        var path: String? = null
+        val engine = MockEngine { request ->
+            path = request.url.encodedPath
+            respond(
+                content = """[{"id":"que_1","sessionID":"ses_abc","questions":[{"question":"Lequel ?",""" +
+                    """"header":"Choix","options":[{"label":"A","description":"a"}],"custom":false}]}]""",
+                status = HttpStatusCode.OK,
+                headers = jsonHeaders(),
+            )
+        }
+
+        val pending = agentEngineApi(engine).pendingQuestions()
+
+        assertThat(path).isEqualTo("/question")
+        assertThat(pending.single().sessionId).isEqualTo("ses_abc")
+        assertThat(pending.single().questions.single().custom).isFalse()
+    }
+
+    @Test
+    fun `a reply sends one list of labels per question`() = runTest {
+        var path: String? = null
+        var body: kotlinx.serialization.json.JsonObject? = null
+        val engine = MockEngine { request ->
+            path = request.url.encodedPath
+            body = json.parseToJsonElement(String(request.body.toByteArray())).jsonObject
+            respond(content = "true", status = HttpStatusCode.OK, headers = jsonHeaders())
+        }
+
+        agentEngineApi(engine).replyQuestion("que_1", listOf(listOf("A", "mon texte"), listOf("B")))
+
+        assertThat(path).isEqualTo("/question/que_1/reply")
+        val answers = body!!["answers"]!!.jsonArray
+        assertThat(answers.map { row -> row.jsonArray.map { it.jsonPrimitive.content } })
+            .containsExactly(listOf("A", "mon texte"), listOf("B"))
+            .inOrder()
+    }
+
+    @Test
+    fun `a dismissal posts no body to the reject route`() = runTest {
+        var path: String? = null
+        var bodySize = -1
+        val engine = MockEngine { request ->
+            path = request.url.encodedPath
+            bodySize = request.body.toByteArray().size
+            respond(content = "true", status = HttpStatusCode.OK, headers = jsonHeaders())
+        }
+
+        agentEngineApi(engine).rejectQuestion("que_1")
+
+        assertThat(path).isEqualTo("/question/que_1/reject")
+        assertThat(bodySize).isEqualTo(0)
+    }
 }

@@ -4,7 +4,10 @@ import android.app.Application
 import android.content.Context
 import com.garfiec.librechat.core.data.datastore.GlobalProfileEditor
 import com.garfiec.librechat.core.data.datastore.MissionReadingPositions
+import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.datastore.ThemeDataStore
+import com.garfiec.librechat.core.data.engine.ConversationRequests
+import com.garfiec.librechat.core.data.engine.EngineAttentionWatcher
 import com.garfiec.librechat.core.data.engine.EngineMissionRepository
 import com.garfiec.librechat.core.data.engine.EngineSettingsStore
 import com.garfiec.librechat.core.data.engine.SessionKindStore
@@ -49,6 +52,7 @@ class KoinGraphVerificationTest {
             MissionReadingPositions::class,
             SessionKindStore::class,
             GlobalProfileEditor::class,
+            SettingsDataStore::class,
             // Bound by `engineModule` / `tasksModule`, which the application starts next to this
             // list, and resolved with `getOrNull` by the shell, the sign-in and the price cache. The
             // verifier reads the declared types and cannot see that.
@@ -58,6 +62,9 @@ class KoinGraphVerificationTest {
             EngineTokenStore::class,
             PortalSignOut::class,
             EngineMissionRepository::class,
+            // The shell's question watch and the conversation a notification opens (03/10/2026).
+            EngineAttentionWatcher::class,
+            ConversationRequests::class,
         )
 
         // Types whose libraries aren't on the app test classpath (transitive

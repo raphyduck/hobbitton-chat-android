@@ -65,6 +65,7 @@ class NewTaskConversationTest {
         settings = settings,
         positions = mockk(relaxed = true),
         transcriber = AudioTranscriber { _, _, _ -> TranscriptionOutcome.Heard("") },
+        attention = mockk(relaxed = true),
         ioDispatcher = dispatcher,
         profile = EngineProfile.TASK,
     )

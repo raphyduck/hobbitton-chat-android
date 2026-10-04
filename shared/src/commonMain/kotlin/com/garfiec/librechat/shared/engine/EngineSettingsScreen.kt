@@ -8,11 +8,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.QueryStats
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -23,6 +25,7 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -39,11 +42,14 @@ import androidx.compose.ui.unit.dp
 import com.garfiec.librechat.core.data.datastore.ThemeMode
 import com.garfiec.librechat.core.network.engine.EngineAccess
 import com.garfiec.librechat.shared.resources.Res
+import com.garfiec.librechat.shared.resources.engine_settings_attention
+import com.garfiec.librechat.shared.resources.engine_settings_attention_hint
 import com.garfiec.librechat.shared.resources.engine_settings_back
 import com.garfiec.librechat.shared.resources.engine_settings_cancel
 import com.garfiec.librechat.shared.resources.engine_settings_engine
 import com.garfiec.librechat.shared.resources.engine_settings_instructions
 import com.garfiec.librechat.shared.resources.engine_settings_instructions_hint
+import com.garfiec.librechat.shared.resources.engine_settings_notifications
 import com.garfiec.librechat.shared.resources.engine_settings_platform
 import com.garfiec.librechat.shared.resources.engine_settings_platform_hint
 import com.garfiec.librechat.shared.resources.engine_settings_portal
@@ -64,13 +70,15 @@ import org.jetbrains.compose.resources.stringResource
 data class EngineSettingsUiState(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val addresses: EngineAccess? = null,
+    /** A question or a finished reply rings and notifies (03/10/2026). */
+    val attentionSound: Boolean = true,
 )
 
 /**
  * The engine shell's settings (D-077): what is left once LibreChat's account, keys, presets,
- * memories, MCP servers and sharing have gone with it — the theme, the platform's addresses (read
- * only: changing one is signing out and in again), the instructions sent with every turn, the
- * week's usage, and signing out.
+ * memories, MCP servers and sharing have gone with it: the theme, the sound and notifications when
+ * a conversation needs the person, the platform's addresses (read only: changing one is signing out
+ * and in again), the instructions sent with every turn, the week's usage, and signing out.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -82,6 +90,7 @@ internal fun EngineSettingsScreen(
     onThemeMode: (ThemeMode) -> Unit,
     onSignOut: () -> Unit,
     modifier: Modifier = Modifier,
+    onAttentionSound: (Boolean) -> Unit = {},
 ) {
     var confirmSignOut by rememberSaveable { mutableStateOf(false) }
 
@@ -107,6 +116,7 @@ internal fun EngineSettingsScreen(
             onOpenInstructions = onOpenInstructions,
             onOpenUsage = onOpenUsage,
             onThemeMode = onThemeMode,
+            onAttentionSound = onAttentionSound,
             onSignOut = { confirmSignOut = true },
         )
         if (confirmSignOut) {
@@ -146,6 +156,7 @@ private fun SettingsBody(
     onOpenInstructions: () -> Unit,
     onOpenUsage: () -> Unit,
     onThemeMode: (ThemeMode) -> Unit,
+    onAttentionSound: (Boolean) -> Unit,
     onSignOut: () -> Unit,
 ) {
     Column(
@@ -171,6 +182,22 @@ private fun SettingsBody(
                 Text(stringResource(mode.label()), modifier = Modifier.padding(start = 12.dp))
             }
         }
+        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+        SectionTitle(Res.string.engine_settings_notifications)
+        ListItem(
+            headlineContent = { Text(stringResource(Res.string.engine_settings_attention)) },
+            supportingContent = { Text(stringResource(Res.string.engine_settings_attention_hint)) },
+            leadingContent = { Icon(Icons.Outlined.NotificationsActive, contentDescription = null) },
+            trailingContent = { Switch(checked = state.attentionSound, onCheckedChange = null) },
+            modifier = Modifier
+                .toggleable(
+                    value = state.attentionSound,
+                    onValueChange = onAttentionSound,
+                    role = Role.Switch,
+                )
+                .testTag("settings_attention_sound"),
+        )
         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
         SectionTitle(Res.string.engine_settings_platform)

@@ -1,7 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Butler</string>
+    <string name="app_name" translatable="false">Butler</string>
 
     <!-- Connectivity -->
     <string name="no_connection">No internet connection</string>
+
+    <!-- Attention: a question waiting for an answer, a reply ready -->
+    <string name="attention_channel_questions">Questions</string>
+    <string name="attention_channel_questions_hint">Butler is waiting for your answer to go on.</string>
+    <string name="attention_channel_replies">Replies</string>
+    <string name="attention_channel_replies_hint">A reply finished while you were elsewhere.</string>
+    <string name="attention_question">Butler has a question</string>
+    <string name="attention_question_in">Question · %1$s</string>
+    <string name="attention_question_hint">Butler is waiting for your answer.</string>
+    <string name="attention_reply_ready">Reply ready</string>
+    <string name="attention_reply_ready_hint">Butler has answered.</string>
 </resources>

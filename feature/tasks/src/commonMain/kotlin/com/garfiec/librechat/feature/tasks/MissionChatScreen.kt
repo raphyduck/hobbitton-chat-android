@@ -110,8 +110,11 @@ fun MissionChatScreen(
     // ce garde-fou chaque ouverture d'écran paierait deux fois le transcript pour le même résultat.
     var dejaRepris by rememberSaveable { mutableStateOf(false) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        viewModel.onVisible()
         if (dejaRepris) viewModel.refresh() else dejaRepris = true
     }
+    // Hors de vue : une question posée ici sonne alors par une notification, pas par un simple son.
+    LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) { viewModel.onHidden() }
 
     Scaffold(
         modifier = modifier,
@@ -154,22 +157,37 @@ fun MissionChatScreen(
             )
         },
         bottomBar = {
-            MissionChatInput(
-                state = state,
-                onInput = viewModel::onInputChange,
-                onSend = viewModel::send,
-                onStop = viewModel::stop,
-                onDismissError = viewModel::dismissSendError,
-                onToggleConnector = viewModel::toggleConnector,
-                onSelectModel = viewModel::selectModel,
-                onRetryCatalogue = viewModel::retryCatalogue,
-                onAddAttachments = viewModel::addAttachments,
-                onRemoveAttachment = viewModel::removeAttachment,
-                onTranscribeAudio = viewModel::transcribeAudio,
-                onAttachAudio = viewModel::attachAudio,
-                onRemoveAudioNote = viewModel::removeAudioNote,
-                onDismissTranscriptionError = viewModel::dismissTranscriptionError,
-            )
+            // The agent is waiting on an answer: the form takes the composer's place until it has one.
+            val question = state.pendingQuestion
+            if (question != null) {
+                MissionQuestionForm(
+                    request = question,
+                    draft = state.questionDraftFor(question),
+                    sending = state.answeringQuestion,
+                    error = state.questionError,
+                    onPick = viewModel::pickQuestionOption,
+                    onType = viewModel::typeQuestionAnswer,
+                    onSend = viewModel::answerQuestion,
+                    onDismiss = viewModel::dismissQuestion,
+                )
+            } else {
+                MissionChatInput(
+                    state = state,
+                    onInput = viewModel::onInputChange,
+                    onSend = viewModel::send,
+                    onStop = viewModel::stop,
+                    onDismissError = viewModel::dismissSendError,
+                    onToggleConnector = viewModel::toggleConnector,
+                    onSelectModel = viewModel::selectModel,
+                    onRetryCatalogue = viewModel::retryCatalogue,
+                    onAddAttachments = viewModel::addAttachments,
+                    onRemoveAttachment = viewModel::removeAttachment,
+                    onTranscribeAudio = viewModel::transcribeAudio,
+                    onAttachAudio = viewModel::attachAudio,
+                    onRemoveAudioNote = viewModel::removeAudioNote,
+                    onDismissTranscriptionError = viewModel::dismissTranscriptionError,
+                )
+            }
         },
     ) { padding ->
         MissionChatBody(

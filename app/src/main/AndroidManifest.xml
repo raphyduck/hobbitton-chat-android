@@ -4,6 +4,8 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Une question qui attend une réponse, une réponse prête : notifiées hors de l'écran. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!--
         allowBackup="false" covers cloud backup on every Android version; dataExtractionRules

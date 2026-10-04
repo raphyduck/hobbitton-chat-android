@@ -22,6 +22,9 @@
     <string name="engine_settings_portal">Portal</string>
     <string name="engine_settings_platform_hint">To change an address, sign out and sign in again.</string>
     <string name="engine_settings_usage">Usage and providers</string>
+    <string name="engine_settings_notifications">Notifications</string>
+    <string name="engine_settings_attention">Sound and notifications</string>
+    <string name="engine_settings_attention_hint">When Butler asks you a question, or a reply finishes while you are elsewhere.</string>
     <string name="engine_settings_instructions">Instructions</string>
     <string name="engine_settings_instructions_hint">Sent with every chat and every task</string>
     <string name="engine_instructions_title">Instructions</string>

@@ -2,6 +2,7 @@ package com.garfiec.librechat.core.network.engine
 
 import com.garfiec.librechat.core.model.engine.EngineModelRef
 import com.garfiec.librechat.core.model.engine.EnginePartSnapshot
+import com.garfiec.librechat.core.model.engine.EngineQuestionRequest
 import com.garfiec.librechat.core.model.engine.EngineStreamEvent
 import com.garfiec.librechat.core.network.sse.SseEvent
 import kotlinx.serialization.json.Json
@@ -16,9 +17,11 @@ import kotlinx.serialization.json.JsonPrimitive
  * leaves the filtering to [EngineStreamClient], which is the only place that knows which session is
  * on screen.
  *
- * The four shapes below were captured off the live engine on 29/08/2026 during a real turn; every
- * other type on the feed (`session.status`, `session.diff`, `message.removed`…) maps to null and is
- * dropped. Pure and platform-free, so the mapping is pinned by tests rather than by a live run.
+ * The four message shapes below were captured off the live engine on 29/08/2026 during a real turn;
+ * the three `question.*` shapes are the engine's own OpenAPI (`EventQuestionAsked`, `…Replied`,
+ * `…Rejected`, 1.18.21). Every other type on the feed (`session.status`, `session.diff`,
+ * `message.removed`…) maps to null and is dropped. Pure and platform-free, so the mapping is pinned
+ * by tests rather than by a live run.
  */
 class EngineEventParser(private val json: Json) {
 
@@ -105,6 +108,16 @@ class EngineEventParser(private val json: Json) {
         }
 
         "session.idle" -> EngineStreamEvent.Idle
+
+        // The whole request rides in `properties`, the same shape `GET /question` lists. A request
+        // that does not decode (no id, no questions) is dropped: a form with nothing to answer, or
+        // nothing to answer it with, would only block the composer.
+        "question.asked" -> runCatching { json.decodeFromJsonElement(EngineQuestionRequest.serializer(), props) }
+            .getOrNull()
+            ?.takeIf { it.questions.isNotEmpty() }
+            ?.let { EngineStreamEvent.QuestionAsked(it) }
+
+        "question.replied", "question.rejected" -> props.str("requestID")?.let { EngineStreamEvent.QuestionClosed(it) }
 
         else -> null
     }

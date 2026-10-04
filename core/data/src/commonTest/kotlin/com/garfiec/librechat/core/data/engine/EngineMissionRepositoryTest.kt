@@ -56,7 +56,7 @@ class PermissionsForTest {
         assertTrue(allowed.containsAll(listOf("memoire_lire", "memoire_rechercher")))
         // Exactly the catalogue's names — not a paraphrase of them.
         assertEquals(catalogue.connecteurs.getValue("memoire").outils.toSet(),
-            allowed.toSet() - catalogue.socle.keys)
+            allowed.toSet() - catalogue.socle.keys - "question")
         // Reading memory is not writing to it: the two are separate connectors on the server side
         // and must stay separate here, or ticking « memory » would hand out write access.
         assertTrue(allowed.none { it.startsWith("memoire_ecrire") })
@@ -76,7 +76,10 @@ class PermissionsForTest {
         val rules = permissionsFor(catalogue, listOf("connecteur-invente"))
 
         // A typo, a renamed connector, a newer server: none of them may end up widening access.
-        assertEquals(listOf("*" to "deny", "todowrite" to "allow"), rules.map { it.permission to it.action })
+        assertEquals(
+            listOf("*" to "deny", "todowrite" to "allow", "question" to "allow"),
+            rules.map { it.permission to it.action },
+        )
     }
 
     @Test
@@ -85,7 +88,20 @@ class PermissionsForTest {
 
         // The deny-all, plus the socle the engine grants every session on top of its connectors.
         // Dropping the socle builds incomplete rules, and silently.
-        assertEquals(listOf("*" to "deny", "todowrite" to "allow"), rules.map { it.permission to it.action })
+        assertEquals(
+            listOf("*" to "deny", "todowrite" to "allow", "question" to "allow"),
+            rules.map { it.permission to it.action },
+        )
+    }
+
+    @Test
+    fun `every session the app builds may ask the person a question`() {
+        val rules = permissionsFor(catalogue, listOf("memoire"))
+
+        // Somebody watches every session built here, and the form answers it. The scheduler's
+        // autonomous missions build their rules server side, without it.
+        assertTrue(rules.any { it.permission == "question" && it.action == "allow" })
+        assertEquals(setOf("memoire"), connectorsGranted(catalogue, rules))
     }
 
     @Test
@@ -112,7 +128,7 @@ class PermissionsForTest {
         val rules = permissionsFor(loose, listOf("tout"))
         val allowed = rules.filter { it.action == "allow" }.map { it.permission }
 
-        assertEquals(listOf("todowrite", "memoire_lire"), allowed)
+        assertEquals(listOf("todowrite", "question", "memoire_lire"), allowed)
         // The opening deny-all is the only rule that may name `*`.
         assertEquals(1, rules.count { it.permission == "*" })
         assertEquals("deny", rules.first { it.permission == "*" }.action)
