@@ -164,8 +164,8 @@ private fun EnginePartSnapshot.asChatPart(partId: String): ChatPart? = when (typ
     "reasoning" -> ChatPart.Reasoning(partId, text.orEmpty())
     "tool" -> ChatPart.Tool(
         id = partId,
-        name = tool ?: callId ?: partId,
-        arguments = input.asToolArguments(),
+        name = input.directoryTarget(tool) ?: tool ?: callId ?: partId,
+        arguments = (if (input.directoryTarget(tool) != null) input.directoryArguments() else input).asToolArguments(),
         output = output?.takeIf { it.isNotBlank() },
         state = when (status) {
             "completed" -> ToolState.OK
@@ -177,6 +177,24 @@ private fun EnginePartSnapshot.asChatPart(partId: String): ChatPart? = when (typ
     )
     else -> null
 }
+
+/**
+ * The tool a directory call really reaches. Since 08/2026 most tools are not called by name: the
+ * engine calls `planificateur_annuaire_appeler` with `{"outil": "<real tool>", "arguments": {...}}`,
+ * so every row read "planificateur_annuaire_appeler" and nobody could tell a bank read from an SSH
+ * command. The row shows the real tool instead, and the call's inner arguments; null when [tool] is
+ * not a directory call or names no tool.
+ */
+internal fun JsonElement?.directoryTarget(tool: String?): String? {
+    if (tool == null || !tool.endsWith(DIRECTORY_CALL)) return null
+    val target = ((this as? JsonObject)?.get("outil") as? JsonPrimitive)?.takeIf { it.isString }?.content
+    return target?.takeIf { it.isNotBlank() }
+}
+
+/** The arguments the directory forwards to the real tool; absent or not an object reads as none. */
+private fun JsonElement?.directoryArguments(): JsonElement? = (this as? JsonObject)?.get("arguments")
+
+private const val DIRECTORY_CALL = "annuaire_appeler"
 
 /**
  * The argument object, flattened for display: one row per key, values rendered as the compact JSON

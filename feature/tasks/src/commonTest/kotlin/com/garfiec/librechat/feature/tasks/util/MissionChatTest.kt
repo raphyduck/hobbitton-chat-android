@@ -245,6 +245,51 @@ class MissionChatTest {
     }
 
     @Test
+    fun aDirectoryCallShowsTheRealToolAndItsOwnArguments() {
+        val state = missionChatFrom(
+            listOf(
+                started("msg_a", "assistant"),
+                part(
+                    "msg_a",
+                    "p1",
+                    EnginePartSnapshot(
+                        type = "tool",
+                        tool = "planificateur_annuaire_appeler",
+                        status = "completed",
+                        input = buildJsonObject {
+                            put("outil", JsonPrimitive("ssh_ssh_exec"))
+                            put("arguments", buildJsonObject { put("command", JsonPrimitive("uptime")) })
+                        },
+                    ),
+                ),
+            ),
+        )
+
+        val tool = (state.turns.single() as ChatTurn.Assistant).parts
+            .filterIsInstance<ChatPart.Tool>().single()
+        assertEquals("ssh_ssh_exec", tool.name)
+        assertEquals(listOf(ToolArgument("command", "uptime")), tool.arguments)
+    }
+
+    @Test
+    fun aDirectoryCallWithoutAToolNameKeepsTheDirectoryName() {
+        val state = missionChatFrom(
+            listOf(
+                started("msg_a", "assistant"),
+                part(
+                    "msg_a",
+                    "p1",
+                    EnginePartSnapshot(type = "tool", tool = "planificateur_annuaire_appeler", status = "error"),
+                ),
+            ),
+        )
+
+        val tool = (state.turns.single() as ChatTurn.Assistant).parts
+            .filterIsInstance<ChatPart.Tool>().single()
+        assertEquals("planificateur_annuaire_appeler", tool.name)
+    }
+
+    @Test
     fun aToolWithAnEmptyOutputReportsNoneRatherThanAnEmptyDrawer() {
         val state = missionChatFrom(
             listOf(
