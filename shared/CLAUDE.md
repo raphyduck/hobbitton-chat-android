@@ -15,11 +15,16 @@ The engine shell, and the Koin module list the application starts from. KMP libr
   chat's blank entry replaced in place once the engine has the session; Tasks, mission runs, usage,
   settings and instructions pushed on top. « New task » pushes a blank `MissionChat` whose composer
   starts the task, replaced in place the same way (`taskStarted`).
-- `EngineDrawer` — new chat, Tasks, the recent conversations under day headers (Today / Yesterday
-  / Previous 7 days / Older, in the phone's time zone: `groupRecent` in `RecentGrouping.kt`, the
-  offset from `localUtcOffsetMillis`, actual in `androidMain`), each with its kind's icon (bubble
-  for a chat, `TaskAlt` for a task), a short age, and « Running » with a spinner while it answers;
-  placeholder rows on a first load. Settings at the bottom.
+- `EngineDrawer` (Claude's layout since lot 3, 10/10/2026) — a search over the titles (local
+  filter), two short entries (new chat, Tasks), the recent conversations as bare titles under day
+  headers (Today / Yesterday / Previous 7 days / Older, in the phone's time zone: `groupRecent` in
+  `RecentGrouping.kt`, the offset from `localUtcOffsetMillis`, actual in `androidMain`), a small
+  « Tâche » tag on a task, a dot of the accent while one answers, a short age; placeholder rows on
+  a first load. At the foot, the account (`DrawerAccount`: the portal's name from
+  `SchedulerRepository.identity`, the engine's host), which opens the settings.
+- `EngineNavHost` also sets the Nav 3 transitions: pushed screens slide in over a fade, a
+  predictive back shrinks the leaving screen; the chat entry's own metadata cross-fades between
+  two chats (`TasksRoute.kt`).
 - `EngineShellViewModel` also runs the question watch (`EngineAttentionWatcher`) while signed in,
   and exposes the Settings switch for sound and notifications and the conversation a tapped
   notification asks to open (`ConversationRequests`), which `EngineMainLayout` opens as the root.

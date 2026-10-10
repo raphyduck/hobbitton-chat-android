@@ -80,6 +80,7 @@ private fun Drawer() {
                     onOpenTasks = {},
                     onOpenSettings = {},
                     onRetry = {},
+                    account = DrawerAccount(name = "Raphaël Nicolle", host = "agent.hobbitton.at"),
                 )
             }
         },

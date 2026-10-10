@@ -1,5 +1,12 @@
 package com.garfiec.librechat.shared.engine
 
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -62,6 +69,7 @@ fun EngineNavHost(
     val addresses by viewModel.addresses.collectAsStateWithLifecycle()
     val attentionSound by viewModel.attentionSound.collectAsStateWithLifecycle()
     val openRequest by viewModel.openRequest.collectAsStateWithLifecycle()
+    val identity by viewModel.identity.collectAsStateWithLifecycle()
 
     // Back in the foreground: a renewal refused while away has emptied the token store, and the
     // shell must go back to the sign-in rather than fail every request of the chat.
@@ -80,6 +88,10 @@ fun EngineNavHost(
                     false -> PortalSignInScreen(onSignedIn = viewModel::onSignedIn)
                     true -> EngineMainLayout(
                         chats = chats,
+                        account = DrawerAccount(
+                            name = identity?.nom?.takeIf { it.isNotBlank() } ?: identity?.prenom?.takeIf { it.isNotBlank() },
+                            host = addresses?.baseUrl?.let(::hostOf),
+                        ),
                         settings = EngineSettingsUiState(
                             themeMode = themeMode,
                             addresses = addresses,
@@ -109,6 +121,7 @@ fun EngineNavHost(
 @Composable
 private fun EngineMainLayout(
     chats: EngineChatsState,
+    account: DrawerAccount,
     settings: EngineSettingsUiState,
     openRequest: OpenConversation?,
     onConsumeOpenRequest: (OpenConversation) -> Unit,
@@ -180,6 +193,7 @@ private fun EngineMainLayout(
                         navigator.openSettings()
                     },
                     onRetry = onRefreshChats,
+                    account = account,
                 )
             }
         },
@@ -188,6 +202,21 @@ private fun EngineMainLayout(
             backStack = backStack,
             onBack = { navigator.goBack() },
             modifier = Modifier.fillMaxSize(),
+            // Pushed screens (Tasks, a run, the settings) slide in from the edge over a short fade
+            // and slide back out; a predictive back shrinks the leaving screen under the finger.
+            // Between two chats the entry's own metadata asks for a cross-fade instead.
+            transitionSpec = {
+                (slideInHorizontally(tween(PUSH_MS)) { it / PUSH_FRACTION } + fadeIn(tween(PUSH_MS)))
+                    .togetherWith(fadeOut(tween(PUSH_MS)))
+            },
+            popTransitionSpec = {
+                fadeIn(tween(PUSH_MS))
+                    .togetherWith(slideOutHorizontally(tween(PUSH_MS)) { it / PUSH_FRACTION } + fadeOut(tween(PUSH_MS)))
+            },
+            predictivePopTransitionSpec = { _ ->
+                fadeIn(tween(PUSH_MS))
+                    .togetherWith(scaleOut(tween(PUSH_MS), targetScale = PREDICTIVE_SCALE) + fadeOut(tween(PUSH_MS)))
+            },
             entryDecorators = listOf(
                 rememberSaveableStateHolderNavEntryDecorator(),
                 rememberViewModelStoreNavEntryDecorator(),
@@ -236,3 +265,14 @@ private fun EngineMainLayout(
         )
     }
 }
+
+/** « agent.hobbitton.at » out of « https://agent.hobbitton.at/ »: what the drawer's foot shows of the platform. */
+private fun hostOf(baseUrl: String): String? = baseUrl
+    .trim()
+    .substringAfter("://", baseUrl.trim())
+    .substringBefore('/')
+    .takeIf { it.isNotBlank() }
+
+private const val PUSH_MS = 220
+private const val PUSH_FRACTION = 8
+private const val PREDICTIVE_SCALE = 0.95f
