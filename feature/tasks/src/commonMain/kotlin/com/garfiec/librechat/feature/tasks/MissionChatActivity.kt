@@ -6,15 +6,16 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ExpandLess
@@ -106,12 +107,17 @@ internal fun ActivityBlock(block: ChatBlock.Activity) {
                         Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.error,
                     )
-                    else -> Icon(
-                        Icons.Filled.Build,
-                        stringResource(Res.string.tasks_tool_succeeded),
-                        Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    // Done: a dot of the accent, named for TalkBack, rather than a wrench. The
+                    // work is folded; its marker should not shout louder than the answer.
+                    else -> {
+                        val description = stringResource(Res.string.tasks_tool_succeeded)
+                        Box(
+                            Modifier.size(16.dp).semantics { contentDescription = description },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Box(Modifier.size(6.dp).background(MaterialTheme.colorScheme.primary, CircleShape))
+                        }
+                    }
                 }
             },
         )

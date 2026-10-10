@@ -53,6 +53,7 @@ val tasksModule = module {
             transcriber = get(),
             attention = get(),
             ioDispatcher = get(KoinQualifiers.IO),
+            scheduler = get(),
         )
     }
 }

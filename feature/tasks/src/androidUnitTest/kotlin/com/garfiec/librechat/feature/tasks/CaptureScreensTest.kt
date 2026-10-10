@@ -1,6 +1,7 @@
 package com.garfiec.librechat.feature.tasks
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,7 +18,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -26,7 +26,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.garfiec.librechat.core.data.engine.ConnectorOption
 import com.garfiec.librechat.core.data.engine.EngineProfile
@@ -142,24 +141,14 @@ private fun ChatScreen(state: MissionChatUiState) {
     ) { padding ->
         val turns = state.chat.turns.mergedAssistantRuns()
         if (turns.isEmpty()) {
-            Column(
-                modifier = Modifier.fillMaxSize().padding(padding).padding(32.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ) {
-                Text(
-                    "Que puis-je faire pour vous ? Demandez ce que vous voulez : l'assistant se souvient, " +
-                        "peut programmer des choses pour plus tard et accède à vos services connectés.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(bottom = 16.dp),
+            Box(Modifier.fillMaxSize().padding(padding)) {
+                EmptyConversation(
+                    profile = EngineProfile.CHAT,
+                    isNew = true,
+                    greetingName = "Raphaël",
+                    onPickPrompt = {},
+                    modifier = Modifier.align(Alignment.Center),
                 )
-                listOf(
-                    "Résume mes e-mails non lus",
-                    "Qu'y a-t-il dans mon agenda cette semaine ?",
-                    "Trouve un document sur le NAS",
-                ).forEach { SuggestionChip(onClick = {}, label = { Text(it) }) }
             }
         } else {
             LazyColumn(

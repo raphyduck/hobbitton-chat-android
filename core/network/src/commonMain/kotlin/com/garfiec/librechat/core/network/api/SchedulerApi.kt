@@ -3,6 +3,7 @@ package com.garfiec.librechat.core.network.api
 import com.garfiec.librechat.core.model.scheduler.ConnectorCatalogue
 import com.garfiec.librechat.core.model.scheduler.Consumption
 import com.garfiec.librechat.core.model.scheduler.ModelPrices
+import com.garfiec.librechat.core.model.scheduler.PortalIdentity
 import com.garfiec.librechat.core.model.scheduler.ProviderHealth
 import com.garfiec.librechat.core.model.scheduler.SchedulerState
 import com.garfiec.librechat.core.model.scheduler.SessionScope
@@ -12,6 +13,7 @@ import io.ktor.client.plugins.timeout
 import io.ktor.client.request.accept
 import io.ktor.client.request.forms.MultiPartFormDataContent
 import io.ktor.client.request.forms.formData
+import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
@@ -20,6 +22,7 @@ import io.ktor.client.statement.request
 import io.ktor.http.ContentType
 import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
 import io.ktor.http.isSuccess
 import io.ktor.http.path
 import kotlinx.serialization.SerializationException
@@ -265,6 +268,24 @@ class SchedulerApi(
         }
         return answer?.get("texte")?.asStringOrNull()
             ?: throw TranscriptionRefused(response.status.value, answer?.get("erreur")?.asStringOrNull())
+    }
+
+    /**
+     * Who is signed in at the portal: `GET /identite`, the scheduler's other plain HTTP route
+     * (10/10/2026). The name comes from the headers the edge copies after forward-auth, so it is the
+     * portal's own answer. Null on a scheduler from before the route (404): the greeting then has no
+     * name, which is not an error.
+     */
+    suspend fun identity(): PortalIdentity? {
+        val response = client.get {
+            url { path("identite") }
+            accept(ContentType.Application.Json)
+        }
+        if (response.status == HttpStatusCode.NotFound) return null
+        if (!response.status.isSuccess()) {
+            throw EngineHttpException(response.status.value, response.request.url.toString(), response.bodyAsText())
+        }
+        return json.decodeFromString(PortalIdentity.serializer(), response.bodyAsText())
     }
 
     private suspend fun callTool(tool: String, arguments: JsonObject?): String {

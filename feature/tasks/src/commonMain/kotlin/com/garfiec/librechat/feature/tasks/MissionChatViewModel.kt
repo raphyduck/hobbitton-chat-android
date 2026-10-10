@@ -16,6 +16,7 @@ import com.garfiec.librechat.core.data.engine.TranscriptionOutcome
 import com.garfiec.librechat.core.data.engine.engineFailureKind
 import com.garfiec.librechat.core.data.engine.offered
 import com.garfiec.librechat.core.data.pricing.ModelPriceCache
+import com.garfiec.librechat.core.data.scheduler.SchedulerRepository
 import com.garfiec.librechat.core.model.engine.EngineFailureKind
 import com.garfiec.librechat.core.model.engine.EngineQuestionRequest
 import com.garfiec.librechat.core.model.engine.EngineSelectableModel
@@ -124,6 +125,12 @@ data class MissionChatUiState(
      */
     val fontScale: Float = 1f,
     /**
+     * The first name the portal knows the person by, for the greeting of a new conversation
+     * (10/10/2026). Null until read, and null for good when the scheduler has no name to give: the
+     * greeting then stands without one.
+     */
+    val greetingName: String? = null,
+    /**
      * Where this transcript was left last time, once the answer is known — see [positionKnown].
      *
      * Null means « never left mid-transcript », and the screen then opens at the tail as it always
@@ -212,6 +219,8 @@ class MissionChatViewModel(
     /** Sound and notification when a reply this screen was waiting on finishes out of sight. */
     private val attention: AttentionSignals,
     private val ioDispatcher: CoroutineDispatcher,
+    /** Who the portal says is signed in, for the greeting of a new chat; null where unavailable. */
+    private val scheduler: SchedulerRepository? = null,
     private val profile: EngineProfile = EngineProfile.TASK,
 ) : ViewModel() {
 
@@ -260,6 +269,13 @@ class MissionChatViewModel(
             }
         }
         loadCatalogue()
+        // A new chat greets by name: one small read, and a greeting without a name if it fails.
+        if (sessionId == null && profile == EngineProfile.CHAT) {
+            viewModelScope.launch(ioDispatcher) {
+                val name = scheduler?.identity()?.firstName ?: return@launch
+                _uiState.update { it.copy(greetingName = name) }
+            }
+        }
         viewModelScope.launch {
             settings.chatFontSize.collect { size ->
                 _uiState.update { it.copy(fontScale = size.multiplier) }

@@ -32,7 +32,11 @@ HTTP layer of the engine, the scheduler and the portal. Ktor Client on OkHttp.
   bearer to the other's host, nor to a redirect target off its authority.
 - One client id, `PORTAL_CLIENT_ID`, used by the PAR, the token calls and the authorization URL alike.
 
-`SchedulerApi.transcribe` is the scheduler's one plain-HTTP route, `POST /transcription`
+`SchedulerApi.identity` is `GET /identite` (10/10/2026): who the portal says is signed in
+(`utilisateur`, `nom`, `prenom`, from the headers the edge copies after forward-auth), for the
+greeting of a new chat; null on a 404, which an older scheduler answers.
+
+`SchedulerApi.transcribe` is the scheduler's other plain-HTTP route, `POST /transcription`
 (multipart: file part `audio` with its real name and `audio/*` type, optional text `langue`; 25 MB
 at most; 200 `{"texte"}`, 400/502 `{"erreur"}`, 403). Same client and bearer as the MCP calls, a
 longer per-request timeout; every refusal raises `TranscriptionRefused(status, reason)`.

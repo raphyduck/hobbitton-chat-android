@@ -52,6 +52,13 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   created the session** (`SessionKindStore`) wins; then the scheduler's title shape (a task); then
   the **agent written on the session's messages** (`chat` = chat); then the answering provider.
   Verdicts learned from a transcript are recorded, so each foreign session is read once.
+- **A new chat greets** (lot 2, 10/10/2026): « Bonjour, <prénom>. » in the serif, the first name
+  read from the scheduler's `GET /identite` (the portal's `Remote-Name`, via `SchedulerRepository.identity`),
+  without a name when it gives none. The composer is Claude's: a raised box, bare field, plain
+  labels for the model and the connectors, send only once there is something to send
+  (`:core:ui` `input/`). Messages settle in with `animateItem`, « Réflexion… » shimmers before the
+  first token, a round button brings the tail back when one has scrolled up, send and stop click
+  under the thumb.
 - **Dictation and audio files** (chat and task composer) go to the scheduler's `POST /transcription`
   (`SchedulerApi.transcribe` → `SchedulerTranscriber`). A dictation lands in the composer and is
   never sent on its own; an audio file leaves with the message as a quoted transcription.

@@ -23,11 +23,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.garfiec.librechat.core.ui.markdown.StreamingWaitIndicator
+import com.garfiec.librechat.core.ui.components.ShimmerText
 import com.garfiec.librechat.core.ui.util.copyToClipboard
 import com.garfiec.librechat.feature.tasks.components.MissionMarkdown
 import com.garfiec.librechat.feature.tasks.resources.Res
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_copy
+import com.garfiec.librechat.feature.tasks.resources.tasks_chat_thinking
 import com.garfiec.librechat.feature.tasks.resources.tasks_copied
 import com.garfiec.librechat.feature.tasks.util.ChatBlock
 import com.garfiec.librechat.feature.tasks.util.ChatPart
@@ -40,17 +41,16 @@ import org.jetbrains.compose.resources.stringResource
 internal fun UserBubble(turn: ChatTurn.User, fontScale: Float) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
         Surface(
-            // The chat's own bubble: secondaryContainer, chosen there over primaryContainer for
-            // dark-mode contrast — same reason, same colour here. Shape and the 12 dp inner
-            // padding are the chat's too (`BubbleShape`, `MessageBubble`).
+            // The person's words in a sand bubble (secondaryContainer), the corner nearest the
+            // composer tightened so the bubble points at where it came from.
             color = MaterialTheme.colorScheme.secondaryContainer,
             contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-            shape = RoundedCornerShape(16.dp),
+            shape = UserBubbleShape,
             // Wraps its content instead of always claiming a fixed fraction: « ok » used to ship
             // in a bubble 85 % of the screen wide.
             modifier = Modifier.weight(1f, fill = false),
         ) {
-            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier.padding(horizontal = 14.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 turn.parts.forEach { part ->
                     when (part) {
                         is ChatPart.Attachment -> AttachmentContent(part)
@@ -102,10 +102,15 @@ internal fun AssistantTurn(turn: ChatTurn.Assistant, streaming: Boolean, fontSca
                 is ChatBlock.Activity -> ActivityBlock(block)
             }
         }
-        // Before the first delta there is no insertion point, so the wait indicator stands in for
-        // the cursor — the chat's own rule, and its own three dots.
+        // Before the first delta there is no insertion point, so « Réflexion… » shimmers where the
+        // answer will start — Claude's own cue, in place of the three dots.
         if (streaming && lastProse < 0) {
-            StreamingWaitIndicator()
+            DisableSelection {
+                ShimmerText(
+                    text = stringResource(Res.string.tasks_chat_thinking),
+                    modifier = Modifier.padding(vertical = 4.dp),
+                )
+            }
         }
         // Under a finished answer, the action row the chat and Claude both have. Only « copy » for
         // now: a mission has no regenerate, and its feedback would reach nobody.
@@ -138,7 +143,7 @@ private fun CopyTurnButton(text: String) {
             Icon(
                 if (copied) Icons.Default.Check else Icons.Outlined.ContentCopy,
                 contentDescription = stringResource(if (copied) Res.string.tasks_copied else Res.string.tasks_chat_copy),
-                modifier = Modifier.size(18.dp),
+                modifier = Modifier.size(16.dp),
                 tint = if (copied) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
@@ -146,4 +151,6 @@ private fun CopyTurnButton(text: String) {
 }
 
 private const val COPIED_FEEDBACK_MS = 2_000L
-private val COPY_BUTTON_SIZE = 36.dp
+private val COPY_BUTTON_SIZE = 32.dp
+private val UserBubbleShape =
+    RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp, bottomEnd = 6.dp, bottomStart = 18.dp)

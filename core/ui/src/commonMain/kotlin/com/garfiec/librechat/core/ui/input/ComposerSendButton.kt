@@ -1,6 +1,7 @@
 package com.garfiec.librechat.core.ui.input
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -16,15 +17,15 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 
 /**
- * Send, or stop what is running, in the same round spot at the end of the composer's row. Animated
- * across the swap: the two states occupy one place, and a hard cut reads as the button having been
- * replaced.
+ * Send, or stop what is running, in the same round spot at the end of the composer's row.
  *
- * Moved here from the mission conversation (D-076) so the next composer built on [ChatInputBox]
- * takes this one rather than a copy. The chat keeps its own `SendStopButton`: it also queues,
- * steers and updates a queued message, which a plain send/stop does not.
+ * As on Claude's composer, the spot is empty until there is something to send: the brick circle
+ * appears when text or a file is staged, and turns into a dark stop square while the answer runs.
+ * Both swaps are animated — the states occupy one place, and a hard cut reads as the button having
+ * been replaced.
  *
  * The labels are the caller's, as [ChatInputPill]'s are — each feature already has « send » and
  * « stop » in its own strings, in its own words.
@@ -39,36 +40,40 @@ fun ComposerSendButton(
     stopContentDescription: String,
     modifier: Modifier = Modifier,
 ) {
-    AnimatedContent(
-        targetState = running,
+    AnimatedVisibility(
+        visible = running || canSend,
         modifier = modifier,
-        transitionSpec = { (fadeIn() + scaleIn()).togetherWith(fadeOut() + scaleOut()) },
-        label = "composer_send_stop_toggle",
-    ) { showStop ->
-        if (showStop) {
-            IconButton(
-                onClick = onStop,
-                modifier = Modifier.size(ChatInputDefaults.controlSize),
-                colors = IconButtonDefaults.iconButtonColors(
-                    containerColor = MaterialTheme.colorScheme.error,
-                    contentColor = MaterialTheme.colorScheme.onError,
-                ),
-            ) {
-                Icon(imageVector = Icons.Filled.Stop, contentDescription = stopContentDescription)
-            }
-        } else {
-            IconButton(
-                onClick = onSend,
-                modifier = Modifier.size(ChatInputDefaults.controlSize),
-                enabled = canSend,
-                colors = IconButtonDefaults.iconButtonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                    disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                ),
-            ) {
-                Icon(imageVector = Icons.Filled.ArrowUpward, contentDescription = sendContentDescription)
+        enter = fadeIn() + scaleIn(),
+        exit = fadeOut() + scaleOut(),
+        label = "composer_send_visible",
+    ) {
+        AnimatedContent(
+            targetState = running,
+            transitionSpec = { (fadeIn() + scaleIn()).togetherWith(fadeOut() + scaleOut()) },
+            label = "composer_send_stop_toggle",
+        ) { showStop ->
+            if (showStop) {
+                IconButton(
+                    onClick = onStop,
+                    modifier = Modifier.size(ChatInputDefaults.controlSize),
+                    colors = IconButtonDefaults.iconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.onSurface,
+                        contentColor = MaterialTheme.colorScheme.surface,
+                    ),
+                ) {
+                    Icon(Icons.Filled.Stop, contentDescription = stopContentDescription, modifier = Modifier.size(18.dp))
+                }
+            } else {
+                IconButton(
+                    onClick = onSend,
+                    modifier = Modifier.size(ChatInputDefaults.controlSize),
+                    colors = IconButtonDefaults.iconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                    ),
+                ) {
+                    Icon(Icons.Filled.ArrowUpward, contentDescription = sendContentDescription, modifier = Modifier.size(20.dp))
+                }
             }
         }
     }
