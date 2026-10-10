@@ -1,16 +1,29 @@
 package com.garfiec.librechat.feature.tasks
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.PauseCircle
+import androidx.compose.material.icons.outlined.PlayArrow
+import androidx.compose.material.icons.outlined.PlayCircle
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -20,12 +33,17 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.garfiec.librechat.core.model.scheduler.ScheduledMission
 import com.garfiec.librechat.feature.tasks.components.TasksBottomSheet
 import com.garfiec.librechat.feature.tasks.resources.Res
 import com.garfiec.librechat.feature.tasks.resources.tasks_cancel
+import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_actions
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_cron
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_cron_hint
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_delete
@@ -53,14 +71,13 @@ import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * One recurring mission: when it next runs, how its last run went, and the two things worth doing
- * to it from a phone — start it now, or suspend it.
+ * One scheduled mission, as a row of a group (lot 4, 10/10/2026): a dot for its state, the name,
+ * when it runs and how the last run went, and a « ⋮ » that opens its actions in a sheet — run now,
+ * suspend or resume, reschedule, delete. The row itself opens the mission's runs.
  *
- * The tool count is shown next to the budget rather than hidden in settings: it is that number,
- * multiplied by the turns, that decides whether a mission fits its budget (server-side D-040), and
- * seeing it is what makes an expensive mission obvious before the bill does.
+ * The four text buttons the card carried (30/08/2026) are the sheet's rows now: a dozen missions
+ * with four buttons each was a wall of verbs, and the destructive one sat on every card.
  */
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun ScheduledMissionRow(
     mission: ScheduledMission,
@@ -69,95 +86,69 @@ internal fun ScheduledMissionRow(
     onToggle: () -> Unit,
     onReschedule: (cron: String?, runAt: String?) -> Unit,
     onDelete: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
+    var acting by rememberSaveable(mission.name) { mutableStateOf(false) }
     var editing by rememberSaveable(mission.name) { mutableStateOf(false) }
     var confirmingDelete by rememberSaveable(mission.name) { mutableStateOf(false) }
-    // The card opens the mission's runs, as a task opens its history in Claude; the buttons keep
-    // their own gestures on top of it.
-    Card(onClick = onOpen, modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(mission.name, style = MaterialTheme.typography.titleMedium)
 
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onOpen)
+            .heightIn(min = 56.dp)
+            .padding(start = 16.dp, end = 4.dp, top = 10.dp, bottom = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        StatusDot(color = mission.dotColour(), label = mission.stateLabel())
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
-                listOfNotNull(
-                    mission.profile,
-                    mission.cron ?: mission.runAt,
-                    pluralStringResource(
-                        Res.plurals.tasks_scheduled_tools,
-                        mission.declaredTools,
-                        mission.declaredTools,
-                    ),
-                ).joinToString(" · "),
+                mission.name,
+                style = MaterialTheme.typography.bodyLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                mission.scheduleLine(),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
-
-            when {
-                mission.running ->
-                    Text(
-                        stringResource(Res.string.tasks_state_running),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-
-                !mission.enabled ->
-                    Text(
-                        stringResource(Res.string.tasks_scheduled_suspended),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.outline,
-                    )
-
-                mission.nextRun != null ->
-                    Text(
-                        stringResource(Res.string.tasks_scheduled_next, mission.nextRun!!),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-            }
-
             LastRunLine(mission)
-
-            // FlowRow, not Row: the four labels do not fit a phone's width, and a Row divides the
-            // shortfall among them rather than admitting it. The last button was left a handful of
-            // pixels and rendered « Delete » as a column of single letters (reported 30/08/2026).
-            // Wrapping onto a second line costs a row of height and keeps every action readable —
-            // including the destructive one, the worst of the four to leave illegible.
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                // A mission already running is not started twice: the scheduler refuses it anyway
-                // (server-side D-041), and offering the button would make that refusal look like a
-                // bug rather than a rule.
-                TextButton(onClick = onRun, enabled = !mission.running) {
-                    ActionLabel(stringResource(Res.string.tasks_scheduled_run))
-                }
-                TextButton(onClick = onToggle) {
-                    ActionLabel(
-                        stringResource(
-                            if (mission.enabled) {
-                                Res.string.tasks_scheduled_disable
-                            } else {
-                                Res.string.tasks_scheduled_enable
-                            },
-                        ),
-                    )
-                }
-                TextButton(onClick = { editing = true }) {
-                    ActionLabel(stringResource(Res.string.tasks_scheduled_edit))
-                }
-                TextButton(
-                    onClick = { confirmingDelete = true },
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error,
-                    ),
-                ) {
-                    ActionLabel(stringResource(Res.string.tasks_scheduled_delete))
-                }
-            }
+        }
+        IconButton(onClick = { acting = true }) {
+            Icon(
+                Icons.Default.MoreVert,
+                contentDescription = stringResource(Res.string.tasks_scheduled_actions, mission.name),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 
+    if (acting) {
+        ActionsSheet(
+            mission = mission,
+            onDismiss = { acting = false },
+            onRun = {
+                acting = false
+                onRun()
+            },
+            onToggle = {
+                acting = false
+                onToggle()
+            },
+            onEdit = {
+                acting = false
+                editing = true
+            },
+            onDelete = {
+                acting = false
+                confirmingDelete = true
+            },
+        )
+    }
     if (editing) {
         RescheduleSheet(
             mission = mission,
@@ -195,6 +186,116 @@ internal fun ScheduledMissionRow(
     }
 }
 
+/** « 0 7 * * 1-5 · 14 outils par tour · Prochaine 2026-10-13T07:00 », or « Suspendue », or « En cours ». */
+@Composable
+private fun ScheduledMission.scheduleLine(): String {
+    val state = when {
+        running -> stringResource(Res.string.tasks_state_running)
+        !enabled -> stringResource(Res.string.tasks_scheduled_suspended)
+        nextRun != null -> stringResource(Res.string.tasks_scheduled_next, nextRun!!)
+        else -> null
+    }
+    return listOfNotNull(
+        cron ?: runAt,
+        pluralStringResource(Res.plurals.tasks_scheduled_tools, declaredTools, declaredTools),
+        state,
+    ).joinToString(" · ")
+}
+
+@Composable
+private fun ScheduledMission.stateLabel(): String = when {
+    running -> stringResource(Res.string.tasks_state_running)
+    !enabled -> stringResource(Res.string.tasks_scheduled_suspended)
+    lastRun?.succeeded == false -> stringResource(Res.string.tasks_scheduled_last_failed, lastRun?.stopReason.orEmpty())
+    else -> name
+}
+
+/** The accent while it runs, the hairline grey when suspended, red after a failed run, quiet otherwise. */
+@Composable
+private fun ScheduledMission.dotColour(): Color = when {
+    running -> MaterialTheme.colorScheme.primary
+    !enabled -> MaterialTheme.colorScheme.outlineVariant
+    lastRun?.succeeded == false -> MaterialTheme.colorScheme.error
+    else -> MaterialTheme.colorScheme.tertiary
+}
+
+/**
+ * The mission's actions, in a sheet under its name. A mission already running is not started
+ * twice: the scheduler refuses it anyway (server-side D-041), and offering the row would make that
+ * refusal look like a bug rather than a rule.
+ */
+@Composable
+private fun ActionsSheet(
+    mission: ScheduledMission,
+    onDismiss: () -> Unit,
+    onRun: () -> Unit,
+    onToggle: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    TasksBottomSheet(onDismiss = onDismiss) {
+        Text(
+            mission.name,
+            style = MaterialTheme.typography.titleLarge,
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+        )
+        Spacer(Modifier.height(8.dp))
+        SheetAction(
+            icon = Icons.Outlined.PlayArrow,
+            label = stringResource(Res.string.tasks_scheduled_run),
+            onClick = onRun,
+            enabled = !mission.running,
+        )
+        if (mission.enabled) {
+            SheetAction(
+                icon = Icons.Outlined.PauseCircle,
+                label = stringResource(Res.string.tasks_scheduled_disable),
+                onClick = onToggle,
+            )
+        } else {
+            SheetAction(
+                icon = Icons.Outlined.PlayCircle,
+                label = stringResource(Res.string.tasks_scheduled_enable),
+                onClick = onToggle,
+            )
+        }
+        SheetAction(
+            icon = Icons.Outlined.Schedule,
+            label = stringResource(Res.string.tasks_scheduled_edit),
+            onClick = onEdit,
+        )
+        SheetAction(
+            icon = Icons.Outlined.Delete,
+            label = stringResource(Res.string.tasks_scheduled_delete),
+            onClick = onDelete,
+            tint = MaterialTheme.colorScheme.error,
+        )
+    }
+}
+
+@Composable
+private fun SheetAction(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    enabled: Boolean = true,
+    tint: Color = MaterialTheme.colorScheme.onSurface,
+) {
+    val colour = if (enabled) tint else MaterialTheme.colorScheme.outline
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = enabled, onClick = onClick)
+            .heightIn(min = 52.dp)
+            .padding(horizontal = 24.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Icon(icon, contentDescription = null, tint = colour, modifier = Modifier.size(22.dp))
+        Text(label, style = MaterialTheme.typography.bodyLarge, color = colour)
+    }
+}
+
 /**
  * Changer quand une mission part — l'horaire, ou la date unique.
  *
@@ -205,6 +306,7 @@ internal fun ScheduledMissionRow(
  *
  * Les deux champs s'excluent, comme côté serveur : une mission est récurrente OU ponctuelle.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun RescheduleSheet(
     mission: ScheduledMission,
@@ -278,16 +380,6 @@ private fun RescheduleSheet(
 }
 
 /**
- * One action's caption. Single line and unwrappable on purpose: a caption that wraps inside a button
- * is the symptom of a row that does not fit, and letting it wrap hides the overflow instead of
- * letting the layout resolve it.
- */
-@Composable
-private fun ActionLabel(text: String) {
-    Text(text, maxLines = 1, softWrap = false)
-}
-
-/**
  * How the last run went, in one line.
  *
  * `succeeded` is null *while the mission runs*, and that third state is why this is not a boolean:
@@ -310,6 +402,8 @@ private fun LastRunLine(mission: ScheduledMission) {
             ),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.error,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
         )
 
         last.succeeded == true -> Text(
@@ -320,6 +414,8 @@ private fun LastRunLine(mission: ScheduledMission) {
             ),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }

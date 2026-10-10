@@ -75,8 +75,9 @@ class LibreChatApplication : Application(), SingletonImageLoader.Factory {
                 allowOverride(false)
                 // The engine's graph (`engineModule`, androidMain: its clients and its secure store)
                 // and the Tasks module that needs it, next to the shared list; then the platform's
-                // sound and notifications, which `engineModule`'s attention signals ring through.
-                modules(sharedKoinModules + engineModule + tasksModule + attentionModule)
+                // sound and notifications, which `engineModule`'s attention signals ring through,
+                // and the addresses this build signs in to by default.
+                modules(sharedKoinModules + engineModule + tasksModule + attentionModule + platformModule)
             }
         } catch (e: Exception) {
             Logger.e(e) { "Koin initialization failed" }

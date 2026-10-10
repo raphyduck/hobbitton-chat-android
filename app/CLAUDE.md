@@ -24,7 +24,11 @@ Single Activity. `MainActivity` is the sole entry point; `LibreChatApplication` 
 ## LibreChatApplication
 
 - Logcat through `RedactingLogWriter` (floored and scrubbed in release), installed before Koin.
-- `startKoin`: `sharedKoinModules + engineModule + tasksModule + attentionModule`, `allowOverride(false)`.
+- `startKoin`: `sharedKoinModules + engineModule + tasksModule + attentionModule + platformModule`,
+  `allowOverride(false)`. `platformModule` binds `PlatformDefaults` from the `BuildConfig`
+  fields `PLATFORM_ENGINE_URL` / `PLATFORM_SCHEDULER_URL` / `PLATFORM_PORTAL_URL`, which the
+  application plugin fills from `platform.properties` (git-ignored) or the same-named environment
+  variables: the sign-in starts on them.
 - `attention/`: `AndroidAttentionNotifier` (the notification sound, the « Questions » and
   « Replies » channels, the notification that opens a conversation) and `attentionModule`.
 - Starts `LegacyLibreChatCleanup` once: removes what LibreChat left on an upgraded device.

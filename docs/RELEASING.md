@@ -133,6 +133,16 @@ keyPassword=...
 Then `./gradlew :app:assembleRelease` produces a signed APK. Without env vars or this file,
 release builds fall back to the debug key so local builds and CI checks still work.
 
+### The platform the sign-in starts on
+
+The sign-in screen starts on the addresses the build was made for, so nobody types them. They
+come from `platform.properties` at the repo root (git-ignored; `platform.properties.example`
+shows the three keys) or, in CI, from the repository **variables** `PLATFORM_ENGINE_URL`,
+`PLATFORM_SCHEDULER_URL` and `PLATFORM_PORTAL_URL` (Settings → Secrets and variables → Actions →
+Variables; they are addresses, not secrets). Both the release and the PR debug APK read them.
+Without them the APK asks for the addresses, and « Another platform » on the screen always lets a
+person type others.
+
 ## Cutting a release
 
 1. Actions → **Release** → *Run workflow* → choose the bump (`patch` for a stable

@@ -1,15 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- La seule connexion : le portail (hobbitton, D-076, D-077) -->
-    <string name="portal_sign_in">Se connecter par le portail</string>
+    <string name="portal_sign_in">Se connecter</string>
     <string name="portal_sign_in_hint">Une seule connexion pour les conversations et les tâches : mot de passe et second facteur au portail, puis une autorisation.</string>
     <string name="portal_title">Connexion</string>
     <string name="portal_close">Fermer</string>
-    <string name="portal_welcome">Bienvenue sur votre assistant</string>
-    <string name="portal_addresses_hint">Les trois adresses de votre assistant. Elles restent sur cet appareil.</string>
-    <string name="portal_engine_url">Adresse du moteur</string>
-    <string name="portal_scheduler_url">Adresse du planificateur</string>
-    <string name="portal_issuer_url">Adresse du portail</string>
+    <string name="portal_brand">Butler</string>
+    <string name="portal_tagline">Votre assistant, sur votre plateforme.</string>
+    <string name="portal_platform">Plateforme : %1$s</string>
+    <string name="portal_other_platform">Autre plateforme</string>
+    <string name="portal_addresses_hint">Les trois adresses de votre plateforme. Elles restent sur cet appareil.</string>
+    <string name="portal_engine_url">Moteur</string>
+    <string name="portal_scheduler_url">Planificateur</string>
+    <string name="portal_issuer_url">Portail</string>
     <string name="portal_invalid_url">Une adresse https:// (http:// seulement sur un réseau privé).</string>
     <string name="portal_step_preparing">Préparation de la connexion…</string>
     <string name="portal_problem_not_ready">Ces adresses ne permettent pas de se connecter. Vérifiez le portail et le planificateur.</string>

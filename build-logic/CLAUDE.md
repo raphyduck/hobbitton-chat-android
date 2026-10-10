@@ -7,7 +7,7 @@ Convention plugins that apply consistent Gradle configuration across all modules
 ### Android
 | Plugin ID | Class | What it does |
 |-----------|-------|-------------|
-| `librechat.mobile.application` | `AndroidApplicationConventionPlugin` | AGP application plugin, compileSdk 36, minSdk 26, versions from `version.properties` |
+| `librechat.mobile.application` | `AndroidApplicationConventionPlugin` | AGP application plugin, compileSdk 36, minSdk 26, versions from `version.properties`, signing from `keystore.properties`, the sign-in's default platform from `platform.properties` (`BuildConfig.PLATFORM_*_URL`) |
 | `librechat.mobile.compose` | `AndroidComposeConventionPlugin` | Compose compiler, Compose BOM, Material 3 |
 | `librechat.mobile.koin` | `AndroidKoinConventionPlugin` | Koin core + Android dependencies |
 | `librechat.detekt` | `DetektConventionPlugin` | Detekt static analysis (applied to every module by the library/application plugins) |

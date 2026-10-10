@@ -100,6 +100,11 @@ jobs:
         uses: gradle/actions/setup-gradle@v6.3.0
 
       - name: Build debug APK
+        env:
+          # The platform the sign-in starts on (repository variables); unset, the APK asks.
+          PLATFORM_ENGINE_URL: ${{ vars.PLATFORM_ENGINE_URL }}
+          PLATFORM_SCHEDULER_URL: ${{ vars.PLATFORM_SCHEDULER_URL }}
+          PLATFORM_PORTAL_URL: ${{ vars.PLATFORM_PORTAL_URL }}
         run: ./gradlew :app:assembleDebug
 
       - name: Upload debug APK
