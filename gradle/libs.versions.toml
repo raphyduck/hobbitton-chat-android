@@ -31,7 +31,7 @@ markdown-renderer = "0.40.2"
 coil3 = "3.4.0"
 
 # Color theming (seed -> Material 3 ColorScheme, KMP)
-material-kolor = "4.1.1"
+core-splashscreen = "1.0.1"
 
 # Logging
 kermit = "2.1.0"
@@ -43,6 +43,9 @@ okio = "3.10.2"
 junit = "4.13.2"
 turbine = "1.2.1"
 mockk = "1.14.11"
+robolectric = "4.17"
+roborazzi = "1.76.0"
+compose-test = "1.11.3"   # the androidx line the JetBrains compose-multiplatform artifacts resolve to
 truth = "1.4.5"
 
 # Code Quality
@@ -111,7 +114,7 @@ coil3-network-ktor = { group = "io.coil-kt.coil3", name = "coil-network-ktor3", 
 coil3-svg = { group = "io.coil-kt.coil3", name = "coil-svg", version.ref = "coil3" }
 
 # Color theming
-material-kolor = { group = "com.materialkolor", name = "material-kolor", version.ref = "material-kolor" }
+core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "core-splashscreen" }
 
 # Logging
 kermit = { group = "co.touchlab", name = "kermit", version.ref = "kermit" }
@@ -143,6 +146,11 @@ turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine
 mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
 truth = { group = "com.google.truth", name = "truth", version.ref = "truth" }
 compose-ui-test = { group = "androidx.compose.ui", name = "ui-test-junit4" }
+compose-ui-test-junit4-versioned = { group = "androidx.compose.ui", name = "ui-test-junit4", version.ref = "compose-test" }
+compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest", version.ref = "compose-test" }
+robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
+roborazzi = { group = "io.github.takahirom.roborazzi", name = "roborazzi", version.ref = "roborazzi" }
+roborazzi-compose = { group = "io.github.takahirom.roborazzi", name = "roborazzi-compose", version.ref = "roborazzi" }
 
 [bundles]
 compose = [

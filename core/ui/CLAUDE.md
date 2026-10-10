@@ -6,9 +6,11 @@ logic, no ViewModels, no repositories.
 ## What This Module Provides
 
 ### Theme (`theme/`)
-- `Theme.kt`: `LibreChatTheme` wrapping Material 3 `MaterialTheme`; the scheme is generated from an
-  accent seed (material-kolor), or from the wallpaper (Material You) on Android 12+.
-- `AccentColors.kt` (default seed), `Type.kt`, `Shape.kt`.
+- `Theme.kt`: `LibreChatTheme` wrapping Material 3 `MaterialTheme` with Butler's one skin
+  (10/10/2026): `Color.kt` (`ButlerLightColors` / `ButlerDarkColors`, fixed warm neutrals and a
+  brick accent, nothing generated from a seed or the wallpaper), `Type.kt` (`butlerTypography`:
+  Source Serif 4 from `composeResources/font/` for display, headline and `titleLarge`, the system
+  sans below; licence in `LICENSE-SourceSerif4.md`), `Shape.kt`.
 - `LocalAppLocale.kt` / `AppLocale`: applies the stored app language at the root.
 
 ### Markdown (`markdown/`)
@@ -47,7 +49,7 @@ conversation's composer.
 
 - **No business logic.** No ViewModels, no repository calls, no use cases.
 - All components must be stateless or hoist state to the caller.
-- Dependencies: `:core:model`, the mikepenz markdown renderer (`api`), material-kolor, Compose,
+- Dependencies: `:core:model`, the mikepenz markdown renderer (`api`), Compose,
   Kermit. **Not `:core:data`** — the font-size multiplier is passed in as a `Float`.
 - Convention plugins: `librechat.kmp.library` + `librechat.kmp.compose`. Resources are public
   (`publicResClass = true`) so features can read this module's strings.

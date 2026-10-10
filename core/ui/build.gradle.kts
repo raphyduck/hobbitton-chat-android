@@ -24,7 +24,6 @@ kotlin {
             // public signature and every caller has to see them.
             api(libs.markdown.renderer.m3)
             implementation(libs.kermit)
-            implementation(libs.material.kolor)
             implementation(libs.compose.ui.backhandler)
         }
         androidMain.dependencies {

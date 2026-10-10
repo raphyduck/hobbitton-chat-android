@@ -34,13 +34,13 @@
     <string name="engine_instructions_label">Instructions</string>
     <string name="engine_instructions_save">Enregistrer</string>
     <string name="engine_instructions_cancel">Annuler</string>
-    <string name="engine_instructions_save_failed">Les instructions n\'ont pas pu être enregistrées. Réessayez.</string>
+    <string name="engine_instructions_save_failed">Les instructions n'ont pas pu être enregistrées. Réessayez.</string>
     <string name="engine_settings_sign_out">Se déconnecter</string>
     <string name="engine_settings_sign_out_hint">Ferme la session du portail sur cet appareil et oublie ses caches de conversation. Vos conversations et vos tâches restent sur la plateforme.</string>
     <string name="engine_settings_sign_out_confirm">Se déconnecter</string>
     <string name="engine_settings_cancel">Annuler</string>
     <string name="engine_drawer_chat">Conversation</string>
-    <string name="engine_drawer_today">Aujourd\'hui</string>
+    <string name="engine_drawer_today">Aujourd'hui</string>
     <string name="engine_drawer_yesterday">Hier</string>
     <string name="engine_drawer_previous_week">7 derniers jours</string>
     <string name="engine_drawer_older">Plus ancien</string>

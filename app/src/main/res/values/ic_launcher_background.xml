@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#1C1C1E</color>
+    <!-- Butler's ivory, the same as the app's light page. -->
+    <color name="ic_launcher_background">#F6F4EF</color>
 </resources>

@@ -31,7 +31,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
@@ -39,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.content.edit
 import androidx.core.content.pm.ShortcutManagerCompat
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
@@ -73,7 +73,11 @@ class MainActivity : ComponentActivity() {
 
     @OptIn(ExperimentalComposeUiApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
+        // The launch screen (the bow tie on the page's colour) stays until the persisted theme and
+        // language are read, then fades into the first themed frame: no white flash, no jump.
+        val splash = installSplashScreen()
         super.onCreate(savedInstanceState)
+        splash.setKeepOnScreenCondition { !(themeDataStore.isReady.value && settingsDataStore.isReady.value) }
         enableEdgeToEdge()
 
         // Only process the launch intent on a genuinely fresh start: on recreation it is still sticky,
@@ -96,12 +100,6 @@ class MainActivity : ComponentActivity() {
             // theme. The system window background covers the sub-frame gap.
             val themeReady by themeDataStore.isReady.collectAsStateWithLifecycle()
             val themeMode by themeDataStore.themeMode.collectAsStateWithLifecycle(initialValue = themeDataStore.initialThemeMode)
-            val accentColorArgb by themeDataStore.accentColor.collectAsStateWithLifecycle(
-                initialValue = themeDataStore.initialAccentColor,
-            )
-            val useDynamicColor by themeDataStore.useDynamicColor.collectAsStateWithLifecycle(
-                initialValue = themeDataStore.initialUseDynamicColor,
-            )
             // Gate on the language warm-up too so a persisted non-system language is applied
             // before the first frame (no flash of the system locale before switching).
             val localeReady by settingsDataStore.isReady.collectAsStateWithLifecycle()
@@ -127,11 +125,7 @@ class MainActivity : ComponentActivity() {
             }
 
             if (themeReady && localeReady) {
-                LibreChatTheme(
-                    darkTheme = darkTheme,
-                    accentColor = Color(accentColorArgb),
-                    useDynamicColor = useDynamicColor,
-                ) {
+                LibreChatTheme(darkTheme = darkTheme) {
                     Surface(
                         modifier = Modifier
                             .fillMaxSize()

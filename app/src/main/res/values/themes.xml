@@ -6,5 +6,16 @@
         <item name="android:navigationBarColor">@android:color/transparent</item>
     </style>
 
-    <color name="splash_background">#FFFFFF</color>
+    <!--
+        The launch: the bow tie on the page's own colour, held until the persisted theme and
+        language are read, then faded into the app (SplashScreen API, MainActivity).
+    -->
+    <style name="Theme.LibreChat.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+        <item name="postSplashScreenTheme">@style/Theme.LibreChat</item>
+    </style>
+
+    <!-- The light page (ButlerLightColors.surface). -->
+    <color name="splash_background">#F6F4EF</color>
 </resources>

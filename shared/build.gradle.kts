@@ -7,6 +7,13 @@ plugins {
 
 android {
     namespace = "com.garfiec.librechat.shared"
+
+    // Screen captures (Robolectric + Roborazzi, test-only): the screens rendered without a device.
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+        // `-Pcaptures` records the PNGs under build/captures (the Roborazzi library alone, no plugin).
+        unitTests.all { it.systemProperty("roborazzi.test.record", if (project.hasProperty("captures")) "true" else "false") }
+    }
 }
 
 kotlin {
@@ -30,6 +37,17 @@ kotlin {
             implementation(libs.koin.compose)
             implementation(libs.koin.compose.viewmodel)
         }
+
+        androidUnitTest.dependencies {
+            implementation(libs.robolectric)
+            implementation(libs.roborazzi)
+            implementation(libs.roborazzi.compose)
+            implementation(libs.compose.ui.test.junit4.versioned)
+        }
     }
 }
 
+dependencies {
+    // The test activity the compose rule launches, visible to Robolectric's merged manifest.
+    debugImplementation(libs.compose.ui.test.manifest)
+}

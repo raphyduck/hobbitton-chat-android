@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Butler's mark: a bow tie, brick on ivory. Drawn inside the 66 dp safe circle of the 108 dp adaptive canvas. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Left wing -->
+    <path
+        android:fillColor="#BF6B49"
+        android:pathData="M52,47.5 C44,43.5 36,39.5 30.5,39.5 C27.5,39.5 26,44 26,54 C26,64 27.5,68.5 30.5,68.5 C36,68.5 44,64.5 52,60.5 Z" />
+    <!-- Right wing -->
+    <path
+        android:fillColor="#BF6B49"
+        android:pathData="M56,47.5 C64,43.5 72,39.5 77.5,39.5 C80.5,39.5 82,44 82,54 C82,64 80.5,68.5 77.5,68.5 C72,68.5 64,64.5 56,60.5 Z" />
+    <!-- Knot -->
+    <path
+        android:fillColor="#9E5234"
+        android:pathData="M51,45.5 H57 A3.5,3.5 0 0 1 60.5,49 V59 A3.5,3.5 0 0 1 57,62.5 H51 A3.5,3.5 0 0 1 47.5,59 V49 A3.5,3.5 0 0 1 51,45.5 Z" />
+</vector>

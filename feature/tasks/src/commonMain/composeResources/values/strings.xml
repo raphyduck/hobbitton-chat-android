@@ -38,11 +38,11 @@
     <string name="tasks_error_permission">This account is not allowed to use the assistant</string>
     <string name="tasks_error_permission_hint">Trying again will not help: ask the administrator for access.</string>
     <string name="tasks_error_not_found">The assistant is not at this address</string>
-    <string name="tasks_error_not_found_hint">Check the assistant\'s address in the settings.</string>
-    <string name="tasks_error_unreachable">The assistant\'s server did not answer</string>
+    <string name="tasks_error_not_found_hint">Check the assistant's address in the settings.</string>
+    <string name="tasks_error_unreachable">The assistant's server did not answer</string>
     <string name="tasks_error_unreachable_hint">Check your connection, then try again in a moment.</string>
-    <string name="tasks_error_server">The assistant\'s server ran into a problem</string>
-    <string name="tasks_error_server_hint">The problem is on the server\'s side. Try again in a moment.</string>
+    <string name="tasks_error_server">The assistant's server ran into a problem</string>
+    <string name="tasks_error_server_hint">The problem is on the server's side. Try again in a moment.</string>
     <string name="tasks_error_unknown">Something went wrong with the assistant. Try again.</string>
     <string name="tasks_scheduled_header">Scheduled tasks</string>
     <string name="tasks_scheduled_run">Run now</string>
@@ -113,7 +113,7 @@
     <string name="tasks_providers_none">No model is available. That is not “all is well”: the list of models is empty.</string>
     <string name="tasks_providers_failed">The check itself failed: %1$s</string>
     <string name="tasks_sign_in">Sign in through the portal</string>
-    <string name="tasks_sign_in_not_configured">Nothing to sign in to yet: fill in the assistant\'s addresses first.</string>
+    <string name="tasks_sign_in_not_configured">Nothing to sign in to yet: fill in the assistant's addresses first.</string>
     <string name="tasks_sign_in_no_callback_host">The scheduler address is missing, and that is where the portal sends the authorization code back. Fill it in, then sign in again.</string>
     <string name="tasks_sign_in_unreachable">The portal did not answer. Check the portal address and the network, then try again.</string>
     <string name="tasks_sign_in_refused">The portal refused: consent declined, second factor abandoned, or the request expired. Starting again is safe.</string>
@@ -144,7 +144,7 @@
     <string name="tasks_scheduled_cron_hint">Five fields, like a crontab: “0 5 * * *” is every day at 5am.</string>
     <string name="tasks_scheduled_runat">Date and time</string>
     <string name="tasks_scheduled_runat_hint">ISO 8601, e.g. “2027-01-15T09:00”. It fires once, then suspends itself.</string>
-    <string name="tasks_scheduled_timezone">Read in %1$s — the task\'s time zone, not this phone\'s.</string>
+    <string name="tasks_scheduled_timezone">Read in %1$s — the task's time zone, not this phone's.</string>
     <string name="tasks_scheduled_save">Save</string>
     <plurals name="tasks_chat_output_truncated">
         <item quantity="one">%1$d more character</item>
@@ -159,7 +159,7 @@
     <string name="tasks_tool_failed">Failed</string>
     <string name="tasks_chat_argument">%1$s: %2$s</string>
     <string name="tasks_prompt_emails">Summarise my unread emails</string>
-    <string name="tasks_prompt_calendar">What\'s on my calendar this week?</string>
+    <string name="tasks_prompt_calendar">What's on my calendar this week?</string>
     <string name="tasks_prompt_document">Find a document on the NAS</string>
     <string name="tasks_question_title">Butler is asking</string>
     <string name="tasks_question_other">Your own answer…</string>
