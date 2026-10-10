@@ -1,7 +1,13 @@
 package com.garfiec.librechat.feature.tasks.navigation
 
+import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
+import androidx.navigation3.ui.NavDisplay
 import com.garfiec.librechat.core.data.engine.EngineProfile
 import com.garfiec.librechat.feature.tasks.MissionChatScreen
 import com.garfiec.librechat.feature.tasks.MissionRunsScreen
@@ -95,7 +101,8 @@ fun EntryProviderScope<NavKey>.engineChatEntries(
     onNewChat: () -> Unit,
     onBack: () -> Unit,
 ) {
-    entry<EngineChat> { key ->
+    // One chat replaces another as the root: a cross-fade, not the slide of a pushed screen.
+    entry<EngineChat>(metadata = NavDisplay.transitionSpec { crossfadeBetweenChats() }) { key ->
         MissionChatScreen(
             sessionId = key.sessionId,
             title = key.title,
@@ -107,6 +114,11 @@ fun EntryProviderScope<NavKey>.engineChatEntries(
         )
     }
 }
+
+private fun crossfadeBetweenChats(): ContentTransform =
+    fadeIn(tween(CHAT_FADE_MS)) togetherWith fadeOut(tween(CHAT_FADE_MS))
+
+private const val CHAT_FADE_MS = 200
 
 /**
  * Registered like every other feature's routes so a saved back stack survives process death. A

@@ -9,6 +9,9 @@
     <string name="engine_drawer_empty">Nothing yet.</string>
     <string name="engine_drawer_failed">The chats could not be loaded.</string>
     <string name="engine_drawer_retry">Retry</string>
+    <string name="engine_drawer_search">Search</string>
+    <string name="engine_drawer_no_match">No conversation matches.</string>
+    <string name="engine_drawer_account">Account and settings</string>
     <string name="engine_chat_running">Running</string>
     <string name="engine_settings_title">Settings</string>
     <string name="engine_settings_back">Back</string>

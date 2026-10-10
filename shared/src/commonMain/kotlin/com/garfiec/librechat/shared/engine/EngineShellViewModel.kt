@@ -16,6 +16,8 @@ import com.garfiec.librechat.core.data.engine.OpenConversation
 import com.garfiec.librechat.core.data.engine.SessionKindStore
 import com.garfiec.librechat.core.data.portal.PortalSignOut
 import com.garfiec.librechat.core.data.portal.isPortalSignedIn
+import com.garfiec.librechat.core.data.scheduler.SchedulerRepository
+import com.garfiec.librechat.core.model.scheduler.PortalIdentity
 import com.garfiec.librechat.core.network.engine.EngineAccess
 import com.garfiec.librechat.core.network.engine.EngineTokenStore
 import kotlinx.coroutines.CancellationException
@@ -63,6 +65,8 @@ class EngineShellViewModel(
     private val attentionWatcher: EngineAttentionWatcher? = null,
     /** The conversation a tapped notification asks to open. Null without the engine graph. */
     private val conversationRequests: ConversationRequests? = null,
+    /** Who the portal says is signed in, for the drawer's foot (lot 3). Null without the engine graph. */
+    private val scheduler: SchedulerRepository? = null,
 ) : ViewModel() {
 
     private val _signedIn = MutableStateFlow<Boolean?>(null)
@@ -77,6 +81,11 @@ class EngineShellViewModel(
 
     /** What the settings screen shows of the platform: read-only, changed by signing in again. */
     val addresses: StateFlow<EngineAccess?> = _addresses.asStateFlow()
+
+    private val _identity = MutableStateFlow<PortalIdentity?>(null)
+
+    /** The portal's name for the person, read once per sign-in; null until then, or when it has none. */
+    val identity: StateFlow<PortalIdentity?> = _identity.asStateFlow()
 
     val themeMode: StateFlow<ThemeMode> = themeDataStore.themeMode
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), themeDataStore.initialThemeMode)
@@ -109,9 +118,18 @@ class EngineShellViewModel(
             val now = isPortalSignedIn(access, held)
             val before = _signedIn.value
             _signedIn.value = now
-            if (now && before != true) refreshChats()
+            if (now && before != true) {
+                refreshChats()
+                readIdentity()
+            }
             if (now) watchAttention() else stopAttention()
         }
+    }
+
+    /** One small read per sign-in; the drawer's foot names the host alone until it lands, or for good. */
+    private fun readIdentity() {
+        val source = scheduler ?: return
+        viewModelScope.launch { _identity.value = source.identity() }
     }
 
     /**
@@ -195,6 +213,7 @@ class EngineShellViewModel(
             chatsJob?.cancel()
             stopAttention()
             _chats.value = EngineChatsState()
+            _identity.value = null
             _signedIn.value = false
         }
     }

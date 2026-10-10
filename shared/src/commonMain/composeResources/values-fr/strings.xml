@@ -9,6 +9,9 @@
     <string name="engine_drawer_empty">Aucune conversation pour l'instant.</string>
     <string name="engine_drawer_failed">Les conversations n'ont pas pu être chargées.</string>
     <string name="engine_drawer_retry">Réessayer</string>
+    <string name="engine_drawer_search">Rechercher</string>
+    <string name="engine_drawer_no_match">Aucune conversation ne correspond.</string>
+    <string name="engine_drawer_account">Compte et réglages</string>
     <string name="engine_chat_running">En cours</string>
     <string name="engine_settings_title">Réglages</string>
     <string name="engine_settings_back">Retour</string>
