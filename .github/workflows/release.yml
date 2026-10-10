@@ -99,6 +99,11 @@ jobs:
           SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
           SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
           SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          # The platform the sign-in starts on (repository variables, not secrets: the addresses
+          # are public). Unset, the APK asks for them on its sign-in screen.
+          PLATFORM_ENGINE_URL: ${{ vars.PLATFORM_ENGINE_URL }}
+          PLATFORM_SCHEDULER_URL: ${{ vars.PLATFORM_SCHEDULER_URL }}
+          PLATFORM_PORTAL_URL: ${{ vars.PLATFORM_PORTAL_URL }}
         run: ./gradlew :app:assembleRelease --no-daemon
 
       - name: Prepare artifacts

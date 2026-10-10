@@ -15,6 +15,7 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
 
             val appVersion = readAppVersion(target)
             val release = readReleaseSigning(target)
+            val platform = readPlatformDefaults(target)
 
             extensions.configure<KotlinAndroidProjectExtension> {
                 jvmToolchain(BuildConstants.JVM_TOOLCHAIN_VERSION)
@@ -31,6 +32,11 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
                     versionCode = appVersion.code
                     versionName = appVersion.name
                     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+                    // The platform this build signs in to by default (lot 4): empty strings when
+                    // no platform.properties names one, and the sign-in then asks.
+                    buildConfigField("String", "PLATFORM_ENGINE_URL", platform.engineUrl.asStringLiteral())
+                    buildConfigField("String", "PLATFORM_SCHEDULER_URL", platform.schedulerUrl.asStringLiteral())
+                    buildConfigField("String", "PLATFORM_PORTAL_URL", platform.portalUrl.asStringLiteral())
                 }
                 compileOptions {
                     isCoreLibraryDesugaringEnabled = true
@@ -147,6 +153,32 @@ private fun readReleaseSigning(target: Project): ReleaseSigning? {
         null
     }
 }
+
+private data class PlatformDefaults(val engineUrl: String, val schedulerUrl: String, val portalUrl: String)
+
+/**
+ * The addresses the sign-in is prefilled with (lot 4, 10/10/2026): environment variables (CI)
+ * first, then a `platform.properties` at the repo root, which is git-ignored so the repository
+ * names no platform. Every field defaults to empty: a build without them asks for the addresses.
+ */
+private fun readPlatformDefaults(target: Project): PlatformDefaults {
+    val propsFile = target.rootProject.file("platform.properties")
+    val props = Properties().apply {
+        if (propsFile.exists()) propsFile.inputStream().use { load(it) }
+    }
+    fun value(env: String, prop: String): String =
+        (System.getenv(env) ?: props.getProperty(prop)).orEmpty().trim()
+
+    return PlatformDefaults(
+        engineUrl = value("PLATFORM_ENGINE_URL", "engineUrl"),
+        schedulerUrl = value("PLATFORM_SCHEDULER_URL", "schedulerUrl"),
+        portalUrl = value("PLATFORM_PORTAL_URL", "portalUrl"),
+    )
+}
+
+/** A Java string literal for `buildConfigField`, with the quotes and backslashes an address could carry escaped. */
+private fun String.asStringLiteral(): String =
+    "\"" + replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 
 private val Project.libs
     get() = extensions.getByType(org.gradle.api.artifacts.VersionCatalogsExtension::class.java)

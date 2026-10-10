@@ -18,9 +18,9 @@ import kotlinx.coroutines.launch
 import kotlin.concurrent.Volatile
 
 /**
- * The display preferences the app still reads (the language applied at the root and the size of
- * the conversation's text, both set from LibreChat's settings screens and read as stored) and the
- * one it writes: whether a question or a finished reply rings ([attentionSound]).
+ * The display preferences: the language applied at the root (set from LibreChat's settings screens
+ * and read as stored), the size of the conversation's text (Settings › Apparence since lot 4) and
+ * whether a question or a finished reply rings ([attentionSound]).
  */
 class SettingsDataStore(
     private val dataStore: DataStore<Preferences>,
@@ -68,6 +68,11 @@ class SettingsDataStore(
 
     val chatFontSize: Flow<ChatFontSize> = dataStore.data.map { prefs ->
         ChatFontSize.fromString(prefs[KEY_CHAT_FONT_SIZE])
+    }
+
+    /** Settings › Apparence › Taille du texte (lot 4, 10/10/2026): read-only since LibreChat left, written again here. */
+    suspend fun setChatFontSize(size: ChatFontSize) {
+        dataStore.edit { it[KEY_CHAT_FONT_SIZE] = size.toStorageString() }
     }
 
     /**

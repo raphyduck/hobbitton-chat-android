@@ -8,6 +8,7 @@ import com.garfiec.librechat.core.data.engine.EngineAddressField
 import com.garfiec.librechat.core.data.engine.EngineSettingsStore
 import com.garfiec.librechat.core.data.engine.EngineSignInProgress
 import com.garfiec.librechat.core.data.engine.EngineSignInResult
+import com.garfiec.librechat.core.data.engine.PlatformDefaults
 import com.garfiec.librechat.core.data.engine.validateEngineAddresses
 import com.garfiec.librechat.core.data.portal.PortalNavigation
 import com.garfiec.librechat.core.data.portal.PortalTasksSignIn
@@ -54,6 +55,13 @@ data class PortalLoginUiState(
     val baseUrl: String = "",
     val issuerUrl: String = "",
     val schedulerUrl: String = "",
+    /** The build names a platform (lot 4, 10/10/2026): the addresses start filled in. */
+    val prefilled: Boolean = false,
+    /**
+     * The three address fields are on screen: always when the build names no platform, on request
+     * (« Autre plateforme ») or when an address is refused otherwise.
+     */
+    val addressesShown: Boolean = true,
     /** The fields the last attempt refused, named so the messages stay in string resources. */
     val invalid: Set<EngineAddressField> = emptySet(),
     val step: PortalLoginStep = PortalLoginStep.Idle,
@@ -80,37 +88,72 @@ data class PortalLoginUiState(
  *
  * Both engine dependencies are null where the engine graph is absent: the form is then not offered
  * ([PortalLoginUiState.available]).
+ *
+ * Since lot 4 (10/10/2026) the form starts on the platform the build was made for ([defaults],
+ * `platform.properties` at build time) with the fields folded away: one button, and
+ * « Autre plateforme » for someone whose platform is another. The addresses a previous sign-in
+ * stored still win over the build's, and what is typed wins over both.
  */
 class PortalLoginViewModel(
     private val settings: EngineSettingsStore?,
     private val tasks: PortalTasksSignIn?,
+    defaults: PlatformDefaults? = null,
 ) : ViewModel() {
 
+    private val platform: PlatformDefaults? = defaults?.takeIf { it.complete }
+
     private val _state = MutableStateFlow(
-        PortalLoginUiState(available = settings != null && tasks != null),
+        PortalLoginUiState(
+            available = settings != null && tasks != null,
+            baseUrl = platform?.baseUrl.orEmpty(),
+            issuerUrl = platform?.issuerUrl.orEmpty(),
+            schedulerUrl = platform?.schedulerUrl.orEmpty(),
+            prefilled = platform != null,
+            addressesShown = platform == null,
+        ),
     )
     val state: StateFlow<PortalLoginUiState> = _state.asStateFlow()
 
     /** The web view was closed while the round trip was still being prepared. */
     private var abandoned = false
 
+    /** A field was typed into: what the store holds no longer replaces it. */
+    private var edited = false
+
     init {
         val store = settings
         if (store != null) {
             viewModelScope.launch {
                 runCatching {
-                    Triple(store.baseUrl.first(), store.issuerUrl.first(), store.schedulerUrl.first())
-                }.onSuccess { (base, issuer, scheduler) ->
-                    // What was typed while the store was being read wins over what it held.
-                    _state.update {
-                        it.copy(
-                            baseUrl = it.baseUrl.ifEmpty { base },
-                            issuerUrl = it.issuerUrl.ifEmpty { issuer },
-                            schedulerUrl = it.schedulerUrl.ifEmpty { scheduler },
-                        )
-                    }
-                }.onFailure { Logger.w(it) { "Could not read the stored addresses" } }
+                    PlatformDefaults(
+                        baseUrl = store.baseUrl.first(),
+                        issuerUrl = store.issuerUrl.first(),
+                        schedulerUrl = store.schedulerUrl.first(),
+                    )
+                }.onSuccess { stored -> adoptStored(stored) }
+                    .onFailure { Logger.w(it) { "Could not read the stored addresses" } }
             }
+        }
+    }
+
+    /**
+     * The addresses of the last sign-in replace the build's defaults, field by field, unless
+     * something was typed meanwhile. Another platform than the build's unfolds the fields: a person
+     * about to sign in somewhere else should see where.
+     */
+    private fun adoptStored(stored: PlatformDefaults) {
+        _state.update {
+            val base = if (edited) it.baseUrl.ifEmpty { stored.baseUrl } else stored.baseUrl.ifEmpty { it.baseUrl }
+            val issuer = if (edited) it.issuerUrl.ifEmpty { stored.issuerUrl } else stored.issuerUrl.ifEmpty { it.issuerUrl }
+            val scheduler =
+                if (edited) it.schedulerUrl.ifEmpty { stored.schedulerUrl } else stored.schedulerUrl.ifEmpty { it.schedulerUrl }
+            val elsewhere = platform != null && stored.complete && stored != platform
+            it.copy(
+                baseUrl = base,
+                issuerUrl = issuer,
+                schedulerUrl = scheduler,
+                addressesShown = it.addressesShown || elsewhere,
+            )
         }
     }
 
@@ -120,8 +163,14 @@ class PortalLoginViewModel(
 
     fun onSchedulerUrl(value: String) = edit(EngineAddressField.SCHEDULER_URL) { it.copy(schedulerUrl = value) }
 
+    /** « Autre plateforme »: the three fields, with the build's addresses in them to edit. */
+    fun showAddresses() {
+        _state.update { it.copy(addressesShown = true) }
+    }
+
     /** Clears the field's own complaint as it is edited; keeping it would blame a fixed field. */
     private fun edit(field: EngineAddressField, change: (PortalLoginUiState) -> PortalLoginUiState) {
+        edited = true
         _state.update { current -> change(current).copy(invalid = current.invalid - field, problem = null) }
     }
 
@@ -138,7 +187,8 @@ class PortalLoginViewModel(
             schedulerRequired = true,
         )
         if (invalid.isNotEmpty()) {
-            _state.update { it.copy(invalid = invalid) }
+            // A refused address is shown, folded or not: the complaint has to land on a field.
+            _state.update { it.copy(invalid = invalid, addressesShown = true) }
             return
         }
         abandoned = false
@@ -223,7 +273,15 @@ class PortalLoginViewModel(
     }
 
     private fun fail(problem: PortalLoginProblem) {
-        _state.update { it.copy(step = PortalLoginStep.Idle, page = null, problem = problem) }
+        _state.update {
+            it.copy(
+                step = PortalLoginStep.Idle,
+                page = null,
+                problem = problem,
+                // « Check the portal and the scheduler » needs them on screen.
+                addressesShown = it.addressesShown || problem == PortalLoginProblem.NOT_READY,
+            )
+        }
     }
 }
 

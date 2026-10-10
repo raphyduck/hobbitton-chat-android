@@ -38,22 +38,10 @@ class CaptureShellTest {
     fun drawerDark() = capture("drawer-dark", dark = true) { Drawer() }
 
     @Test
-    fun settingsLight() = capture("settings-light", dark = false) {
-        EngineSettingsScreen(
-            state = EngineSettingsUiState(
-                addresses = EngineAccess(
-                    baseUrl = "https://agent.hobbitton.at",
-                    schedulerUrl = "https://sched.hobbitton.at",
-                    issuerUrl = "https://auth.hobbitton.at",
-                ),
-            ),
-            onBack = {},
-            onOpenInstructions = {},
-            onOpenUsage = {},
-            onThemeMode = {},
-            onSignOut = {},
-        )
-    }
+    fun settingsLight() = capture("settings-light", dark = false) { Settings() }
+
+    @Test
+    fun settingsDark() = capture("settings-dark", dark = true) { Settings() }
 
     private fun capture(name: String, dark: Boolean, content: @Composable () -> Unit) {
         rule.setContent {
@@ -64,6 +52,25 @@ class CaptureShellTest {
         rule.waitForIdle()
         rule.onRoot().captureRoboImage("build/captures/$name.png")
     }
+}
+
+@Composable
+private fun Settings() {
+    EngineSettingsScreen(
+        state = EngineSettingsUiState(
+            addresses = EngineAccess(
+                baseUrl = "https://agent.hobbitton.at",
+                schedulerUrl = "https://sched.hobbitton.at",
+                issuerUrl = "https://auth.hobbitton.at",
+            ),
+            account = DrawerAccount(name = "Raphaël Nicolle", host = "agent.hobbitton.at"),
+        ),
+        onBack = {},
+        onOpenInstructions = {},
+        onOpenUsage = {},
+        onThemeMode = {},
+        onSignOut = {},
+    )
 }
 
 @Composable

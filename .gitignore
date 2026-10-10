@@ -23,6 +23,8 @@ local.properties
 !app/debug.keystore
 # Release signing credentials (never commit)
 keystore.properties
+# The platform a build signs in to by default (addresses of one deployment, never commit)
+platform.properties
 *.b64
 
 # Python (scripts/)

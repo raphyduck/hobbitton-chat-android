@@ -1,0 +1,6 @@
+# The platform a build signs in to by default (copy to platform.properties, git-ignored).
+# The sign-in screen starts on these three addresses; « Autre plateforme » still lets a person
+# type others. Without this file (or the PLATFORM_*_URL environment variables) the screen asks.
+engineUrl=https://agent.example.com
+schedulerUrl=https://sched.example.com
+portalUrl=https://auth.example.com

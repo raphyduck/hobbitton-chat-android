@@ -19,6 +19,12 @@
     <string name="engine_theme_system">Système</string>
     <string name="engine_theme_light">Clair</string>
     <string name="engine_theme_dark">Sombre</string>
+    <string name="engine_settings_appearance">Apparence</string>
+    <string name="engine_settings_text_size">Taille du texte</string>
+    <string name="engine_text_size_small">Petite</string>
+    <string name="engine_text_size_medium">Normale</string>
+    <string name="engine_text_size_large">Grande</string>
+    <string name="engine_settings_assistant">Assistant</string>
     <string name="engine_settings_platform">Plateforme</string>
     <string name="engine_settings_engine">Moteur</string>
     <string name="engine_settings_scheduler">Planificateur</string>

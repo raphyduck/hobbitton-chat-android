@@ -33,6 +33,8 @@ to stop) — the message composer's look, used by the mission
 conversation's composer.
 
 ### Components (`components/`)
+- `SectionGroup` / `SectionDivider` / `SectionLabel` — a group of rows on a raised card (the
+  composer's surface and hairline), as the settings and the Tasks tab lay them out since lot 4.
 - `ShimmerText` — a line whose text colour shimmers while the agent works (« Réflexion… »).
 - `ModelPriceTag` / `modelPriceLabel` — a model's price beside its name in every model picker
   (« price unknown » is never rendered as a zero).

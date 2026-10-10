@@ -6,10 +6,9 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
@@ -30,7 +29,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.garfiec.librechat.core.data.engine.Mission
 import com.garfiec.librechat.core.model.engine.EngineFailureKind
+import com.garfiec.librechat.core.model.scheduler.ScheduledMission
+import com.garfiec.librechat.core.ui.components.SectionDivider
+import com.garfiec.librechat.core.ui.components.SectionGroup
 import com.garfiec.librechat.feature.tasks.components.DisclosureRow
 import com.garfiec.librechat.feature.tasks.components.Explanation
 import com.garfiec.librechat.feature.tasks.components.PortalSignInDialog
@@ -47,7 +50,6 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_header
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_once_header
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_recurring_header
 import com.garfiec.librechat.feature.tasks.resources.tasks_settings_open
-import com.garfiec.librechat.feature.tasks.resources.tasks_settings_title
 import com.garfiec.librechat.feature.tasks.resources.tasks_sign_in
 import com.garfiec.librechat.feature.tasks.resources.tasks_title
 import com.garfiec.librechat.feature.tasks.util.hint
@@ -61,14 +63,16 @@ import org.koin.compose.viewmodel.koinViewModel
  *
  * The spend and the providers moved to Settings › Usage on 24/09/2026. What remains: the schedule,
  * folded and split into recurring and one-shot, then the recent sessions — each mission's own runs
- * are one tap further, on its card.
+ * are one tap further, on its row. Since lot 4 (10/10/2026) both are rows on grouped cards rather
+ * than cards of their own, and the assistant's address sheet is no longer in the top bar: the
+ * addresses are the sign-in's, and the sheet is offered only where the tab cannot work without it.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TasksScreen(
     modifier: Modifier = Modifier,
     onOpenMissionChat: (sessionId: String, title: String) -> Unit = { _, _ -> },
-    /** A scheduled mission's card opens the list of its runs. */
+    /** A scheduled mission's row opens the list of its runs. */
     onOpenMissionRuns: (name: String) -> Unit = {},
     /**
      * « New task » opens a blank task conversation (02/10/2026): the same screen and composer as an
@@ -107,26 +111,11 @@ fun TasksScreen(
                         }
                     }
                 },
-                actions = {
-                    // Reachable whether or not the engine is set up: changing a password or moving
-                    // to another host must not require first getting into the « not configured »
-                    // state, which is exactly when someone can no longer get there.
-                    IconButton(onClick = { configuring = true }) {
-                        Icon(
-                            Icons.Default.Settings,
-                            contentDescription = stringResource(Res.string.tasks_settings_title),
-                        )
-                    }
-                },
             )
         },
         floatingActionButton = {
             if (state.engineConfigured) {
-                ExtendedFloatingActionButton(
-                    onClick = onNewTask,
-                    text = { Text(stringResource(Res.string.tasks_new)) },
-                    icon = {},
-                )
+                NewTaskButton(onClick = onNewTask)
             }
         },
     ) { padding ->
@@ -187,88 +176,22 @@ fun TasksScreen(
                     hint = stringResource(Res.string.tasks_empty_hint),
                 )
 
-                else -> LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    // The engine failed while the schedule loaded: the list stays, and one line
-                    // says what is missing from it rather than a full-screen error hiding the rest.
-                    if (failure != null) {
-                        item(key = "engine-failure") {
-                            Text(
-                                stringResource(failure.title()),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.error,
-                            )
-                        }
-                    }
-
-                    // The schedule first, folded (asked for on 25/09/2026): it is what one sets up,
-                    // not what one comes to read, and a dozen cards above the sessions pushed them
-                    // off the screen. The count rides on the header so the fold still says what it
-                    // hides. Recurring and one-shot apart, because they answer different questions
-                    // — « what runs every day » and « what is still to come ».
-                    if (state.scheduled.isNotEmpty()) {
-                        item(key = "scheduled-header") {
-                            DisclosureRow(
-                                label = stringResource(Res.string.tasks_scheduled_header),
-                                expanded = scheduledShown,
-                                onToggle = { scheduledShown = !scheduledShown },
-                                labelStyle = MaterialTheme.typography.titleSmall,
-                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                trailing = {
-                                    Text(
-                                        state.scheduled.size.toString(),
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                },
-                            )
-                        }
-                        if (scheduledShown) {
-                            val (recurring, oneShot) = state.scheduled.partition { it.runAt == null }
-                            listOf(
-                                Triple("recurring", Res.string.tasks_scheduled_recurring_header, recurring),
-                                Triple("once", Res.string.tasks_scheduled_once_header, oneShot),
-                            ).forEach { (groupKey, header, group) ->
-                                if (group.isEmpty()) return@forEach
-                                item(key = "scheduled-group-$groupKey") {
-                                    SubsectionHeader(stringResource(header, group.size))
-                                }
-                                items(group, key = { "scheduled-" + it.name }) { mission ->
-                                    ScheduledMissionRow(
-                                        mission = mission,
-                                        onOpen = { onOpenMissionRuns(mission.name) },
-                                        onRun = { viewModel.runScheduled(mission.name) },
-                                        onToggle = {
-                                            viewModel.setScheduledEnabled(mission.name, !mission.enabled)
-                                        },
-                                        onReschedule = { cron, runAt ->
-                                            viewModel.rescheduleMission(mission.name, cron, runAt)
-                                        },
-                                        onDelete = { viewModel.deleteScheduled(mission.name) },
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    // Then the recent sessions, running or settled, newest first — a running one
-                    // carries its Stop on the row.
-                    if (state.missions.isNotEmpty()) {
-                        item(key = "recent-header") {
-                            SectionHeader(stringResource(Res.string.tasks_recent_header))
-                        }
-                        items(state.missions, key = { it.sessionId }) { mission ->
-                            MissionRow(
-                                mission = mission,
-                                onOpenChat = { onOpenMissionChat(mission.sessionId, mission.title) },
-                                onStop = { viewModel.abort(mission.sessionId) },
-                            )
-                        }
-                    }
-                }
+                else -> TasksListBody(
+                    scheduled = state.scheduled,
+                    missions = state.missions,
+                    scheduledShown = scheduledShown,
+                    onToggleSchedule = { scheduledShown = !scheduledShown },
+                    failureTitle = failure?.let { stringResource(it.title()) },
+                    actions = TasksListActions(
+                        onOpenMission = { onOpenMissionChat(it.sessionId, it.title) },
+                        onStopMission = { viewModel.abort(it.sessionId) },
+                        onOpenRuns = { onOpenMissionRuns(it.name) },
+                        onRunScheduled = { viewModel.runScheduled(it.name) },
+                        onSetScheduledEnabled = { mission, enabled -> viewModel.setScheduledEnabled(mission.name, enabled) },
+                        onReschedule = { mission, cron, runAt -> viewModel.rescheduleMission(mission.name, cron, runAt) },
+                        onDeleteScheduled = { viewModel.deleteScheduled(it.name) },
+                    ),
+                )
             }
         }
     }
@@ -297,6 +220,134 @@ fun TasksScreen(
     }
 }
 
+/** « Nouvelle tâche », in the accent with a plus: the one thing to do from here. */
+@Composable
+internal fun NewTaskButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    ExtendedFloatingActionButton(
+        onClick = onClick,
+        text = { Text(stringResource(Res.string.tasks_new)) },
+        icon = { Icon(Icons.Outlined.Add, contentDescription = null) },
+        containerColor = MaterialTheme.colorScheme.primary,
+        contentColor = MaterialTheme.colorScheme.onPrimary,
+        modifier = modifier,
+    )
+}
+
+/** What the rows can ask of the screen, gathered so the list body stays a function of its data. */
+internal class TasksListActions(
+    val onOpenMission: (Mission) -> Unit,
+    val onStopMission: (Mission) -> Unit,
+    val onOpenRuns: (ScheduledMission) -> Unit,
+    val onRunScheduled: (ScheduledMission) -> Unit,
+    val onSetScheduledEnabled: (ScheduledMission, Boolean) -> Unit,
+    val onReschedule: (ScheduledMission, cron: String?, runAt: String?) -> Unit,
+    val onDeleteScheduled: (ScheduledMission) -> Unit,
+)
+
+/**
+ * The tab's list: the schedule first, folded, then the recent tasks, each group of rows on one
+ * card. Apart from the screen so the capture test renders exactly what ships.
+ */
+@Composable
+internal fun TasksListBody(
+    scheduled: List<ScheduledMission>,
+    missions: List<Mission>,
+    scheduledShown: Boolean,
+    onToggleSchedule: () -> Unit,
+    failureTitle: String?,
+    actions: TasksListActions,
+    modifier: Modifier = Modifier,
+) {
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        // The engine failed while the schedule loaded: the list stays, and one line says what is
+        // missing from it rather than a full-screen error hiding the rest.
+        if (failureTitle != null) {
+            item(key = "engine-failure", contentType = "failure") {
+                Text(
+                    failureTitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+        }
+
+        // The schedule first, folded (asked for on 25/09/2026): it is what one sets up, not what
+        // one comes to read, and a dozen cards above the sessions pushed them off the screen. The
+        // count rides on the header so the fold still says what it hides. Recurring and one-shot
+        // apart, because they answer different questions — « what runs every day » and « what is
+        // still to come ».
+        if (scheduled.isNotEmpty()) {
+            item(key = "scheduled-header", contentType = "header") {
+                DisclosureRow(
+                    label = stringResource(Res.string.tasks_scheduled_header),
+                    expanded = scheduledShown,
+                    onToggle = onToggleSchedule,
+                    labelStyle = MaterialTheme.typography.titleSmall,
+                    labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    trailing = {
+                        Text(
+                            scheduled.size.toString(),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    },
+                )
+            }
+            if (scheduledShown) {
+                val (recurring, oneShot) = scheduled.partition { it.runAt == null }
+                listOf(
+                    Triple("recurring", Res.string.tasks_scheduled_recurring_header, recurring),
+                    Triple("once", Res.string.tasks_scheduled_once_header, oneShot),
+                ).forEach { (groupKey, header, group) ->
+                    if (group.isEmpty()) return@forEach
+                    item(key = "scheduled-group-$groupKey", contentType = "subheader") {
+                        SubsectionHeader(stringResource(header, group.size))
+                    }
+                    item(key = "scheduled-rows-$groupKey", contentType = "scheduled") {
+                        SectionGroup {
+                            group.forEachIndexed { index, mission ->
+                                if (index > 0) SectionDivider()
+                                ScheduledMissionRow(
+                                    mission = mission,
+                                    onOpen = { actions.onOpenRuns(mission) },
+                                    onRun = { actions.onRunScheduled(mission) },
+                                    onToggle = { actions.onSetScheduledEnabled(mission, !mission.enabled) },
+                                    onReschedule = { cron, runAt -> actions.onReschedule(mission, cron, runAt) },
+                                    onDelete = { actions.onDeleteScheduled(mission) },
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Then the recent sessions, running or settled, newest first — a running one carries its
+        // Stop on the row.
+        if (missions.isNotEmpty()) {
+            item(key = "recent-header", contentType = "header") {
+                SectionHeader(stringResource(Res.string.tasks_recent_header))
+            }
+            item(key = "recent-rows", contentType = "missions") {
+                SectionGroup {
+                    missions.forEachIndexed { index, mission ->
+                        if (index > 0) SectionDivider()
+                        MissionRow(
+                            mission = mission,
+                            onOpenChat = { actions.onOpenMission(mission) },
+                            onStop = { actions.onStopMission(mission) },
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 /** « Récurrentes · 9 » — a group inside the folded schedule, quieter than a section. */
 @Composable
 private fun SubsectionHeader(label: String) {
@@ -304,7 +355,7 @@ private fun SubsectionHeader(label: String) {
         label,
         style = MaterialTheme.typography.labelLarge,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(top = 4.dp),
+        modifier = Modifier.padding(start = 16.dp, top = 4.dp),
     )
 }
 
@@ -314,6 +365,6 @@ internal fun SectionHeader(label: String) {
         label,
         style = MaterialTheme.typography.titleSmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
+        modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 4.dp),
     )
 }

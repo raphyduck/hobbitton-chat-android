@@ -3,6 +3,7 @@ package com.garfiec.librechat.shared.engine
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
+import com.garfiec.librechat.core.data.datastore.ChatFontSize
 import com.garfiec.librechat.core.data.datastore.MissionReadingPositions
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.datastore.ThemeDataStore
@@ -94,6 +95,10 @@ class EngineShellViewModel(
     val attentionSound: StateFlow<Boolean> = settingsDataStore.attentionSound
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), true)
 
+    /** The conversation's text size, Settings › Apparence (lot 4). */
+    val chatFontSize: StateFlow<ChatFontSize> = settingsDataStore.chatFontSize
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), ChatFontSize.MEDIUM)
+
     /** A conversation a notification asked to open, until the shell has opened it. */
     val openRequest: StateFlow<OpenConversation?> = conversationRequests?.pending
         ?: MutableStateFlow<OpenConversation?>(null).asStateFlow()
@@ -158,6 +163,10 @@ class EngineShellViewModel(
 
     fun setAttentionSound(enabled: Boolean) {
         viewModelScope.launch { settingsDataStore.setAttentionSound(enabled) }
+    }
+
+    fun setChatFontSize(size: ChatFontSize) {
+        viewModelScope.launch { settingsDataStore.setChatFontSize(size) }
     }
 
     /** The shell opened the conversation a notification named: it is not opened twice. */

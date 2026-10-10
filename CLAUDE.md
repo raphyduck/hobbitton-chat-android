@@ -28,7 +28,7 @@ core/model/           → @Serializable models of the engine and the scheduler, 
 core/network/         → engine and scheduler APIs, portal clients (OAuth/PKCE), event stream
 core/data/            → engine profiles and repository, portal session, stores, LibreChat cleanup
 core/ui/              → Material 3 theme, markdown, composer look, portal web view
-feature/auth/         → PortalSignInScreen: the three addresses, then the portal sign-in
+feature/auth/         → PortalSignInScreen: the platform's addresses (prefilled), then the portal sign-in
 feature/tasks/        → the conversation (MissionChatScreen, chat and task), Tasks tab, usage
 ```
 
@@ -36,9 +36,10 @@ Most modules have their own `CLAUDE.md` with specific guidance.
 
 ## One engine (D-077)
 
-- **One login**: the Authelia portal (PKCE), from `PortalSignInScreen` (`:feature:auth`). It asks
-  for the engine, scheduler and portal addresses (`EngineSettingsStore`). Signed in = addresses set
-  **and** portal tokens held (`isPortalSignedIn`).
+- **One login**: the Authelia portal (PKCE), from `PortalSignInScreen` (`:feature:auth`). It starts
+  on the engine, scheduler and portal addresses the build was made for (`PlatformDefaults`, from a
+  git-ignored `platform.properties`; « Autre plateforme » unfolds the fields) and saves them in
+  `EngineSettingsStore`. Signed in = addresses set **and** portal tokens held (`isPortalSignedIn`).
 - **Root = `EngineNavHost`** (`shared/.../engine/`): the chat under a drawer (new chat, recent
   conversations — chats and started tasks —, Tasks, Settings). `MainActivity` composes it; the
   only link it acts on is the portal's return (`at.hobbitton.chat://oauth`).
@@ -85,8 +86,9 @@ Most modules have their own `CLAUDE.md` with specific guidance.
 
 `LibreChatApplication` starts `sharedKoinModules` (`commonModule`, `loggingModule`,
 `networkModule`, `dataModule`, `authModule`, `sharedAppModule`) plus `engineModule` (`:core:data`
-androidMain: the engine, scheduler and portal clients, the portal session, the stores) and
-`tasksModule`. The shell and the sign-in resolve the engine graph with `getOrNull`.
+androidMain: the engine, scheduler and portal clients, the portal session, the stores),
+`tasksModule`, `attentionModule` and `platformModule` (the build's default addresses). The shell
+and the sign-in resolve the engine graph with `getOrNull`.
 `KoinGraphVerificationTest` (`:app`) verifies `sharedKoinModules`.
 
 ## Architecture Rules

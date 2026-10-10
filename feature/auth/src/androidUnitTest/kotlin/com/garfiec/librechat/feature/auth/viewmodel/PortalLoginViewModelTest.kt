@@ -6,6 +6,7 @@ import com.garfiec.librechat.core.data.engine.EngineSettingsStore
 import com.garfiec.librechat.core.data.engine.EngineSignInLauncher
 import com.garfiec.librechat.core.data.engine.EngineSignInProgress
 import com.garfiec.librechat.core.data.engine.EngineSignInResult
+import com.garfiec.librechat.core.data.engine.PlatformDefaults
 import com.garfiec.librechat.core.data.portal.PortalTasksSignIn
 import com.garfiec.librechat.core.network.engine.EngineAccess
 import com.google.common.truth.Truth.assertThat
@@ -90,9 +91,16 @@ class PortalLoginViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun viewModel(withEngine: Boolean = true) = PortalLoginViewModel(
+    private fun viewModel(withEngine: Boolean = true, defaults: PlatformDefaults? = null) = PortalLoginViewModel(
         settings = if (withEngine) settings else null,
         tasks = if (withEngine) PortalTasksSignIn(access = { engine }, launcher = launcher, delivery = delivery) else null,
+        defaults = defaults,
+    )
+
+    private val platform = PlatformDefaults(
+        baseUrl = "https://agent.example.com",
+        schedulerUrl = "https://sched.example.com",
+        issuerUrl = "https://auth.example.com",
     )
 
     private fun PortalLoginViewModel.fillIn() {
@@ -119,6 +127,57 @@ class PortalLoginViewModelTest {
         assertThat(subject.state.value.baseUrl).isEqualTo("https://agent.example.com")
         assertThat(subject.state.value.issuerUrl).isEqualTo("https://auth.example.com")
         assertThat(subject.state.value.schedulerUrl).isEqualTo("https://sched.example.com")
+    }
+
+    @Test
+    fun `the build's platform prefills the form and folds the addresses away`() = runTest {
+        val subject = viewModel(defaults = platform)
+        advanceUntilIdle()
+
+        assertThat(subject.state.value.prefilled).isTrue()
+        assertThat(subject.state.value.addressesShown).isFalse()
+        assertThat(subject.state.value.baseUrl).isEqualTo("https://agent.example.com")
+        assertThat(subject.state.value.schedulerUrl).isEqualTo("https://sched.example.com")
+        assertThat(subject.state.value.issuerUrl).isEqualTo("https://auth.example.com")
+
+        subject.showAddresses()
+        assertThat(subject.state.value.addressesShown).isTrue()
+    }
+
+    @Test
+    fun `without a complete platform the form asks for the addresses`() = runTest {
+        val subject = viewModel(defaults = platform.copy(schedulerUrl = ""))
+        advanceUntilIdle()
+
+        assertThat(subject.state.value.prefilled).isFalse()
+        assertThat(subject.state.value.addressesShown).isTrue()
+        assertThat(subject.state.value.baseUrl).isEmpty()
+    }
+
+    @Test
+    fun `the addresses of the last sign-in win over the build's, and unfold when they differ`() = runTest {
+        every { settings.baseUrl } returns flowOf("https://agent.elsewhere.example")
+        every { settings.issuerUrl } returns flowOf("https://auth.elsewhere.example")
+        every { settings.schedulerUrl } returns flowOf("https://sched.elsewhere.example")
+
+        val subject = viewModel(defaults = platform)
+        advanceUntilIdle()
+
+        assertThat(subject.state.value.baseUrl).isEqualTo("https://agent.elsewhere.example")
+        assertThat(subject.state.value.addressesShown).isTrue()
+    }
+
+    @Test
+    fun `a refused address unfolds the fields so the complaint lands on one`() = runTest {
+        val subject = viewModel(defaults = platform)
+        subject.onBaseUrl("agent.example.com")
+        assertThat(subject.state.value.addressesShown).isFalse()
+
+        subject.start()
+        advanceUntilIdle()
+
+        assertThat(subject.state.value.invalid).containsExactly(EngineAddressField.BASE_URL)
+        assertThat(subject.state.value.addressesShown).isTrue()
     }
 
     @Test

@@ -10,10 +10,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -35,9 +33,9 @@ import com.garfiec.librechat.core.model.engine.EngineQuestionOption
 import com.garfiec.librechat.core.model.engine.EngineQuestionRequest
 import com.garfiec.librechat.core.model.engine.EngineSelectableModel
 import com.garfiec.librechat.core.model.engine.MissionState
+import com.garfiec.librechat.core.model.scheduler.MissionRun
 import com.garfiec.librechat.core.model.scheduler.ScheduledMission
 import com.garfiec.librechat.core.ui.theme.LibreChatTheme
-import com.garfiec.librechat.feature.tasks.components.DisclosureRow
 import com.garfiec.librechat.feature.tasks.util.ChatPart
 import com.garfiec.librechat.feature.tasks.util.ChatTurn
 import com.garfiec.librechat.feature.tasks.util.MissionChatState
@@ -83,6 +81,9 @@ class CaptureScreensTest {
 
     @Test
     fun tasksLight() = capture("tasks-light", dark = false) { TasksList() }
+
+    @Test
+    fun tasksDark() = capture("tasks-dark", dark = true) { TasksList() }
 
     private fun capture(name: String, dark: Boolean, content: @Composable () -> Unit) {
         rule.setContent {
@@ -179,76 +180,74 @@ private fun TasksList() {
             TopAppBar(
                 title = { Text("Tâches") },
                 navigationIcon = { IconButton(onClick = {}) { Icon(Icons.Default.Menu, null) } },
-                actions = { IconButton(onClick = {}) { Icon(Icons.Default.Settings, null) } },
             )
         },
-        floatingActionButton = {
-            ExtendedFloatingActionButton(onClick = {}, text = { Text("Nouvelle tâche") }, icon = {})
-        },
+        floatingActionButton = { NewTaskButton(onClick = {}) },
     ) { padding ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            item {
-                DisclosureRow(
-                    label = "Tâches programmées",
-                    expanded = true,
-                    onToggle = {},
-                    labelStyle = MaterialTheme.typography.titleSmall,
-                    labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    trailing = {
-                        Text("9", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    },
-                )
-            }
-            item {
-                Text(
-                    "Récurrentes · 9",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            item {
-                ScheduledMissionRow(
-                    mission = ScheduledMission(
-                        name = "point-mails-matin",
-                        profile = "mission",
-                        enabled = true,
-                        cron = "0 7 * * 1-5",
-                        timeZone = "Europe/Paris",
-                        nextRun = "2026-10-13T07:00",
-                        connectors = listOf("imap", "cerveau"),
-                        declaredTools = 14,
-                    ),
-                    onOpen = {}, onRun = {}, onToggle = {}, onReschedule = { _, _ -> }, onDelete = {},
-                )
-            }
-            item { SectionHeader("Tâches récentes") }
-            item {
-                MissionRow(
-                    mission = Mission("s1", "Vente Audi Q5 : relance des acheteurs", MissionState.Running("running"), NOW - 4 * 60_000),
-                    onOpenChat = {}, onStop = {},
-                )
-            }
-            item {
-                MissionRow(
-                    mission = Mission("s2", "point-mails-matin", MissionState.Succeeded(48_210), NOW - 9 * 3_600_000),
-                    onOpenChat = {}, onStop = {},
-                )
-            }
-            item {
-                MissionRow(
-                    mission = Mission("s3", "veille-tarifs-scpi", MissionState.Failed("Request timeout after 120 s on connector pennylane", 3_100), NOW - 26 * 3_600_000),
-                    onOpenChat = {}, onStop = {},
-                )
-            }
-        }
+        TasksListBody(
+            scheduled = SCHEDULED,
+            missions = MISSIONS,
+            scheduledShown = true,
+            onToggleSchedule = {},
+            failureTitle = null,
+            actions = NO_ACTIONS,
+            modifier = Modifier.padding(padding),
+        )
     }
 }
 
-private const val NOW = 1_791_700_000_000L
+// The clock of the capture: the ages on the rows are read against the real clock.
+private val NOW = kotlin.time.Clock.System.now().toEpochMilliseconds()
+
+private val NO_ACTIONS = TasksListActions(
+    onOpenMission = {},
+    onStopMission = {},
+    onOpenRuns = {},
+    onRunScheduled = {},
+    onSetScheduledEnabled = { _, _ -> },
+    onReschedule = { _, _, _ -> },
+    onDeleteScheduled = {},
+)
+
+private val SCHEDULED = listOf(
+    ScheduledMission(
+        name = "point-mails-matin",
+        profile = "mission",
+        enabled = true,
+        cron = "0 7 * * 1-5",
+        timeZone = "Europe/Paris",
+        nextRun = "2026-10-13T07:00",
+        connectors = listOf("imap", "cerveau"),
+        declaredTools = 14,
+        lastRun = MissionRun(startedAt = "2026-10-10T07:00", tokens = 48_210, succeeded = true),
+    ),
+    ScheduledMission(
+        name = "veille-tarifs-scpi",
+        profile = "mission",
+        enabled = true,
+        cron = "0 6 * * 1",
+        timeZone = "Europe/Paris",
+        nextRun = "2026-10-13T06:00",
+        declaredTools = 9,
+        lastRun = MissionRun(startedAt = "2026-10-06T06:00", succeeded = false, stopReason = "BUDGET DÉPASSÉ (120 000 jetons)"),
+    ),
+    ScheduledMission(
+        name = "sauvegarde-nas",
+        profile = "mission",
+        enabled = false,
+        cron = "30 2 * * *",
+        timeZone = "Europe/Paris",
+        declaredTools = 6,
+    ),
+)
+
+private val MISSIONS = listOf(
+    Mission("s1", "Vente Audi Q5 : relance des acheteurs", MissionState.Running("running"), NOW - 4 * 60_000),
+    Mission("s2", "point-mails-matin", MissionState.Succeeded(48_210), NOW - 9 * 3_600_000),
+    Mission("s3", "veille-tarifs-scpi", MissionState.Failed("Request timeout after 120 s on connector pennylane", 3_100), NOW - 26 * 3_600_000),
+    Mission("s4", "Devis assurance : comparer trois offres", MissionState.Succeeded(12_480), NOW - 2 * 24 * 3_600_000),
+)
+
 
 private val MODELS = listOf(
     EngineSelectableModel("hobbitton-chat", "claude-sonnet-5-5", "Claude Sonnet 5.5"),

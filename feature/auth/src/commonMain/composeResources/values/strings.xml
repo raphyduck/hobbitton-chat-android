@@ -1,15 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- The only sign-in: the portal (hobbitton, D-076, D-077) -->
-    <string name="portal_sign_in">Sign in with the portal</string>
+    <string name="portal_sign_in">Sign in</string>
     <string name="portal_sign_in_hint">One sign-in for chats and tasks: password and second factor at the portal, then one consent.</string>
     <string name="portal_title">Sign in</string>
     <string name="portal_close">Close</string>
-    <string name="portal_welcome">Welcome to your assistant</string>
-    <string name="portal_addresses_hint">The three addresses of your assistant. They stay on this device.</string>
-    <string name="portal_engine_url">Engine address</string>
-    <string name="portal_scheduler_url">Scheduler address</string>
-    <string name="portal_issuer_url">Portal address</string>
+    <string name="portal_brand">Butler</string>
+    <string name="portal_tagline">Your assistant, on your platform.</string>
+    <string name="portal_platform">Platform: %1$s</string>
+    <string name="portal_other_platform">Another platform</string>
+    <string name="portal_addresses_hint">The three addresses of your platform. They stay on this device.</string>
+    <string name="portal_engine_url">Engine</string>
+    <string name="portal_scheduler_url">Scheduler</string>
+    <string name="portal_issuer_url">Portal</string>
     <string name="portal_invalid_url">An https:// address (http:// only on a private network).</string>
     <string name="portal_step_preparing">Preparing the sign-in…</string>
     <string name="portal_problem_not_ready">These addresses cannot be used to sign in. Check the portal and the scheduler.</string>

@@ -28,7 +28,12 @@ The engine shell, and the Koin module list the application starts from. KMP libr
 - `EngineShellViewModel` also runs the question watch (`EngineAttentionWatcher`) while signed in,
   and exposes the Settings switch for sound and notifications and the conversation a tapped
   notification asks to open (`ConversationRequests`), which `EngineMainLayout` opens as the root.
-- `EngineSettingsScreen` (theme, notifications switch, platform addresses read-only, sign-out),
+- `EngineSettingsScreen` (Claude's layout since lot 4, 10/10/2026): the account at the head
+  (`DrawerAccount`), then groups of rows on raised cards (`SectionGroup`, `:core:ui`): Apparence
+  (theme and text size as segmented controls, the size written to `SettingsDataStore`),
+  Notifications (the switch), Assistant (instructions, usage), Plateforme (the addresses, read
+  only), and sign-out alone at the foot. Test tags `settings_attention_sound`,
+  `settings_instructions`, `settings_sign_out`, `settings_sign_out_confirm` are kept.
   `EngineInstructionsScreen` + `EngineInstructionsViewModel` — the global instructions' editor over
   `GlobalProfileEditor` (Enregistrer / Annuler; the MCP servers an earlier build stored are kept as
   they are, never edited here).
