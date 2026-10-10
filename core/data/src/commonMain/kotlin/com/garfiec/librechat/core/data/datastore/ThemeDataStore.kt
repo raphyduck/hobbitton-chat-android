@@ -2,11 +2,8 @@ package com.garfiec.librechat.core.data.datastore
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
-import com.garfiec.librechat.core.model.DEFAULT_ACCENT_SEED_ARGB
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -19,6 +16,11 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlin.concurrent.Volatile
 
+/**
+ * The theme preference: system, light or dark. Butler has one skin (10/10/2026), so the accent
+ * seed and the wallpaper-colour switch earlier builds stored here are no longer read; their keys
+ * are dropped from the store on the first write.
+ */
 class ThemeDataStore(
     private val dataStore: DataStore<Preferences>,
     appScope: CoroutineScope,
@@ -35,19 +37,6 @@ class ThemeDataStore(
     var initialThemeMode: ThemeMode = ThemeMode.SYSTEM
         private set
 
-    /**
-     * Initial accent seed color (ARGB int) for the first compose frame, warmed up alongside
-     * [initialThemeMode]. Stays [DEFAULT_ACCENT_COLOR] until the warm-up resolves.
-     */
-    @Volatile
-    var initialAccentColor: Int = DEFAULT_ACCENT_COLOR
-        private set
-
-    /** Initial "use wallpaper colors" flag for the first compose frame. */
-    @Volatile
-    var initialUseDynamicColor: Boolean = false
-        private set
-
     private val _isReady = MutableStateFlow(false)
 
     /**
@@ -60,14 +49,11 @@ class ThemeDataStore(
     init {
         appScope.launch(ioDispatcher) {
             try {
-                val prefs = dataStore.data.first()
-                initialThemeMode = prefs[KEY_THEME].toThemeMode()
-                initialAccentColor = prefs[KEY_ACCENT_COLOR] ?: DEFAULT_ACCENT_COLOR
-                initialUseDynamicColor = prefs[KEY_USE_DYNAMIC_COLOR] ?: false
+                initialThemeMode = dataStore.data.first()[KEY_THEME].toThemeMode()
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
-                // Keep the defaults; the live flows still drive the UI values.
+                // Keep the default; the live flow still drives the UI value.
             } finally {
                 _isReady.value = true
             }
@@ -78,16 +64,6 @@ class ThemeDataStore(
         prefs[KEY_THEME].toThemeMode()
     }
 
-    /** Accent seed color as an ARGB int. Falls back to [DEFAULT_ACCENT_COLOR] when unset. */
-    val accentColor: Flow<Int> = dataStore.data.map { prefs ->
-        prefs[KEY_ACCENT_COLOR] ?: DEFAULT_ACCENT_COLOR
-    }
-
-    /** Whether to use wallpaper-based Material You colors (Android 12+) over the accent seed. */
-    val useDynamicColor: Flow<Boolean> = dataStore.data.map { prefs ->
-        prefs[KEY_USE_DYNAMIC_COLOR] ?: false
-    }
-
     suspend fun setThemeMode(mode: ThemeMode) {
         dataStore.edit { prefs ->
             prefs[KEY_THEME] = when (mode) {
@@ -95,29 +71,18 @@ class ThemeDataStore(
                 ThemeMode.LIGHT -> "light"
                 ThemeMode.DARK -> "dark"
             }
+            LEGACY_KEYS.forEach(prefs::remove)
         }
     }
 
-    suspend fun setAccentColor(argb: Int) {
-        dataStore.edit { prefs -> prefs[KEY_ACCENT_COLOR] = argb }
-    }
-
-    suspend fun setUseDynamicColor(enabled: Boolean) {
-        dataStore.edit { prefs -> prefs[KEY_USE_DYNAMIC_COLOR] = enabled }
-    }
-
     companion object {
-        /**
-         * Accent seed (ARGB) used when no accent has been chosen. Derived from the canonical
-         * [DEFAULT_ACCENT_SEED_ARGB] in `:core:model`, same as `DefaultAccentSeed` in `:core:ui`.
-         * Only ever a fallback for a missing preference, so changing it moves users who never
-         * picked an accent and leaves everyone else on their stored value.
-         */
-        val DEFAULT_ACCENT_COLOR: Int = DEFAULT_ACCENT_SEED_ARGB.toInt()
-
         private val KEY_THEME = stringPreferencesKey("theme_mode")
-        private val KEY_ACCENT_COLOR = intPreferencesKey("accent_color")
-        private val KEY_USE_DYNAMIC_COLOR = booleanPreferencesKey("use_dynamic_color")
+
+        /** The accent seed and the Material You switch of the builds before the single skin. */
+        private val LEGACY_KEYS = listOf(
+            stringPreferencesKey("accent_color"),
+            stringPreferencesKey("use_dynamic_color"),
+        )
 
         private fun String?.toThemeMode(): ThemeMode = when (this) {
             "light" -> ThemeMode.LIGHT

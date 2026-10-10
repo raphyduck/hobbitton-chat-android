@@ -6,7 +6,10 @@ Single Activity. `MainActivity` is the sole entry point; `LibreChatApplication` 
 
 - Composes `EngineNavHost` (`:shared`) under `LibreChatTheme`, once the persisted theme
   (`ThemeDataStore`) and language (`SettingsDataStore`) have been read, so the first frame never
-  shows the wrong theme or locale.
+  shows the wrong theme or locale. The SplashScreen API (`Theme.LibreChat.Starting`, the bow tie
+  on the page's colour) covers that wait and fades into the first frame.
+- The launcher icon is the bow tie (`drawable/ic_launcher_foreground.xml`, monochrome variant,
+  ivory background), adaptive only: minSdk 26 needs no legacy PNGs.
 - Offline banner: `ConnectivityObserver` drives a strip above the shell when the network is lost.
 - **One link**: the portal's return, `at.hobbitton.chat://oauth` (see the manifest's comment for
   why the code comes back through the scheduler and a deep link). `handleIntent` hands it to

@@ -13,7 +13,6 @@
 - **`scheduler/`** — the scheduler's models: scheduled missions and runs, the connector catalogue
   and session scopes, consumption, model prices, provider health.
 - **`chat/GlobalProfile`** — the global instructions sent as `system` on every chat and task turn.
-- **`Constants.kt`** — `DEFAULT_ACCENT_SEED_ARGB`, the one literal behind the theme's default seed.
 
 ## Rules
 

@@ -52,6 +52,7 @@ dependencies {
     implementation(project(":feature:tasks"))
 
     implementation(libs.activity.compose)
+    implementation(libs.core.splashscreen)
     implementation(libs.navigation3.ui.kmp)
     implementation(libs.bundles.lifecycle)
     implementation(libs.coil3.compose)
