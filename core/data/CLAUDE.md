@@ -6,13 +6,14 @@ The engine's and the portal's data layer, and the app's preferences.
 
 - **`engine/`** — `EngineMissionRepository` (chats and tasks on the engine: sessions, turns, the
   live feed, recent chats and missions), `EngineProfile`, the addresses (`EngineSettingsStore`,
-  `EngineAddressField`), the sign-in round trip (`EngineSignIn`, the callback mailbox,
+  `EngineAddressField`; `PlatformDefaults`, the three a build was made for, bound by `:app` from
+  `platform.properties` and read by the sign-in), the sign-in round trip (`EngineSignIn`, the callback mailbox,
   `EngineSignInCoordinator`), `EngineSecureStore` (the portal's tokens, EncryptedSharedPreferences),
   `SessionKindStore`, speech to text (`AudioTranscriber`).
 - **`portal/`** — `PortalSession`, `PortalTasksSignIn`, `PortalSignOut`, navigation classification.
 - **`scheduler/SchedulerRepository`**, **`pricing/ModelPriceCache`** (the gateway's price table,
   `ModelPriceSource` bound to the scheduler).
-- **`datastore/`** — `ThemeDataStore`, `SettingsDataStore` (language and text size, read-only; the attention switch),
+- **`datastore/`** — `ThemeDataStore`, `SettingsDataStore` (language, read-only; the text size and the attention switch, written from Settings),
   `GlobalProfileStore`, `MissionReadingPositions`. One DataStore file (`librechat_settings`, name
   kept so an upgrade keeps its preferences).
 - **`legacy/`** — `LegacyLibreChatCleanup`: removes, once, what LibreChat left on an upgraded

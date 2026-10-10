@@ -32,6 +32,7 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
+import com.garfiec.librechat.core.data.datastore.ChatFontSize
 import com.garfiec.librechat.core.data.datastore.ThemeMode
 import com.garfiec.librechat.core.data.engine.EngineSessionKind
 import com.garfiec.librechat.core.data.engine.OpenConversation
@@ -68,6 +69,7 @@ fun EngineNavHost(
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val addresses by viewModel.addresses.collectAsStateWithLifecycle()
     val attentionSound by viewModel.attentionSound.collectAsStateWithLifecycle()
+    val chatFontSize by viewModel.chatFontSize.collectAsStateWithLifecycle()
     val openRequest by viewModel.openRequest.collectAsStateWithLifecycle()
     val identity by viewModel.identity.collectAsStateWithLifecycle()
 
@@ -86,27 +88,33 @@ fun EngineNavHost(
                     // Still reading the store: the background only, never a flash of the wrong screen.
                     null -> Unit
                     false -> PortalSignInScreen(onSignedIn = viewModel::onSignedIn)
-                    true -> EngineMainLayout(
-                        chats = chats,
-                        account = DrawerAccount(
+                    true -> {
+                        val account = DrawerAccount(
                             name = identity?.nom?.takeIf { it.isNotBlank() } ?: identity?.prenom?.takeIf { it.isNotBlank() },
                             host = addresses?.baseUrl?.let(::hostOf),
-                        ),
-                        settings = EngineSettingsUiState(
-                            themeMode = themeMode,
-                            addresses = addresses,
-                            attentionSound = attentionSound,
-                        ),
-                        openRequest = openRequest,
-                        onConsumeOpenRequest = viewModel::consumeOpenRequest,
-                        onRefreshChats = viewModel::refreshChats,
-                        onThemeMode = viewModel::setThemeMode,
-                        onAttentionSound = { enabled ->
-                            viewModel.setAttentionSound(enabled)
-                            if (enabled) onRequestNotificationPermission()
-                        },
-                        onSignOut = viewModel::signOut,
-                    )
+                        )
+                        EngineMainLayout(
+                            chats = chats,
+                            account = account,
+                            settings = EngineSettingsUiState(
+                                themeMode = themeMode,
+                                addresses = addresses,
+                                attentionSound = attentionSound,
+                                chatFontSize = chatFontSize,
+                                account = account,
+                            ),
+                            openRequest = openRequest,
+                            onConsumeOpenRequest = viewModel::consumeOpenRequest,
+                            onRefreshChats = viewModel::refreshChats,
+                            onThemeMode = viewModel::setThemeMode,
+                            onChatFontSize = viewModel::setChatFontSize,
+                            onAttentionSound = { enabled ->
+                                viewModel.setAttentionSound(enabled)
+                                if (enabled) onRequestNotificationPermission()
+                            },
+                            onSignOut = viewModel::signOut,
+                        )
+                    }
                 }
             }
         }
@@ -127,6 +135,7 @@ private fun EngineMainLayout(
     onConsumeOpenRequest: (OpenConversation) -> Unit,
     onRefreshChats: () -> Unit,
     onThemeMode: (ThemeMode) -> Unit,
+    onChatFontSize: (ChatFontSize) -> Unit,
     onAttentionSound: (Boolean) -> Unit,
     onSignOut: () -> Unit,
     modifier: Modifier = Modifier,
@@ -249,6 +258,7 @@ private fun EngineMainLayout(
                         onOpenInstructions = { navigator.openInstructions() },
                         onOpenUsage = { navigator.openUsage() },
                         onThemeMode = onThemeMode,
+                        onChatFontSize = onChatFontSize,
                         onAttentionSound = onAttentionSound,
                         onSignOut = {
                             // The stack first: its conversations close with their entries — their

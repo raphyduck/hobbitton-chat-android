@@ -145,6 +145,7 @@
     <string name="tasks_scheduled_runat">Date and time</string>
     <string name="tasks_scheduled_runat_hint">ISO 8601, e.g. “2027-01-15T09:00”. It fires once, then suspends itself.</string>
     <string name="tasks_scheduled_timezone">Read in %1$s — the task's time zone, not this phone's.</string>
+    <string name="tasks_scheduled_actions">Actions for %1$s</string>
     <string name="tasks_scheduled_save">Save</string>
     <plurals name="tasks_chat_output_truncated">
         <item quantity="one">%1$d more character</item>

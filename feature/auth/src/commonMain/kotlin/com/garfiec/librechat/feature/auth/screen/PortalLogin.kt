@@ -1,5 +1,6 @@
 package com.garfiec.librechat.feature.auth.screen
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
@@ -25,12 +27,19 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -42,10 +51,13 @@ import com.garfiec.librechat.core.ui.components.PlatformBackHandler
 import com.garfiec.librechat.core.ui.web.PortalWebView
 import com.garfiec.librechat.feature.auth.resources.Res
 import com.garfiec.librechat.feature.auth.resources.portal_addresses_hint
+import com.garfiec.librechat.feature.auth.resources.portal_brand
 import com.garfiec.librechat.feature.auth.resources.portal_close
 import com.garfiec.librechat.feature.auth.resources.portal_engine_url
 import com.garfiec.librechat.feature.auth.resources.portal_invalid_url
 import com.garfiec.librechat.feature.auth.resources.portal_issuer_url
+import com.garfiec.librechat.feature.auth.resources.portal_other_platform
+import com.garfiec.librechat.feature.auth.resources.portal_platform
 import com.garfiec.librechat.feature.auth.resources.portal_problem_interrupted
 import com.garfiec.librechat.feature.auth.resources.portal_problem_not_ready
 import com.garfiec.librechat.feature.auth.resources.portal_problem_refused
@@ -54,9 +66,9 @@ import com.garfiec.librechat.feature.auth.resources.portal_scheduler_url
 import com.garfiec.librechat.feature.auth.resources.portal_sign_in
 import com.garfiec.librechat.feature.auth.resources.portal_sign_in_hint
 import com.garfiec.librechat.feature.auth.resources.portal_step_preparing
+import com.garfiec.librechat.feature.auth.resources.portal_tagline
 import com.garfiec.librechat.feature.auth.resources.portal_title
 import com.garfiec.librechat.feature.auth.resources.portal_unavailable
-import com.garfiec.librechat.feature.auth.resources.portal_welcome
 import com.garfiec.librechat.feature.auth.viewmodel.PortalLoginProblem
 import com.garfiec.librechat.feature.auth.viewmodel.PortalLoginStep
 import com.garfiec.librechat.feature.auth.viewmodel.PortalLoginUiState
@@ -66,11 +78,13 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
- * The app's only way in (D-077): the three addresses of the platform, then the portal.
+ * The app's only way in (D-077): the portal, on the platform the build was made for.
  *
- * Replaces the LibreChat onboarding — server URL, login form, `/oauth/openid` — for the engine
- * shell. The addresses are the ones the Tasks tab's settings sheet edits ([EngineAddressField]);
- * the round trip is the one it runs, hosted in the app's own web view, full screen, over the form.
+ * Since lot 4 (10/10/2026) the screen is Claude's sign-in in spirit: the mark and the name in the
+ * serif, one button, and nothing to type when the build names a platform (`platform.properties`,
+ * [PortalLoginUiState.prefilled]). « Autre plateforme » unfolds the three addresses — engine,
+ * scheduler, portal ([EngineAddressField]) — which a build without defaults shows from the start.
+ * The round trip runs in the app's own web view, full screen, over the form.
  */
 @Composable
 fun PortalSignInScreen(
@@ -94,6 +108,7 @@ fun PortalSignInScreen(
             onSchedulerUrl = viewModel::onSchedulerUrl,
             onIssuerUrl = viewModel::onIssuerUrl,
             onStart = viewModel::start,
+            onShowAddresses = viewModel::showAddresses,
         )
         PortalLoginOverlay(
             state = state,
@@ -104,95 +119,213 @@ fun PortalSignInScreen(
 }
 
 @Composable
-private fun PortalAddressForm(
+internal fun PortalAddressForm(
     state: PortalLoginUiState,
     onBaseUrl: (String) -> Unit,
     onSchedulerUrl: (String) -> Unit,
     onIssuerUrl: (String) -> Unit,
     onStart: () -> Unit,
+    onShowAddresses: () -> Unit = {},
 ) {
-    Column(
+    // Centred while it fits, scrolling once the keyboard or the three fields make it taller than
+    // the screen: a scrolling column cannot centre itself, a box can centre a scrolling column.
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .statusBarsPadding()
             .navigationBarsPadding()
-            .imePadding()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp, vertical = 32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
+            .imePadding(),
     ) {
-        Column(modifier = Modifier.widthIn(max = 480.dp).fillMaxWidth()) {
-            Text(stringResource(Res.string.portal_welcome), style = MaterialTheme.typography.headlineSmall)
+        Column(
+            modifier = Modifier
+                .align(Alignment.Center)
+                .widthIn(max = 480.dp)
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp, vertical = 32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            BowTie(modifier = Modifier.size(64.dp))
+            Spacer(Modifier.height(20.dp))
+            Text(
+                stringResource(Res.string.portal_brand),
+                style = MaterialTheme.typography.displaySmall,
+                textAlign = TextAlign.Center,
+            )
             Spacer(Modifier.height(8.dp))
             Text(
-                text = stringResource(Res.string.portal_addresses_hint),
-                style = MaterialTheme.typography.bodyMedium,
+                text = stringResource(Res.string.portal_tagline),
+                style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
             )
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(40.dp))
             if (!state.available) {
-                // iOS (D-034): no engine graph, no portal web view. Said, rather than a form that
-                // would do nothing.
+                // No engine graph, no portal web view (D-034). Said, rather than a form that would
+                // do nothing.
                 Text(
                     text = stringResource(Res.string.portal_unavailable),
                     style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center,
                     modifier = Modifier.testTag("portal_unavailable"),
                 )
             } else {
-                val editable = state.step == PortalLoginStep.Idle
-                AddressField(
-                    value = state.baseUrl,
-                    onValueChange = onBaseUrl,
-                    label = Res.string.portal_engine_url,
-                    invalid = EngineAddressField.BASE_URL in state.invalid,
-                    enabled = editable,
-                    tag = "portal_engine_url",
+                SignInControls(
+                    state = state,
+                    onBaseUrl = onBaseUrl,
+                    onSchedulerUrl = onSchedulerUrl,
+                    onIssuerUrl = onIssuerUrl,
+                    onStart = onStart,
+                    onShowAddresses = onShowAddresses,
                 )
-                AddressField(
-                    value = state.schedulerUrl,
-                    onValueChange = onSchedulerUrl,
-                    label = Res.string.portal_scheduler_url,
-                    invalid = EngineAddressField.SCHEDULER_URL in state.invalid,
-                    enabled = editable,
-                    tag = "portal_scheduler_url",
-                )
-                AddressField(
-                    value = state.issuerUrl,
-                    onValueChange = onIssuerUrl,
-                    label = Res.string.portal_issuer_url,
-                    invalid = EngineAddressField.ISSUER_URL in state.invalid,
-                    enabled = editable,
-                    tag = "portal_issuer_url",
-                )
-                Spacer(Modifier.height(16.dp))
-                Button(
-                    onClick = onStart,
-                    enabled = editable,
-                    modifier = Modifier.fillMaxWidth().testTag("login_portal"),
-                ) {
-                    Text(stringResource(Res.string.portal_sign_in))
-                }
-                Spacer(Modifier.height(8.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun SignInControls(
+    state: PortalLoginUiState,
+    onBaseUrl: (String) -> Unit,
+    onSchedulerUrl: (String) -> Unit,
+    onIssuerUrl: (String) -> Unit,
+    onStart: () -> Unit,
+    onShowAddresses: () -> Unit,
+) {
+    val editable = state.step == PortalLoginStep.Idle
+    Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        if (state.addressesShown) {
+            Text(
+                text = stringResource(Res.string.portal_addresses_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+            )
+            AddressField(
+                value = state.baseUrl,
+                onValueChange = onBaseUrl,
+                label = Res.string.portal_engine_url,
+                invalid = EngineAddressField.BASE_URL in state.invalid,
+                enabled = editable,
+                tag = "portal_engine_url",
+            )
+            AddressField(
+                value = state.schedulerUrl,
+                onValueChange = onSchedulerUrl,
+                label = Res.string.portal_scheduler_url,
+                invalid = EngineAddressField.SCHEDULER_URL in state.invalid,
+                enabled = editable,
+                tag = "portal_scheduler_url",
+            )
+            AddressField(
+                value = state.issuerUrl,
+                onValueChange = onIssuerUrl,
+                label = Res.string.portal_issuer_url,
+                invalid = EngineAddressField.ISSUER_URL in state.invalid,
+                enabled = editable,
+                tag = "portal_issuer_url",
+            )
+            Spacer(Modifier.height(8.dp))
+        }
+        Button(
+            onClick = onStart,
+            enabled = editable,
+            shape = MaterialTheme.shapes.medium,
+            modifier = Modifier.fillMaxWidth().height(52.dp).testTag("login_portal"),
+        ) {
+            Text(stringResource(Res.string.portal_sign_in), style = MaterialTheme.typography.titleMedium)
+        }
+        if (state.prefilled && !state.addressesShown) {
+            // Where the button leads, and the way out for someone whose platform is another.
+            Spacer(Modifier.height(12.dp))
+            hostOf(state.baseUrl)?.let { host ->
                 Text(
-                    text = stringResource(Res.string.portal_sign_in_hint),
+                    text = stringResource(Res.string.portal_platform, host),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                state.problem?.let { problem ->
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        text = stringResource(problem.sentence()),
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.testTag("login_portal_error"),
-                    )
-                }
             }
+            TextButton(
+                onClick = onShowAddresses,
+                enabled = editable,
+                modifier = Modifier.testTag("login_other_platform"),
+            ) {
+                Text(stringResource(Res.string.portal_other_platform))
+            }
+        } else {
+            Spacer(Modifier.height(12.dp))
         }
+        Text(
+            text = stringResource(Res.string.portal_sign_in_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        state.problem?.let { problem ->
+            Spacer(Modifier.height(12.dp))
+            Text(
+                text = stringResource(problem.sentence()),
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().testTag("login_portal_error"),
+            )
+        }
+}
+}
+
+/**
+ * The bow tie, Butler's mark, drawn in the accent: two wings meeting at a knot. The launcher icon's
+ * shape, redrawn here because the icon is an Android drawable the shared code cannot see.
+ */
+@Composable
+private fun BowTie(modifier: Modifier = Modifier, color: Color = MaterialTheme.colorScheme.primary) {
+    Canvas(modifier) {
+        val w = size.width
+        val h = w * WING_HEIGHT
+        val top = (size.height - h) / 2
+        val knotWidth = w * KNOT_WIDTH
+        val knotLeft = (w - knotWidth) / 2
+        val knotRight = knotLeft + knotWidth
+        val inset = h * WING_INSET
+        val wings = Path().apply {
+            moveTo(0f, top)
+            lineTo(knotLeft, top + inset)
+            lineTo(knotLeft, top + h - inset)
+            lineTo(0f, top + h)
+            close()
+            moveTo(w, top)
+            lineTo(knotRight, top + inset)
+            lineTo(knotRight, top + h - inset)
+            lineTo(w, top + h)
+            close()
+        }
+        drawPath(wings, color)
+        val knotHeight = h * KNOT_HEIGHT
+        val knot = Path().apply {
+            addRoundRect(
+                RoundRect(
+                    rect = Rect(
+                        Offset(knotLeft - knotWidth * KNOT_OVERLAP, top + (h - knotHeight) / 2),
+                        Offset(knotRight + knotWidth * KNOT_OVERLAP, top + (h + knotHeight) / 2),
+                    ),
+                    cornerRadius = CornerRadius(knotWidth * KNOT_RADIUS),
+                ),
+            )
+        }
+        drawPath(knot, color)
     }
 }
+
+private const val WING_HEIGHT = 0.58f
+private const val WING_INSET = 0.22f
+private const val KNOT_WIDTH = 0.2f
+private const val KNOT_HEIGHT = 0.62f
+private const val KNOT_OVERLAP = 0.15f
+private const val KNOT_RADIUS = 0.3f
 
 @Composable
 private fun AddressField(
@@ -215,10 +348,18 @@ private fun AddressField(
         },
         enabled = enabled,
         singleLine = true,
+        shape = MaterialTheme.shapes.medium,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Next),
         modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp).testTag(tag),
     )
 }
+
+/** « agent.example.com » out of « https://agent.example.com/ »: what the screen says of the platform. */
+internal fun hostOf(url: String): String? = url
+    .trim()
+    .substringAfter("://", url.trim())
+    .substringBefore('/')
+    .takeIf { it.isNotBlank() }
 
 /**
  * The web view of the sign-in, over the whole screen while a round trip is open.
