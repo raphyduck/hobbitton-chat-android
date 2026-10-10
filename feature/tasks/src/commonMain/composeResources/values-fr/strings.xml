@@ -154,7 +154,14 @@
     <!-- D-077 : la conversation, une session du moteur sur le profil chat -->
     <string name="chat_new">Nouvelle conversation</string>
     <string name="chat_title">Conversation</string>
-    <string name="chat_empty">Que puis-je faire pour vous ? Demandez ce que vous voulez : l'assistant se souvient, peut programmer des choses pour plus tard et accède à vos services connectés.</string>
+    <string name="chat_empty">Que puis-je faire pour vous ?</string>
+    <string name="chat_hint">Demandez à Butler</string>
+    <string name="chat_greeting_morning">Bonjour, %1$s.</string>
+    <string name="chat_greeting_evening">Bonsoir, %1$s.</string>
+    <string name="chat_greeting_morning_anonymous">Bonjour.</string>
+    <string name="chat_greeting_evening_anonymous">Bonsoir.</string>
+    <string name="tasks_chat_thinking">Réflexion…</string>
+    <string name="tasks_chat_scroll_to_end">Revenir en bas</string>
     <string name="tasks_tool_succeeded">Réussi</string>
     <string name="tasks_tool_failed">Échoué</string>
     <string name="tasks_chat_argument">%1$s : %2$s</string>

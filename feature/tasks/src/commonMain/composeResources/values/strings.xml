@@ -154,7 +154,14 @@
     <!-- D-077: the chat, an engine session on the chat profile -->
     <string name="chat_new">New chat</string>
     <string name="chat_title">Chat</string>
-    <string name="chat_empty">What can I do for you? Ask anything: the assistant remembers, can schedule things for later and reaches your connected services.</string>
+    <string name="chat_empty">What can I do for you?</string>
+    <string name="chat_hint">Ask Butler</string>
+    <string name="chat_greeting_morning">Good day, %1$s.</string>
+    <string name="chat_greeting_evening">Good evening, %1$s.</string>
+    <string name="chat_greeting_morning_anonymous">Good day.</string>
+    <string name="chat_greeting_evening_anonymous">Good evening.</string>
+    <string name="tasks_chat_thinking">Thinking…</string>
+    <string name="tasks_chat_scroll_to_end">Back to the end</string>
     <string name="tasks_tool_succeeded">Succeeded</string>
     <string name="tasks_tool_failed">Failed</string>
     <string name="tasks_chat_argument">%1$s: %2$s</string>

@@ -4,6 +4,7 @@ import com.garfiec.librechat.core.data.engine.EngineSettingsStore
 import com.garfiec.librechat.core.data.pricing.ModelPriceSource
 import com.garfiec.librechat.core.model.scheduler.Consumption
 import com.garfiec.librechat.core.model.scheduler.ModelPrices
+import com.garfiec.librechat.core.model.scheduler.PortalIdentity
 import com.garfiec.librechat.core.model.scheduler.ProviderHealth
 import com.garfiec.librechat.core.model.scheduler.ScheduledMission
 import com.garfiec.librechat.core.network.api.SchedulerApi
@@ -25,6 +26,16 @@ class SchedulerRepository(
 ) : ModelPriceSource {
 
     suspend fun isConfigured(): Boolean = settings.access()?.hasScheduler == true
+
+    /**
+     * Who the portal says is signed in, for the greeting of a new conversation (10/10/2026). Null
+     * when the scheduler is not configured, predates the route, or cannot be reached: a greeting
+     * without a name is the right answer to all three.
+     */
+    suspend fun identity(): PortalIdentity? {
+        if (!isConfigured()) return null
+        return runCatching { api.identity() }.getOrNull()
+    }
 
     /**
      * Every mission, newest schedule first — running ones at the top.

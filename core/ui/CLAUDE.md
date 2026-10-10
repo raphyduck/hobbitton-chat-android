@@ -25,11 +25,15 @@ types.
 
 ### Composer look (`input/`)
 
-`ChatInputBox`, `ChatInputPill`, `ChatInputDefaults` (shape, fill, border, keyboard options,
-text-field colours) and `ComposerSendButton` — the message composer's look, used by the mission
+`ChatInputBox` (the raised box: lightest surface, hairline, a shadow on the light page only),
+`ChatInputField` (a bare `BasicTextField` with the box's own margins), `ChatInputPill` (a plain
+label with a chevron, no fill), `ChatInputDefaults` (shape, fill, border, shadow, keyboard options,
+control size) and `ComposerSendButton` (hidden until there is something to send; brick to send, dark
+to stop) — the message composer's look, used by the mission
 conversation's composer.
 
 ### Components (`components/`)
+- `ShimmerText` — a line whose text colour shimmers while the agent works (« Réflexion… »).
 - `ModelPriceTag` / `modelPriceLabel` — a model's price beside its name in every model picker
   (« price unknown » is never rendered as a zero).
 - `PlatformBackHandler` — predictive back, multiplatform.
