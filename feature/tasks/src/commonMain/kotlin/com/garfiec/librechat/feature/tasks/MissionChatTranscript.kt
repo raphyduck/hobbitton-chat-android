@@ -11,16 +11,19 @@ import androidx.compose.foundation.text.selection.DisableSelection
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.garfiec.librechat.core.ui.components.ShimmerText
@@ -29,6 +32,7 @@ import com.garfiec.librechat.feature.tasks.components.MissionMarkdown
 import com.garfiec.librechat.feature.tasks.resources.Res
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_copy
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_thinking
+import com.garfiec.librechat.feature.tasks.resources.tasks_chat_turn_failed
 import com.garfiec.librechat.feature.tasks.resources.tasks_copied
 import com.garfiec.librechat.feature.tasks.util.ChatBlock
 import com.garfiec.librechat.feature.tasks.util.ChatPart
@@ -112,12 +116,37 @@ internal fun AssistantTurn(turn: ChatTurn.Assistant, streaming: Boolean, fontSca
                 )
             }
         }
+        // The engine refused this turn (11/10/2026): its reason, where the answer would have been.
+        // A blank space under the question read as « nothing happened », which was false.
+        turn.error?.let { error -> TurnError(error) }
         // Under a finished answer, the action row the chat and Claude both have. Only « copy » for
         // now: a mission has no regenerate, and its feedback would reach nobody.
         if (!streaming && lastProse >= 0) {
             val prose = blocks.filterIsInstance<ChatBlock.Prose>().joinToString("\n\n") { it.part.text }
             CopyTurnButton(prose)
         }
+    }
+}
+
+/** Why a turn produced no answer, in the engine's (or the gateway's) own words. */
+@Composable
+private fun TurnError(error: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Icon(
+            Icons.Outlined.ErrorOutline,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.error,
+            modifier = Modifier.size(18.dp),
+        )
+        Text(
+            text = stringResource(Res.string.tasks_chat_turn_failed, error),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.error,
+        )
     }
 }
 

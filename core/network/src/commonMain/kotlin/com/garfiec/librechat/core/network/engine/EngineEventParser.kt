@@ -4,6 +4,7 @@ import com.garfiec.librechat.core.model.engine.EngineModelRef
 import com.garfiec.librechat.core.model.engine.EnginePartSnapshot
 import com.garfiec.librechat.core.model.engine.EngineQuestionRequest
 import com.garfiec.librechat.core.model.engine.EngineStreamEvent
+import com.garfiec.librechat.core.model.engine.readableEngineError
 import com.garfiec.librechat.core.network.sse.SseEvent
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -52,6 +53,9 @@ class EngineEventParser(private val json: Json) {
                         EngineModelRef(providerId = providerId, modelId = modelId)
                     } else {
                         null
+                    },
+                    error = (info["error"] as? JsonObject)?.let { error ->
+                        readableEngineError((error["data"] as? JsonObject)?.str("message"), error.str("name"))
                     },
                 )
             } else {

@@ -1,5 +1,7 @@
 package com.garfiec.librechat.feature.tasks.util
 
+import com.garfiec.librechat.core.model.engine.EngineError
+import com.garfiec.librechat.core.model.engine.EngineErrorData
 import com.garfiec.librechat.core.model.engine.EngineMessage
 import com.garfiec.librechat.core.model.engine.EngineModelRef
 import com.garfiec.librechat.core.model.engine.EngineMessageInfo
@@ -23,6 +25,38 @@ class MissionChatTest {
         EngineStreamEvent.PartUpdated(msg, id, snapshot)
     private fun delta(msg: String, id: String, text: String) =
         EngineStreamEvent.PartDelta(msg, id, "text", text)
+
+    @Test
+    fun `une reponse refusee par le moteur montre sa raison au lieu d'un blanc`() {
+        val live = missionChatFrom(
+            listOf(
+                started("msg_u", "user"),
+                part("msg_u", "p0", EnginePartSnapshot(type = "text", text = "Mon agenda ?")),
+                started("msg_a", "assistant"),
+                EngineStreamEvent.MessageStarted("msg_a", "assistant", error = "ExceededBudget"),
+                EngineStreamEvent.Idle,
+            ),
+        )
+        val turn = assertIs<ChatTurn.Assistant>(live.turns.last())
+        assertEquals("ExceededBudget", turn.error)
+
+        // Le même tour relu depuis le transcript.
+        val replayed = missionChatFrom(
+            engineHistoryEvents(
+                listOf(
+                    EngineMessage(
+                        info = EngineMessageInfo(
+                            id = "msg_a",
+                            role = "assistant",
+                            error = EngineError(name = "APIError", data = EngineErrorData("""{"error":{"message":"Key over budget"}}""")),
+                        ),
+                    ),
+                ),
+            ),
+        )
+        assertEquals("Key over budget", assertIs<ChatTurn.Assistant>(replayed.turns.single()).error)
+        assertEquals("Key over budget", assertIs<ChatTurn.Assistant>(replayed.turns.mergedAssistantRuns().single()).error)
+    }
 
     @Test
     fun aTurnStreamsInByDeltasAndIsClosedByItsSnapshot() {

@@ -20,7 +20,7 @@ The engine shell, and the Koin module list the application starts from. KMP libr
   headers (Today / Yesterday / Previous 7 days / Older, in the phone's time zone: `groupRecent` in
   `RecentGrouping.kt`, the offset from `localUtcOffsetMillis`, actual in `androidMain`), a small
   « Tâche » tag on a task, a dot of the accent while one answers, a short age; placeholder rows on
-  a first load. At the foot, the account (`DrawerAccount`: the portal's name from
+  a first load; pulled down, the list re-reads (11/10/2026). At the foot, the account (`DrawerAccount`: the portal's name from
   `SchedulerRepository.identity`, the engine's host), which opens the settings.
 - `EngineNavHost` also sets the Nav 3 transitions: pushed screens slide in over a fade, a
   predictive back shrinks the leaving screen; the chat entry's own metadata cross-fades between

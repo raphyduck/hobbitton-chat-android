@@ -24,12 +24,13 @@ import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.TaskAlt
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -96,6 +97,7 @@ data class DrawerAccount(
  * The scheduler's own runs stay in the Tasks tab. A conversation still answering carries a dot of
  * the accent; a first load shows placeholder rows instead of a progress bar over an empty list.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun EngineDrawerContent(
     state: EngineChatsState,
@@ -124,19 +126,24 @@ internal fun EngineDrawerContent(
             onClick = onOpenTasks,
             modifier = Modifier.testTag("drawer_tasks"),
         )
-        // A refresh over a list already drawn: the thin bar is enough. A first load gets
+        // Pull the list down to re-read it (11/10/2026), as in Claude's drawer: the drawer re-reads
+        // on opening, but a conversation that started while it was open waited for the next one.
+        // A refresh over a list already drawn shows the pull indicator; a first load gets
         // placeholder rows instead, in the list below.
-        if (state.loading && state.chats.isNotEmpty()) {
-            LinearProgressIndicator(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp))
+        PullToRefreshBox(
+            isRefreshing = state.loading && state.chats.isNotEmpty(),
+            onRefresh = onRetry,
+            modifier = Modifier.weight(1f).testTag("drawer_refresh"),
+        ) {
+            RecentChats(
+                state = state,
+                query = query,
+                activeSessionId = activeSessionId,
+                onOpenChat = onOpenChat,
+                onRetry = onRetry,
+                modifier = Modifier.fillMaxSize(),
+            )
         }
-        RecentChats(
-            state = state,
-            query = query,
-            activeSessionId = activeSessionId,
-            onOpenChat = onOpenChat,
-            onRetry = onRetry,
-            modifier = Modifier.weight(1f),
-        )
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         AccountRow(account = account, onClick = onOpenSettings)
     }
