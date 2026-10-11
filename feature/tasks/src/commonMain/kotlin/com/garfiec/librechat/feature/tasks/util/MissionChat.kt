@@ -50,7 +50,12 @@ sealed interface ChatTurn {
 
     data class User(override val key: String, val parts: List<ChatPart> = emptyList()) : ChatTurn
 
-    data class Assistant(override val key: String, val parts: List<ChatPart> = emptyList()) : ChatTurn
+    data class Assistant(
+        override val key: String,
+        val parts: List<ChatPart> = emptyList(),
+        /** The engine's error on this turn, shown in place of an answer that never came. */
+        val error: String? = null,
+    ) : ChatTurn
 }
 
 sealed interface ChatPart {
@@ -105,7 +110,16 @@ fun MissionChatState.reduce(event: EngineStreamEvent): MissionChatState = when (
             // The model rides on the envelope, so it is read even for a message already seen — a
             // live turn re-announces itself as it fills in, and the first announcement can precede
             // the model being decided.
-            known -> copy(model = event.model ?: model)
+            known -> copy(
+                model = event.model ?: model,
+                turns = if (event.error == null) {
+                    turns
+                } else {
+                    turns.map { turn ->
+                        if (turn is ChatTurn.Assistant && turn.key == event.messageId) turn.copy(error = event.error) else turn
+                    }
+                },
+            )
             event.role == ROLE_USER ->
                 copy(turns = turns + ChatTurn.User(event.messageId))
             // Ne marque PAS le tour comme en cours. Un transcript rejoué émet un
@@ -114,7 +128,7 @@ fun MissionChatState.reduce(event: EngineStreamEvent): MissionChatState = when (
             // depuis des heures. Constaté le 30/08/2026. Seul un delta prouve qu'un tour
             // parle maintenant — et seul le flux vivant en émet.
             else ->
-                copy(turns = turns + ChatTurn.Assistant(event.messageId), model = event.model ?: model)
+                copy(turns = turns + ChatTurn.Assistant(event.messageId, error = event.error), model = event.model ?: model)
         }
     }
 
@@ -285,7 +299,7 @@ fun List<ChatTurn>.mergedAssistantRuns(): List<ChatTurn> {
     forEach { turn ->
         val previous = merged.lastOrNull()
         if (turn is ChatTurn.Assistant && previous is ChatTurn.Assistant) {
-            merged[merged.lastIndex] = previous.copy(parts = previous.parts + turn.parts)
+            merged[merged.lastIndex] = previous.copy(parts = previous.parts + turn.parts, error = turn.error ?: previous.error)
         } else {
             merged += turn
         }

@@ -31,6 +31,13 @@ sealed interface EngineStreamEvent {
         val messageId: String,
         val role: String,
         val model: EngineModelRef? = null,
+        /**
+         * Why this turn produced nothing, when the engine filed an error on it (11/10/2026). A
+         * refused model call does not end in a part: the engine writes the error on the message's
+         * envelope and the session falls idle. Without this the conversation stayed blank under
+         * the person's question (« Can't see replies », a gateway budget refusal).
+         */
+        val error: String? = null,
     ) : EngineStreamEvent
 
     /**
@@ -109,6 +116,7 @@ fun engineHistoryEvents(messages: List<EngineMessage>): List<EngineStreamEvent> 
                     model = message.info.modelId?.let { modelId ->
                         message.info.providerId?.let { EngineModelRef(it, modelId) }
                     },
+                    error = message.info.error?.readable(),
                 ),
             )
             message.parts.forEachIndexed { index, part ->
@@ -135,3 +143,29 @@ fun engineHistoryEvents(messages: List<EngineMessage>): List<EngineStreamEvent> 
             }
         }
     }
+
+/**
+ * An engine error as one line a person can read: the provider's own message when there is one,
+ * unwrapped from the JSON the gateway nests it in (`{"error":{"message":"ExceededBudget: …"}}`),
+ * else the error's name.
+ */
+fun EngineError.readable(): String = readableEngineError(data?.message, name)
+
+/** Shared by the transcript and the live feed, which read the same two fields off different shapes. */
+fun readableEngineError(message: String?, name: String?): String {
+    val text = message?.let(::innermostMessage)?.takeIf { it.isNotBlank() }
+    return text ?: name?.takeIf { it.isNotBlank() } ?: "error"
+}
+
+/** The deepest `"message":"…"` in a string that may carry JSON inside JSON, escapes undone. */
+private fun innermostMessage(raw: String): String {
+    var current = raw.trim()
+    repeat(MAX_NESTING) {
+        val match = MESSAGE_FIELD.find(current) ?: return current
+        current = match.groupValues[1].replace("\\\"", "\"").replace("\\\\", "\\")
+    }
+    return current
+}
+
+private val MESSAGE_FIELD = Regex(""""message"\s*:\s*"((?:[^"\\]|\\.)*)"""")
+private const val MAX_NESTING = 4

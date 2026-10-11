@@ -80,6 +80,9 @@ class CaptureScreensTest {
     fun chatQuestion() = capture("chat-question", dark = false) { ChatScreen(QUESTION) }
 
     @Test
+    fun chatRefused() = capture("chat-refused", dark = true) { ChatScreen(REFUSED) }
+
+    @Test
     fun tasksLight() = capture("tasks-light", dark = false) { TasksList() }
 
     @Test
@@ -321,6 +324,15 @@ private val STREAMING = BASE.copy(
 )
 
 private val EMPTY = BASE
+
+private val REFUSED = BASE.copy(
+    chat = MissionChatState(
+        turns = listOf(
+            ChatTurn.User("u1", listOf(ChatPart.Text("u1t", "What's on my calendar this week?"))),
+            ChatTurn.Assistant("a1", error = "ExceededBudget: Key over 7d budget. Spend=${'$'}60.0084, Limit=${'$'}60.00"),
+        ),
+    ),
+)
 
 private val QUESTION = BASE.copy(
     chat = MissionChatState(

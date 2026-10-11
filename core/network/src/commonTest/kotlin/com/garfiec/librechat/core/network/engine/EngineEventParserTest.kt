@@ -27,6 +27,25 @@ class EngineEventParserTest {
     }
 
     @Test
+    fun aRefusedTurnCarriesTheGatewaysOwnWords() {
+        // 11/10/2026: the gateway refused every call on a spent key, the engine filed the refusal
+        // on the assistant message, and the conversation stayed blank under the question.
+        val parsed = frame(
+            """{"type":"message.updated","properties":{"sessionID":"ses_1","info":{"id":"msg_a","role":"assistant","error":{"name":"APIError","data":{"message":"{\"error\":{\"message\":\"ExceededBudget: Key over 7d budget. Spend=${'$'}60.0084, Limit=${'$'}60.00\",\"code\":\"429\"}}"}}}}}""",
+        )
+        val event = parsed?.event as EngineStreamEvent.MessageStarted
+        assertEquals("ExceededBudget: Key over 7d budget. Spend=${'$'}60.0084, Limit=${'$'}60.00", event.error)
+    }
+
+    @Test
+    fun anErrorWithoutAMessageIsNamed() {
+        val parsed = frame(
+            """{"type":"message.updated","properties":{"sessionID":"ses_1","info":{"id":"msg_a","role":"assistant","error":{"name":"MessageAbortedError"}}}}""",
+        )
+        assertEquals("MessageAbortedError", (parsed?.event as EngineStreamEvent.MessageStarted).error)
+    }
+
+    @Test
     fun partUpdatedCarriesTheWholeSnapshot() {
         val parsed = frame(
             """{"type":"message.part.updated","properties":{"sessionID":"ses_1","part":{"type":"text","text":"Compte de un a cinq","messageID":"msg_u","sessionID":"ses_1","id":"prt_1"}}}""",
