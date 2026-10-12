@@ -4,7 +4,6 @@ import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.engine.AttentionSignals
 import com.garfiec.librechat.core.data.engine.AudioTranscriber
 import com.garfiec.librechat.core.data.engine.EngineMissionRepository
-import com.garfiec.librechat.core.data.engine.EngineProfile
 import com.garfiec.librechat.core.data.engine.TranscriptionOutcome
 import com.garfiec.librechat.core.model.engine.EngineQuestionInfo
 import com.garfiec.librechat.core.model.engine.EngineQuestionOption
@@ -50,7 +49,7 @@ class MissionQuestionViewModelTest {
     )
 
     private val repository = mockk<EngineMissionRepository>(relaxed = true).also {
-        coEvery { it.models(any()) } throws IllegalStateException("pas de modèles")
+        coEvery { it.models() } throws IllegalStateException("pas de modèles")
         coEvery { it.history(any()) } returns emptyList()
         coEvery { it.pendingQuestions("ses_1") } returns listOf(question)
         every { it.events(any()) } returns feed
@@ -77,7 +76,6 @@ class MissionQuestionViewModelTest {
         transcriber = AudioTranscriber { _, _, _ -> TranscriptionOutcome.Heard("") },
         attention = attention,
         ioDispatcher = dispatcher,
-        profile = EngineProfile.TASK,
     )
 
     @Test

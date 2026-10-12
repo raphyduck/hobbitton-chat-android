@@ -4,8 +4,6 @@ import com.garfiec.librechat.core.data.portal.isPortalSignedIn
 import com.garfiec.librechat.core.model.engine.EngineMessage
 import com.garfiec.librechat.core.model.engine.EngineMessageInfo
 import com.garfiec.librechat.core.model.engine.EngineModelRef
-import com.garfiec.librechat.core.model.scheduler.ConnectorCatalogue
-import com.garfiec.librechat.core.model.scheduler.ConnectorGrant
 import com.garfiec.librechat.core.network.engine.EngineAccess
 import com.garfiec.librechat.core.network.engine.EngineTokens
 import kotlin.test.Test
@@ -14,7 +12,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** A chat and a task, told apart (D-077) — the rules the drawer and the Tasks tab both sort by. */
+/** A chat and a task, told apart (D-077), and a session that has said nothing yet, which the drawer leaves out. */
 class SessionKindClassificationTest {
 
     private fun message(agent: String? = null, provider: String? = null, role: String = "assistant") =
@@ -68,7 +66,7 @@ class SessionKindClassificationTest {
         )
         assertEquals(
             EngineSessionKind.TASK,
-            classifySession("Bonjour", null, listOf(message(provider = GATEWAY_PROVIDER))),
+            classifySession("Bonjour", null, listOf(message(provider = "hobbitton-gateway"))),
         )
     }
 
@@ -80,63 +78,21 @@ class SessionKindClassificationTest {
     }
 }
 
-class ChatProfileTest {
-
-    private val catalogue = ConnectorCatalogue(
-        connecteurs = mapOf(
-            "memoire" to ConnectorGrant(outils = listOf("memoire_lire"), chat = true),
-            "planificateur" to ConnectorGrant(outils = listOf("planificateur_lister"), chat = true),
-            "banque" to ConnectorGrant(outils = listOf("banque_soldes"), direct = false, chat = true),
-            "shell" to ConnectorGrant(outils = listOf("bash")),
-            "web" to ConnectorGrant(outils = listOf("webfetch"), chat = false),
-        ),
-    )
+class ChatModelTest {
 
     @Test
-    fun `a chat's perimeter is every connector open to a chat, and only those`() {
-        assertEquals(listOf("banque", "memoire", "planificateur"), catalogue.chatPerimeter())
-    }
-
-    @Test
-    fun `a scheduler that does not serve the flag opens nothing to a chat`() {
-        val older = ConnectorCatalogue(connecteurs = mapOf("memoire" to ConnectorGrant(outils = listOf("memoire_lire"))))
-
-        assertEquals(emptyList<String>(), older.chatPerimeter())
-    }
-
-    @Test
-    fun `a chat's rules never allow a tool of a connector closed to chats`() {
-        val allowed = permissionsFor(catalogue, catalogue.chatPerimeter())
-            .filter { it.action == "allow" }
-            .map { it.permission }
-
-        assertTrue("memoire_lire" in allowed)
-        assertTrue("bash" !in allowed)
-        assertTrue("webfetch" !in allowed)
-    }
-
-    @Test
-    fun `a chat's model always comes from the chat provider`() {
+    fun `a conversation's model always comes from the chat provider`() {
         assertEquals(
             EngineModelRef(providerId = CHAT_PROVIDER, modelId = "claude-sonnet-5"),
-            EngineModelRef(providerId = GATEWAY_PROVIDER, modelId = "claude-sonnet-5").forChat(),
+            EngineModelRef(providerId = "hobbitton-gateway", modelId = "claude-sonnet-5").forChat(),
         )
         val already = EngineModelRef(providerId = CHAT_PROVIDER, modelId = "gpt-5.5")
         assertEquals(already, already.forChat())
     }
 
     @Test
-    fun `each profile is offered its own providers`() {
-        assertTrue(offersProvider(EngineProfile.CHAT, CHAT_PROVIDER))
-        assertFalse(offersProvider(EngineProfile.CHAT, GATEWAY_PROVIDER))
-        assertTrue(offersProvider(EngineProfile.TASK, GATEWAY_PROVIDER))
-        assertFalse(offersProvider(EngineProfile.TASK, CHAT_PROVIDER))
-    }
-
-    @Test
-    fun `the profiles name the server's agents`() {
-        assertEquals("chat", EngineProfile.CHAT.agent)
-        assertEquals("mission", EngineProfile.TASK.agent)
+    fun `every conversation runs on the server's chat agent`() {
+        assertEquals("chat", CHAT_AGENT)
     }
 }
 

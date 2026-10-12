@@ -4,8 +4,8 @@ The engine's and the portal's data layer, and the app's preferences.
 
 ## What This Module Provides
 
-- **`engine/`** — `EngineMissionRepository` (chats and tasks on the engine: sessions, turns, the
-  live feed, recent chats and missions), `EngineProfile`, the addresses (`EngineSettingsStore`,
+- **`engine/`**: `EngineMissionRepository` (the conversations on the engine: sessions, turns, the
+  live feed, the drawer's list), `CHAT_AGENT` / `CHAT_PROVIDER` / `forChat`, the addresses (`EngineSettingsStore`,
   `EngineAddressField`; `PlatformDefaults`, the three a build was made for, bound by `:app` from
   `platform.properties` and read by the sign-in), the sign-in round trip (`EngineSignIn`, the callback mailbox,
   `EngineSignInCoordinator`), `EngineSecureStore` (the portal's tokens, EncryptedSharedPreferences),
@@ -42,27 +42,26 @@ One Authelia identity for chats and tasks. Everything here is bound by `engineMo
 - **No engine password.** `EngineSecureStore` holds the portal tokens only and deletes, on first
   open, the Basic password builds before D-076 stored. `EngineSettingsStore` holds three addresses.
 
-## Engine profiles: chat and task (`engine/`, D-077)
+## One kind of conversation (`engine/`, D-077, D-082)
 
-- **`EngineProfile`** — `CHAT` (agent `chat`, provider `hobbitton-chat`) and `TASK` (agent
-  `mission`, the gateway). `offersProvider` narrows each model picker; `forChat()` moves a model
-  onto the chat provider (same model ids on both).
-- **`chatPerimeter()`** — every connector the scheduler's catalogue marks `chat: true`, and only
-  those. `EngineMissionRepository.startChat` builds the session's rules from it with the same
-  `permissionsFor`, records it with the scheduler before the first prompt (as `launch` does), and
-  records the session's kind locally before anything can fail.
-- **Every turn names its agent** — a turn without one runs on the engine's default agent, `build`,
-  with none of the session's rules (29/09/2026: a task's follow-up ran there). A chat turn names
-  agent `chat` and a `hobbitton-chat` model (`sendMessage(profile = CHAT)`). A task turn names the
-  session's own agent (`taskAgentOf`): known when `launch` created the session (`mission`), read
-  otherwise off the first user message of the transcript (`agentWrittenOn`, the reading
-  `classifySession` uses; `history` records it for free), kept in memory per session; `mission`
-  when nothing is readable, and in place of `build` or `plan` (`taskAgent`). Its model stays the
-  session's unless one is picked.
-- **`classifySession` + `SessionKindStore` (`EngineSessionKinds`)** — recorded kind, then the
-  scheduler's title shape, then the agent on the messages, then the provider. `recentChats` (the
-  drawer) reads at most ten unknown transcripts per refresh and records each verdict;
-  `recentMissions` (the Tasks tab) drops chats. Cleared at sign-out with the reading positions.
+Since 12/10/2026 chats and tasks are one conversation, as on Claude.ai.
+
+- **Agent and provider**: every session the app starts and every turn it sends names agent
+  `chat` (`CHAT_AGENT`) and a `hobbitton-chat` model (`CHAT_PROVIDER`; `forChat()` moves a model
+  named on the gateway, same ids on both). A turn without an agent would run on the engine's
+  default (`build` on 29/09/2026, a tool-less `repli` profile on the server since D-082). Old task
+  sessions and scheduled runs answered from the phone go through `chat` too; their own rules still
+  decide what they may do. `models()` offers the chat provider only.
+- **`startChat(text, connectors, model, files)`**: the ticked connectors are the perimeter:
+  turned into the session's rules by `permissionsFor`, recorded with the scheduler before the first
+  prompt (D-071), and the session's kind recorded locally before anything can fail.
+- **`recentChats`** (the drawer): every session, the scheduler's runs included: a run is named
+  after its mission (`scheduledMissionName`) and marked `scheduled`. `classifySession` +
+  `SessionKindStore` (`EngineSessionKinds`) leave out a session that has said nothing yet; at most
+  ten unknown transcripts are read per refresh and each verdict recorded. Cleared at sign-out with
+  the reading positions.
+- **`ConnectorOption.actsForYou`**: the scheduler's `refuse_si_autonome`: what sends, pays or
+  deletes in the person's name. The sheet lists it apart.
 - **`AudioTranscriber` (`SchedulerTranscriber`)** — the composer's speech to text on the scheduler's
   `POST /transcription`. Answers `TranscriptionOutcome` (the words, or a `TranscriptionFailure` plus
   the server's `erreur`), never throws past `:core:data`. The language hint is the device's when it

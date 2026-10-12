@@ -26,13 +26,10 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.unit.dp
 import com.garfiec.librechat.core.data.engine.ConnectorOption
-import com.garfiec.librechat.core.data.engine.EngineProfile
-import com.garfiec.librechat.core.data.engine.Mission
 import com.garfiec.librechat.core.model.engine.EngineQuestionInfo
 import com.garfiec.librechat.core.model.engine.EngineQuestionOption
 import com.garfiec.librechat.core.model.engine.EngineQuestionRequest
 import com.garfiec.librechat.core.model.engine.EngineSelectableModel
-import com.garfiec.librechat.core.model.engine.MissionState
 import com.garfiec.librechat.core.model.scheduler.MissionRun
 import com.garfiec.librechat.core.model.scheduler.ScheduledMission
 import com.garfiec.librechat.core.ui.theme.LibreChatTheme
@@ -51,7 +48,7 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
 /**
- * Renders the conversation, the Tasks tab and the question form the way they ship, and writes them
+ * Renders the conversation, Programmées and the question form the way they ship, and writes them
  * as PNGs under `build/captures/` (`./gradlew :feature:tasks:recordRoborazziDebug`). The screens
  * take a ViewModel, so what is composed here is their body and their bars, from the same internal
  * pieces, over fixed state: the point is to see them without a device.
@@ -147,8 +144,6 @@ private fun ChatScreen(state: MissionChatUiState) {
         if (turns.isEmpty()) {
             Box(Modifier.fillMaxSize().padding(padding)) {
                 EmptyConversation(
-                    profile = EngineProfile.CHAT,
-                    isNew = true,
                     greetingName = "Raphaël",
                     onPickPrompt = {},
                     modifier = Modifier.align(Alignment.Center),
@@ -181,17 +176,13 @@ private fun TasksList() {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Tâches") },
+                title = { Text("Programmées") },
                 navigationIcon = { IconButton(onClick = {}) { Icon(Icons.Default.Menu, null) } },
             )
         },
-        floatingActionButton = { NewTaskButton(onClick = {}) },
     ) { padding ->
         TasksListBody(
             scheduled = SCHEDULED,
-            missions = MISSIONS,
-            scheduledShown = true,
-            onToggleSchedule = {},
             failureTitle = null,
             actions = NO_ACTIONS,
             modifier = Modifier.padding(padding),
@@ -199,13 +190,7 @@ private fun TasksList() {
     }
 }
 
-// The clock of the capture: the ages on the rows are read against the real clock.
-private val NOW = kotlin.time.Clock.System.now().toEpochMilliseconds()
-
 private val NO_ACTIONS = TasksListActions(
-    onOpenMission = {},
-    onStopMission = {},
-    onOpenRuns = {},
     onRunScheduled = {},
     onSetScheduledEnabled = { _, _ -> },
     onReschedule = { _, _, _ -> },
@@ -242,15 +227,16 @@ private val SCHEDULED = listOf(
         timeZone = "Europe/Paris",
         declaredTools = 6,
     ),
+    ScheduledMission(
+        name = "rappel-controle-technique",
+        profile = "mission",
+        enabled = true,
+        runAt = "2026-10-20T09:00",
+        timeZone = "Europe/Paris",
+        nextRun = "2026-10-20T09:00",
+        declaredTools = 4,
+    ),
 )
-
-private val MISSIONS = listOf(
-    Mission("s1", "Vente Audi Q5 : relance des acheteurs", MissionState.Running("running"), NOW - 4 * 60_000),
-    Mission("s2", "point-mails-matin", MissionState.Succeeded(48_210), NOW - 9 * 3_600_000),
-    Mission("s3", "veille-tarifs-scpi", MissionState.Failed("Request timeout after 120 s on connector pennylane", 3_100), NOW - 26 * 3_600_000),
-    Mission("s4", "Devis assurance : comparer trois offres", MissionState.Succeeded(12_480), NOW - 2 * 24 * 3_600_000),
-)
-
 
 private val MODELS = listOf(
     EngineSelectableModel("hobbitton-chat", "claude-sonnet-5-5", "Claude Sonnet 5.5"),
@@ -265,7 +251,6 @@ private val CONNECTORS = listOf(
 private val BASE = MissionChatUiState(
     loadingHistory = false,
     positionKnown = true,
-    profile = EngineProfile.CHAT,
     models = MODELS,
     model = MODELS[0],
     connectors = CONNECTORS,

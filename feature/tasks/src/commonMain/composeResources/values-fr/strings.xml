@@ -1,26 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="tasks_title">Tâches</string>
-    <string name="tasks_empty">Aucune tâche pour l'instant</string>
-    <string name="tasks_empty_hint">Une tâche, c'est un objectif confié à l'assistant, avec seulement les connecteurs que vous cochez.</string>
-    <string name="tasks_new">Nouvelle tâche</string>
+    <string name="tasks_title">Programmées</string>
+    <string name="tasks_empty">Rien de programmé pour l'instant</string>
+    <string name="tasks_empty_hint">Demandez à Butler, dans une conversation, de programmer quelque chose de récurrent ou pour plus tard.</string>
     <string name="tasks_retry">Réessayer</string>
     <string name="tasks_stop">Arrêter</string>
     <string name="tasks_age_minutes">%1$d min</string>
     <string name="tasks_age_hours">%1$d h</string>
     <string name="tasks_age_days">%1$d j</string>
-    <string name="tasks_chat_title">Tâche</string>
-    <string name="tasks_chat_hint">Message…</string>
     <string name="tasks_chat_send">Envoyer</string>
     <string name="tasks_chat_back">Retour</string>
     <string name="tasks_open_drawer">Ouvrir le menu</string>
-    <string name="tasks_new_empty">Décrivez la tâche. Photos, vidéos et fichiers l'accompagnent par le +.</string>
-    <string name="tasks_chat_empty">Pas encore de message. Écrivez à l'assistant pour poursuivre cette tâche.</string>
     <string name="tasks_not_configured">L'assistant n'est pas encore configuré</string>
     <string name="tasks_not_configured_hint">Déconnectez-vous, puis reconnectez-vous avec l'adresse du planificateur.</string>
     <string name="tasks_state_running">En cours</string>
-    <string name="tasks_state_succeeded">Terminée · %1$s jetons</string>
-    <string name="tasks_state_failed">Échec</string>
     <string name="tasks_model">Modèle</string>
     <string name="tasks_connectors">Connecteurs</string>
     <string name="tasks_cancel">Annuler</string>
@@ -44,7 +37,6 @@
     <string name="tasks_error_server">Le serveur de l'assistant a rencontré un problème</string>
     <string name="tasks_error_server_hint">Le problème vient du serveur. Réessayez dans un instant.</string>
     <string name="tasks_error_unknown">Un problème est survenu avec l'assistant. Réessayez.</string>
-    <string name="tasks_scheduled_header">Tâches programmées</string>
     <string name="tasks_scheduled_run">Lancer</string>
     <string name="tasks_scheduled_disable">Suspendre</string>
     <string name="tasks_scheduled_enable">Réactiver</string>
@@ -57,14 +49,11 @@
         <item quantity="one">%1$d outil par tour</item>
         <item quantity="other">%1$d outils par tour</item>
     </plurals>
-    <string name="tasks_recent_header">Tâches récentes</string>
     <string name="tasks_scheduled_recurring_header">Récurrentes · %1$d</string>
     <string name="tasks_scheduled_once_header">Ponctuelles · %1$d</string>
     <string name="usage_title">Utilisation</string>
     <string name="usage_not_configured">Aucun planificateur configuré</string>
     <string name="usage_not_configured_hint">Déconnectez-vous, puis reconnectez-vous avec l'adresse du planificateur.</string>
-    <string name="runs_empty">Aucune exécution pour l'instant</string>
-    <string name="runs_empty_hint">Chaque exécution est un lancement de cette tâche par le planificateur. Les 30 dernières sont affichées.</string>
     <string name="tasks_settings_scheduler_url">Adresse du planificateur</string>
     <string name="tasks_settings_scheduler_url_hint">https://sched.example.com — facultatif ; sans elle, les tâches programmées restent invisibles.</string>
     <string name="tasks_spend_header">Dépense, 7 derniers jours</string>
@@ -176,4 +165,8 @@
     <string name="tasks_question_send">Répondre</string>
     <string name="tasks_question_dismiss">Ignorer</string>
     <string name="tasks_question_waiting">Envoi…</string>
+    <string name="tasks_connectors_hint">Ce que cette conversation peut utiliser. Modifiable à tout moment, même après le premier message.</string>
+    <string name="tasks_connectors_read">Lire et chercher</string>
+    <string name="tasks_connectors_act">Agir en votre nom</string>
+    <string name="tasks_scheduled_intro">Ce que Butler fait sans vous. Chaque exécution s'ouvre comme une conversation, dans la liste du menu.</string>
 </resources>

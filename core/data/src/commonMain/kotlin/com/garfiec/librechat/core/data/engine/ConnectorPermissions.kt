@@ -138,6 +138,7 @@ fun ConnectorCatalogue.offered(): List<ConnectorOption> =
             // it is ticked, and unticking it is what narrows the scope (D-071).
             tickedByDefault = grant.tickedByDefault || !grant.direct,
             viaAnnuaire = !grant.direct,
+            actsForYou = grant.refusedWhenAutonomous,
         )
     }
 
@@ -149,4 +150,10 @@ data class ConnectorOption(
     val tickedByDefault: Boolean = false,
     /** Reached through the annuaire rather than declared to the model — see [ConnectorGrant.direct]. */
     val viaAnnuaire: Boolean = false,
+    /**
+     * Sends, pays, deletes or otherwise acts outside the conversation in the person's name: what the
+     * scheduler refuses to an unwatched mission ([ConnectorGrant.refusedWhenAutonomous]). The sheet
+     * lists these apart, under « Agir en votre nom » (D-082).
+     */
+    val actsForYou: Boolean = false,
 )

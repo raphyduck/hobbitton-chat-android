@@ -6,7 +6,6 @@ import com.garfiec.librechat.core.data.engine.EngineMissionRepository
 import com.garfiec.librechat.feature.tasks.EngineSettingsViewModel
 import com.garfiec.librechat.feature.tasks.MissionChatArgs
 import com.garfiec.librechat.feature.tasks.MissionChatViewModel
-import com.garfiec.librechat.feature.tasks.MissionRunsViewModel
 import com.garfiec.librechat.feature.tasks.TasksViewModel
 import com.garfiec.librechat.feature.tasks.UsageViewModel
 import org.koin.core.module.dsl.viewModel
@@ -34,17 +33,13 @@ val tasksModule = module {
     viewModelOf(::TasksViewModel)
     viewModelOf(::EngineSettingsViewModel)
     viewModelOf(::UsageViewModel)
-    @Suppress("DeprecatedKoinApi")
-    viewModel { params -> MissionRunsViewModel(name = params.get(), repository = get()) }
-    // The session and its profile arrive from the navigation layer via parametersOf, as one
-    // MissionChatArgs, so the lambda-form viewModel is the only DSL that can read them (viewModelOf
+    // The session arrives from the navigation layer via parametersOf, as one MissionChatArgs, so the lambda-form viewModel is the only DSL that can read them (viewModelOf
     // wires every arg via get()).
     @Suppress("DeprecatedKoinApi")
     viewModel { params ->
         val args = params.get<MissionChatArgs>()
         MissionChatViewModel(
             sessionId = args.sessionId,
-            profile = args.profile,
             repository = get(),
             modelPrices = get(),
             settings = get(),

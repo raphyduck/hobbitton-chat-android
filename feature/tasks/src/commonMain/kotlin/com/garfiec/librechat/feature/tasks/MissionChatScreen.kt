@@ -67,7 +67,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.garfiec.librechat.core.data.datastore.MissionReadingPosition
-import com.garfiec.librechat.core.data.engine.EngineProfile
 import com.garfiec.librechat.core.ui.input.ChatInputDefaults
 import com.garfiec.librechat.feature.tasks.components.Explanation
 import com.garfiec.librechat.feature.tasks.resources.Res
@@ -79,11 +78,7 @@ import com.garfiec.librechat.feature.tasks.resources.chat_greeting_morning_anony
 import com.garfiec.librechat.feature.tasks.resources.chat_new
 import com.garfiec.librechat.feature.tasks.resources.chat_title
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_back
-import com.garfiec.librechat.feature.tasks.resources.tasks_chat_empty
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_scroll_to_end
-import com.garfiec.librechat.feature.tasks.resources.tasks_chat_title
-import com.garfiec.librechat.feature.tasks.resources.tasks_new
-import com.garfiec.librechat.feature.tasks.resources.tasks_new_empty
 import com.garfiec.librechat.feature.tasks.resources.tasks_open_drawer
 import com.garfiec.librechat.feature.tasks.resources.tasks_prompt_calendar
 import com.garfiec.librechat.feature.tasks.resources.tasks_prompt_document
@@ -99,18 +94,17 @@ import com.garfiec.librechat.feature.tasks.util.title
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
 /**
- * One engine session, as a conversation — a mission's, or since D-077 a chat's. The transcript is
- * replayed on open and the reply streams in token by token; the box at the bottom talks back to the
- * same session.
+ * One engine session, as a conversation: any session since D-082 (12/10/2026), a chat, a task of
+ * an earlier version, a scheduled mission's run. The transcript is replayed on open and the reply
+ * streams in token by token; the box at the bottom talks back to the same session.
  *
- * [sessionId] is null for a chat that does not exist yet: the first send creates it on the chat
- * profile, and [onChatStart] hands the new session to the navigation, which opens it in place.
+ * [sessionId] is null for a conversation that does not exist yet: the first send creates it, and
+ * [onChatStart] hands the new session to the navigation, which opens it in place.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -121,11 +115,10 @@ fun MissionChatScreen(
     title: String = "",
     /** Non-null when opened from the drawer: the bar then carries the menu, as a chat does. */
     onOpenDrawer: (() -> Unit)? = null,
-    profile: EngineProfile = EngineProfile.TASK,
     onChatStart: (sessionId: String, title: String) -> Unit = { _, _ -> },
     /** Non-null on a chat already under way: the bar offers a fresh one. */
     onNewChat: (() -> Unit)? = null,
-    viewModel: MissionChatViewModel = koinViewModel { parametersOf(MissionChatArgs(sessionId, profile)) },
+    viewModel: MissionChatViewModel = koinViewModel { parametersOf(MissionChatArgs(sessionId)) },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -169,9 +162,9 @@ fun MissionChatScreen(
                 title = {
                     // A conversation that has not started yet has nothing to be titled: the
                     // greeting below does the talking, as on Claude's own new chat.
-                    if (sessionId != null || profile == EngineProfile.TASK) {
+                    if (sessionId != null) {
                         Text(
-                            text = title.ifBlank { stringResource(defaultTitle(profile, sessionId)) },
+                            text = title.ifBlank { stringResource(Res.string.chat_title) },
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -292,12 +285,10 @@ private fun MissionChatBody(
                     )
 
                     BodyKind.EMPTY -> EmptyConversation(
-                        profile = state.profile,
-                        isNew = state.isNew,
                         greetingName = state.greetingName,
-                        // Examples only where a first message is still to be written: a task that
+                        // Examples only where a first message is still to be written: a session that
                         // already ran has its own subject, and a generic prompt there would be noise.
-                        onPickPrompt = if (state.profile == EngineProfile.CHAT || state.isNew) onPickPrompt else null,
+                        onPickPrompt = if (state.isNew) onPickPrompt else null,
                         modifier = Modifier.align(Alignment.Center),
                     )
 
@@ -443,35 +434,23 @@ private fun LazyListState.isNearTail(): Boolean {
  */
 @Composable
 internal fun EmptyConversation(
-    profile: EngineProfile,
-    isNew: Boolean,
     greetingName: String?,
     onPickPrompt: ((String) -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
-    val isChat = profile == EngineProfile.CHAT
     Column(
         modifier = modifier.widthIn(max = EMPTY_MAX_WIDTH).padding(horizontal = 24.dp, vertical = 32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        if (isChat || isNew) {
-            Text(
-                text = if (isChat) greeting(greetingName) else stringResource(Res.string.tasks_new),
-                style = MaterialTheme.typography.headlineLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-                textAlign = TextAlign.Center,
-            )
-            Spacer(Modifier.height(8.dp))
-        }
         Text(
-            text = stringResource(
-                when {
-                    isChat -> Res.string.chat_empty
-                    // A task not started yet: nothing to talk to, only something to describe.
-                    isNew -> Res.string.tasks_new_empty
-                    else -> Res.string.tasks_chat_empty
-                },
-            ),
+            text = greeting(greetingName),
+            style = MaterialTheme.typography.headlineLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = stringResource(Res.string.chat_empty),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -562,14 +541,6 @@ private fun TranscriptSkeleton() {
             }
         }
     }
-}
-
-/** What the bar says when the session has no title of its own. */
-private fun defaultTitle(profile: EngineProfile, sessionId: String?): StringResource = when {
-    profile == EngineProfile.TASK && sessionId == null -> Res.string.tasks_new
-    profile == EngineProfile.TASK -> Res.string.tasks_chat_title
-    sessionId == null -> Res.string.chat_new
-    else -> Res.string.chat_title
 }
 
 private fun tailLength(chat: MissionChatState): Int {

@@ -19,12 +19,11 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * A chat is an engine session on the chat profile (D-077), and the proof is on the wire: the agent,
- * the provider and the perimeter the repository actually sends.
+ * Every conversation is an engine session on the `chat` profile (D-077, D-082), and the proof is on
+ * the wire: the agent, the provider and the perimeter the repository actually sends.
  */
 class EngineChatSessionTest {
 
@@ -93,16 +92,16 @@ class EngineChatSessionTest {
         { it.method == HttpMethod.Post && it.url.encodedPath == path }
 
     @Test
-    fun `a new chat is a session on the chat agent`() = runTest {
-        testMissionRepository(engine()).startChat("Bonjour")
+    fun `a new conversation is a session on the chat agent`() = runTest {
+        testMissionRepository(engine()).startChat("Bonjour", connectors = listOf("memoire"))
 
         assertEquals("chat", bodyOf(isPost("/session"))["agent"]?.jsonPrimitive?.content)
         assertEquals("chat", bodyOf(isPost("/session/ses_chat/prompt_async"))["agent"]?.jsonPrimitive?.content)
     }
 
     @Test
-    fun `its perimeter is every connector open to a chat, recorded with the scheduler`() = runTest {
-        testMissionRepository(engine()).startChat("Bonjour")
+    fun `its perimeter is the connectors ticked on the composer, recorded with the scheduler`() = runTest {
+        testMissionRepository(engine()).startChat("Bonjour", connectors = listOf("planificateur", "banque", "memoire"))
 
         val scope = sent.last { "\"perimetre\"" in ((it.body as? TextContent)?.text ?: "") }
         val arguments = librechatJson.parseToJsonElement((scope.body as TextContent).text)
@@ -111,31 +110,50 @@ class EngineChatSessionTest {
             listOf("banque", "memoire", "planificateur"),
             arguments["connecteurs"]!!.jsonArray.map { it.jsonPrimitive.content },
         )
-        // …and the scope is recorded BEFORE the first prompt, as a mission's is (D-071).
+        // …and the scope is recorded BEFORE the first prompt (D-071).
         val scopeIndex = sent.indexOf(scope)
         val promptIndex = sent.indexOfFirst { it.url.encodedPath.endsWith("/prompt_async") }
         assertTrue(scopeIndex < promptIndex)
     }
 
     @Test
-    fun `its rules open the direct chat connectors and nothing closed to chats`() = runTest {
-        testMissionRepository(engine()).startChat("Bonjour")
+    fun `its rules open the ticked direct connectors, and the shell only when ticked`() = runTest {
+        testMissionRepository(engine()).startChat("Bonjour", connectors = listOf("memoire", "banque"))
 
-        val allowed = bodyOf(isPost("/session"))["permission"]!!.jsonArray
-            .map { it.jsonObject }
-            .filter { it["action"]?.jsonPrimitive?.content == "allow" }
-            .map { it["permission"]!!.jsonPrimitive.content }
+        val allowed = allowedOn(bodyOf(isPost("/session")))
         assertTrue("memoire_lire" in allowed)
-        assertTrue("planificateur_lister" in allowed)
+        assertTrue("planificateur_lister" !in allowed)
         assertTrue("bash" !in allowed)
-        assertTrue("webfetch" !in allowed)
         // The annuaire serves `banque`: in the scope, never in the model's tool list (D-071).
         assertTrue("banque_soldes" !in allowed)
+
+        sent.clear()
+        testMissionRepository(engine()).startChat("Bonjour", connectors = listOf("memoire", "shell"))
+        assertTrue("bash" in allowedOn(bodyOf(isPost("/session"))))
     }
 
     @Test
+    fun `unknown ticks start on the scheduler's defaults, not on nothing`() = runTest {
+        testMissionRepository(engine()).startChat("Bonjour", connectors = null)
+
+        val scope = sent.last { "\"perimetre\"" in ((it.body as? TextContent)?.text ?: "") }
+        val arguments = librechatJson.parseToJsonElement((scope.body as TextContent).text)
+            .jsonObject["params"]!!.jsonObject["arguments"]!!.jsonObject
+        // `banque` is served by the annuaire, so ticked (D-071); no direct one is `defaut` here.
+        assertEquals<List<String>>(
+            listOf("banque"),
+            arguments["connecteurs"]!!.jsonArray.map { it.jsonPrimitive.content },
+        )
+    }
+
+    private fun allowedOn(session: JsonObject): List<String> = session["permission"]!!.jsonArray
+        .map { it.jsonObject }
+        .filter { it["action"]?.jsonPrimitive?.content == "allow" }
+        .map { it["permission"]!!.jsonPrimitive.content }
+
+    @Test
     fun `its model comes from the chat provider, the provider's default when none is named`() = runTest {
-        testMissionRepository(engine()).startChat("Bonjour")
+        testMissionRepository(engine()).startChat("Bonjour", connectors = emptyList())
 
         val model = bodyOf(isPost("/session/ses_chat/prompt_async"))["model"]!!.jsonObject
         assertEquals("hobbitton-chat", model["providerID"]?.jsonPrimitive?.content)
@@ -144,8 +162,11 @@ class EngineChatSessionTest {
 
     @Test
     fun `a model picked on the gateway is moved onto the chat provider`() = runTest {
-        testMissionRepository(engine())
-            .startChat("Bonjour", model = EngineModelRef(providerId = "hobbitton-gateway", modelId = "gpt-5.5"))
+        testMissionRepository(engine()).startChat(
+            "Bonjour",
+            connectors = emptyList(),
+            model = EngineModelRef(providerId = "hobbitton-gateway", modelId = "gpt-5.5"),
+        )
 
         val model = bodyOf(isPost("/session/ses_chat/prompt_async"))["model"]!!.jsonObject
         assertEquals("hobbitton-chat", model["providerID"]?.jsonPrimitive?.content)
@@ -155,119 +176,60 @@ class EngineChatSessionTest {
     @Test
     fun `the new session is recorded as a chat`() = runTest {
         val kinds = InMemorySessionKinds()
-        testMissionRepository(engine(), kinds = kinds).startChat("Bonjour")
+        testMissionRepository(engine(), kinds = kinds).startChat("Bonjour", connectors = emptyList())
 
         assertEquals(EngineSessionKind.CHAT, kinds.recorded["ses_chat"])
     }
 
     @Test
-    fun `every chat turn names the chat agent and provider`() = runTest {
-        testMissionRepository(engine()).sendMessage(
-            sessionId = "ses_chat",
-            text = "et ensuite ?",
-            model = EngineModelRef(providerId = "hobbitton-gateway", modelId = "claude-sonnet-5"),
-            profile = EngineProfile.CHAT,
-        )
+    fun `a conversation started with files sends the files before the words`() = runTest {
+        val photo = EnginePromptPart.file(mime = "image/jpeg", dataUrl = "data:image/jpeg;base64,AA==", filename = "a.jpg")
 
-        val body = bodyOf(isPost("/session/ses_chat/message"))
-        assertEquals("chat", body["agent"]?.jsonPrimitive?.content)
-        assertEquals("hobbitton-chat", body["model"]!!.jsonObject["providerID"]?.jsonPrimitive?.content)
+        testMissionRepository(engine()).startChat("Classe ce reçu", connectors = emptyList(), files = listOf(photo))
+
+        val parts = bodyOf(isPost("/session/ses_chat/prompt_async"))["parts"]!!.jsonArray
+        assertEquals(listOf("file", "text"), parts.map { it.jsonObject["type"]?.jsonPrimitive?.content })
     }
 
     @Test
-    fun `a task turn names the mission agent and keeps the session's model`() = runTest {
+    fun `every turn names the chat agent and provider, a former task's and a run's too`() = runTest {
         messagesBySession = mapOf(
             "ses_task" to """[{"info":{"id":"m1","role":"user","agent":"mission"},"parts":[]}]""",
         )
+        val repository = testMissionRepository(engine())
+
+        for (session in listOf("ses_chat", "ses_task", "ses_run")) {
+            repository.sendMessage(
+                sessionId = session,
+                text = "et ensuite ?",
+                model = EngineModelRef(providerId = "hobbitton-gateway", modelId = "claude-sonnet-5"),
+            )
+            val body = bodyOf(isPost("/session/$session/message"))
+            assertEquals("chat", body["agent"]?.jsonPrimitive?.content, session)
+            assertEquals("hobbitton-chat", body["model"]!!.jsonObject["providerID"]?.jsonPrimitive?.content, session)
+        }
+        // No transcript is read to pick an agent any more.
+        assertTrue(sent.none { it.method == HttpMethod.Get && it.url.encodedPath.endsWith("/message") })
+    }
+
+    @Test
+    fun `a turn without a picked model names the chat provider's default`() = runTest {
         testMissionRepository(engine()).sendMessage(sessionId = "ses_task", text = "Go ssh")
 
-        // Never absent: a turn without an agent runs on the engine's default one, `build`, with
-        // none of the mission's rules (29/09/2026).
-        val body = bodyOf(isPost("/session/ses_task/message"))
-        assertEquals("mission", body["agent"]?.jsonPrimitive?.content)
-        assertNull(body["model"])
+        val model = bodyOf(isPost("/session/ses_task/message"))["model"]!!.jsonObject
+        assertEquals("hobbitton-chat", model["providerID"]?.jsonPrimitive?.content)
     }
 
     @Test
-    fun `a task launched here names the mission agent without reading its transcript`() = runTest {
-        val repository = testMissionRepository(engine())
-        repository.launch(objective = "Ranger les factures", connectors = emptyList())
+    fun `the picker offers the chat provider only`() = runTest {
+        val choice = testMissionRepository(engine()).models()
 
-        repository.sendMessage(sessionId = "ses_chat", text = "Go ssh")
-        repository.sendMessage(sessionId = "ses_chat", text = "Et ensuite ?")
-
-        assertEquals("mission", bodyOf(isPost("/session/ses_chat/message"))["agent"]?.jsonPrimitive?.content)
-        assertTrue(sent.none { it.method == HttpMethod.Get && it.url.encodedPath == "/session/ses_chat/message" })
+        assertEquals(setOf("hobbitton-chat"), choice.models.map { it.providerId }.toSet())
+        assertEquals("hobbitton-chat", choice.preselected?.providerId)
     }
 
     @Test
-    fun `a task on another agent keeps that agent, read once`() = runTest {
-        messagesBySession = mapOf(
-            "ses_run" to """[
-                {"info":{"id":"m1","role":"user","agent":"veille"},"parts":[]},
-                {"info":{"id":"m2","role":"assistant","agent":"veille"},"parts":[]}
-            ]""",
-        )
-        val repository = testMissionRepository(engine())
-
-        repository.sendMessage(sessionId = "ses_run", text = "Et la suite ?")
-        repository.sendMessage(sessionId = "ses_run", text = "Merci")
-
-        assertEquals("veille", bodyOf(isPost("/session/ses_run/message"))["agent"]?.jsonPrimitive?.content)
-        assertEquals(
-            1,
-            sent.count { it.method == HttpMethod.Get && it.url.encodedPath == "/session/ses_run/message" },
-        )
-    }
-
-    @Test
-    fun `a transcript that says build sends the mission agent instead`() = runTest {
-        messagesBySession = mapOf(
-            "ses_task" to """[
-                {"info":{"id":"m1","role":"assistant","agent":"mission"},"parts":[]},
-                {"info":{"id":"m2","role":"user","agent":"build"},"parts":[]}
-            ]""",
-        )
-        testMissionRepository(engine()).sendMessage(sessionId = "ses_task", text = "Go ssh")
-
-        assertEquals("mission", bodyOf(isPost("/session/ses_task/message"))["agent"]?.jsonPrimitive?.content)
-    }
-
-    @Test
-    fun `a task whose transcript names no agent sends the mission agent`() = runTest {
-        testMissionRepository(engine()).sendMessage(sessionId = "ses_task", text = "Go ssh")
-
-        assertEquals("mission", bodyOf(isPost("/session/ses_task/message"))["agent"]?.jsonPrimitive?.content)
-    }
-
-    @Test
-    fun `a task opened on screen takes its agent from the history already read`() = runTest {
-        messagesBySession = mapOf(
-            "ses_run" to """[{"info":{"id":"m1","role":"user","agent":"veille"},"parts":[]}]""",
-        )
-        val repository = testMissionRepository(engine())
-        repository.history("ses_run")
-
-        repository.sendMessage(sessionId = "ses_run", text = "Et la suite ?")
-
-        assertEquals("veille", bodyOf(isPost("/session/ses_run/message"))["agent"]?.jsonPrimitive?.content)
-        assertEquals(
-            1,
-            sent.count { it.method == HttpMethod.Get && it.url.encodedPath == "/session/ses_run/message" },
-        )
-    }
-
-    @Test
-    fun `the chat picker offers the chat provider, the tasks picker everything else`() = runTest {
-        val repository = testMissionRepository(engine())
-
-        assertEquals(setOf("hobbitton-chat"), repository.models(EngineProfile.CHAT).models.map { it.providerId }.toSet())
-        assertEquals(setOf("hobbitton-gateway"), repository.models(EngineProfile.TASK).models.map { it.providerId }.toSet())
-        assertEquals("hobbitton-chat", repository.models(EngineProfile.CHAT).preselected?.providerId)
-    }
-
-    @Test
-    fun `the drawer lists chats and started tasks, and the Tasks tab no chat`() = runTest {
+    fun `the drawer lists every session, a run under its mission's name`() = runTest {
         sessionsJson = """[
             {"id":"ses_here","title":"Une conversation d'ici","time":{"updated":400}},
             {"id":"ses_other","title":"Une conversation d'ailleurs","time":{"updated":300}},
@@ -277,45 +239,27 @@ class EngineChatSessionTest {
         messagesBySession = mapOf(
             "ses_other" to """[{"info":{"id":"m1","role":"user","agent":"chat"},"parts":[]}]""",
             "ses_mission" to """[{"info":{"id":"m2","role":"user","agent":"mission"},"parts":[]}]""",
-            "ses_run" to """[{"info":{"id":"m3","role":"user","agent":"veille"},"parts":[]}]""",
         )
         val kinds = InMemorySessionKinds(mapOf("ses_here" to EngineSessionKind.CHAT))
         val repository = testMissionRepository(engine(), kinds = kinds)
 
         val chats = repository.recentChats()
-        // The task someone started is a conversation too (02/10/2026); the scheduler's run is not.
-        assertEquals<List<String>>(listOf("ses_here", "ses_other", "ses_mission"), chats.map { it.sessionId })
-        assertEquals(
-            listOf(EngineSessionKind.CHAT, EngineSessionKind.CHAT, EngineSessionKind.TASK),
-            chats.map { it.kind },
-        )
+        // Since D-082 the scheduler's runs are conversations like the others.
+        assertEquals<List<String>>(listOf("ses_here", "ses_other", "ses_run", "ses_mission"), chats.map { it.sessionId })
+        assertEquals(listOf(false, false, true, false), chats.map { it.scheduled })
+        assertEquals("veille", chats.single { it.scheduled }.title)
         // What was learned from a transcript is kept, so it is never read again.
         assertEquals(EngineSessionKind.CHAT, kinds.recorded["ses_other"])
         assertEquals(EngineSessionKind.TASK, kinds.recorded["ses_mission"])
-
-        val missions = repository.recentMissions()
-        assertEquals<List<String>>(listOf("ses_run", "ses_mission"), missions.map { it.sessionId })
     }
 
     @Test
     fun `a session the scheduler titled is never read to be classified`() = runTest {
         sessionsJson = """[{"id":"ses_run","title":"veille — manuel","time":{"updated":1}}]"""
 
-        testMissionRepository(engine()).recentChats()
+        val chats = testMissionRepository(engine()).recentChats()
 
         assertTrue(sent.none { it.url.encodedPath == "/session/ses_run/message" })
-    }
-
-    @Test
-    fun `a task launched with files records its kind and sends the files before the words`() = runTest {
-        val kinds = InMemorySessionKinds()
-        val photo = EnginePromptPart.file(mime = "image/jpeg", dataUrl = "data:image/jpeg;base64,AA==", filename = "a.jpg")
-
-        testMissionRepository(engine(), kinds = kinds)
-            .launch(objective = "Classe ce reçu", connectors = emptyList(), files = listOf(photo))
-
-        assertEquals(EngineSessionKind.TASK, kinds.recorded["ses_chat"])
-        val parts = bodyOf(isPost("/session/ses_chat/prompt_async"))["parts"]!!.jsonArray
-        assertEquals(listOf("file", "text"), parts.map { it.jsonObject["type"]?.jsonPrimitive?.content })
+        assertEquals("veille", chats.single().title)
     }
 }

@@ -1,7 +1,9 @@
 package com.garfiec.librechat.feature.tasks
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -12,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.Delete
@@ -37,6 +40,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.garfiec.librechat.core.model.scheduler.ScheduledMission
@@ -73,7 +78,9 @@ import org.jetbrains.compose.resources.stringResource
 /**
  * One scheduled mission, as a row of a group (lot 4, 10/10/2026): a dot for its state, the name,
  * when it runs and how the last run went, and a « ⋮ » that opens its actions in a sheet — run now,
- * suspend or resume, reschedule, delete. The row itself opens the mission's runs.
+ * suspend or resume, reschedule, delete. The row itself opens the same sheet: since D-082
+ * (12/10/2026) a mission's runs are conversations in the drawer, and Programmées lists the
+ * scheduler's entries only.
  *
  * The four text buttons the card carried (30/08/2026) are the sheet's rows now: a dozen missions
  * with four buttons each was a wall of verbs, and the destructive one sat on every card.
@@ -81,7 +88,6 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 internal fun ScheduledMissionRow(
     mission: ScheduledMission,
-    onOpen: () -> Unit,
     onRun: () -> Unit,
     onToggle: () -> Unit,
     onReschedule: (cron: String?, runAt: String?) -> Unit,
@@ -95,7 +101,7 @@ internal fun ScheduledMissionRow(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onOpen)
+            .clickable { acting = true }
             .heightIn(min = 56.dp)
             .padding(start = 16.dp, end = 4.dp, top = 10.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -418,4 +424,17 @@ private fun LastRunLine(mission: ScheduledMission) {
             overflow = TextOverflow.Ellipsis,
         )
     }
+}
+
+/**
+ * A 10 dp dot in the state's colour. Announced by its label so the colour is not the only carrier.
+ */
+@Composable
+internal fun StatusDot(color: Color, label: String, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .size(10.dp)
+            .background(color, CircleShape)
+            .semantics { contentDescription = label },
+    )
 }

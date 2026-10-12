@@ -22,7 +22,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
-/** The drawer and the settings, rendered to `build/captures/` (`:shared:recordRoborazziDebug`). */
+/** The drawer and the settings, rendered to `build/captures/` (`-Pcaptures`). */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [35], qualifiers = "fr-rFR-w411dp-h891dp-port-420dpi")
@@ -102,6 +102,7 @@ private const val HOUR = 3_600_000L
 private val CHATS = listOf(
     EngineChatSummary("c1", "Résumé des e-mails du matin", NOW - 5 * 60_000, running = true),
     EngineChatSummary("c2", "Agenda de la semaine", NOW - 3 * HOUR, running = false),
+    EngineChatSummary("r1", "point-mails-matin", NOW - 4 * HOUR, running = false, kind = EngineSessionKind.TASK, scheduled = true),
     EngineChatSummary("t1", "Vente Audi Q5 : relance des acheteurs", NOW - 26 * HOUR, running = false, kind = EngineSessionKind.TASK),
     EngineChatSummary("c3", "Devis assurance Matmut", NOW - 3 * 24 * HOUR, running = false),
     EngineChatSummary("c4", "Idées cadeau pour Lucie", NOW - 12 * 24 * HOUR, running = false),

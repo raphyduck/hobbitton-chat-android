@@ -3,7 +3,6 @@ package com.garfiec.librechat.feature.tasks
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.engine.AudioTranscriber
 import com.garfiec.librechat.core.data.engine.EngineMissionRepository
-import com.garfiec.librechat.core.data.engine.EngineProfile
 import com.garfiec.librechat.core.data.engine.TranscriptionOutcome
 import com.garfiec.librechat.core.model.engine.EngineModelRef
 import com.garfiec.librechat.core.model.engine.EngineStreamEvent
@@ -27,16 +26,16 @@ import org.junit.Before
 import org.junit.Test
 
 /**
- * Une nouvelle tâche s'ouvre sur l'écran d'une tâche existante (02/10/2026) : le premier message,
- * avec ses fichiers et les connecteurs cochés sur la puce, est ce qui la crée.
+ * Une nouvelle conversation (chat et tâche fondus, D-082, 12/10/2026) s'ouvre avec les connecteurs
+ * cochés par défaut ; son premier message, avec ses fichiers et les cases de la puce, la crée.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
-class NewTaskConversationTest {
+class NewConversationTest {
 
     private val dispatcher = UnconfinedTestDispatcher()
 
     private val repository = mockk<EngineMissionRepository>(relaxed = true).also {
-        coEvery { it.models(any()) } throws IllegalStateException("pas de modèles")
+        coEvery { it.models() } throws IllegalStateException("pas de modèles")
         coEvery { it.connectors() } returns ConnectorCatalogue(
             connecteurs = mapOf(
                 "memoire" to ConnectorGrant(tickedByDefault = true),
@@ -44,7 +43,7 @@ class NewTaskConversationTest {
                 "shell" to ConnectorGrant(),
             ),
         )
-        coEvery { it.launch(any(), any(), any(), any()) } returns "ses_tache"
+        coEvery { it.startChat(any(), any(), any(), any()) } returns "ses_nouvelle"
     }
     private val settings = mockk<SettingsDataStore>().also { every { it.chatFontSize } returns emptyFlow() }
 
@@ -67,11 +66,10 @@ class NewTaskConversationTest {
         transcriber = AudioTranscriber { _, _, _ -> TranscriptionOutcome.Heard("") },
         attention = mockk(relaxed = true),
         ioDispatcher = dispatcher,
-        profile = EngineProfile.TASK,
     )
 
     @Test
-    fun `a new task opens with the default ticks, and its first message creates it`() {
+    fun `a new conversation opens with the default ticks, and its first message creates it`() {
         val vm = viewModel()
         assertThat(vm.uiState.value.isNew).isTrue()
         assertThat(vm.uiState.value.enabledConnectors).containsExactly("memoire", "nas")
@@ -86,20 +84,19 @@ class NewTaskConversationTest {
         vm.send()
 
         coVerify {
-            repository.launch(
-                objective = "Classe ce reçu",
+            repository.startChat(
+                text = "Classe ce reçu",
                 connectors = match { it.toSet() == setOf("memoire", "nas", "shell") },
                 model = null,
                 files = match { files -> files.single().filename == "recu.jpg" },
             )
         }
-        coVerify(exactly = 0) { repository.startChat(any(), any(), any()) }
-        assertThat(vm.uiState.value.started?.sessionId).isEqualTo("ses_tache")
+        assertThat(vm.uiState.value.started?.sessionId).isEqualTo("ses_nouvelle")
         assertThat(vm.uiState.value.attachments).isEmpty()
     }
 
     @Test
-    fun `a reopened task sends the model its last turn ran on, not the agent's default`() {
+    fun `a reopened conversation sends the model its last turn ran on, not the agent's default`() {
         // Picked on another day, then the app restarted: the pick is gone, the transcript is not.
         val deepseek = EngineModelRef("hobbitton-gateway", "deepseek-v4-pro")
         coEvery { repository.history("ses_suivie") } returns listOf(
@@ -112,6 +109,6 @@ class NewTaskConversationTest {
         vm.onInputChange("Envoie")
         vm.send()
 
-        coVerify { repository.sendMessage("ses_suivie", "Envoie", deepseek, any(), EngineProfile.TASK) }
+        coVerify { repository.sendMessage("ses_suivie", "Envoie", deepseek, any()) }
     }
 }

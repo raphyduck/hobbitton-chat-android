@@ -3,7 +3,6 @@ package com.garfiec.librechat.feature.tasks
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.engine.AudioTranscriber
 import com.garfiec.librechat.core.data.engine.EngineMissionRepository
-import com.garfiec.librechat.core.data.engine.EngineProfile
 import com.garfiec.librechat.core.data.engine.TranscriptionFailure
 import com.garfiec.librechat.core.data.engine.TranscriptionOutcome
 import com.google.common.truth.Truth.assertThat
@@ -36,9 +35,9 @@ class MissionChatTranscriptionTest {
 
     private val repository = mockk<EngineMissionRepository>(relaxed = true).also {
         // No catalogue: the composer's pills are not what these tests are about.
-        coEvery { it.models(any()) } throws IllegalStateException("pas de catalogue")
+        coEvery { it.models() } throws IllegalStateException("pas de catalogue")
         coEvery { it.connectors() } throws IllegalStateException("pas de catalogue")
-        coEvery { it.startChat(any(), any(), any()) } returns "ses_nouvelle"
+        coEvery { it.startChat(any(), any(), any(), any()) } returns "ses_nouvelle"
     }
     private val settings = mockk<SettingsDataStore>().also { every { it.chatFontSize } returns emptyFlow() }
 
@@ -60,10 +59,7 @@ class MissionChatTranscriptionTest {
         outcome
     }
 
-    private fun viewModel(
-        outcome: TranscriptionOutcome,
-        profile: EngineProfile = EngineProfile.CHAT,
-    ) = MissionChatViewModel(
+    private fun viewModel(outcome: TranscriptionOutcome) = MissionChatViewModel(
         sessionId = null,
         repository = repository,
         modelPrices = mockk(relaxed = true),
@@ -72,7 +68,6 @@ class MissionChatTranscriptionTest {
         transcriber = transcriber(outcome),
         attention = mockk(relaxed = true),
         ioDispatcher = dispatcher,
-        profile = profile,
     )
 
     @Test
@@ -85,15 +80,14 @@ class MissionChatTranscriptionTest {
         assertThat(vm.uiState.value.input).isEqualTo("Fais le point sur la boîte mail")
         assertThat(vm.uiState.value.transcribing).isFalse()
         assertThat(sent).containsExactly("audio/ogg" to "dictee.ogg")
-        coVerify(exactly = 0) { repository.startChat(any(), any(), any()) }
-        coVerify(exactly = 0) { repository.sendMessage(any(), any(), any(), any(), any()) }
+        coVerify(exactly = 0) { repository.startChat(any(), any(), any(), any()) }
+        coVerify(exactly = 0) { repository.sendMessage(any(), any(), any(), any()) }
     }
 
     @Test
-    fun `a failed dictation on a task says why and keeps the text`() {
+    fun `a failed dictation says why and keeps the text`() {
         val vm = viewModel(
             TranscriptionOutcome.Failed(TranscriptionFailure.UNAVAILABLE, "transcription indisponible"),
-            profile = EngineProfile.TASK,
         )
         vm.onInputChange("déjà tapé")
 
@@ -122,6 +116,7 @@ class MissionChatTranscriptionTest {
         coVerify {
             repository.startChat(
                 text = match { it.contains("memo.m4a") && it.contains("> le texte entendu") },
+                connectors = any(),
                 model = any(),
                 files = emptyList(),
             )

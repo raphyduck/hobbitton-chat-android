@@ -4,8 +4,6 @@ import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
 import androidx.savedstate.serialization.SavedStateConfiguration
 import com.garfiec.librechat.feature.tasks.navigation.EngineChat
-import com.garfiec.librechat.feature.tasks.navigation.MissionChat
-import com.garfiec.librechat.feature.tasks.navigation.MissionRuns
 import com.garfiec.librechat.feature.tasks.navigation.TasksList
 import com.garfiec.librechat.feature.tasks.navigation.TasksUsage
 import com.garfiec.librechat.feature.tasks.navigation.tasksSerializersModule
@@ -22,8 +20,8 @@ import kotlinx.serialization.modules.subclass
 @Serializable data object EngineInstructions : NavKey
 
 /**
- * Every route the engine shell can hold — the chat, the tasks and the settings, and nothing of
- * LibreChat's. A route missing from here deserializes to nothing and a restored stack loses it.
+ * Every route the engine shell can hold (the conversation, Programmées and the settings), and
+ * nothing of LibreChat's. A route missing from here deserializes to nothing and a restored stack loses it.
  */
 val engineShellSavedStateConfig = SavedStateConfiguration {
     serializersModule = tasksSerializersModule + SerializersModule {
@@ -37,8 +35,8 @@ val engineShellSavedStateConfig = SavedStateConfiguration {
 /**
  * The engine shell's back stack mutations (D-077), in one place so they can be tested.
  *
- * The chat is the root: every drawer destination that is a conversation replaces it, the Tasks tab
- * and the settings are pushed over it, and backing out of either lands on the chat again.
+ * The conversation is the root: every drawer destination that is a conversation replaces it,
+ * Programmées and the settings are pushed over it, and backing out of either lands on it again.
  */
 class EngineNavigator(val backStack: NavBackStack<NavKey>) {
 
@@ -52,7 +50,7 @@ class EngineNavigator(val backStack: NavBackStack<NavKey>) {
     /** A blank chat as the root. A no-op when one is already all there is. */
     fun newChat() = openAsRoot(EngineChat())
 
-    /** A chat from the drawer, as the root. */
+    /** A conversation from the drawer or a notification, as the root: any session (D-082). */
     fun openChat(sessionId: String, title: String) = openAsRoot(EngineChat(sessionId = sessionId, title = title))
 
     /**
@@ -66,7 +64,7 @@ class EngineNavigator(val backStack: NavBackStack<NavKey>) {
         if (index >= 0) backStack[index] = started else openAsRoot(started)
     }
 
-    /** The Tasks tab: pushed over the chat, unwound to when already on the stack. */
+    /** Programmées: pushed over the conversation, unwound to when already on the stack. */
     fun openTasks() {
         if (TasksList !in backStack) {
             backStack.add(TasksList)
@@ -82,37 +80,6 @@ class EngineNavigator(val backStack: NavBackStack<NavKey>) {
     /** The instructions' editor, pushed over the settings. */
     fun openInstructions() {
         if (currentRoute != EngineInstructions) backStack.add(EngineInstructions)
-    }
-
-    fun openMission(sessionId: String, title: String) {
-        backStack.add(MissionChat(sessionId = sessionId, title = title))
-    }
-
-    /** A task from the drawer's recent conversations: the root, like a chat, with the menu. */
-    fun openTask(sessionId: String, title: String) =
-        openAsRoot(MissionChat(sessionId = sessionId, title = title, fromDrawer = true))
-
-    /**
-     * « New task » (02/10/2026): a blank task conversation pushed over the Tasks tab, whose own
-     * composer starts the task — the screen an existing task opens on, not a form.
-     */
-    fun newTask() {
-        backStack.add(MissionChat())
-    }
-
-    /**
-     * The new task exists on the engine: its blank entry is replaced in place by the real
-     * session's, as a new chat's is, so backing out lands on the Tasks tab and not on an empty
-     * composer.
-     */
-    fun taskStarted(sessionId: String, title: String) {
-        val index = backStack.indexOfLast { it is MissionChat && it.sessionId == null }
-        val started = MissionChat(sessionId = sessionId, title = title)
-        if (index >= 0) backStack[index] = started else backStack.add(started)
-    }
-
-    fun openMissionRuns(name: String) {
-        backStack.add(MissionRuns(name))
     }
 
     fun openUsage() {

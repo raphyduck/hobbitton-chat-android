@@ -91,13 +91,13 @@ class GlobalProfileOnMissionsTest {
     }
 
     @Test
-    fun `launching a mission carries them too`() = runTest {
+    fun `starting a conversation carries them too`() = runTest {
         val engine = engine()
         repository(GlobalProfile(instructions = "Cite tes sources."), engine)
-            .launch(objective = "faire le point", connectors = emptyList())
+            .startChat(text = "faire le point", connectors = emptyList())
 
-        // The instructions ride on the objective, not on the session: the creation route has no
-        // place for them, and inventing one there is how a mission dies with a bare 400.
+        // The instructions ride on the first message, not on the session: the creation route has
+        // no place for them, and inventing one there is how a session dies with a bare 400.
         assertNull(bodyOf("/session")["system"])
         assertEquals("Cite tes sources.", bodyOf("prompt_async")["system"]?.jsonPrimitive?.content)
     }
@@ -143,9 +143,9 @@ class GlobalProfileOnMissionsTest {
     @Test
     fun `the app names one agent and never asks the engine which profiles exist`() = runTest {
         val engine = engine()
-        repository(GlobalProfile.NONE, engine).launch("faire le point", emptyList())
+        repository(GlobalProfile.NONE, engine).startChat("faire le point", emptyList())
 
-        assertEquals("mission", bodyOf("/session")["agent"]?.jsonPrimitive?.content)
+        assertEquals("chat", bodyOf("/session")["agent"]?.jsonPrimitive?.content)
         // `GET /agent` is gone: there is no profile to resolve any more, so nothing may go looking
         // for one — the round trip existed only to re-derive a constant.
         assertTrue(sent.none { it.url.encodedPath.endsWith("/agent") })
