@@ -25,6 +25,7 @@ import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.QueryStats
+import androidx.compose.material.icons.outlined.Savings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -63,6 +64,8 @@ import com.garfiec.librechat.shared.resources.engine_settings_assistant
 import com.garfiec.librechat.shared.resources.engine_settings_attention
 import com.garfiec.librechat.shared.resources.engine_settings_attention_hint
 import com.garfiec.librechat.shared.resources.engine_settings_back
+import com.garfiec.librechat.shared.resources.engine_settings_budget
+import com.garfiec.librechat.shared.resources.engine_settings_budget_hint
 import com.garfiec.librechat.shared.resources.engine_settings_cancel
 import com.garfiec.librechat.shared.resources.engine_settings_engine
 import com.garfiec.librechat.shared.resources.engine_settings_instructions
@@ -103,7 +106,8 @@ data class EngineSettingsUiState(
 /**
  * The engine shell's settings (D-077), laid out as Claude's since lot 4 (10/10/2026): the account
  * at the head, then groups of rows on raised cards — appearance (theme and text size, each a
- * segmented control), notifications, the assistant's instructions and usage, the platform's
+ * segmented control), notifications, the assistant's instructions, usage and spending ceilings
+ * (12/10/2026), the platform's
  * addresses (read only: changing one is signing out and in again) — and signing out alone at the
  * foot.
  */
@@ -119,6 +123,7 @@ internal fun EngineSettingsScreen(
     modifier: Modifier = Modifier,
     onAttentionSound: (Boolean) -> Unit = {},
     onChatFontSize: (ChatFontSize) -> Unit = {},
+    onOpenBudget: () -> Unit = {},
 ) {
     var confirmSignOut by rememberSaveable { mutableStateOf(false) }
 
@@ -143,6 +148,7 @@ internal fun EngineSettingsScreen(
             padding = padding,
             onOpenInstructions = onOpenInstructions,
             onOpenUsage = onOpenUsage,
+            onOpenBudget = onOpenBudget,
             onThemeMode = onThemeMode,
             onChatFontSize = onChatFontSize,
             onAttentionSound = onAttentionSound,
@@ -184,6 +190,7 @@ private fun SettingsBody(
     padding: PaddingValues,
     onOpenInstructions: () -> Unit,
     onOpenUsage: () -> Unit,
+    onOpenBudget: () -> Unit,
     onThemeMode: (ThemeMode) -> Unit,
     onChatFontSize: (ChatFontSize) -> Unit,
     onAttentionSound: (Boolean) -> Unit,
@@ -250,6 +257,14 @@ private fun SettingsBody(
                 headline = stringResource(Res.string.engine_settings_usage),
                 supporting = null,
                 onClick = onOpenUsage,
+            )
+            SectionDivider()
+            NavigationRow(
+                icon = Icons.Outlined.Savings,
+                headline = stringResource(Res.string.engine_settings_budget),
+                supporting = stringResource(Res.string.engine_settings_budget_hint),
+                onClick = onOpenBudget,
+                modifier = Modifier.testTag("settings_budget"),
             )
         }
         Spacer(Modifier.height(GROUP_GAP))

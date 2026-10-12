@@ -14,6 +14,7 @@ import com.garfiec.librechat.core.data.engine.SessionKindStore
 import com.garfiec.librechat.core.data.portal.PortalSignOut
 import com.garfiec.librechat.core.data.portal.PortalTasksSignIn
 import com.garfiec.librechat.core.data.pricing.ModelPriceSource
+import com.garfiec.librechat.core.data.scheduler.ChatBudgetSource
 import com.garfiec.librechat.core.network.engine.EngineTokenStore
 import com.garfiec.librechat.shared.di.sharedKoinModules
 import kotlinx.coroutines.CoroutineDispatcher
@@ -65,6 +66,8 @@ class KoinGraphVerificationTest {
             // The shell's question watch and the conversation a notification opens (03/10/2026).
             EngineAttentionWatcher::class,
             ConversationRequests::class,
+            // The spending ceilings' source, the scheduler's (12/10/2026).
+            ChatBudgetSource::class,
         )
 
         // Types whose libraries aren't on the app test classpath (transitive

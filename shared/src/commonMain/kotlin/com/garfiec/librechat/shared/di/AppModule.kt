@@ -5,8 +5,10 @@ import com.garfiec.librechat.core.data.engine.EngineAttentionWatcher
 import com.garfiec.librechat.core.data.engine.EngineMissionRepository
 import com.garfiec.librechat.core.data.engine.EngineSettingsStore
 import com.garfiec.librechat.core.data.portal.PortalSignOut
+import com.garfiec.librechat.core.data.scheduler.ChatBudgetSource
 import com.garfiec.librechat.core.data.scheduler.SchedulerRepository
 import com.garfiec.librechat.core.network.engine.EngineTokenStore
+import com.garfiec.librechat.shared.engine.EngineBudgetViewModel
 import com.garfiec.librechat.shared.engine.EngineInstructionsViewModel
 import com.garfiec.librechat.shared.engine.EngineShellViewModel
 import org.koin.core.module.dsl.viewModel
@@ -37,4 +39,9 @@ val sharedAppModule = module {
     // The global instructions' editor (D-077). Local storage only — `GlobalProfileEditor` is bound
     // by :core:data — so a plain constructor definition.
     viewModelOf(::EngineInstructionsViewModel)
+
+    // The conversations' spending ceilings (12/10/2026). `getOrNull` for the same reason as the
+    // shell: the scheduler is the engine graph's, and without it the screen says so.
+    @Suppress("DeprecatedKoinApi")
+    viewModel { EngineBudgetViewModel(source = getOrNull<ChatBudgetSource>()) }
 }

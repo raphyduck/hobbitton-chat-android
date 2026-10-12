@@ -236,6 +236,7 @@ private fun EngineMainLayout(
                         onBack = { navigator.goBack() },
                         onOpenInstructions = { navigator.openInstructions() },
                         onOpenUsage = { navigator.openUsage() },
+                        onOpenBudget = { navigator.openBudget() },
                         onThemeMode = onThemeMode,
                         onChatFontSize = onChatFontSize,
                         onAttentionSound = onAttentionSound,
@@ -249,6 +250,9 @@ private fun EngineMainLayout(
                 }
                 entry<EngineInstructions> {
                     EngineInstructionsScreen(onClose = { navigator.goBack() })
+                }
+                entry<EngineBudget> {
+                    EngineBudgetScreen(onClose = { navigator.goBack() })
                 }
             },
         )

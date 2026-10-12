@@ -36,6 +36,12 @@ HTTP layer of the engine, the scheduler and the portal. Ktor Client on OkHttp.
 (`utilisateur`, `nom`, `prenom`, from the headers the edge copies after forward-auth), for the
 greeting of a new chat; null on a 404, which an older scheduler answers.
 
+`SchedulerApi.chatBudget` / `setChatBudget` are `GET` / `POST /plafonds` (12/10/2026): the
+ceilings of the gateway's `chat` key (`{"jour", "semaine", "mois"}` in dollars), which the
+scheduler alone can write since it holds the master key. Plain HTTP, never a tool: a conversation
+must not be able to raise its own ceiling. Null on a 404; a refusal (400, 403, 502) raises
+`ChatBudgetRefused(status, reason)` with the server's `erreur`.
+
 `SchedulerApi.transcribe` is the scheduler's other plain-HTTP route, `POST /transcription`
 (multipart: file part `audio` with its real name and `audio/*` type, optional text `langue`; 25 MB
 at most; 200 `{"texte"}`, 400/502 `{"erreur"}`, 403). Same client and bearer as the MCP calls, a

@@ -12,6 +12,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
 import com.garfiec.librechat.core.data.engine.EngineChatSummary
 import com.garfiec.librechat.core.data.engine.EngineSessionKind
+import com.garfiec.librechat.core.model.scheduler.ChatBudget
 import com.garfiec.librechat.core.network.engine.EngineAccess
 import com.garfiec.librechat.core.ui.theme.LibreChatTheme
 import com.github.takahirom.roborazzi.captureRoboImage
@@ -22,7 +23,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
-/** The drawer and the settings, rendered to `build/captures/` (`-Pcaptures`). */
+/** The drawer, the settings and the spending ceilings, rendered to `build/captures/` (`-Pcaptures`). */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [35], qualifiers = "fr-rFR-w411dp-h891dp-port-420dpi")
@@ -42,6 +43,17 @@ class CaptureShellTest {
 
     @Test
     fun settingsDark() = capture("settings-dark", dark = true) { Settings() }
+
+    @Test
+    fun budgetLight() = capture("budget-light", dark = false) { Budget() }
+
+    @Test
+    fun budgetDark() = capture("budget-dark", dark = true) { Budget() }
+
+    @Test
+    fun budgetRefused() = capture("budget-refused", dark = false) {
+        Budget(day = "50", problem = BudgetProblem.DAY_OVER_WEEK)
+    }
 
     private fun capture(name: String, dark: Boolean, content: @Composable () -> Unit) {
         rule.setContent {
@@ -70,6 +82,21 @@ private fun Settings() {
         onOpenUsage = {},
         onThemeMode = {},
         onSignOut = {},
+    )
+}
+
+@Composable
+private fun Budget(day: String = "15", problem: BudgetProblem? = null) {
+    EngineBudgetContent(
+        state = EngineBudgetUiState(
+            loading = false,
+            day = day,
+            week = "45",
+            month = "200",
+            stored = ChatBudget(day = 15.0, week = 45.0, month = 200.0),
+            problem = problem,
+        ),
+        actions = BudgetActions(),
     )
 }
 
