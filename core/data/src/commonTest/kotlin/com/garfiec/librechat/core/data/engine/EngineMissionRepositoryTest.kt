@@ -252,6 +252,20 @@ class ConnectorOptionsTest {
     }
 
     @Test
+    fun `what acts in the person's name is the scheduler's call, refusals to autonomy included`() {
+        val served = ConnectorCatalogue(
+            connecteurs = mapOf(
+                "imap" to ConnectorGrant(outils = listOf("imap_get")),
+                "imap-envoi" to ConnectorGrant(outils = listOf("imap_send"), acts = true),
+                "shell" to ConnectorGrant(outils = listOf("bash"), refusedWhenAutonomous = true),
+            ),
+        ).offered().associate { it.name to it.actsForYou }
+
+        // `imap-envoi` is not refused to an unwatched mission, and still sends mail in their name.
+        assertEquals(mapOf("imap" to false, "imap-envoi" to true, "shell" to true), served)
+    }
+
+    @Test
     fun `the options are ordered so the picker does not reshuffle between two openings`() {
         val names = catalogue.offered().map { it.name }
         assertEquals(names.sorted(), names)
