@@ -23,6 +23,7 @@ import com.garfiec.librechat.core.data.portal.PortalSession
 import com.garfiec.librechat.core.data.portal.PortalSignOut
 import com.garfiec.librechat.core.data.portal.PortalTasksSignIn
 import com.garfiec.librechat.core.data.pricing.ModelPriceSource
+import com.garfiec.librechat.core.data.scheduler.ChatBudgetSource
 import com.garfiec.librechat.core.data.scheduler.SchedulerRepository
 import com.garfiec.librechat.core.network.api.AgentEngineApi
 import com.garfiec.librechat.core.network.api.SchedulerApi
@@ -135,6 +136,9 @@ val engineModule: Module = module {
      * to fetch from.
      */
     single<ModelPriceSource> { get<SchedulerRepository>() }
+
+    /** The conversations' ceilings, set from Settings (12/10/2026): the scheduler's `/plafonds`. */
+    single<ChatBudgetSource> { get<SchedulerRepository>() }
 
     /**
      * The missions the drawer lists among the chats. Same arrangement as the price source above:

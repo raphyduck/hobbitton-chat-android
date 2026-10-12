@@ -1,5 +1,6 @@
 package com.garfiec.librechat.core.network.api
 
+import com.garfiec.librechat.core.model.scheduler.ChatBudget
 import com.garfiec.librechat.core.model.scheduler.ConnectorCatalogue
 import com.garfiec.librechat.core.model.scheduler.Consumption
 import com.garfiec.librechat.core.model.scheduler.ModelPrices
@@ -23,6 +24,7 @@ import io.ktor.http.ContentType
 import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import io.ktor.http.path
 import kotlinx.serialization.SerializationException
@@ -286,6 +288,56 @@ class SchedulerApi(
             throw EngineHttpException(response.status.value, response.request.url.toString(), response.bodyAsText())
         }
         return json.decodeFromString(PortalIdentity.serializer(), response.bodyAsText())
+    }
+
+    /**
+     * The ceilings of the gateway's `chat` key: `GET /plafonds` (12/10/2026), a plain HTTP route
+     * like [identity] and for the same reason: it is the app's, never a tool a model may call. A
+     * conversation that could raise its own ceiling would have none. Null on a scheduler from
+     * before the route (404).
+     */
+    suspend fun chatBudget(): ChatBudget? {
+        val response = client.get {
+            url { path("plafonds") }
+            accept(ContentType.Application.Json)
+        }
+        if (response.status == HttpStatusCode.NotFound) return null
+        return response.budget()
+    }
+
+    /**
+     * Sets the three ceilings, in dollars: `POST /plafonds`. Answers what the gateway reads back
+     * after the write, which is what it applies. A refusal (400 for amounts out of order or out of
+     * bounds, 502 for a gateway that did not take them) raises [ChatBudgetRefused] with the
+     * server's own `erreur`.
+     */
+    suspend fun setChatBudget(day: Double, week: Double, month: Double): ChatBudget {
+        val response = client.post {
+            url { path("plafonds") }
+            accept(ContentType.Application.Json)
+            contentType(ContentType.Application.Json)
+            setBody(
+                buildJsonObject {
+                    put("jour", day)
+                    put("semaine", week)
+                    put("mois", month)
+                },
+            )
+        }
+        return response.budget()
+    }
+
+    private suspend fun HttpResponse.budget(): ChatBudget {
+        val body = bodyAsText()
+        val answer = body.asJsonObjectOrNull()
+        if (!status.isSuccess() || answer == null || answer["erreur"] != null) {
+            throw ChatBudgetRefused(status.value, answer?.get("erreur")?.asStringOrNull())
+        }
+        return try {
+            json.decodeFromString(ChatBudget.serializer(), body)
+        } catch (e: SerializationException) {
+            throw ChatBudgetRefused(status.value, UNEXPECTED_ANSWER, e)
+        }
     }
 
     private suspend fun callTool(tool: String, arguments: JsonObject?): String {

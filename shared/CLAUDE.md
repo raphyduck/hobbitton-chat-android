@@ -30,16 +30,21 @@ The engine shell, and the Koin module list the application starts from. KMP libr
 - `EngineSettingsScreen` (Claude's layout since lot 4, 10/10/2026): the account at the head
   (`DrawerAccount`), then groups of rows on raised cards (`SectionGroup`, `:core:ui`): Apparence
   (theme and text size as segmented controls, the size written to `SettingsDataStore`),
-  Notifications (the switch), Assistant (instructions, usage), Plateforme (the addresses, read
+  Notifications (the switch), Assistant (instructions, usage, spending ceilings), Plateforme (the addresses, read
   only), and sign-out alone at the foot. Test tags `settings_attention_sound`,
   `settings_instructions`, `settings_sign_out`, `settings_sign_out_confirm` are kept.
   `EngineInstructionsScreen` + `EngineInstructionsViewModel` — the global instructions' editor over
   `GlobalProfileEditor` (Enregistrer / Annuler; the MCP servers an earlier build stored are kept as
   they are, never edited here).
+- `EngineBudgetScreen` + `EngineBudgetViewModel` (12/10/2026), from Settings → Assistant →
+  Plafonds de dépense: the conversations' key ceilings per day, per week and over 30 days, in
+  dollars, over `ChatBudgetSource` (the scheduler's `/plafonds`). Enregistrer / Annuler; the
+  amounts are checked on the phone first (positive, day ≤ week ≤ 30 days), the scheduler's own
+  refusal is shown in its words; a scheduler without the route reads « pas encore ».
 
 ## `di/`
 
 - `SharedKoinModules.kt` — `sharedKoinModules`: common, logging, network, data, auth and this
   module's `sharedAppModule`. The engine graph (`engineModule`, `tasksModule`) is added next to it
   by `LibreChatApplication`. Verified by `:app`'s `KoinGraphVerificationTest`.
-- `AppModule.kt` — `sharedAppModule`: the shell's and the instructions' view models.
+- `AppModule.kt`: `sharedAppModule`, the shell's, the instructions' and the ceilings' view models.

@@ -79,6 +79,9 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   over the global feed, every session); a reply the screen saw start is notified when it ends out
   of sight. The decision is common (`AttentionSignals`), the sound and channels are `:app`'s
   (`AndroidAttentionNotifier`); a tap opens the conversation (`ConversationRequests`).
+- **Spending ceilings** (Settings → Plafonds de dépense, 12/10/2026): the conversations' key per
+  day, per week and over 30 days, read and set through the scheduler's `/plafonds`
+  (`EngineBudgetScreen`). The scheduled missions' key is not set from here.
 - **Global instructions** (`GlobalProfile`, sent as `system` on every chat and task turn) are edited
   from Settings → Instructions (`EngineInstructionsScreen`) and stored on the device
   (`GlobalProfileStore`, `device:` keys).

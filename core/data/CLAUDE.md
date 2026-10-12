@@ -11,7 +11,8 @@ The engine's and the portal's data layer, and the app's preferences.
   `EngineSignInCoordinator`), `EngineSecureStore` (the portal's tokens, EncryptedSharedPreferences),
   `SessionKindStore`, speech to text (`AudioTranscriber`).
 - **`portal/`** — `PortalSession`, `PortalTasksSignIn`, `PortalSignOut`, navigation classification.
-- **`scheduler/SchedulerRepository`**, **`pricing/ModelPriceCache`** (the gateway's price table,
+- **`scheduler/SchedulerRepository`** (also the `ChatBudgetSource` of Settings' spending ceilings,
+  `/plafonds`), **`pricing/ModelPriceCache`** (the gateway's price table,
   `ModelPriceSource` bound to the scheduler).
 - **`datastore/`** — `ThemeDataStore`, `SettingsDataStore` (language, read-only; the text size and the attention switch, written from Settings),
   `GlobalProfileStore`, `MissionReadingPositions`. One DataStore file (`librechat_settings`, name

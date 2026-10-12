@@ -2,6 +2,7 @@ package com.garfiec.librechat.core.data.scheduler
 
 import com.garfiec.librechat.core.data.engine.EngineSettingsStore
 import com.garfiec.librechat.core.data.pricing.ModelPriceSource
+import com.garfiec.librechat.core.model.scheduler.ChatBudget
 import com.garfiec.librechat.core.model.scheduler.Consumption
 import com.garfiec.librechat.core.model.scheduler.ModelPrices
 import com.garfiec.librechat.core.model.scheduler.PortalIdentity
@@ -23,7 +24,7 @@ import com.garfiec.librechat.core.network.api.SchedulerApi
 class SchedulerRepository(
     private val api: SchedulerApi,
     private val settings: EngineSettingsStore,
-) : ModelPriceSource {
+) : ModelPriceSource, ChatBudgetSource {
 
     suspend fun isConfigured(): Boolean = settings.access()?.hasScheduler == true
 
@@ -87,6 +88,14 @@ class SchedulerRepository(
         if (!isConfigured()) return null
         return api.providers()
     }
+
+    override suspend fun chatBudget(): ChatBudget? {
+        if (!isConfigured()) return null
+        return api.chatBudget()
+    }
+
+    override suspend fun setChatBudget(day: Double, week: Double, month: Double): ChatBudget =
+        api.setChatBudget(day = day, week = week, month = month)
 
     /** Changes named fields of a scheduled mission; what is not named is not touched. */
     suspend fun updateMission(name: String, cron: String?, runAt: String?): String =

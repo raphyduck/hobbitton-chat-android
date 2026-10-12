@@ -19,6 +19,9 @@ import kotlinx.serialization.modules.subclass
 /** The global instructions' editor, opened from the settings (D-077). */
 @Serializable data object EngineInstructions : NavKey
 
+/** The conversations' spending ceilings, opened from the settings (12/10/2026). */
+@Serializable data object EngineBudget : NavKey
+
 /**
  * Every route the engine shell can hold (the conversation, Programmées and the settings), and
  * nothing of LibreChat's. A route missing from here deserializes to nothing and a restored stack loses it.
@@ -28,6 +31,7 @@ val engineShellSavedStateConfig = SavedStateConfiguration {
         polymorphic(NavKey::class) {
             subclass(EngineAppSettings::class)
             subclass(EngineInstructions::class)
+            subclass(EngineBudget::class)
         }
     }
 }
@@ -80,6 +84,11 @@ class EngineNavigator(val backStack: NavBackStack<NavKey>) {
     /** The instructions' editor, pushed over the settings. */
     fun openInstructions() {
         if (currentRoute != EngineInstructions) backStack.add(EngineInstructions)
+    }
+
+    /** The ceilings' editor, pushed over the settings. */
+    fun openBudget() {
+        if (currentRoute != EngineBudget) backStack.add(EngineBudget)
     }
 
     fun openUsage() {
