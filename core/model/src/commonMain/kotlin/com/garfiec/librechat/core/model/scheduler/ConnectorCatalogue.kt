@@ -62,14 +62,15 @@ data class ConnectorGrant(
      */
     val direct: Boolean = true,
     /**
-     * Open to a **chat** session (D-077). A chat's perimeter is every connector carrying this flag
-     * and no other: the engine's `chat` profile is the ceiling anyway, but the app must not ask for
-     * more than the scheduler offers a conversation (`shell`, the workspace and the web stay out).
+     * Acts in the person's name: sends, writes, deletes, calls, pays, signs, administers (the
+     * scheduler's `agit`, D-082). A label for the connector sheet, not a permission. Defaults to
+     * false: a scheduler that does not serve it yet leaves the sheet to [refusedWhenAutonomous].
      *
-     * Defaults to false, so a scheduler that does not serve the field yet opens nothing to a chat
-     * rather than everything.
+     * The `chat` flag the scheduler also serves (D-077) is no longer read: since D-082 every
+     * conversation picks from the whole catalogue.
      */
-    val chat: Boolean = false,
+    @SerialName("agit")
+    val acts: Boolean = false,
 )
 
 /**
