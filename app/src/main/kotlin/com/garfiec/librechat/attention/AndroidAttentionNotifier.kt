@@ -18,7 +18,6 @@ import co.touchlab.kermit.Logger
 import com.garfiec.librechat.MainActivity
 import com.garfiec.librechat.R
 import com.garfiec.librechat.core.data.engine.AttentionNotifier
-import com.garfiec.librechat.core.data.engine.EngineSessionKind
 import com.garfiec.librechat.core.data.engine.OpenConversation
 
 /**
@@ -124,7 +123,6 @@ class AndroidAttentionNotifier(private val context: Context) : AttentionNotifier
             .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             .putExtra(EXTRA_SESSION_ID, conversation.sessionId)
             .putExtra(EXTRA_TITLE, conversation.title)
-            .putExtra(EXTRA_KIND, conversation.kind?.name)
         return PendingIntent.getActivity(
             context,
             id,
@@ -161,7 +159,6 @@ class AndroidAttentionNotifier(private val context: Context) : AttentionNotifier
     companion object {
         const val EXTRA_SESSION_ID = "at.hobbitton.chat.extra.SESSION_ID"
         const val EXTRA_TITLE = "at.hobbitton.chat.extra.TITLE"
-        const val EXTRA_KIND = "at.hobbitton.chat.extra.KIND"
 
         private const val CHANNEL_QUESTIONS = "butler_questions"
         private const val CHANNEL_REPLIES = "butler_replies"
@@ -172,9 +169,6 @@ class AndroidAttentionNotifier(private val context: Context) : AttentionNotifier
             return OpenConversation(
                 sessionId = sessionId,
                 title = intent.getStringExtra(EXTRA_TITLE),
-                kind = intent.getStringExtra(EXTRA_KIND)?.let { name ->
-                    EngineSessionKind.entries.firstOrNull { it.name == name }
-                },
             )
         }
     }

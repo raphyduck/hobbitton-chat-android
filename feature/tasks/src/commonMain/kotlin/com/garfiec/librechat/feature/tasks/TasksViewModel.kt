@@ -3,11 +3,9 @@ package com.garfiec.librechat.feature.tasks
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
-import com.garfiec.librechat.core.data.engine.EngineMissionRepository
 import com.garfiec.librechat.core.data.engine.EngineSettingsStore
 import com.garfiec.librechat.core.data.engine.EngineSignInProgress
 import com.garfiec.librechat.core.data.engine.EngineSignInResult
-import com.garfiec.librechat.core.data.engine.Mission
 import com.garfiec.librechat.core.data.engine.engineFailureKind
 import com.garfiec.librechat.core.data.portal.PortalTasksSignIn
 import com.garfiec.librechat.core.data.scheduler.SchedulerRepository
@@ -20,7 +18,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
- * What the Tasks tab shows.
+ * What Programmées shows: the scheduler's entries (D-082), and why they could not be read.
  *
  * [engineConfigured] is separate from [error] on purpose: « you have not set the engine up » and
  * « the engine did not answer » are different problems with different remedies, and collapsing them
@@ -30,12 +28,6 @@ import kotlinx.coroutines.launch
 data class TasksUiState(
     val engineConfigured: Boolean = true,
     val loading: Boolean = false,
-    /**
-     * The most recently active sessions, running or settled — the list under the schedule. It held
-     * only the running ones from 24/09/2026; a day of that was enough to want the recent runs back
-     * on the tab rather than one tap further, under each mission (25/09/2026).
-     */
-    val missions: List<Mission> = emptyList(),
     /**
      * The recurring missions, from the scheduler — a different service from the engine, and the
      * only place that knows a mission runs every night. Empty when no scheduler is configured,
@@ -93,7 +85,6 @@ enum class EngineSignInProblem {
 }
 
 class TasksViewModel(
-    private val repository: EngineMissionRepository,
     private val scheduler: SchedulerRepository,
     private val settings: EngineSettingsStore,
     private val portal: PortalTasksSignIn,
@@ -163,54 +154,32 @@ class TasksViewModel(
         }
     }
 
+    /**
+     * The scheduler's entries, and nothing of the engine's: since D-082 (12/10/2026) a mission's
+     * runs are conversations in the drawer, and this screen lists what the scheduler will do. Its
+     * failure is the screen's error now (the sign-in offer included), since the scheduler sits
+     * behind the same portal as the engine.
+     */
     fun refresh() {
         viewModelScope.launch {
             if (settings.access() == null) {
-                // Not an error: nothing is broken, the engine simply has not been configured. The
+                // Not an error: nothing is broken, the platform simply has not been configured. The
                 // screen offers the settings form rather than a retry button that cannot help.
                 _state.update { it.copy(engineConfigured = false, loading = false, error = null) }
                 return@launch
             }
             _state.update { it.copy(engineConfigured = true, loading = true, error = null) }
-            refreshScheduled()
-            runCatching { repository.recentMissions() }
-                .onSuccess { missions ->
+            runCatching { scheduler.isConfigured() to scheduler.missions() }
+                .onSuccess { (configured, missions) ->
                     _state.update {
-                        it.copy(
-                            loading = false,
-                            // Newest first: the mission someone just launched is the one they are
-                            // looking for, and the engine returns them oldest first.
-                            // Par dernière activité, comme une liste de conversations : celle qui vient de
-                            // parler passe devant. Trier par date de création laissait une mission
-                            // qui a répondu il y a cinq minutes sous une autre lancée il y a une
-                            // heure et muette depuis (demandé le 31/08/2026).
-                            missions = missions.sortedByDescending { mission -> mission.lastActivityMillis ?: 0 },
-                        )
+                        it.copy(loading = false, schedulerConfigured = configured, scheduled = missions)
                     }
                 }
                 .onFailure { failure ->
-                    Logger.w(failure, tag = "Tasks") { "Could not read the engine's missions" }
+                    Logger.w(failure, tag = "Tasks") { "Could not read the scheduler" }
                     _state.update { it.copy(loading = false, error = failure.engineFailureKind()) }
                 }
         }
-    }
-
-    /**
-     * The scheduler in its own request, and its failures kept off the engine's error banner.
-     *
-     * The two services are independent: a scheduler that is down must not empty the sessions list,
-     * and an engine that is down must not hide tonight's schedule. Collapsing them into one
-     * `runCatching` would make either outage look like both.
-     */
-    private suspend fun refreshScheduled() {
-        runCatching { scheduler.isConfigured() to scheduler.missions() }
-            .onSuccess { (configured, missions) ->
-                _state.update { it.copy(schedulerConfigured = configured, scheduled = missions) }
-            }
-            .onFailure { failure ->
-                Logger.w(failure, tag = "Tasks") { "Could not read the scheduler" }
-                _state.update { it.copy(scheduled = emptyList()) }
-            }
     }
 
     /** Starts a scheduled mission now, without waiting for its cron. */
@@ -240,12 +209,10 @@ class TasksViewModel(
     fun deleteScheduled(name: String) =
         actThenRefresh("delete $name") { scheduler.deleteMission(name) }
 
-    fun abort(sessionId: String) = actThenRefresh("stop $sessionId") { repository.abort(sessionId) }
-
     /**
      * One action, then the list again — the shape every button on this tab has.
      *
-     * A failure is a log line, not the tab's red banner: the list is refreshed right after, so a
+     * A failure is a log line, not the screen's red banner: the list is refreshed right after, so a
      * failed action shows as « nothing changed », which is what happened. Turning it into an error
      * screen would report the platform unreachable on a tab whose list had just loaded fine.
      */

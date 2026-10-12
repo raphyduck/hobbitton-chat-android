@@ -1,6 +1,5 @@
 package com.garfiec.librechat.feature.tasks
 
-import com.garfiec.librechat.core.data.engine.EngineProfile
 import com.garfiec.librechat.core.model.engine.EngineSelectableModel
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -27,7 +26,7 @@ class ChatTitleTest {
     fun `a new chat's chip names the chat provider's default`() {
         val default = EngineSelectableModel(providerId = "hobbitton-chat", modelId = "claude-sonnet-5", label = "Claude Sonnet 5")
 
-        val state = MissionChatUiState(profile = EngineProfile.CHAT, defaultModel = default)
+        val state = MissionChatUiState(defaultModel = default)
 
         assertEquals(default, state.effectiveModel)
     }
@@ -37,7 +36,7 @@ class ChatTitleTest {
         val default = EngineSelectableModel(providerId = "hobbitton-chat", modelId = "claude-sonnet-5", label = "Claude Sonnet 5")
         val picked = EngineSelectableModel(providerId = "hobbitton-chat", modelId = "gpt-5.5", label = "GPT-5.5")
 
-        val state = MissionChatUiState(profile = EngineProfile.CHAT, defaultModel = default, model = picked)
+        val state = MissionChatUiState(defaultModel = default, model = picked)
 
         assertEquals(picked, state.effectiveModel)
     }

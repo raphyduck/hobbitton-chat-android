@@ -2,10 +2,9 @@
 <resources>
     <!-- La coquille du moteur (hobbitton, D-077) -->
     <string name="engine_drawer_new_chat">Nouvelle conversation</string>
-    <string name="engine_drawer_tasks">Tâches</string>
+    <string name="engine_drawer_tasks">Programmées</string>
     <string name="engine_drawer_settings">Réglages</string>
     <string name="engine_drawer_recent">Conversations récentes</string>
-    <string name="engine_drawer_task">Tâche</string>
     <string name="engine_drawer_empty">Aucune conversation pour l'instant.</string>
     <string name="engine_drawer_failed">Les conversations n'ont pas pu être chargées.</string>
     <string name="engine_drawer_retry">Réessayer</string>
@@ -56,4 +55,5 @@
     <string name="engine_age_minutes">%1$d min</string>
     <string name="engine_age_hours">%1$d h</string>
     <string name="engine_age_days">%1$d j</string>
+    <string name="engine_drawer_scheduled_run">Exécution programmée</string>
 </resources>

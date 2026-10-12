@@ -21,9 +21,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -49,7 +49,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.garfiec.librechat.core.data.engine.EngineChatSummary
-import com.garfiec.librechat.core.data.engine.EngineSessionKind
 import com.garfiec.librechat.core.ui.input.ChatInputDefaults
 import com.garfiec.librechat.shared.resources.Res
 import com.garfiec.librechat.shared.resources.engine_age_days
@@ -65,9 +64,9 @@ import com.garfiec.librechat.shared.resources.engine_drawer_older
 import com.garfiec.librechat.shared.resources.engine_drawer_previous_week
 import com.garfiec.librechat.shared.resources.engine_drawer_recent
 import com.garfiec.librechat.shared.resources.engine_drawer_retry
+import com.garfiec.librechat.shared.resources.engine_drawer_scheduled_run
 import com.garfiec.librechat.shared.resources.engine_drawer_search
 import com.garfiec.librechat.shared.resources.engine_drawer_settings
-import com.garfiec.librechat.shared.resources.engine_drawer_task
 import com.garfiec.librechat.shared.resources.engine_drawer_tasks
 import com.garfiec.librechat.shared.resources.engine_drawer_today
 import com.garfiec.librechat.shared.resources.engine_drawer_yesterday
@@ -89,13 +88,14 @@ data class DrawerAccount(
 
 /**
  * The drawer of the engine shell (D-077), laid out as Claude's since lot 3 (10/10/2026): a search
- * over the titles, two short entries (a new chat, the Tasks tab), the recent conversations as bare
- * titles under quiet day headers, and the account at the foot, which opens the settings.
+ * over the titles, two short entries (a new conversation, Programmées), the recent conversations as
+ * bare titles under quiet day headers, and the account at the foot, which opens the settings.
  *
- * The conversations are the chats and, since 02/10/2026, the tasks a person started
- * ([EngineChatSummary.kind]); a task wears a small tag rather than an icon, so the titles line up.
- * The scheduler's own runs stay in the Tasks tab. A conversation still answering carries a dot of
- * the accent; a first load shows placeholder rows instead of a progress bar over an empty list.
+ * Since D-082 (12/10/2026) the list is every session, as on Claude.ai: chats, former tasks, and the
+ * scheduler's runs (Programmées lists the scheduler's entries and none of their sessions). A run
+ * is named after its mission and carries a small clock ([EngineChatSummary.scheduled]); the « Tâche »
+ * tag is gone with the distinction it drew. A conversation still answering carries a dot of the
+ * accent; a first load shows placeholder rows instead of a progress bar over an empty list.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -121,7 +121,7 @@ internal fun EngineDrawerContent(
             modifier = Modifier.testTag("drawer_new_chat"),
         )
         DrawerEntry(
-            icon = Icons.Outlined.TaskAlt,
+            icon = Icons.Outlined.Schedule,
             label = stringResource(Res.string.engine_drawer_tasks),
             onClick = onOpenTasks,
             modifier = Modifier.testTag("drawer_tasks"),
@@ -287,9 +287,9 @@ private fun QuietLine(text: String) {
 }
 
 /**
- * One conversation: its title alone, a small « Tâche » tag when it is one, a dot of the accent while
- * it answers (the Tasks tab's « Running » is said for TalkBack), and how long ago it moved. The
- * open one sits on a sand fill.
+ * One conversation: its title alone, a small clock when the scheduler started it, a dot of the
+ * accent while it answers (« Running » is said for TalkBack), and how long ago it moved. The open
+ * one sits on a sand fill.
  */
 @Composable
 private fun RecentChatItem(
@@ -320,14 +320,13 @@ private fun RecentChatItem(
             // All the room the tag, the dot and the age leave: the title is what one reads.
             modifier = Modifier.weight(1f),
         )
-        if (chat.kind == EngineSessionKind.TASK) {
-            Text(
-                text = stringResource(Res.string.engine_drawer_task),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier
-                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, TagShape)
-                    .padding(horizontal = 5.dp, vertical = 1.dp),
+        if (chat.scheduled) {
+            val scheduled = stringResource(Res.string.engine_drawer_scheduled_run)
+            Icon(
+                Icons.Outlined.Schedule,
+                contentDescription = scheduled,
+                modifier = Modifier.size(14.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         if (chat.running) {
@@ -443,7 +442,6 @@ private const val PLACEHOLDER_ROWS = 4
 private const val PLACEHOLDER_TITLE_WIDTH = 0.7f
 private val ROW_HEIGHT = 40.dp
 private val RowShape = RoundedCornerShape(10.dp)
-private val TagShape = RoundedCornerShape(5.dp)
 private val SearchShape = RoundedCornerShape(12.dp)
 private const val MILLIS_PER_MINUTE = 60_000L
 private const val MINUTES_PER_HOUR = 60L

@@ -17,11 +17,12 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * Choosing the model a mission runs on.
+ * Choosing the model a conversation runs on.
  *
  * The shape below is the live engine's, copied from `GET /config/providers` on 28/08/2026 — the
- * deployment's own gateway alongside the endpoint OpenCode ships with, which is precisely the pair
- * that makes the filtering necessary.
+ * deployment's own providers alongside the endpoint OpenCode ships with, which is precisely what
+ * makes the filtering necessary. Since D-082 only `hobbitton-chat` is offered: the gateway's own
+ * provider lists the same models on the scheduled missions' budget.
  */
 class EngineModelChoiceTest {
 
@@ -38,9 +39,16 @@ class EngineModelChoiceTest {
                 "gpt-5.5": { "id": "gpt-5.5", "name": "GPT-5.5" },
                 "claude-sonnet-5": { "id": "claude-sonnet-5", "name": "Claude Sonnet 5" }
               }
+            },
+            {
+              "id": "hobbitton-chat", "name": "hobbitton (chat)", "source": "config",
+              "models": {
+                "gpt-5.5": { "id": "gpt-5.5", "name": "GPT-5.5" },
+                "claude-sonnet-5": { "id": "claude-sonnet-5", "name": "Claude Sonnet 5" }
+              }
             }
           ],
-          "default": { "opencode": "big-pickle", "hobbitton-gateway": "gpt-5.5" }
+          "default": { "opencode": "big-pickle", "hobbitton-gateway": "claude-sonnet-5", "hobbitton-chat": "gpt-5.5" }
         }
     """.trimIndent()
 
@@ -49,14 +57,15 @@ class EngineModelChoiceTest {
     private fun catalogueEngine() = MockEngine { respond(catalogue, HttpStatusCode.OK, jsonHeaders()) }
 
     @Test
-    fun `only the models of a provider this deployment declared are offered`() = runTest {
+    fun `only the conversations' provider, as this deployment declared it, is offered`() = runTest {
         val choice = testMissionRepository(catalogueEngine()).models()
 
-        // OpenCode ships its own endpoint, keyed and ready. A mission sent there leaves the
+        // OpenCode ships its own endpoint, keyed and ready. A turn sent there leaves the
         // platform's gateway entirely — no cost accounting, no ceiling — so it must not be on
-        // offer, however tempting a one-line filter is to delete later.
+        // offer, however tempting a one-line filter is to delete later. The gateway's provider
+        // spends the scheduled missions' budget (D-082).
         assertTrue(choice.models.none { it.providerId == "opencode" })
-        assertEquals(setOf("hobbitton-gateway"), choice.models.map { it.providerId }.toSet())
+        assertEquals(setOf("hobbitton-chat"), choice.models.map { it.providerId }.toSet())
     }
 
     @Test
@@ -75,13 +84,13 @@ class EngineModelChoiceTest {
         // Not the first of the list: that would quietly make the alphabet decide which model this
         // deployment runs on.
         assertEquals("gpt-5.5", choice.preselected?.modelId)
-        assertEquals("hobbitton-gateway", choice.preselected?.providerId)
+        assertEquals("hobbitton-chat", choice.preselected?.providerId)
     }
 
     @Test
     fun `an engine that names no default preselects nothing`() = runTest {
         val sansDefaut = catalogue.replace(
-            """"default": { "opencode": "big-pickle", "hobbitton-gateway": "gpt-5.5" }""",
+            """"default": { "opencode": "big-pickle", "hobbitton-gateway": "claude-sonnet-5", "hobbitton-chat": "gpt-5.5" }""",
             """"default": {}""",
         )
         val choice = testMissionRepository(
@@ -104,8 +113,8 @@ class EngineModelChoiceTest {
             }
         }
 
-        testMissionRepository(engine).launch(
-            objective = "fais le point",
+        testMissionRepository(engine).startChat(
+            text = "fais le point",
             connectors = listOf("memoire"),
             model = EngineModelRef(providerId = "hobbitton-gateway", modelId = "claude-sonnet-5"),
         )
@@ -116,11 +125,12 @@ class EngineModelChoiceTest {
         // the session existed. Nothing in the types prevents putting it back.
         assertFalse("model" in bodies.getValue("/session"))
         assertTrue("claude-sonnet-5" in bodies.getValue("/session/ses_abc/prompt_async"))
-        assertTrue("hobbitton-gateway" in bodies.getValue("/session/ses_abc/prompt_async"))
+        // …on the conversations' provider, whatever provider the pick named (D-082).
+        assertTrue("hobbitton-chat" in bodies.getValue("/session/ses_abc/prompt_async"))
     }
 
     @Test
-    fun `no model chosen sends no model key at all`() = runTest {
+    fun `no model chosen and no default named sends no model key at all`() = runTest {
         var promptBody = ""
         val engine = MockEngine { request ->
             if (request.url.encodedPath.endsWith("prompt_async")) promptBody = request.textBody()
@@ -131,17 +141,17 @@ class EngineModelChoiceTest {
             }
         }
 
-        testMissionRepository(engine).launch("fais le point", listOf("memoire"))
+        testMissionRepository(engine).startChat("fais le point", listOf("memoire"))
 
-        // An absent key, not a null one: the engine's own default applies untouched, which is what
-        // « I did not choose » has to mean.
+        // The engine named no default for the conversations' provider here: an absent key, not a
+        // null one, so the engine's own default applies untouched.
         assertFalse("model" in promptBody)
     }
 }
 
 /**
  * The scheduler's answer to whichever of its tools the request body names: the connector catalogue,
- * or the record of a session's scope (`perimetre`, D-071), which `launch` writes right after the
+ * or the record of a session's scope (`perimetre`, D-071), which `startChat` writes right after the
  * session is created. Both travel on the one `/mcp` route, so a mock has to read the body.
  */
 private fun schedulerFrame(body: String): String =

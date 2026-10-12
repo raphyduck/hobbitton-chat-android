@@ -1,7 +1,7 @@
 # Butler — hobbitton chat (Android)
 
 Native Android client of the hobbitton platform, named **Butler** on the launcher since 03/10/2026
-(`app_name`; release asset `butler-v<version>.apk`): chats and tasks run on the **OpenCode engine**,
+(`app_name`; release asset `butler-v<version>.apk`): its conversations run on the **OpenCode engine**,
 behind the **scheduler** and the **Authelia portal**. The app started as a fork of Switchboard, a
 LibreChat client; LibreChat is gone from the server (D-077) and from this tree. iOS was dropped
 with it: the modules stay Kotlin Multiplatform (`commonMain` / `androidMain`) but Android is the
@@ -26,10 +26,10 @@ core/common/          → Result / safeApiCall, dispatchers and scopes, connecti
 core/logging/         → persistent redacted diagnostic log, startup header, main-thread watchdog
 core/model/           → @Serializable models of the engine and the scheduler, GlobalProfile
 core/network/         → engine and scheduler APIs, portal clients (OAuth/PKCE), event stream
-core/data/            → engine profiles and repository, portal session, stores, LibreChat cleanup
+core/data/            → engine repository (conversations), portal session, stores, LibreChat cleanup
 core/ui/              → Material 3 theme, markdown, composer look, portal web view
 feature/auth/         → PortalSignInScreen: the platform's addresses (prefilled), then the portal sign-in
-feature/tasks/        → the conversation (MissionChatScreen, chat and task), Tasks tab, usage
+feature/tasks/        → the conversation (MissionChatScreen), Programmées (scheduled missions), usage
 ```
 
 Most modules have their own `CLAUDE.md` with specific guidance.
@@ -40,19 +40,23 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   on the engine, scheduler and portal addresses the build was made for (`PlatformDefaults`, from a
   git-ignored `platform.properties`; « Autre plateforme » unfolds the fields) and saves them in
   `EngineSettingsStore`. Signed in = addresses set **and** portal tokens held (`isPortalSignedIn`).
-- **Root = `EngineNavHost`** (`shared/.../engine/`): the chat under a drawer (new chat, recent
-  conversations — chats and started tasks —, Tasks, Settings). `MainActivity` composes it; the
+- **Root = `EngineNavHost`** (`shared/.../engine/`): the conversation under a drawer (new
+  conversation, Programmées, the recent conversations, Settings). `MainActivity` composes it; the
   only link it acts on is the portal's return (`at.hobbitton.chat://oauth`).
-- **Chat and tasks are engine profiles** (`EngineProfile`, `:core:data`): a chat is a session on
-  agent `chat` whose model always comes from provider `hobbitton-chat`, with every connector the
-  scheduler marks `chat: true` as its perimeter (registered through the scheduler exactly like a
-  mission's); a task keeps agent `mission` and the gateway. The UI is the mission chat
-  (`MissionChatScreen`) with `EngineProfile.CHAT`. A new task opens the same screen, blank, on
-  `EngineProfile.TASK`: its first message (files and ticked connectors included) creates it.
-- **Telling chats from tasks** (`classifySession`): the kind the app **recorded locally when it
-  created the session** (`SessionKindStore`) wins; then the scheduler's title shape (a task); then
-  the **agent written on the session's messages** (`chat` = chat); then the answering provider.
-  Verdicts learned from a transcript are recorded, so each foreign session is read once.
+- **One kind of conversation** (D-082, 12/10/2026, as on Claude.ai): chats and tasks are fused.
+  Every conversation is a session on agent `chat` whose model always comes from provider
+  `hobbitton-chat` (the conversations' budget; the scheduled missions spend on the gateway's key).
+  The server's `chat` profile carries what the tasks' did (shell, local files, pages); the session's
+  rules close what is not ticked. The composer offers the model and the connectors (everything
+  ticked by default but the shell, the scheduler's `defaut`), grouped « Lire et chercher » /
+  « Agir en votre nom »; the first message creates the session with the ticks as its perimeter
+  (`EngineMissionRepository.startChat`, registered with the scheduler before the prompt). One
+  screen (`MissionChatScreen`), one route (`EngineChat`) for every session: a chat, a task of an
+  earlier version, a scheduled run, whose follow-ups run on `chat` too.
+- **Programmées** (ex Tasks tab): the scheduler's entries only, recurring then one-shot, each row
+  opening its actions. Their runs are not listed there: they are conversations in the drawer, named
+  after their mission with a small clock (`EngineChatSummary.scheduled`). `classifySession` still
+  leaves out of the drawer a session that has said nothing yet.
 - **A new chat greets** (lot 2, 10/10/2026): « Bonjour, <prénom>. » in the serif, the first name
   read from the scheduler's `GET /identite` (the portal's `Remote-Name`, via `SchedulerRepository.identity`),
   without a name when it gives none. The composer is Claude's: a raised box, bare field, plain
@@ -60,14 +64,14 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   (`:core:ui` `input/`). Messages settle in with `animateItem`, « Réflexion… » shimmers before the
   first token, a round button brings the tail back when one has scrolled up, send and stop click
   under the thumb.
-- **Dictation and audio files** (chat and task composer) go to the scheduler's `POST /transcription`
+- **Dictation and audio files** (the composer) go to the scheduler's `POST /transcription`
   (`SchedulerApi.transcribe` → `SchedulerTranscriber`). A dictation lands in the composer and is
   never sent on its own; an audio file leaves with the message as a quoted transcription.
 - **Questions from the agent** (OpenCode's `question` tool, 03/10/2026): the engine announces one on
   the feed (`question.asked`) and blocks the turn until `POST /question/{id}/reply` or `/reject`.
   The conversation shows it as a form in place of the composer (`MissionQuestionForm`, options,
   multiple choice, a free answer), and reads `GET /question` at opening so a question asked before
-  the screen opened is not missed. The server opens the tool to the `chat` and `mission` profiles;
+  the screen opened is not missed. The server opens the tool to the `chat` profile (and `mission`);
   the app grants it on every session it builds rules for (`permissionsFor`), the scheduler's
   autonomous missions never get it.
 - **Sound and notifications** (Settings → Notifications, on by default): a question chimes when its

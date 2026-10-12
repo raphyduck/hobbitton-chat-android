@@ -50,7 +50,7 @@ session: the attention watcher's.
 
 `AgentEngineApi.sendMessage` takes an optional `agent`, but a turn without one runs on the engine's
 default agent (`build`), with none of the session's rules — not on the session's own agent. Every
-caller names one: a chat `chat` (D-077), a task the session's own agent (29/09/2026).
+caller names one: `chat`, for every conversation (D-077, D-082).
 
 ## The Agent engine has two disjoint API worlds
 

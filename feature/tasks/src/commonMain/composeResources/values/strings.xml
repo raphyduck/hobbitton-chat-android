@@ -1,26 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="tasks_title">Tasks</string>
-    <string name="tasks_empty">No task yet</string>
-    <string name="tasks_empty_hint">A task is a goal you hand to the assistant, with only the connectors you tick.</string>
-    <string name="tasks_new">New task</string>
+    <string name="tasks_title">Scheduled</string>
+    <string name="tasks_empty">Nothing scheduled yet</string>
+    <string name="tasks_empty_hint">Ask Butler in a conversation to schedule something recurring or for later.</string>
     <string name="tasks_retry">Retry</string>
     <string name="tasks_stop">Stop</string>
     <string name="tasks_age_minutes">%1$d min</string>
     <string name="tasks_age_hours">%1$d h</string>
     <string name="tasks_age_days">%1$d d</string>
-    <string name="tasks_chat_title">Task</string>
-    <string name="tasks_chat_hint">Message…</string>
     <string name="tasks_chat_send">Send</string>
     <string name="tasks_chat_back">Back</string>
     <string name="tasks_open_drawer">Open navigation drawer</string>
-    <string name="tasks_new_empty">Describe the task. Photos, videos and files go with it through the +.</string>
-    <string name="tasks_chat_empty">No message yet. Write to the assistant to carry on with this task.</string>
     <string name="tasks_not_configured">The assistant is not set up yet</string>
     <string name="tasks_not_configured_hint">Sign out, then sign in again with the scheduler address.</string>
     <string name="tasks_state_running">Running</string>
-    <string name="tasks_state_succeeded">Done · %1$s tokens</string>
-    <string name="tasks_state_failed">Failed</string>
     <string name="tasks_model">Model</string>
     <string name="tasks_connectors">Connectors</string>
     <string name="tasks_cancel">Cancel</string>
@@ -44,7 +37,6 @@
     <string name="tasks_error_server">The assistant's server ran into a problem</string>
     <string name="tasks_error_server_hint">The problem is on the server's side. Try again in a moment.</string>
     <string name="tasks_error_unknown">Something went wrong with the assistant. Try again.</string>
-    <string name="tasks_scheduled_header">Scheduled tasks</string>
     <string name="tasks_scheduled_run">Run now</string>
     <string name="tasks_scheduled_disable">Suspend</string>
     <string name="tasks_scheduled_enable">Resume</string>
@@ -57,14 +49,11 @@
         <item quantity="one">%1$d tool per turn</item>
         <item quantity="other">%1$d tools per turn</item>
     </plurals>
-    <string name="tasks_recent_header">Recent tasks</string>
     <string name="tasks_scheduled_recurring_header">Recurring · %1$d</string>
     <string name="tasks_scheduled_once_header">One-shot · %1$d</string>
     <string name="usage_title">Usage</string>
     <string name="usage_not_configured">No scheduler configured</string>
     <string name="usage_not_configured_hint">Sign out, then sign in again with the scheduler address.</string>
-    <string name="runs_empty">No run yet</string>
-    <string name="runs_empty_hint">Each run is a time the scheduler started this task. The latest 30 are shown.</string>
     <string name="tasks_settings_scheduler_url">Scheduler address</string>
     <string name="tasks_settings_scheduler_url_hint">https://sched.example.com — optional; without it, scheduled tasks stay hidden.</string>
     <string name="tasks_spend_header">Spend, last 7 days</string>
@@ -176,4 +165,8 @@
     <string name="tasks_question_send">Reply</string>
     <string name="tasks_question_dismiss">Dismiss</string>
     <string name="tasks_question_waiting">Sending…</string>
+    <string name="tasks_connectors_hint">What this conversation may use. Change it at any time, even after the first message.</string>
+    <string name="tasks_connectors_read">Read and search</string>
+    <string name="tasks_connectors_act">Act on your behalf</string>
+    <string name="tasks_scheduled_intro">What Butler does on its own. Each run opens as a conversation, in the menu's list.</string>
 </resources>

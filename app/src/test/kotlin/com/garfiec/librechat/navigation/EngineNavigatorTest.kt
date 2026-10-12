@@ -3,8 +3,8 @@ package com.garfiec.librechat.navigation
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
 import com.garfiec.librechat.feature.tasks.navigation.EngineChat
-import com.garfiec.librechat.feature.tasks.navigation.MissionChat
 import com.garfiec.librechat.feature.tasks.navigation.TasksList
+import com.garfiec.librechat.feature.tasks.navigation.TasksUsage
 import com.garfiec.librechat.shared.engine.EngineAppSettings
 import com.garfiec.librechat.shared.engine.EngineInstructions
 import com.garfiec.librechat.shared.engine.EngineNavigator
@@ -27,7 +27,7 @@ class EngineNavigatorTest {
 
     @Test
     fun `a chat opened from the drawer becomes the root`() {
-        val subject = navigator(EngineChat("ses_1"), TasksList, MissionChat("ses_m"))
+        val subject = navigator(EngineChat("ses_1"), TasksList, TasksUsage)
 
         subject.openChat("ses_2", "Autre")
 
@@ -44,11 +44,11 @@ class EngineNavigatorTest {
     }
 
     @Test
-    fun `the tasks are pushed over the chat, and unwound to rather than stacked`() {
+    fun `Programmées is pushed over the chat, and unwound to rather than stacked`() {
         val subject = navigator(EngineChat("ses_1"))
 
         subject.openTasks()
-        subject.openMission("ses_m", "Mission")
+        subject.openUsage()
         subject.openTasks()
 
         assertEquals(listOf<NavKey>(EngineChat("ses_1"), TasksList), subject.backStack.toList())

@@ -34,13 +34,11 @@ import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import com.garfiec.librechat.core.data.datastore.ChatFontSize
 import com.garfiec.librechat.core.data.datastore.ThemeMode
-import com.garfiec.librechat.core.data.engine.EngineSessionKind
 import com.garfiec.librechat.core.data.engine.OpenConversation
 import com.garfiec.librechat.core.ui.theme.AppLocale
 import com.garfiec.librechat.core.ui.util.SafeUriHandler
 import com.garfiec.librechat.feature.auth.screen.PortalSignInScreen
 import com.garfiec.librechat.feature.tasks.navigation.EngineChat
-import com.garfiec.librechat.feature.tasks.navigation.MissionChat
 import com.garfiec.librechat.feature.tasks.navigation.engineChatEntries
 import com.garfiec.librechat.feature.tasks.navigation.tasksEntries
 import kotlinx.coroutines.launch
@@ -152,27 +150,18 @@ private fun EngineMainLayout(
         if (drawerState.isOpen) refreshChats()
     }
 
-    // A tapped notification: its conversation as the root, as the drawer would open it. A session
-    // this device never recorded opens as a task: the screen reads its agent off the transcript.
+    // A tapped notification: its conversation as the root, as the drawer would open it.
     val consumeOpenRequest by rememberUpdatedState(onConsumeOpenRequest)
     LaunchedEffect(openRequest) {
         val request = openRequest ?: return@LaunchedEffect
-        val title = request.title.orEmpty()
-        when (request.kind) {
-            EngineSessionKind.CHAT -> navigator.openChat(request.sessionId, title)
-            EngineSessionKind.TASK, null -> navigator.openTask(request.sessionId, title)
-        }
+        navigator.openChat(request.sessionId, request.title.orEmpty())
         drawerState.close()
         consumeOpenRequest(request)
     }
 
     val openDrawer: () -> Unit = { scope.launch { drawerState.open() } }
     val closeDrawer: () -> Unit = { scope.launch { drawerState.close() } }
-    val activeChat = when (val route = navigator.currentRoute) {
-        is EngineChat -> route.sessionId
-        is MissionChat -> route.sessionId
-        else -> null
-    }
+    val activeChat = (navigator.currentRoute as? EngineChat)?.sessionId
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -188,10 +177,7 @@ private fun EngineMainLayout(
                     },
                     onOpenChat = { chat ->
                         closeDrawer()
-                        when (chat.kind) {
-                            EngineSessionKind.CHAT -> navigator.openChat(chat.sessionId, chat.title)
-                            EngineSessionKind.TASK -> navigator.openTask(chat.sessionId, chat.title)
-                        }
+                        navigator.openChat(chat.sessionId, chat.title)
                     },
                     onOpenTasks = {
                         closeDrawer()
@@ -211,7 +197,7 @@ private fun EngineMainLayout(
             backStack = backStack,
             onBack = { navigator.goBack() },
             modifier = Modifier.fillMaxSize(),
-            // Pushed screens (Tasks, a run, the settings) slide in from the edge over a short fade
+            // Pushed screens (Programmées, the settings) slide in from the edge over a short fade
             // and slide back out; a predictive back shrinks the leaving screen under the finger.
             // Between two chats the entry's own metadata asks for a cross-fade instead.
             transitionSpec = {
@@ -241,14 +227,7 @@ private fun EngineMainLayout(
                     onBack = { navigator.goBack() },
                 )
                 tasksEntries(
-                    onOpenMissionChat = { sessionId, title -> navigator.openMission(sessionId, title) },
                     onBack = { navigator.goBack() },
-                    onOpenMissionRuns = { name -> navigator.openMissionRuns(name) },
-                    onNewTask = { navigator.newTask() },
-                    onTaskStart = { sessionId, title ->
-                        navigator.taskStarted(sessionId, title)
-                        refreshChats()
-                    },
                     onOpenDrawer = openDrawer,
                 )
                 entry<EngineAppSettings> {

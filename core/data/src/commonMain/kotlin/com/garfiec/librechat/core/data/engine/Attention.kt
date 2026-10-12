@@ -38,12 +38,13 @@ interface AttentionNotifier {
     fun cancelReplyReady(sessionId: String)
 }
 
-/** A conversation a notification opens: enough for the navigation to pick the right screen. */
+/**
+ * A conversation a notification opens. One screen for every session since D-082 (12/10/2026), so
+ * the session and its title are all the navigation needs.
+ */
 data class OpenConversation(
     val sessionId: String,
     val title: String?,
-    /** Null for a session this device never recorded: it opens as a task, the general case. */
-    val kind: EngineSessionKind?,
 )
 
 /** Whether the person wants to be signalled at all: the Settings switch. */
@@ -160,7 +161,6 @@ class EngineAttentionWatcher(
     private suspend fun conversationOf(sessionId: String) = OpenConversation(
         sessionId = sessionId,
         title = repository.sessionTitle(sessionId),
-        kind = repository.recordedKind(sessionId),
     )
 }
 

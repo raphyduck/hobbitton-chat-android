@@ -50,7 +50,7 @@ class AttentionTest {
         questions = listOf(EngineQuestionInfo(question = "Quel compte ?", header = "Compte")),
     )
 
-    private val conversation = OpenConversation("ses_1", "Relevés", EngineSessionKind.TASK)
+    private val conversation = OpenConversation("ses_1", "Relevés")
 
     @Test
     fun aQuestionInTheConversationOnScreenOnlyChimes() = runTest {
@@ -131,8 +131,7 @@ class AttentionTest {
                 headers = headersOf(HttpHeaders.ContentType, "application/json"),
             )
         }
-        val kinds = InMemorySessionKinds(mapOf("ses_2" to EngineSessionKind.CHAT))
-        val repository = testMissionRepository(engine, kinds = kinds)
+        val repository = testMissionRepository(engine)
         val notifier = RecordingNotifier(inForeground = false)
         val watcher = EngineAttentionWatcher(
             repository = repository,
@@ -152,8 +151,8 @@ class AttentionTest {
         assertEquals(listOf("question:que_1", "question:que_2", "cancel:que_2"), notifier.calls)
         assertEquals(
             listOf(
-                OpenConversation("ses_1", "Relevés", null),
-                OpenConversation("ses_2", "Courrier", EngineSessionKind.CHAT),
+                OpenConversation("ses_1", "Relevés"),
+                OpenConversation("ses_2", "Courrier"),
             ),
             notifier.questions.map { it.first },
         )

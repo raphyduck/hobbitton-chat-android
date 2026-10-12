@@ -9,8 +9,6 @@ import com.garfiec.librechat.core.data.engine.AttentionSignals
 import com.garfiec.librechat.core.data.engine.AudioTranscriber
 import com.garfiec.librechat.core.data.engine.ConnectorOption
 import com.garfiec.librechat.core.data.engine.EngineMissionRepository
-import com.garfiec.librechat.core.data.engine.EngineProfile
-import com.garfiec.librechat.core.data.engine.EngineSessionKind
 import com.garfiec.librechat.core.data.engine.OpenConversation
 import com.garfiec.librechat.core.data.engine.TranscriptionOutcome
 import com.garfiec.librechat.core.data.engine.engineFailureKind
@@ -140,11 +138,9 @@ data class MissionChatUiState(
     val restoredPosition: MissionReadingPosition? = null,
     /** False until the stored position has been read. Distinguishes « none » from « not yet ». */
     val positionKnown: Boolean = false,
-    /** A chat or a task (D-077): which agent, which provider, whether connectors are offered. */
-    val profile: EngineProfile = EngineProfile.TASK,
     /**
-     * The chat provider's own default, shown on the chip of a chat that has not run yet — so a new
-     * conversation names the model it is about to use. Never set for a task.
+     * The conversations' provider default, shown on the chip of a conversation that has not run
+     * yet, so a new one names the model it is about to use.
      */
     val defaultModel: EngineSelectableModel? = null,
     /**
@@ -152,7 +148,7 @@ data class MissionChatUiState(
      * replaces the blank conversation with the real one. Null for an existing session.
      */
     val started: StartedChat? = null,
-    /** A conversation its first message has yet to create — a new chat, or a new task. */
+    /** A conversation its first message has yet to create. */
     val isNew: Boolean = false,
     /**
      * The person's answer to the first pending question, as they fill the form, kept here rather
@@ -195,14 +191,11 @@ data class MissionChatUiState(
 data class StartedChat(val sessionId: String, val title: String)
 
 /**
- * What the navigation hands the conversation's view model: which session — none for a chat not
- * started yet — and on which profile. One value rather than two parameters, so the Koin lookup is
+ * What the navigation hands the conversation's view model: which session (none for a
+ * conversation not started yet). A value rather than a bare nullable string, so the Koin lookup is
  * by this type and cannot confuse a missing session id with something else.
  */
-data class MissionChatArgs(
-    val sessionId: String?,
-    val profile: EngineProfile = EngineProfile.TASK,
-)
+data class MissionChatArgs(val sessionId: String?)
 
 class MissionChatViewModel(
     /**
@@ -221,12 +214,10 @@ class MissionChatViewModel(
     private val ioDispatcher: CoroutineDispatcher,
     /** Who the portal says is signed in, for the greeting of a new chat; null where unavailable. */
     private val scheduler: SchedulerRepository? = null,
-    private val profile: EngineProfile = EngineProfile.TASK,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(
         MissionChatUiState(
-            profile = profile,
             // Nothing to load for a chat that does not exist yet: no transcript, no saved position.
             loadingHistory = sessionId != null,
             positionKnown = sessionId == null,
@@ -246,7 +237,7 @@ class MissionChatViewModel(
 
     // Declared before `init`, which reads the catalogue: initializers run in textual order.
     private val catalogueLoader = MissionCatalogueDelegate(
-        fetchModels = { repository.models(profile) },
+        fetchModels = { repository.models() },
         fetchPrices = { modelPrices.prices() },
         fetchConnectors = { repository.connectors() },
         context = ioDispatcher,
@@ -269,8 +260,8 @@ class MissionChatViewModel(
             }
         }
         loadCatalogue()
-        // A new chat greets by name: one small read, and a greeting without a name if it fails.
-        if (sessionId == null && profile == EngineProfile.CHAT) {
+        // A new conversation greets by name: one small read, and a greeting without a name if it fails.
+        if (sessionId == null) {
             viewModelScope.launch(ioDispatcher) {
                 val name = scheduler?.identity()?.firstName ?: return@launch
                 _uiState.update { it.copy(greetingName = name) }
@@ -297,9 +288,7 @@ class MissionChatViewModel(
      * without both.
      */
     private fun loadCatalogue() {
-        // A chat is not configured connector by connector (D-077): its perimeter is every connector
-        // open to a chat, set at creation. No chip, so no catalogue to fetch for one.
-        if (profile == EngineProfile.TASK) loadConnectors()
+        loadConnectors()
         loadModels()
     }
 
@@ -318,8 +307,9 @@ class MissionChatViewModel(
             when (val fetched = catalogueLoader.connectors()) {
                 is CatalogueFetch.Failed -> _uiState.update { it.copy(connectorsError = fetched.kind) }
                 is CatalogueFetch.Loaded -> {
-                    // A task not started yet holds nothing: it starts from the scheduler's socle,
-                    // ticked as the creation sheet ticked it, and the person adjusts before sending.
+                    // A conversation not started yet holds nothing: it starts from what the scheduler
+                    // ticks by default (since D-082 everything but the shell), and the person
+                    // adjusts before sending.
                     val granted = if (sessionId == null) {
                         fetched.value.offered().filter { it.tickedByDefault }.map { it.name }.toSet()
                     } else {
@@ -353,7 +343,7 @@ class MissionChatViewModel(
                         it.copy(
                             models = fetched.value.models,
                             modelsError = null,
-                            defaultModel = fetched.value.preselected.takeIf { profile == EngineProfile.CHAT },
+                            defaultModel = fetched.value.preselected,
                         )
                     }
                     // After the models and never instead of them: the price table comes from another
@@ -389,7 +379,7 @@ class MissionChatViewModel(
         val before = _uiState.value.enabledConnectors.orEmpty()
         val after = if (name in before) before - name else before + name
         _uiState.update { it.copy(enabledConnectors = after) }
-        // A task not started yet keeps its ticks here: its first message carries them.
+        // A conversation not started yet keeps its ticks here: its first message carries them.
         val sessionId = sessionId ?: return
         viewModelScope.launch {
             try {
@@ -508,7 +498,6 @@ class MissionChatViewModel(
                         OpenConversation(
                             sessionId = sessionId,
                             title = withContext(ioDispatcher) { repository.sessionTitle(sessionId) },
-                            kind = if (profile == EngineProfile.CHAT) EngineSessionKind.CHAT else EngineSessionKind.TASK,
                         )
                     }
                 }
@@ -665,7 +654,6 @@ class MissionChatViewModel(
                         text,
                         model,
                         files = attachments.map { it.asPromptPart() },
-                        profile = profile,
                     )
                 }
                 _uiState.update { current ->
@@ -695,11 +683,10 @@ class MissionChatViewModel(
     }
 
     /**
-     * The first message of a conversation that does not exist yet — a chat (D-077), or since
-     * 02/10/2026 a task, started from the same screen and composer as an existing one rather than
-     * from a form. The session is created with this message as its first prompt — a task with the
-     * connectors ticked on its chip — and [MissionChatUiState.started] tells the screen to open it.
-     * `sending` stays up until then — the answer is already on its way.
+     * The first message of a conversation that does not exist yet, from the same screen and
+     * composer as an existing one. The session is created with this message as its first prompt and
+     * the connectors ticked on its chip, and [MissionChatUiState.started] tells the screen to open
+     * it. `sending` stays up until then: the answer is already on its way.
      *
      * A failure puts everything back in the composer, as a failed send does: nothing was created
      * that the person could see, and their words are theirs.
@@ -713,15 +700,13 @@ class MissionChatViewModel(
             try {
                 val files = attachments.map { it.asPromptPart() }
                 val created = withContext(ioDispatcher) {
-                    when (profile) {
-                        EngineProfile.CHAT -> repository.startChat(text = text, model = nextModel(), files = files)
-                        EngineProfile.TASK -> repository.launch(
-                            objective = text,
-                            connectors = staged.enabledConnectors.orEmpty().toList(),
-                            model = nextModel(),
-                            files = files,
-                        )
-                    }
+                    repository.startChat(
+                        text = text,
+                        // Null while the catalogue is unknown: the repository then takes the defaults.
+                        connectors = staged.enabledConnectors?.toList(),
+                        model = nextModel(),
+                        files = files,
+                    )
                 }
                 val title = chatTitle(text).ifBlank { attachments.firstOrNull()?.filename.orEmpty() }
                 _uiState.update { it.copy(started = StartedChat(created, title)) }
@@ -743,13 +728,12 @@ class MissionChatViewModel(
 
     /**
      * The model the next message names: what the chip shows — the pick, else the model the last turn
-     * ran on, else (a chat) the chat provider's default. A chat and a task alike.
+     * ran on, else the conversations' provider default.
      *
-     * A task used to send nothing unless a model had just been picked, on the belief that the engine
-     * keeps a session's model. It does not: a message without one runs on the **agent's** model. So
-     * a task switched to another model went back to the mission agent's default as soon as the app
-     * restarted and forgot the pick (Raphaël, 03/10/2026). The last turn's model is the session's
-     * model, and it is now sent as such.
+     * Never nothing: the engine does not keep a session's model, and a message without one runs on
+     * the **agent's** model. A conversation switched to another model went back to the default as
+     * soon as the app restarted and forgot the pick (Raphaël, 03/10/2026). The last turn's model is
+     * the session's model, and it is sent as such.
      */
     private fun nextModel() = _uiState.value.effectiveModel?.ref
 

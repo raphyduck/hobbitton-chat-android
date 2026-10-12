@@ -49,7 +49,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import com.garfiec.librechat.core.data.engine.EngineProfile
 import com.garfiec.librechat.core.model.engine.EngineSelectableModel
 import com.garfiec.librechat.core.ui.input.ChatInputBox
 import com.garfiec.librechat.core.ui.input.ChatInputDefaults
@@ -71,7 +70,6 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_attach_photo
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_add
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_connector_count
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_connectors_failed
-import com.garfiec.librechat.feature.tasks.resources.tasks_chat_hint
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_models_failed
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_no_connector
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_send
@@ -162,10 +160,7 @@ internal fun MissionChatInput(
             ChatInputField(
                 value = state.input,
                 onValueChange = onInput,
-                // A chat is asked; a task is described.
-                placeholder = stringResource(
-                    if (state.profile == EngineProfile.CHAT) Res.string.chat_hint else Res.string.tasks_chat_hint,
-                ),
+                placeholder = stringResource(Res.string.chat_hint),
                 maxLines = MAX_INPUT_LINES,
             )
             Row(
@@ -363,7 +358,7 @@ private fun AddButton(
  * The labels under the text: the model the next message runs on, then what this session can reach.
  *
  * Both carry their current value — the model's name, « 3 connecteurs » — because the answer to
- * « what is this mission allowed to do » should not require opening a sheet. The model leads, as
+ * « what is this conversation allowed to do » should not require opening a sheet. The model leads, as
  * on Claude's composer.
  *
  * The two are independent: the connectors come from the scheduler and the models from the engine,
