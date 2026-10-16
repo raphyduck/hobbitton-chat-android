@@ -82,7 +82,8 @@ fun selectRecentMissions(
 
 /**
  * Whether [title] is one the scheduler wrote: `<mission> — <trigger>`, where the trigger is the due
- * minute (`2026-09-23T06:30+0200`), `manuel` or the watch's `guet #N`, optionally followed by
+ * minute (`2026-09-23T06:30+0200`), `manuel`, `reprise après panne` (a retry on a fresh session)
+ * or the watch's `guet #N`, optionally followed by
  * ` reprise N`, then ` (lancement)` for a run started with a text and ` (à blanc)` for a dry run
  * (16/10/2026: the bench's dry runs filled the drawer, read as launched by hand).
  *
@@ -129,7 +130,7 @@ fun scheduledMissionName(title: String): String? {
 private const val IDLE = "idle"
 private const val SCHEDULER_SEPARATOR = " — "
 private val SCHEDULER_TRIGGER =
-    Regex("""(manuel|\d{4}-\d{2}-\d{2}T\d{2}:\d{2}[+-]\d{4}|guet #\d+)( reprise \d+)?( \(lancement\))?( \(à blanc\))?""")
+    Regex("""(manuel|reprise après panne|\d{4}-\d{2}-\d{2}T\d{2}:\d{2}[+-]\d{4}|guet #\d+)( reprise \d+)?( \(lancement\))?( \(à blanc\))?""")
 
 /**
  * Three round trips per refresh, whatever the number of sessions: the session list, the status map,

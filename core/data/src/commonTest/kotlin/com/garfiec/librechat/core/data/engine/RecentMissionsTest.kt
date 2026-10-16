@@ -34,6 +34,7 @@ class RecentMissionsTest {
         assertTrue(isScheduledRun("traiter-une-reponse — guet #12"))
         assertTrue(isScheduledRun("traiter-une-reponse — manuel (lancement) (à blanc)"))
         assertTrue(isScheduledRun("traiter-une-reponse — manuel reprise 3 (à blanc)"))
+        assertTrue(isScheduledRun("suivi-dossiers-ouverts — reprise après panne"))
     }
 
     @Test
