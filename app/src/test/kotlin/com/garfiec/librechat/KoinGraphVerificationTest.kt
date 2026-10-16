@@ -6,6 +6,7 @@ import com.garfiec.librechat.core.data.datastore.GlobalProfileEditor
 import com.garfiec.librechat.core.data.datastore.MissionReadingPositions
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.datastore.ThemeDataStore
+import com.garfiec.librechat.core.data.engine.ConversationReads
 import com.garfiec.librechat.core.data.engine.ConversationRequests
 import com.garfiec.librechat.core.data.engine.EngineAttentionWatcher
 import com.garfiec.librechat.core.data.engine.EngineMissionRepository
@@ -52,6 +53,7 @@ class KoinGraphVerificationTest {
             ThemeDataStore::class,
             MissionReadingPositions::class,
             SessionKindStore::class,
+            ConversationReads::class,
             GlobalProfileEditor::class,
             SettingsDataStore::class,
             // Bound by `engineModule` / `tasksModule`, which the application starts next to this
