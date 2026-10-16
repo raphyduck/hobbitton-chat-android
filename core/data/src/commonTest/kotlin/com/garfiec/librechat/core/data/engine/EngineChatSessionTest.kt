@@ -33,6 +33,9 @@ class EngineChatSessionTest {
     private var sessionsJson = "[]"
     private var messagesBySession: Map<String, String> = emptyMap()
 
+    /** What the scheduler's `historique(json_brut=True)` answers. */
+    private var runsJson = "[]"
+
     private val providersJson = """
         {
           "providers": [
@@ -58,7 +61,11 @@ class EngineChatSessionTest {
         val body = when {
             path == "/mcp" -> {
                 val text = (request.body as TextContent).text
-                if ("\"perimetre\"" in text) toolFrame("""{"session":"ses_chat","connecteurs":[],"enregistre":true}""") else catalogueFrame()
+                when {
+                    "\"perimetre\"" in text -> toolFrame("""{"session":"ses_chat","connecteurs":[],"enregistre":true}""")
+                    "\"historique\"" in text -> toolFrame(runsJson)
+                    else -> catalogueFrame()
+                }
             }
             path == "/config/providers" -> providersJson
             path == "/session/status" -> "{}"
@@ -229,11 +236,12 @@ class EngineChatSessionTest {
     }
 
     @Test
-    fun `the drawer lists every session, a run under its mission's name`() = runTest {
+    fun `the drawer lists the sessions started by hand, never a run of the scheduler`() = runTest {
         sessionsJson = """[
             {"id":"ses_here","title":"Une conversation d'ici","time":{"updated":400}},
             {"id":"ses_other","title":"Une conversation d'ailleurs","time":{"updated":300}},
             {"id":"ses_run","title":"veille — 2026-09-23T06:30+0200","time":{"updated":200}},
+            {"id":"ses_bench","title":"traiter-une-reponse — manuel reprise 2 (à blanc)","time":{"updated":150}},
             {"id":"ses_mission","title":"Ranger les factures","time":{"updated":100}}
         ]"""
         messagesBySession = mapOf(
@@ -244,20 +252,75 @@ class EngineChatSessionTest {
         val repository = testMissionRepository(engine(), kinds = kinds)
 
         val chats = repository.recentChats()
-        // Since D-082 the scheduler's runs are conversations like the others.
-        assertEquals<List<String>>(listOf("ses_here", "ses_other", "ses_run", "ses_mission"), chats.map { it.sessionId })
-        assertEquals(listOf(false, false, true, false), chats.map { it.scheduled })
-        assertEquals("veille", chats.single { it.scheduled }.title)
+        // 16/10/2026: the runs moved to the Conversations page, dry runs of the bench included.
+        assertEquals<List<String>>(listOf("ses_here", "ses_other", "ses_mission"), chats.map { it.sessionId })
+        assertTrue(chats.none { it.scheduled })
         // What was learned from a transcript is kept, so it is never read again.
         assertEquals(EngineSessionKind.CHAT, kinds.recorded["ses_other"])
         assertEquals(EngineSessionKind.TASK, kinds.recorded["ses_mission"])
     }
 
     @Test
+    fun `the conversations page lists every session, a run under its mission's name`() = runTest {
+        sessionsJson = """[
+            {"id":"ses_here","title":"Une conversation d'ici","time":{"updated":400}},
+            {"id":"ses_run","title":"veille — 2026-09-23T06:30+0200","time":{"updated":200}}
+        ]"""
+        val kinds = InMemorySessionKinds(mapOf("ses_here" to EngineSessionKind.CHAT))
+
+        val chats = testMissionRepository(engine(), kinds = kinds).recentChats(scope = ChatScope.ALL)
+
+        assertEquals<List<String>>(listOf("ses_here", "ses_run"), chats.map { it.sessionId })
+        assertEquals("veille", chats.single { it.scheduled }.title)
+    }
+
+    @Test
+    fun `unread come first, and a run is unread only when it had something to say`() = runTest {
+        sessionsJson = """[
+            {"id":"ses_quiet","title":"guet — 2026-10-16T17:30+0200","time":{"updated":900}},
+            {"id":"ses_seen","title":"Une conversation lue","time":{"updated":800}},
+            {"id":"ses_news","title":"guet — 2026-10-16T17:00+0200","time":{"updated":700}},
+            {"id":"ses_old","title":"Avant le décompte","time":{"updated":50}},
+            {"id":"ses_reply","title":"Une réponse arrivée","time":{"updated":600}},
+            {"id":"ses_failed","title":"brief — 2026-10-16T06:45+0200","time":{"updated":500}}
+        ]"""
+        runsJson = """[
+            {"session":"ses_quiet","mission":"guet","succes":true,"incomplet":false,"a_signaler":false},
+            {"session":"ses_news","mission":"guet","succes":true,"incomplet":false,"a_signaler":true},
+            {"session":"ses_failed","mission":"brief","succes":false,"incomplet":false,"a_signaler":true},
+            {"session":"ses_failed","mission":"brief","succes":false,"incomplet":false,"a_signaler":null}
+        ]"""
+        val kinds = InMemorySessionKinds(
+            listOf("ses_seen", "ses_old", "ses_reply").associateWith { EngineSessionKind.CHAT },
+        )
+        val reads = InMemoryConversationReads(floorMillis = 100, seen = mapOf("ses_seen" to 850))
+
+        val chats = testMissionRepository(engine(), kinds = kinds, reads = reads).recentChats(scope = ChatScope.ALL)
+
+        assertEquals<List<String>>(
+            listOf("ses_news", "ses_reply", "ses_failed", "ses_quiet", "ses_seen", "ses_old"),
+            chats.map { it.sessionId },
+        )
+        assertEquals(listOf(true, true, true, false, false, false), chats.map { it.unread })
+    }
+
+    @Test
+    fun `a conversation marked read is no longer unread`() = runTest {
+        sessionsJson = """[{"id":"ses_reply","title":"Une réponse arrivée","time":{"updated":600}}]"""
+        val kinds = InMemorySessionKinds(mapOf("ses_reply" to EngineSessionKind.CHAT))
+        val reads = InMemoryConversationReads(floorMillis = 100)
+        val repository = testMissionRepository(engine(), kinds = kinds, reads = reads)
+
+        assertTrue(repository.recentChats().single().unread)
+        repository.markRead("ses_reply", atMillis = 600)
+        assertTrue(!repository.recentChats().single().unread)
+    }
+
+    @Test
     fun `a session the scheduler titled is never read to be classified`() = runTest {
         sessionsJson = """[{"id":"ses_run","title":"veille — manuel","time":{"updated":1}}]"""
 
-        val chats = testMissionRepository(engine()).recentChats()
+        val chats = testMissionRepository(engine()).recentChats(scope = ChatScope.ALL)
 
         assertTrue(sent.none { it.url.encodedPath == "/session/ses_run/message" })
         assertEquals("veille", chats.single().title)

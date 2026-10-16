@@ -9,16 +9,21 @@ The engine shell, and the Koin module list the application starts from. KMP libr
   out, the conversation under a drawer when signed in. Re-checks the signed-in state on every return to the
   foreground. Provides `SafeUriHandler` (http(s) and mailto only) to everything below it.
 - `EngineShellViewModel` — signed-in state (`isPortalSignedIn`), the drawer's recent conversations
-  (every session since D-082, the scheduler's runs included), the theme, and sign-out: `PortalSignOut` (the portal's tokens and web-view cookies), then this device's
-  session kinds and reading positions. Every engine dependency is nullable (`getOrNull`).
+  (started by hand only, since 16/10/2026), the Conversations page's (`allChats`, every session,
+  unread first), `markRead` (called by `EngineMainLayout` when a conversation opens, is left, or the
+  app goes to the background), the theme, and sign-out: `PortalSignOut` (the portal's tokens and web-view cookies), then this device's
+  session kinds, read marks and reading positions. Every engine dependency is nullable (`getOrNull`).
 - `EngineNavigator`: the back stack: the conversation as root (`EngineChat`, any session since
   D-082), a new one's blank entry replaced in place once the engine has the session; Programmées,
   usage, settings and instructions pushed on top.
+- `EngineConversationsScreen` (16/10/2026): every session, the unread under « Non lues », then the
+  rest, each by latest activity; pushed like Programmées (`EngineConversations`), pull to refresh.
+  Its rows are the drawer's (`RecentChatItem`, an unread title in bold).
 - `EngineDrawer` (Claude's layout since lot 3, 10/10/2026) — a search over the titles (local
-  filter), two short entries (new conversation, Programmées), the recent conversations as bare titles under day
+  filter), three short entries (new conversation, Conversations, Programmées), the recent conversations started by hand as bare titles under day
   headers (Today / Yesterday / Previous 7 days / Older, in the phone's time zone: `groupRecent` in
-  `RecentGrouping.kt`, the offset from `localUtcOffsetMillis`, actual in `androidMain`), a small
-  clock on a scheduled run (named after its mission, D-082), a dot of the accent while one answers, a short age; placeholder rows on
+  `RecentGrouping.kt`, the offset from `localUtcOffsetMillis`, actual in `androidMain`), an unread title in bold,
+  a dot of the accent while one answers, a short age; placeholder rows on
   a first load; pulled down, the list re-reads (11/10/2026). At the foot, the account (`DrawerAccount`: the portal's name from
   `SchedulerRepository.identity`, the engine's host), which opens the settings.
 - `EngineNavHost` also sets the Nav 3 transitions: pushed screens slide in over a fade, a

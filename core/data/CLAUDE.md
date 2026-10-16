@@ -56,8 +56,12 @@ Since 12/10/2026 chats and tasks are one conversation, as on Claude.ai.
 - **`startChat(text, connectors, model, files)`**: the ticked connectors are the perimeter:
   turned into the session's rules by `permissionsFor`, recorded with the scheduler before the first
   prompt (D-071), and the session's kind recorded locally before anything can fail.
-- **`recentChats`** (the drawer): every session, the scheduler's runs included: a run is named
-  after its mission (`scheduledMissionName`) and marked `scheduled`. `classifySession` +
+- **`recentChats(scope)`**: `ChatScope.MANUAL` (the drawer) leaves the scheduler's runs out
+  before any transcript is read; `ChatScope.ALL` (the Conversations page) keeps them, named after
+  their mission (`scheduledMissionName`) and marked `scheduled`, sorted unread first (`inboxOrder`).
+  `unread` comes from `ConversationReads` (`EngineConversationReads`: when each session was last
+  shown here, and a floor so a first launch marks nothing; cleared at sign-out) and, for a run, from
+  the scheduler's `runs()` (`runHasNews`: news, failed or stopped short). `classifySession` +
   `SessionKindStore` (`EngineSessionKinds`) leave out a session that has said nothing yet; at most
   ten unknown transcripts are read per refresh and each verdict recorded. Cleared at sign-out with
   the reading positions.

@@ -6,6 +6,7 @@ import com.garfiec.librechat.feature.tasks.navigation.EngineChat
 import com.garfiec.librechat.feature.tasks.navigation.TasksList
 import com.garfiec.librechat.feature.tasks.navigation.TasksUsage
 import com.garfiec.librechat.shared.engine.EngineAppSettings
+import com.garfiec.librechat.shared.engine.EngineConversations
 import com.garfiec.librechat.shared.engine.EngineInstructions
 import com.garfiec.librechat.shared.engine.EngineNavigator
 import org.junit.Assert.assertEquals
@@ -52,6 +53,19 @@ class EngineNavigatorTest {
         subject.openTasks()
 
         assertEquals(listOf<NavKey>(EngineChat("ses_1"), TasksList), subject.backStack.toList())
+    }
+
+    @Test
+    fun `Conversations is pushed over the chat, and a conversation opened from it becomes the root`() {
+        val subject = navigator(EngineChat("ses_1"))
+
+        subject.openConversations()
+        subject.openTasks()
+        subject.openConversations()
+        assertEquals(listOf<NavKey>(EngineChat("ses_1"), EngineConversations), subject.backStack.toList())
+
+        subject.openChat("ses_2", "Une réponse")
+        assertEquals(listOf<NavKey>(EngineChat("ses_2", "Une réponse")), subject.backStack.toList())
     }
 
     @Test

@@ -6,6 +6,7 @@ import com.garfiec.librechat.core.model.scheduler.Consumption
 import com.garfiec.librechat.core.model.scheduler.ModelPrices
 import com.garfiec.librechat.core.model.scheduler.PortalIdentity
 import com.garfiec.librechat.core.model.scheduler.ProviderHealth
+import com.garfiec.librechat.core.model.scheduler.SchedulerRun
 import com.garfiec.librechat.core.model.scheduler.SchedulerState
 import com.garfiec.librechat.core.model.scheduler.SessionScope
 import com.garfiec.librechat.core.network.engine.EngineHttpException
@@ -107,6 +108,30 @@ class SchedulerApi(
             throw EngineHttpException(HTTP_OK, tool, "$UNEXPECTED_ANSWER: ${e.message}", e)
         } catch (e: IllegalArgumentException) {
             throw EngineHttpException(HTTP_OK, tool, "$UNEXPECTED_ANSWER: ${e.message}", e)
+        }
+    }
+
+    /**
+     * The latest runs of every mission, newest first, with whether each had something to say
+     * (16/10/2026): what tells a run that found nothing from one that brings news.
+     *
+     * The answer is a JSON **list**, which [decode] does not take; a failure still arrives as
+     * `{"erreur": "…"}` or as prose, and is raised the same way.
+     */
+    suspend fun runs(limit: Int = RUNS_READ): List<SchedulerRun> {
+        val payload = callTool("historique", buildJsonObject {
+            put("limite", limit)
+            put("json_brut", true)
+        })
+        payload.asJsonObjectOrNull()?.get("erreur")?.let { reason ->
+            throw EngineHttpException(HTTP_OK, "historique", reason.asStringOrNull() ?: reason.toString())
+        }
+        return try {
+            json.decodeFromString(payload)
+        } catch (e: SerializationException) {
+            throw EngineHttpException(HTTP_OK, "historique", "$UNEXPECTED_ANSWER: ${e.message}", e)
+        } catch (e: IllegalArgumentException) {
+            throw EngineHttpException(HTTP_OK, "historique", "$UNEXPECTED_ANSWER: ${e.message}", e)
         }
     }
 
@@ -391,6 +416,9 @@ class SchedulerApi(
 
     private companion object {
         const val HTTP_OK = 200
+
+        /** The scheduler's own ceiling on one `historique` read. */
+        const val RUNS_READ = 200
         const val UNEXPECTED_ANSWER = "unexpected answer from the scheduler"
 
         /** Twenty-five megabytes of speech is a long file; the server takes its time on it. */

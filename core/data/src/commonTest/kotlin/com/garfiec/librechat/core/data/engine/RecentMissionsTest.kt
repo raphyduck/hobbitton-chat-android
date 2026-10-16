@@ -30,6 +30,10 @@ class RecentMissionsTest {
         assertTrue(isScheduledRun("suivi-dossiers-ouverts — manuel"))
         assertTrue(isScheduledRun("rapprochement-qonto — 2026-09-23T05:00+0200 reprise 2"))
         assertTrue(isScheduledRun("Aurou élec, sortir d'Engie, jour 1 — 2026-09-14T08:30+0200"))
+        // 16/10/2026: the watch's runs, runs started with a text, dry runs.
+        assertTrue(isScheduledRun("traiter-une-reponse — guet #12"))
+        assertTrue(isScheduledRun("traiter-une-reponse — manuel (lancement) (à blanc)"))
+        assertTrue(isScheduledRun("traiter-une-reponse — manuel reprise 3 (à blanc)"))
     }
 
     @Test

@@ -8,6 +8,8 @@ import com.garfiec.librechat.core.data.datastore.MissionReadingPositions
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.datastore.ThemeDataStore
 import com.garfiec.librechat.core.data.datastore.ThemeMode
+import com.garfiec.librechat.core.data.engine.ChatScope
+import com.garfiec.librechat.core.data.engine.ConversationReads
 import com.garfiec.librechat.core.data.engine.ConversationRequests
 import com.garfiec.librechat.core.data.engine.EngineAttentionWatcher
 import com.garfiec.librechat.core.data.engine.EngineChatSummary
@@ -32,8 +34,9 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.time.Clock
 
-/** The drawer's conversations, and whether they could be read. */
+/** A list of conversations (the drawer's, or the Conversations page's), and whether it could be read. */
 data class EngineChatsState(
     val chats: List<EngineChatSummary> = emptyList(),
     val loading: Boolean = false,
@@ -58,6 +61,8 @@ class EngineShellViewModel(
     private val portalSignOut: PortalSignOut?,
     private val repository: EngineMissionRepository?,
     private val kinds: SessionKindStore,
+    /** What this device has shown of each conversation: forgotten at sign-out (16/10/2026). */
+    private val reads: ConversationReads,
     private val positions: MissionReadingPositions,
     private val themeDataStore: ThemeDataStore,
     /** The Settings switch for sound and notifications (03/10/2026). */
@@ -76,7 +81,14 @@ class EngineShellViewModel(
     val signedIn: StateFlow<Boolean?> = _signedIn.asStateFlow()
 
     private val _chats = MutableStateFlow(EngineChatsState())
+
+    /** The drawer: the conversations the person started, most recent first (16/10/2026). */
     val chats: StateFlow<EngineChatsState> = _chats.asStateFlow()
+
+    private val _allChats = MutableStateFlow(EngineChatsState())
+
+    /** The Conversations page: every session, the scheduler's runs included, unread first. */
+    val allChats: StateFlow<EngineChatsState> = _allChats.asStateFlow()
 
     private val _addresses = MutableStateFlow<EngineAccess?>(null)
 
@@ -104,6 +116,7 @@ class EngineShellViewModel(
         ?: MutableStateFlow<OpenConversation?>(null).asStateFlow()
 
     private var chatsJob: Job? = null
+    private var allChatsJob: Job? = null
     private var attentionJob: Job? = null
 
     init {
@@ -199,6 +212,35 @@ class EngineShellViewModel(
         }
     }
 
+    /** Re-reads the Conversations page. One read at a time, as for the drawer. */
+    fun refreshAllChats() {
+        val source = repository ?: return
+        if (allChatsJob?.isActive == true) return
+        allChatsJob = viewModelScope.launch {
+            _allChats.update { it.copy(loading = true) }
+            try {
+                _allChats.value = EngineChatsState(chats = source.recentChats(scope = ChatScope.ALL))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Logger.w(e) { "Conversations: the engine's sessions could not be read" }
+                _allChats.update { it.copy(loading = false, failed = true) }
+            }
+        }
+    }
+
+    /**
+     * [sessionId] was on screen until now: what it said is read. Called when a conversation opens
+     * and when it is left, so a reply that arrived while it was shown does not light it up.
+     * The lists drop its unread mark at once, without waiting for their next read.
+     */
+    fun markRead(sessionId: String) {
+        val source = repository ?: return
+        _chats.update { state -> state.copy(chats = state.chats.map { if (it.sessionId == sessionId) it.copy(unread = false) else it }) }
+        _allChats.update { state -> state.copy(chats = state.chats.map { if (it.sessionId == sessionId) it.copy(unread = false) else it }) }
+        viewModelScope.launch { source.markRead(sessionId, Clock.System.now().toEpochMilliseconds()) }
+    }
+
     fun setThemeMode(mode: ThemeMode) {
         viewModelScope.launch { themeDataStore.setThemeMode(mode) }
     }
@@ -217,11 +259,14 @@ class EngineShellViewModel(
                 runCatching { portalSignOut?.onSignedOut(serverUrl = null) }
                     .onFailure { Logger.w(it) { "Portal sign-out failed" } }
                 runCatching { kinds.clear() }.onFailure { Logger.w(it) { "Could not clear the session kinds" } }
+                runCatching { reads.clear() }.onFailure { Logger.w(it) { "Could not clear the read marks" } }
                 runCatching { positions.clear() }.onFailure { Logger.w(it) { "Could not clear the reading positions" } }
             }
             chatsJob?.cancel()
+            allChatsJob?.cancel()
             stopAttention()
             _chats.value = EngineChatsState()
+            _allChats.value = EngineChatsState()
             _identity.value = null
             _signedIn.value = false
         }

@@ -22,8 +22,11 @@ import kotlinx.serialization.modules.subclass
 /** The conversations' spending ceilings, opened from the settings (12/10/2026). */
 @Serializable data object EngineBudget : NavKey
 
+/** Every conversation, the scheduler's runs included, unread first (16/10/2026). */
+@Serializable data object EngineConversations : NavKey
+
 /**
- * Every route the engine shell can hold (the conversation, Programmées and the settings), and
+ * Every route the engine shell can hold (the conversation, Conversations, Programmées and the settings), and
  * nothing of LibreChat's. A route missing from here deserializes to nothing and a restored stack loses it.
  */
 val engineShellSavedStateConfig = SavedStateConfiguration {
@@ -32,6 +35,7 @@ val engineShellSavedStateConfig = SavedStateConfiguration {
             subclass(EngineAppSettings::class)
             subclass(EngineInstructions::class)
             subclass(EngineBudget::class)
+            subclass(EngineConversations::class)
         }
     }
 }
@@ -68,14 +72,11 @@ class EngineNavigator(val backStack: NavBackStack<NavKey>) {
         if (index >= 0) backStack[index] = started else openAsRoot(started)
     }
 
+    /** Conversations: pushed over the conversation, unwound to when already on the stack. */
+    fun openConversations() = pushOrUnwind(EngineConversations)
+
     /** Programmées: pushed over the conversation, unwound to when already on the stack. */
-    fun openTasks() {
-        if (TasksList !in backStack) {
-            backStack.add(TasksList)
-            return
-        }
-        while (backStack.lastOrNull() != TasksList) backStack.removeLastOrNull()
-    }
+    fun openTasks() = pushOrUnwind(TasksList)
 
     fun openSettings() {
         if (currentRoute != EngineAppSettings) backStack.add(EngineAppSettings)
@@ -93,6 +94,14 @@ class EngineNavigator(val backStack: NavBackStack<NavKey>) {
 
     fun openUsage() {
         if (currentRoute != TasksUsage) backStack.add(TasksUsage)
+    }
+
+    private fun pushOrUnwind(route: NavKey) {
+        if (route !in backStack) {
+            backStack.add(route)
+            return
+        }
+        while (backStack.lastOrNull() != route) backStack.removeLastOrNull()
     }
 
     private fun openAsRoot(route: NavKey) {
