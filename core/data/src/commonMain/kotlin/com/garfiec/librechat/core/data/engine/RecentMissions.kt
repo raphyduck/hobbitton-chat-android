@@ -130,7 +130,10 @@ fun scheduledMissionName(title: String): String? {
 private const val IDLE = "idle"
 private const val SCHEDULER_SEPARATOR = " — "
 private val SCHEDULER_TRIGGER =
-    Regex("""(manuel|reprise après panne|\d{4}-\d{2}-\d{2}T\d{2}:\d{2}[+-]\d{4}|guet #\d+)( reprise \d+)?( \(lancement\))?( \(à blanc\))?""")
+    Regex(
+        """(manuel|reprise après panne|\d{4}-\d{2}-\d{2}T\d{2}:\d{2}[+-]\d{4}|guet #\d+)""" +
+            """( reprise \d+)?( \(lancement\))?( \(à blanc\))?""",
+    )
 
 /**
  * Three round trips per refresh, whatever the number of sessions: the session list, the status map,
