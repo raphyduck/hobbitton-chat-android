@@ -41,7 +41,7 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   git-ignored `platform.properties`; « Autre plateforme » unfolds the fields) and saves them in
   `EngineSettingsStore`. Signed in = addresses set **and** portal tokens held (`isPortalSignedIn`).
 - **Root = `EngineNavHost`** (`shared/.../engine/`): the conversation under a drawer (new
-  conversation, Programmées, the recent conversations, Settings). `MainActivity` composes it; the
+  conversation, Conversations, Programmées, the recent conversations started by hand, Settings). `MainActivity` composes it; the
   only link it acts on is the portal's return (`at.hobbitton.chat://oauth`).
 - **One kind of conversation** (D-082, 12/10/2026, as on Claude.ai): chats and tasks are fused.
   Every conversation is a session on agent `chat` whose model always comes from provider
@@ -54,9 +54,16 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   screen (`MissionChatScreen`), one route (`EngineChat`) for every session: a chat, a task of an
   earlier version, a scheduled run, whose follow-ups run on `chat` too.
 - **Programmées** (ex Tasks tab): the scheduler's entries only, recurring then one-shot, each row
-  opening its actions. Their runs are not listed there: they are conversations in the drawer, named
-  after their mission with a small clock (`EngineChatSummary.scheduled`). `classifySession` still
-  leaves out of the drawer a session that has said nothing yet.
+  opening its actions. Their runs are not listed there: they are conversations, named after their
+  mission with a small clock (`EngineChatSummary.scheduled`). `classifySession` still leaves out a
+  session that has said nothing yet.
+- **Drawer and Conversations** (16/10/2026, Raphaël's rule): the drawer lists only the
+  conversations started by hand (`ChatScope.MANUAL`), never a run of the scheduler (cron, `manuel`,
+  `guet #N`, `(lancement)`, `(à blanc)`). The Conversations page (`EngineConversationsScreen`, an
+  entry of the drawer) lists every session, unread first, then by latest activity (`inboxOrder`).
+  Unread = moved since this device last showed it (`ConversationReads`); for a run, also « had
+  something to say »: the scheduler's `historique(json_brut=True)` carries `a_signaler`, false when
+  the run answered « RIEN À SIGNALER » (`runHasNews`).
 - **A new chat greets** (lot 2, 10/10/2026): « Bonjour, <prénom>. » in the serif, the first name
   read from the scheduler's `GET /identite` (the portal's `Remote-Name`, via `SchedulerRepository.identity`),
   without a name when it gives none. The composer is Claude's: a raised box, bare field, plain

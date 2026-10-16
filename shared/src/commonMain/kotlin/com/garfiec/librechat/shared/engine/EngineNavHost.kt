@@ -41,6 +41,7 @@ import com.garfiec.librechat.feature.auth.screen.PortalSignInScreen
 import com.garfiec.librechat.feature.tasks.navigation.EngineChat
 import com.garfiec.librechat.feature.tasks.navigation.engineChatEntries
 import com.garfiec.librechat.feature.tasks.navigation.tasksEntries
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -64,6 +65,7 @@ fun EngineNavHost(
 ) {
     val signedIn by viewModel.signedIn.collectAsStateWithLifecycle()
     val chats by viewModel.chats.collectAsStateWithLifecycle()
+    val allChats by viewModel.allChats.collectAsStateWithLifecycle()
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val addresses by viewModel.addresses.collectAsStateWithLifecycle()
     val attentionSound by viewModel.attentionSound.collectAsStateWithLifecycle()
@@ -93,6 +95,7 @@ fun EngineNavHost(
                         )
                         EngineMainLayout(
                             chats = chats,
+                            allChats = allChats,
                             account = account,
                             settings = EngineSettingsUiState(
                                 themeMode = themeMode,
@@ -104,6 +107,8 @@ fun EngineNavHost(
                             openRequest = openRequest,
                             onConsumeOpenRequest = viewModel::consumeOpenRequest,
                             onRefreshChats = viewModel::refreshChats,
+                            onRefreshAllChats = viewModel::refreshAllChats,
+                            onMarkRead = viewModel::markRead,
                             onThemeMode = viewModel::setThemeMode,
                             onChatFontSize = viewModel::setChatFontSize,
                             onAttentionSound = { enabled ->
@@ -127,11 +132,14 @@ fun EngineNavHost(
 @Composable
 private fun EngineMainLayout(
     chats: EngineChatsState,
+    allChats: EngineChatsState,
     account: DrawerAccount,
     settings: EngineSettingsUiState,
     openRequest: OpenConversation?,
     onConsumeOpenRequest: (OpenConversation) -> Unit,
     onRefreshChats: () -> Unit,
+    onRefreshAllChats: () -> Unit,
+    onMarkRead: (String) -> Unit,
     onThemeMode: (ThemeMode) -> Unit,
     onChatFontSize: (ChatFontSize) -> Unit,
     onAttentionSound: (Boolean) -> Unit,
@@ -143,6 +151,7 @@ private fun EngineMainLayout(
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val refreshChats by rememberUpdatedState(onRefreshChats)
+    val refreshAllChats by rememberUpdatedState(onRefreshAllChats)
 
     // The drawer re-reads the chats each time it opens: a chat started on another device, or
     // answered while the drawer was shut, moves to the top.
@@ -163,6 +172,21 @@ private fun EngineMainLayout(
     val closeDrawer: () -> Unit = { scope.launch { drawerState.close() } }
     val activeChat = (navigator.currentRoute as? EngineChat)?.sessionId
 
+    // What is on screen is read (16/10/2026): the conversation as it opens, and again as it is left,
+    // so a reply that arrived while it was shown does not come back unread. Leaving the app counts
+    // as leaving it, the same as opening another one.
+    val markRead by rememberUpdatedState(onMarkRead)
+    LaunchedEffect(activeChat) {
+        val shown = activeChat ?: return@LaunchedEffect
+        markRead(shown)
+        try {
+            awaitCancellation()
+        } finally {
+            markRead(shown)
+        }
+    }
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { activeChat?.let(markRead) }
+
     ModalNavigationDrawer(
         drawerState = drawerState,
         modifier = modifier,
@@ -178,6 +202,10 @@ private fun EngineMainLayout(
                     onOpenChat = { chat ->
                         closeDrawer()
                         navigator.openChat(chat.sessionId, chat.title)
+                    },
+                    onOpenConversations = {
+                        closeDrawer()
+                        navigator.openConversations()
                     },
                     onOpenTasks = {
                         closeDrawer()
@@ -246,6 +274,16 @@ private fun EngineMainLayout(
                             navigator.newChat()
                             onSignOut()
                         },
+                    )
+                }
+                entry<EngineConversations> {
+                    // Read on every arrival: a run that finished while the page was shut moves up.
+                    LaunchedEffect(Unit) { refreshAllChats() }
+                    EngineConversationsScreen(
+                        state = allChats,
+                        onBack = { navigator.goBack() },
+                        onOpenChat = { chat -> navigator.openChat(chat.sessionId, chat.title) },
+                        onRefresh = onRefreshAllChats,
                     )
                 }
                 entry<EngineInstructions> {

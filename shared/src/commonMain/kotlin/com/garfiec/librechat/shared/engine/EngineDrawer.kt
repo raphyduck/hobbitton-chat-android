@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Chat
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Search
@@ -45,6 +46,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -55,7 +58,9 @@ import com.garfiec.librechat.shared.resources.engine_age_days
 import com.garfiec.librechat.shared.resources.engine_age_hours
 import com.garfiec.librechat.shared.resources.engine_age_minutes
 import com.garfiec.librechat.shared.resources.engine_chat_running
+import com.garfiec.librechat.shared.resources.engine_chat_unread
 import com.garfiec.librechat.shared.resources.engine_drawer_account
+import com.garfiec.librechat.shared.resources.engine_drawer_conversations
 import com.garfiec.librechat.shared.resources.engine_drawer_empty
 import com.garfiec.librechat.shared.resources.engine_drawer_failed
 import com.garfiec.librechat.shared.resources.engine_drawer_new_chat
@@ -91,11 +96,11 @@ data class DrawerAccount(
  * over the titles, two short entries (a new conversation, Programmées), the recent conversations as
  * bare titles under quiet day headers, and the account at the foot, which opens the settings.
  *
- * Since D-082 (12/10/2026) the list is every session, as on Claude.ai: chats, former tasks, and the
- * scheduler's runs (Programmées lists the scheduler's entries and none of their sessions). A run
- * is named after its mission and carries a small clock ([EngineChatSummary.scheduled]); the « Tâche »
- * tag is gone with the distinction it drew. A conversation still answering carries a dot of the
- * accent; a first load shows placeholder rows instead of a progress bar over an empty list.
+ * Since 16/10/2026 the list holds the conversations the person started, never a run of the
+ * scheduler (`ChatScope.MANUAL`): a mission run every half hour buried them. Every session, the
+ * runs included, is on the Conversations page, the entry above Programmées. A conversation still
+ * answering carries a dot of the accent, an unread one a bold title; a first load shows
+ * placeholder rows instead of a progress bar over an empty list.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -104,6 +109,7 @@ internal fun EngineDrawerContent(
     activeSessionId: String?,
     onNewChat: () -> Unit,
     onOpenChat: (EngineChatSummary) -> Unit,
+    onOpenConversations: () -> Unit,
     onOpenTasks: () -> Unit,
     onOpenSettings: () -> Unit,
     onRetry: () -> Unit,
@@ -119,6 +125,12 @@ internal fun EngineDrawerContent(
             label = stringResource(Res.string.engine_drawer_new_chat),
             onClick = onNewChat,
             modifier = Modifier.testTag("drawer_new_chat"),
+        )
+        DrawerEntry(
+            icon = Icons.AutoMirrored.Outlined.Chat,
+            label = stringResource(Res.string.engine_drawer_conversations),
+            onClick = onOpenConversations,
+            modifier = Modifier.testTag("drawer_conversations"),
         )
         DrawerEntry(
             icon = Icons.Outlined.Schedule,
@@ -267,7 +279,7 @@ private fun RecentChats(
 }
 
 @Composable
-private fun RecentHeader(text: String) {
+internal fun RecentHeader(text: String) {
     Text(
         text = text,
         style = MaterialTheme.typography.labelMedium,
@@ -277,7 +289,7 @@ private fun RecentHeader(text: String) {
 }
 
 @Composable
-private fun QuietLine(text: String) {
+internal fun QuietLine(text: String) {
     Text(
         text = text,
         style = MaterialTheme.typography.bodyMedium,
@@ -287,12 +299,13 @@ private fun QuietLine(text: String) {
 }
 
 /**
- * One conversation: its title alone, a small clock when the scheduler started it, a dot of the
- * accent while it answers (« Running » is said for TalkBack), and how long ago it moved. The open
- * one sits on a sand fill.
+ * One conversation: its title alone (in bold while unread), a small clock when the scheduler
+ * started it, a dot of the accent while it answers (« Running » is said for TalkBack), and how
+ * long ago it moved. The open one sits on a sand fill. Shared by the drawer and the Conversations
+ * page.
  */
 @Composable
-private fun RecentChatItem(
+internal fun RecentChatItem(
     chat: EngineChatSummary,
     nowMillis: Long,
     selected: Boolean,
@@ -311,14 +324,18 @@ private fun RecentChatItem(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
+        val unread = stringResource(Res.string.engine_chat_unread)
         Text(
             chat.title,
-            style = MaterialTheme.typography.bodyMedium,
+            // Unread (16/10/2026): the title in bold, as a mail client marks it; TalkBack says it.
+            style = MaterialTheme.typography.bodyMedium.let {
+                if (chat.unread) it.copy(fontWeight = FontWeight.SemiBold) else it
+            },
             color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             // All the room the tag, the dot and the age leave: the title is what one reads.
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.weight(1f).semantics { if (chat.unread) stateDescription = unread },
         )
         if (chat.scheduled) {
             val scheduled = stringResource(Res.string.engine_drawer_scheduled_run)
@@ -405,7 +422,7 @@ private fun AccountRow(account: DrawerAccount?, onClick: () -> Unit) {
 
 /** A stand-in row while the first list loads: a title's place, no shimmer. */
 @Composable
-private fun PlaceholderRow() {
+internal fun PlaceholderRow() {
     val fill = MaterialTheme.colorScheme.surfaceContainerHighest
     Row(
         modifier = Modifier.fillMaxWidth().height(ROW_HEIGHT).padding(horizontal = 20.dp),

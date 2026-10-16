@@ -12,6 +12,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
 import com.garfiec.librechat.core.data.engine.EngineChatSummary
 import com.garfiec.librechat.core.data.engine.EngineSessionKind
+import com.garfiec.librechat.core.data.engine.inboxOrder
 import com.garfiec.librechat.core.model.scheduler.ChatBudget
 import com.garfiec.librechat.core.network.engine.EngineAccess
 import com.garfiec.librechat.core.ui.theme.LibreChatTheme
@@ -39,6 +40,12 @@ class CaptureShellTest {
     fun drawerDark() = capture("drawer-dark", dark = true) { Drawer() }
 
     @Test
+    fun conversationsLight() = capture("conversations-light", dark = false) { Conversations() }
+
+    @Test
+    fun conversationsDark() = capture("conversations-dark", dark = true) { Conversations() }
+
+    @Test
     fun settingsLight() = capture("settings-light", dark = false) { Settings() }
 
     @Test
@@ -64,6 +71,16 @@ class CaptureShellTest {
         rule.waitForIdle()
         rule.onRoot().captureRoboImage("build/captures/$name.png")
     }
+}
+
+@Composable
+private fun Conversations() {
+    EngineConversationsScreen(
+        state = EngineChatsState(chats = inboxOrder(CHATS)),
+        onBack = {},
+        onOpenChat = {},
+        onRefresh = {},
+    )
 }
 
 @Composable
@@ -107,10 +124,11 @@ private fun Drawer() {
         drawerContent = {
             ModalDrawerSheet {
                 EngineDrawerContent(
-                    state = EngineChatsState(chats = CHATS),
+                    state = EngineChatsState(chats = CHATS.filterNot { it.scheduled }),
                     activeSessionId = "c1",
                     onNewChat = {},
                     onOpenChat = {},
+                    onOpenConversations = {},
                     onOpenTasks = {},
                     onOpenSettings = {},
                     onRetry = {},
@@ -128,8 +146,10 @@ private const val HOUR = 3_600_000L
 
 private val CHATS = listOf(
     EngineChatSummary("c1", "Résumé des e-mails du matin", NOW - 5 * 60_000, running = true),
-    EngineChatSummary("c2", "Agenda de la semaine", NOW - 3 * HOUR, running = false),
+    EngineChatSummary("c2", "Agenda de la semaine", NOW - 3 * HOUR, running = false, unread = true),
     EngineChatSummary("r1", "point-mails-matin", NOW - 4 * HOUR, running = false, kind = EngineSessionKind.TASK, scheduled = true),
+    EngineChatSummary("r2", "suivi-dossiers-ouverts", NOW - 20 * 60_000, running = false, kind = EngineSessionKind.TASK, scheduled = true),
+    EngineChatSummary("r3", "guet-reponses", NOW - 50 * 60_000, running = false, kind = EngineSessionKind.TASK, scheduled = true, unread = true),
     EngineChatSummary("t1", "Vente Audi Q5 : relance des acheteurs", NOW - 26 * HOUR, running = false, kind = EngineSessionKind.TASK),
     EngineChatSummary("c3", "Devis assurance Matmut", NOW - 3 * 24 * HOUR, running = false),
     EngineChatSummary("c4", "Idées cadeau pour Lucie", NOW - 12 * 24 * HOUR, running = false),

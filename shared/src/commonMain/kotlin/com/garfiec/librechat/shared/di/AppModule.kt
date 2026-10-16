@@ -27,6 +27,7 @@ val sharedAppModule = module {
             portalSignOut = getOrNull<PortalSignOut>(),
             repository = getOrNull<EngineMissionRepository>(),
             kinds = get(),
+            reads = get(),
             positions = get(),
             themeDataStore = get(),
             settingsDataStore = get(),

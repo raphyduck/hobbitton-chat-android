@@ -12,6 +12,7 @@ import com.garfiec.librechat.core.model.engine.EngineSelectableModel
 import com.garfiec.librechat.core.model.engine.EngineStreamEvent
 import com.garfiec.librechat.core.model.engine.engineHistoryEvents
 import com.garfiec.librechat.core.model.scheduler.ConnectorCatalogue
+import com.garfiec.librechat.core.model.scheduler.SchedulerRun
 import com.garfiec.librechat.core.network.api.AgentEngineApi
 import com.garfiec.librechat.core.network.api.SchedulerApi
 import com.garfiec.librechat.core.network.engine.EngineEventTransport
@@ -20,13 +21,14 @@ import com.garfiec.librechat.core.network.engine.EngineStreamClient
 import kotlinx.coroutines.flow.Flow
 
 /**
- * One conversation as the drawer lists it. Since D-082 (12/10/2026) every session opens the same
+ * One conversation as the lists show it. Since D-082 (12/10/2026) every session opens the same
  * way, whoever started it: a chat, a task of an earlier version, or a run of a scheduled mission.
  *
- * [scheduled] marks a run the scheduler started: the drawer gives it a small clock, and its
- * [title] is the mission's name rather than the scheduler's `<mission> — <due minute>` (the age at
- * the end of the row already says when). [running] claims only what the status map proves: a
- * session that is answering right now. Nothing else is read to build a row.
+ * [scheduled] marks a run the scheduler started: it gets a small clock, and its [title] is the
+ * mission's name rather than the scheduler's `<mission> — <due minute>` (the age at the end of the
+ * row already says when). [running] claims only what the status map proves: a session that is
+ * answering right now. [unread]: it moved since this device last showed it, and, for a scheduled
+ * run, it has something to say (16/10/2026, [ChatScope]).
  */
 data class EngineChatSummary(
     val sessionId: String,
@@ -35,7 +37,36 @@ data class EngineChatSummary(
     val running: Boolean,
     val kind: EngineSessionKind = EngineSessionKind.CHAT,
     val scheduled: Boolean = false,
+    val unread: Boolean = false,
 )
+
+/**
+ * Which sessions a list holds (16/10/2026, Raphaël's rule).
+ *
+ *  * [MANUAL], the drawer: the conversations the person started, never a run of the scheduler —
+ *    a mission run every half hour would bury them within a morning.
+ *  * [ALL], the Conversations page: every session, unread first, then by latest activity
+ *    ([inboxOrder]).
+ */
+enum class ChatScope { MANUAL, ALL }
+
+/**
+ * The Conversations page's order: the unread first, then the most recently active, in each half.
+ */
+fun inboxOrder(chats: List<EngineChatSummary>): List<EngineChatSummary> =
+    chats.sortedWith(
+        compareByDescending<EngineChatSummary> { it.unread }
+            .thenByDescending { it.lastActivityMillis ?: Long.MIN_VALUE },
+    )
+
+/**
+ * Whether a scheduler run has something to say, and so may count as unread (16/10/2026): it said
+ * so ([SchedulerRun.hasNews]), it failed, or it stopped short. A run that found nothing, one still
+ * running, and one the scheduler kept no verdict for (recorded before it did, or not its own) are
+ * read: a list that lit up for every half-hourly pass would point at nothing.
+ */
+fun runHasNews(run: SchedulerRun?): Boolean =
+    run != null && (run.hasNews == true || run.succeeded == false || run.incomplete)
 
 /** What the model picker needs: the list, and the model a conversation runs on when none is picked. */
 data class EngineModelChoice(
@@ -59,6 +90,8 @@ class EngineMissionRepository(
     private val globalProfile: GlobalProfileSource,
     /** Which session is a chat and which a task, as far as this device knows (D-077). */
     private val kinds: SessionKindStore,
+    /** When this device last showed each conversation; null leaves every row read (16/10/2026). */
+    private val reads: ConversationReads? = null,
 ) {
 
     /**
@@ -115,49 +148,83 @@ class EngineMissionRepository(
     }
 
     /**
-     * The drawer's recent conversations, most recently active first: every session, whoever started
-     * it. The scheduler's runs joined the list on 12/10/2026 (D-082): Programmées shows the
-     * scheduler's entries only, and their sessions are conversations like any other; a run is
-     * marked ([EngineChatSummary.scheduled]) and named after its mission.
+     * The conversations of [scope], most recently active first for the drawer ([ChatScope.MANUAL]:
+     * the scheduler's runs left out), unread first for the Conversations page ([ChatScope.ALL],
+     * [inboxOrder]). A run is marked ([EngineChatSummary.scheduled]) and named after its mission.
      *
      * Classified by [classifySession]: what this device recorded first, then the scheduler's title
      * shape, and only then the transcript — read for at most [MAX_CLASSIFICATION_READS] unknown
      * sessions per refresh, and the verdict recorded so it is never read again. A session that says
      * nothing yet (no message) is left out: it is either a conversation being created right now,
      * which its creator recorded, or nobody's.
+     *
+     * Unread ([EngineChatSummary.unread]) costs two reads per refresh, whatever the number of rows:
+     * this device's read marks, and, for [ChatScope.ALL], the scheduler's latest runs, which say
+     * whether each had something to say ([runHasNews]). Without either, rows read as read.
      */
-    suspend fun recentChats(limit: Int = RECENT_CHATS_SHOWN): List<EngineChatSummary> {
+    suspend fun recentChats(
+        scope: ChatScope = ChatScope.MANUAL,
+        limit: Int = if (scope == ChatScope.ALL) CONVERSATIONS_SHOWN else RECENT_CHATS_SHOWN,
+    ): List<EngineChatSummary> {
         val statuses = runCatching { api.status() }.getOrDefault(emptyMap())
         val recorded = recordedKinds()
+        val read = reads?.let { store -> runCatching { store.snapshot() }.getOrNull() }
+        val runs = if (scope == ChatScope.ALL) latestRuns() else emptyMap()
         val sessions = api.sessions()
             .sortedByDescending { it.time?.updated ?: it.time?.created ?: Long.MIN_VALUE }
         val learned = mutableMapOf<String, EngineSessionKind>()
-        var reads = 0
+        var classified = 0
         val chats = mutableListOf<EngineChatSummary>()
         for (session in sessions) {
             if (chats.size >= limit) break
+            val mission = session.title?.let(::scheduledMissionName)
+            // Before any transcript is read: a run never costs the drawer one.
+            if (mission != null && scope == ChatScope.MANUAL) continue
             var kind = classifySession(session.title, recorded[session.id], messages = null)
-            if (kind == null && reads < MAX_CLASSIFICATION_READS) {
-                reads++
+            if (kind == null && classified < MAX_CLASSIFICATION_READS) {
+                classified++
                 val messages = runCatching { api.messages(session.id) }.getOrNull()
                 kind = classifySession(session.title, null, messages)
                 if (kind != null) learned[session.id] = kind
             }
             if (kind != null) {
                 val active = statuses[session.id]
-                val mission = session.title?.let(::scheduledMissionName)
+                val lastActivity = session.time?.updated ?: session.time?.created
+                val moved = read?.isUnread(session.id, lastActivity) == true
                 chats += EngineChatSummary(
                     sessionId = session.id,
                     title = mission ?: session.title.orEmpty().ifBlank { session.id },
-                    lastActivityMillis = session.time?.updated ?: session.time?.created,
+                    lastActivityMillis = lastActivity,
                     running = active != null && active.type != IDLE_STATUS,
                     kind = kind,
                     scheduled = mission != null,
+                    unread = moved && (mission == null || runHasNews(runs[session.id])),
                 )
             }
         }
         remember(learned)
-        return chats
+        return if (scope == ChatScope.ALL) inboxOrder(chats) else chats
+    }
+
+    /** The conversation was on screen at [atMillis]: it reads as read up to then. */
+    suspend fun markRead(sessionId: String, atMillis: Long) {
+        val store = reads ?: return
+        runCatching { store.markRead(sessionId, atMillis) }
+            .onFailure { Logger.w(it) { "Could not record that $sessionId was read" } }
+    }
+
+    /**
+     * Each session's latest run, by session id. A retry continues the same session (11/10/2026), so
+     * a session may carry several runs: the newest, listed first, is the one that says how it ended.
+     * Empty when the scheduler cannot say: every run then reads as read, never as news.
+     */
+    private suspend fun latestRuns(): Map<String, SchedulerRun> {
+        val runs = runCatching { scheduler.runs() }
+            .onFailure { Logger.w(it) { "Conversations: the scheduler's runs are unavailable" } }
+            .getOrDefault(emptyList())
+        val bySession = LinkedHashMap<String, SchedulerRun>()
+        runs.forEach { run -> run.session?.let { bySession.getOrPut(it) { run } } }
+        return bySession
     }
 
     /**
@@ -390,10 +457,16 @@ class EngineMissionRepository(
         const val IDLE_STATUS = "idle"
 
         /**
-         * The drawer's conversations: a few weeks of them, not an archive. 60 rather than 40 since
-         * the scheduler's runs share the list (about nine a day, D-082).
+         * The drawer's conversations: a few weeks of them, not an archive. The scheduler's runs
+         * left it on 16/10/2026; the Conversations page lists them ([CONVERSATIONS_SHOWN]).
          */
         const val RECENT_CHATS_SHOWN = 60
+
+        /**
+         * The Conversations page: the runs too, about fifty a day once a mission passes every half
+         * hour, so a few days of them. The unread are sorted first among these.
+         */
+        const val CONVERSATIONS_SHOWN = 200
 
         /**
          * Transcripts read per refresh to classify sessions this device has never seen. Each

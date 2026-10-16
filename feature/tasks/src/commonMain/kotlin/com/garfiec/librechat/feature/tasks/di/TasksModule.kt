@@ -25,6 +25,7 @@ val tasksModule = module {
             eventTransport = get(),
             globalProfile = get(),
             kinds = get(),
+            reads = get(),
         )
     }
     // Questions asked anywhere on the engine, rung through the attention signals: the shell runs it

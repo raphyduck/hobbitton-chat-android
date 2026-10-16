@@ -5,6 +5,8 @@ import com.garfiec.librechat.core.data.datastore.GlobalProfileEditor
 import com.garfiec.librechat.core.data.datastore.GlobalProfileSource
 import com.garfiec.librechat.core.data.datastore.GlobalProfileStore
 import com.garfiec.librechat.core.data.datastore.MissionReadingPositions
+import com.garfiec.librechat.core.data.engine.ConversationReads
+import com.garfiec.librechat.core.data.engine.EngineConversationReads
 import com.garfiec.librechat.core.data.engine.EngineSessionKinds
 import com.garfiec.librechat.core.data.engine.SessionKindStore
 import com.garfiec.librechat.core.data.pricing.ModelPriceCache
@@ -32,6 +34,15 @@ val hobbittonDataModule = module {
      */
     single<SessionKindStore> {
         EngineSessionKinds(
+            dataStore = get(),
+            json = get(),
+            ioDispatcher = get(KoinQualifiers.IO),
+        )
+    }
+
+    /** When each conversation was last shown on this device: what tells an unread one (16/10/2026). */
+    single<ConversationReads> {
+        EngineConversationReads(
             dataStore = get(),
             json = get(),
             ioDispatcher = get(KoinQualifiers.IO),

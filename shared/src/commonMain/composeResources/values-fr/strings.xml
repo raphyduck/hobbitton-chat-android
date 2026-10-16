@@ -3,6 +3,10 @@
     <!-- La coquille du moteur (hobbitton, D-077) -->
     <string name="engine_drawer_new_chat">Nouvelle conversation</string>
     <string name="engine_drawer_tasks">Programmées</string>
+    <string name="engine_drawer_conversations">Conversations</string>
+    <string name="engine_conversations_unread">Non lues</string>
+    <string name="engine_conversations_read">Lues</string>
+    <string name="engine_chat_unread">Non lue</string>
     <string name="engine_drawer_settings">Réglages</string>
     <string name="engine_drawer_recent">Conversations récentes</string>
     <string name="engine_drawer_empty">Aucune conversation pour l'instant.</string>

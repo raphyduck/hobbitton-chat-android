@@ -30,6 +30,7 @@ internal fun testMissionRepository(
     engine: MockEngine,
     globalProfile: GlobalProfileSource = GlobalProfileSource { GlobalProfile.NONE },
     kinds: SessionKindStore = InMemorySessionKinds(),
+    reads: ConversationReads? = null,
 ): EngineMissionRepository = EngineMissionRepository(
     api = AgentEngineApi(engineTestClient(engine)),
     scheduler = SchedulerApi(engineTestClient(engine), librechatJson),
@@ -37,6 +38,7 @@ internal fun testMissionRepository(
     eventTransport = SilentEventTransport,
     globalProfile = globalProfile,
     kinds = kinds,
+    reads = reads,
 )
 
 /**
@@ -71,4 +73,20 @@ internal class InMemorySessionKinds(
     override suspend fun clear() {
         recorded.clear()
     }
+}
+
+/** A [ConversationReads] in memory, counting from [floorMillis]. */
+internal class InMemoryConversationReads(
+    private val floorMillis: Long,
+    seen: Map<String, Long> = emptyMap(),
+) : ConversationReads {
+    private val seen = seen.toMutableMap()
+
+    override suspend fun snapshot(): ReadSnapshot = ReadSnapshot(floorMillis, seen.toMap())
+
+    override suspend fun markRead(sessionId: String, atMillis: Long) {
+        seen[sessionId] = maxOf(seen[sessionId] ?: 0L, atMillis)
+    }
+
+    override suspend fun clear() = seen.clear()
 }
