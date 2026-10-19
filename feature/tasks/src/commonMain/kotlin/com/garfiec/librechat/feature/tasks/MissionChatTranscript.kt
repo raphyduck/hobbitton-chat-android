@@ -43,6 +43,8 @@ import org.jetbrains.compose.resources.stringResource
 
 @Composable
 internal fun UserBubble(turn: ChatTurn.User, fontScale: Float) {
+    // A message made only of synthetic text (the scheduler's ceiling notice) has nothing to show.
+    if (turn.parts.none { it is ChatPart.Attachment || (it is ChatPart.Text && it.text.isNotBlank()) }) return
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
         Surface(
             // The person's words in a sand bubble (secondaryContainer), the corner nearest the

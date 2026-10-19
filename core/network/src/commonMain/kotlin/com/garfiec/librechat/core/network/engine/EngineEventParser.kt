@@ -93,6 +93,7 @@ class EngineEventParser(private val json: Json) {
                             mime = part.str("mime"),
                             url = part.str("url"),
                             filename = part.str("filename"),
+                            synthetic = (part["synthetic"] as? JsonPrimitive)?.content == "true",
                         )
                     },
                 )

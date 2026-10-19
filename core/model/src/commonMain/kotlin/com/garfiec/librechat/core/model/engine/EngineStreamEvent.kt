@@ -99,6 +99,8 @@ data class EnginePartSnapshot(
     val mime: String? = null,
     val url: String? = null,
     val filename: String? = null,
+    /** See [EnginePart.synthetic]: read by the model, not shown. */
+    val synthetic: Boolean = false,
 )
 
 /**
@@ -140,6 +142,7 @@ fun engineHistoryEvents(messages: List<EngineMessage>): List<EngineStreamEvent> 
                             mime = part.mime,
                             url = part.url,
                             filename = part.filename,
+                            synthetic = part.synthetic,
                         ),
                     ),
                 )

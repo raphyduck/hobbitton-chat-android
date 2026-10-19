@@ -170,10 +170,11 @@ private const val DEFAULT_MIME = "application/octet-stream"
 /**
  * The parts worth rendering. `step-start` and `step-finish` are the run's own bookkeeping — nobody
  * reads them — and a text part with nothing in it yet is not a blank bubble, it is a part waiting for
- * its deltas, so it is kept (empty) rather than dropped.
+ * its deltas, so it is kept (empty) rather than dropped. A synthetic text is the model's alone (the
+ * scheduler's ceiling notice, 19/10/2026): shown, it read as the person's own message.
  */
 private fun EnginePartSnapshot.asChatPart(partId: String): ChatPart? = when (type) {
-    "text" -> ChatPart.Text(partId, text.orEmpty())
+    "text" -> if (synthetic) null else ChatPart.Text(partId, text.orEmpty())
     // Dropped silently until 31/08/2026 — a message sent with a photo showed only its prose, and
     // nothing on screen said the photo had gone with it.
     "file" -> url?.let { ChatPart.Attachment(partId, mime ?: DEFAULT_MIME, it, filename) }

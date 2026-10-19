@@ -361,6 +361,20 @@ class MissionChatTest {
     }
 
     @Test
+    fun `un texte synthetique n'est pas montre comme un message de la personne`() {
+        // 19/10/2026 : la consigne de plafond du planificateur, rejouée dans une conversation de
+        // décision, s'affichait comme un message de Raphaël.
+        val state = missionChatFrom(
+            listOf(
+                EngineStreamEvent.MessageStarted("m1", "user"),
+                EngineStreamEvent.PartUpdated("m1", "p1", EnginePartSnapshot(type = "text", text = "PLAFOND ATTEINT", synthetic = true)),
+            ),
+        )
+
+        assertEquals(emptyList(), (state.turns.single() as ChatTurn.User).parts)
+    }
+
+    @Test
     fun `une part fichier sans url est ignoree plutot que rendue vide`() {
         val state = missionChatFrom(
             listOf(
