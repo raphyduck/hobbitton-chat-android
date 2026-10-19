@@ -34,6 +34,8 @@ data class ScheduledMission(
     @SerialName("budget_tokens") val tokenBudget: Int = 0,
     @SerialName("plafond_appels") val toolCallCeiling: Int? = null,
     @SerialName("notifier") val notifies: Boolean = false,
+    /** Its runs stay out of the conversation lists, a failure aside (19/10/2026). */
+    @SerialName("discrete") val discreet: Boolean = false,
     @SerialName("en_cours") val running: Boolean = false,
     @SerialName("derniere") val lastRun: MissionRun? = null,
 )

@@ -69,6 +69,16 @@ fun inboxOrder(chats: List<EngineChatSummary>): List<EngineChatSummary> =
 fun runHasNews(run: SchedulerRun?): Boolean =
     run != null && (run.hasNews == true || run.succeeded == false || run.incomplete)
 
+/**
+ * Whether a run stays out of the conversation lists (19/10/2026): its mission is discreet (a
+ * background mission, which speaks through a report or a decision conversation) and the run did
+ * not fail. A failed or interrupted run shows, so a breakage is never silent. [discreetMissions]
+ * names the missions the scheduler marks discreet, read off its latest runs: a session whose own
+ * run fell outside that window is still known by its mission.
+ */
+fun runHidden(mission: String?, run: SchedulerRun?, discreetMissions: Set<String>): Boolean =
+    mission != null && mission in discreetMissions && run?.succeeded != false && run?.incomplete != true
+
 /** What the model picker needs: the list, and the model a conversation runs on when none is picked. */
 data class EngineModelChoice(
     val models: List<EngineSelectableModel> = emptyList(),
@@ -171,6 +181,7 @@ class EngineMissionRepository(
         val recorded = recordedKinds()
         val read = reads?.let { store -> runCatching { store.snapshot() }.getOrNull() }
         val runs = if (scope == ChatScope.ALL) latestRuns() else emptyMap()
+        val discreetMissions = runs.values.filter { it.discreet }.mapNotNull { it.mission }.toSet()
         val sessions = api.sessions()
             .sortedByDescending { it.time?.updated ?: it.time?.created ?: Long.MIN_VALUE }
         val learned = mutableMapOf<String, EngineSessionKind>()
@@ -178,9 +189,10 @@ class EngineMissionRepository(
         val chats = mutableListOf<EngineChatSummary>()
         for (session in sessions) {
             if (chats.size >= limit) break
-            val mission = session.title?.let(::scheduledMissionName)
+            val mission = session.title?.let(::scheduledMissionName) ?: runs[session.id]?.mission
             // Before any transcript is read: a run never costs the drawer one.
             if (mission != null && scope == ChatScope.MANUAL) continue
+            if (runHidden(mission, runs[session.id], discreetMissions)) continue
             var kind = classifySession(session.title, recorded[session.id], messages = null)
             if (kind == null && classified < MAX_CLASSIFICATION_READS) {
                 classified++

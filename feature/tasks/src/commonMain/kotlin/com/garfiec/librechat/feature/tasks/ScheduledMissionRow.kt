@@ -22,6 +22,8 @@ import androidx.compose.material.icons.outlined.PauseCircle
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.PlayCircle
 import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilterChip
@@ -57,6 +59,7 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_delete_titl
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_disable
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_edit
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_enable
+import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_hide_runs
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_last_failed
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_last_ok
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_never
@@ -67,6 +70,7 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_run
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_runat
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_runat_hint
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_save
+import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_show_runs
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_suspended
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_timezone
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_tools
@@ -92,6 +96,7 @@ internal fun ScheduledMissionRow(
     onToggle: () -> Unit,
     onReschedule: (cron: String?, runAt: String?) -> Unit,
     onDelete: () -> Unit,
+    onToggleDiscreet: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var acting by rememberSaveable(mission.name) { mutableStateOf(false) }
@@ -152,6 +157,10 @@ internal fun ScheduledMissionRow(
             onDelete = {
                 acting = false
                 confirmingDelete = true
+            },
+            onToggleDiscreet = {
+                acting = false
+                onToggleDiscreet()
             },
         )
     }
@@ -238,6 +247,7 @@ private fun ActionsSheet(
     onToggle: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
+    onToggleDiscreet: () -> Unit,
 ) {
     TasksBottomSheet(onDismiss = onDismiss) {
         Text(
@@ -270,6 +280,20 @@ private fun ActionsSheet(
             label = stringResource(Res.string.tasks_scheduled_edit),
             onClick = onEdit,
         )
+        // 19/10/2026: a background mission's runs crowded the conversation lists.
+        if (mission.discreet) {
+            SheetAction(
+                icon = Icons.Outlined.Visibility,
+                label = stringResource(Res.string.tasks_scheduled_show_runs),
+                onClick = onToggleDiscreet,
+            )
+        } else {
+            SheetAction(
+                icon = Icons.Outlined.VisibilityOff,
+                label = stringResource(Res.string.tasks_scheduled_hide_runs),
+                onClick = onToggleDiscreet,
+            )
+        }
         SheetAction(
             icon = Icons.Outlined.Delete,
             label = stringResource(Res.string.tasks_scheduled_delete),
