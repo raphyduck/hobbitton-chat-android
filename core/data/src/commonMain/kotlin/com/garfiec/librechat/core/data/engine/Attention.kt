@@ -122,9 +122,19 @@ class AttentionSignals(
 }
 
 /**
+ * What the scheduler writes at the head of a reminder it plays back inside the conversation that
+ * set it (`planifier(..., dans_cette_conversation=True)`, 19/10/2026; `PREFIXE_RAPPEL` server side).
+ */
+const val REMINDER_PREFIX = "⏰ Rappel programmé"
+
+/**
  * Listens to the whole engine for questions: the one signal that cannot wait for a screen to be
  * open. A task launched and left behind blocks on its question until somebody answers; the
  * conversation screen would only see it once opened.
+ *
+ * And for reminders (19/10/2026): a reminder a conversation set comes back into it as a turn no
+ * screen started. When that turn ends, the person is told, like a reply they were waiting on
+ * ([AttentionSignals.replyReady]: nothing if they are looking at it).
  *
  * The scheduler's own missions never ask: their sessions are built without the `question` tool
  * (`construire_permissions`, server side), so every question on this feed is one somebody started
@@ -149,10 +159,26 @@ class EngineAttentionWatcher(
         } catch (e: Exception) {
             Logger.w(e) { "Attention: the pending questions could not be read" }
         }
+        // Per session: the user messages seen starting, and whether one of them is a reminder.
+        val userMessages = mutableMapOf<String, MutableSet<String>>()
+        val reminders = mutableSetOf<String>()
         events().collect { (sessionId, event) ->
             when (event) {
                 is EngineStreamEvent.QuestionAsked -> signals.questionAsked(event.request) { conversationOf(sessionId) }
                 is EngineStreamEvent.QuestionClosed -> signals.questionClosed(event.requestId)
+                is EngineStreamEvent.MessageStarted ->
+                    if (event.role == "user") userMessages.getOrPut(sessionId) { mutableSetOf() } += event.messageId
+                is EngineStreamEvent.PartUpdated ->
+                    if (event.part.type == "text" &&
+                        event.part.text?.startsWith(REMINDER_PREFIX) == true &&
+                        userMessages[sessionId]?.contains(event.messageId) == true
+                    ) {
+                        reminders += sessionId
+                    }
+                is EngineStreamEvent.Idle -> {
+                    userMessages.remove(sessionId)
+                    if (reminders.remove(sessionId)) signals.replyReady(sessionId) { conversationOf(sessionId) }
+                }
                 else -> Unit
             }
         }
