@@ -43,4 +43,13 @@ enum class TranscriptionFailure {
     NOT_CONFIGURED,
 
     UNKNOWN,
+
+    /** The phone's own speech recognition gave up (no speech heard, the mic busy, the engine erring). */
+    DEVICE,
+
+    /**
+     * The phone has no French for its own recognition yet: asked to download it, and the
+     * dictation goes to the scheduler meanwhile, on this screen.
+     */
+    DEVICE_LANGUAGE,
 }

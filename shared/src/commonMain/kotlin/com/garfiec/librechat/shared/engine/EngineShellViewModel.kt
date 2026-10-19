@@ -107,6 +107,10 @@ class EngineShellViewModel(
     val attentionSound: StateFlow<Boolean> = settingsDataStore.attentionSound
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), true)
 
+    /** The mic heard by the phone itself rather than the scheduler, on by default (19/10/2026). */
+    val localDictation: StateFlow<Boolean> = settingsDataStore.localDictation
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), true)
+
     /** The conversation's text size, Settings › Apparence (lot 4). */
     val chatFontSize: StateFlow<ChatFontSize> = settingsDataStore.chatFontSize
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), ChatFontSize.MEDIUM)
@@ -176,6 +180,10 @@ class EngineShellViewModel(
 
     fun setAttentionSound(enabled: Boolean) {
         viewModelScope.launch { settingsDataStore.setAttentionSound(enabled) }
+    }
+
+    fun setLocalDictation(enabled: Boolean) {
+        viewModelScope.launch { settingsDataStore.setLocalDictation(enabled) }
     }
 
     fun setChatFontSize(size: ChatFontSize) {

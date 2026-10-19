@@ -69,6 +69,7 @@ fun EngineNavHost(
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val addresses by viewModel.addresses.collectAsStateWithLifecycle()
     val attentionSound by viewModel.attentionSound.collectAsStateWithLifecycle()
+    val localDictation by viewModel.localDictation.collectAsStateWithLifecycle()
     val chatFontSize by viewModel.chatFontSize.collectAsStateWithLifecycle()
     val openRequest by viewModel.openRequest.collectAsStateWithLifecycle()
     val identity by viewModel.identity.collectAsStateWithLifecycle()
@@ -101,6 +102,7 @@ fun EngineNavHost(
                                 themeMode = themeMode,
                                 addresses = addresses,
                                 attentionSound = attentionSound,
+                                localDictation = localDictation,
                                 chatFontSize = chatFontSize,
                                 account = account,
                             ),
@@ -115,6 +117,7 @@ fun EngineNavHost(
                                 viewModel.setAttentionSound(enabled)
                                 if (enabled) onRequestNotificationPermission()
                             },
+                            onLocalDictation = viewModel::setLocalDictation,
                             onSignOut = viewModel::signOut,
                         )
                     }
@@ -143,6 +146,7 @@ private fun EngineMainLayout(
     onThemeMode: (ThemeMode) -> Unit,
     onChatFontSize: (ChatFontSize) -> Unit,
     onAttentionSound: (Boolean) -> Unit,
+    onLocalDictation: (Boolean) -> Unit,
     onSignOut: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -268,6 +272,7 @@ private fun EngineMainLayout(
                         onThemeMode = onThemeMode,
                         onChatFontSize = onChatFontSize,
                         onAttentionSound = onAttentionSound,
+                        onLocalDictation = onLocalDictation,
                         onSignOut = {
                             // The stack first: its conversations close with their entries — their
                             // view models, their live feeds — before the portal's tokens go.

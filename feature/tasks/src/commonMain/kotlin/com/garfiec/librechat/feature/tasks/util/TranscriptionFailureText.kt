@@ -2,6 +2,8 @@ package com.garfiec.librechat.feature.tasks.util
 
 import com.garfiec.librechat.core.data.engine.TranscriptionFailure
 import com.garfiec.librechat.feature.tasks.resources.Res
+import com.garfiec.librechat.feature.tasks.resources.tasks_dictation_device_failed
+import com.garfiec.librechat.feature.tasks.resources.tasks_dictation_device_language
 import com.garfiec.librechat.feature.tasks.resources.tasks_transcription_failed
 import com.garfiec.librechat.feature.tasks.resources.tasks_transcription_forbidden
 import com.garfiec.librechat.feature.tasks.resources.tasks_transcription_not_configured
@@ -23,4 +25,6 @@ internal fun TranscriptionFailure.message(): StringResource = when (this) {
     TranscriptionFailure.UNREACHABLE -> Res.string.tasks_transcription_unreachable
     TranscriptionFailure.NOT_CONFIGURED -> Res.string.tasks_transcription_not_configured
     TranscriptionFailure.UNKNOWN -> Res.string.tasks_transcription_failed
+    TranscriptionFailure.DEVICE -> Res.string.tasks_dictation_device_failed
+    TranscriptionFailure.DEVICE_LANGUAGE -> Res.string.tasks_dictation_device_language
 }

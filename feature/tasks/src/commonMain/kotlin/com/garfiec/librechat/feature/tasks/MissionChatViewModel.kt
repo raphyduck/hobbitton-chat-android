@@ -78,6 +78,8 @@ data class MissionChatUiState(
      * Carries the server's own words when it gave some, shown under the translated reason.
      */
     val transcriptionError: TranscriptionOutcome.Failed? = null,
+    /** The mic heard by the phone itself (Settings, on by default) rather than recorded for the scheduler. */
+    val localDictation: Boolean = true,
     /** Why the transcript would not load, or null. */
     val historyError: EngineFailureKind? = null,
     /** Why the last send did not reach the engine, or null. The text is put back when this is set. */
@@ -270,6 +272,11 @@ class MissionChatViewModel(
         viewModelScope.launch {
             settings.chatFontSize.collect { size ->
                 _uiState.update { it.copy(fontScale = size.multiplier) }
+            }
+        }
+        viewModelScope.launch {
+            settings.localDictation.collect { local ->
+                _uiState.update { it.copy(localDictation = local) }
             }
         }
     }
@@ -604,6 +611,12 @@ class MissionChatViewModel(
     /** A dictation, transcribed into the composer — never sent on its own. */
     fun transcribeAudio(bytes: ByteArray, mime: String, filename: String) =
         staging.transcribeAudio(bytes, mime, filename)
+
+    /** Words the phone itself heard, into the composer like a transcribed dictation. */
+    fun dictated(text: String) = staging.dictated(text)
+
+    /** The phone's own recognition gave up: said like a transcription's failure. */
+    fun dictationFailed(failure: TranscriptionOutcome.Failed) = staging.dictationFailed(failure)
 
     /** A deposited audio file, transcribed into a quoted note for the thread. */
     fun attachAudio(bytes: ByteArray, mime: String, filename: String) = staging.attachAudio(bytes, mime, filename)

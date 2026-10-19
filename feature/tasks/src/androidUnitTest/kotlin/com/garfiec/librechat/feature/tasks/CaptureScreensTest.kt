@@ -133,6 +133,8 @@ private fun ChatScreen(state: MissionChatUiState) {
                     onAddAttachments = {},
                     onRemoveAttachment = {},
                     onTranscribeAudio = { _, _, _ -> },
+                    onDictate = {},
+                    onDictationError = {},
                     onAttachAudio = { _, _, _ -> },
                     onRemoveAudioNote = {},
                     onDismissTranscriptionError = {},

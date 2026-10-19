@@ -49,6 +49,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import com.garfiec.librechat.core.data.engine.TranscriptionOutcome
 import com.garfiec.librechat.core.model.engine.EngineSelectableModel
 import com.garfiec.librechat.core.ui.input.ChatInputBox
 import com.garfiec.librechat.core.ui.input.ChatInputDefaults
@@ -76,6 +77,7 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_chat_send
 import com.garfiec.librechat.feature.tasks.resources.tasks_connectors
 import com.garfiec.librechat.feature.tasks.resources.tasks_dictate
 import com.garfiec.librechat.feature.tasks.resources.tasks_dictate_stop
+import com.garfiec.librechat.feature.tasks.resources.tasks_listening
 import com.garfiec.librechat.feature.tasks.resources.tasks_model_default_short
 import com.garfiec.librechat.feature.tasks.resources.tasks_recording
 import com.garfiec.librechat.feature.tasks.resources.tasks_stop
@@ -116,6 +118,8 @@ internal fun MissionChatInput(
     onAddAttachments: (List<StagedAttachment>) -> Unit,
     onRemoveAttachment: (String) -> Unit,
     onTranscribeAudio: (bytes: ByteArray, mime: String, filename: String) -> Unit,
+    onDictate: (String) -> Unit,
+    onDictationError: (TranscriptionOutcome.Failed) -> Unit,
     onAttachAudio: (bytes: ByteArray, mime: String, filename: String) -> Unit,
     onRemoveAudioNote: (String) -> Unit,
     onDismissTranscriptionError: () -> Unit,
@@ -130,8 +134,13 @@ internal fun MissionChatInput(
     val openAudio = rememberMissionAudioPicker(onPick = { onAttachAudio(it.bytes, it.mime, it.filename) })
     // The mic DICTATES: tap to record, tap to stop, and the words land in the box — where the
     // speaker reads what was heard before it becomes an instruction (asked for on 31/08/2026).
-    // Nothing is sent on its own.
-    val dictation = rememberMissionDictation(onCapture = { onTranscribeAudio(it.bytes, it.mime, it.filename) })
+    // Nothing is sent on its own. Heard by the phone itself unless Settings says otherwise.
+    val dictation = rememberMissionDictation(
+        onDevice = state.localDictation,
+        onCapture = { onTranscribeAudio(it.bytes, it.mime, it.filename) },
+        onHear = onDictate,
+        onError = onDictationError,
+    )
 
     // The keyboard, then the navigation bar — whichever is taller, never both stacked.
     //
@@ -145,6 +154,9 @@ internal fun MissionChatInput(
             ComposerNotice(text, onDismissTranscriptionError)
         }
         when {
+            // The phone's recognition shows the words as they come; a recording has none to show yet.
+            dictation?.listening == true ->
+                ComposerStatus(dictation.heard.ifBlank { stringResource(Res.string.tasks_listening) })
             dictation?.recording == true -> ComposerStatus(stringResource(Res.string.tasks_recording))
             state.transcribing -> ComposerStatus(stringResource(Res.string.tasks_transcribing))
         }

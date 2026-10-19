@@ -39,7 +39,10 @@ class MissionChatTranscriptionTest {
         coEvery { it.connectors() } throws IllegalStateException("pas de catalogue")
         coEvery { it.startChat(any(), any(), any(), any()) } returns "ses_nouvelle"
     }
-    private val settings = mockk<SettingsDataStore>().also { every { it.chatFontSize } returns emptyFlow() }
+    private val settings = mockk<SettingsDataStore>().also {
+        every { it.chatFontSize } returns emptyFlow()
+        every { it.localDictation } returns emptyFlow()
+    }
 
     /** What the transcriber was handed, in order: mime and file name. */
     private val sent = mutableListOf<Pair<String, String>>()
@@ -123,5 +126,31 @@ class MissionChatTranscriptionTest {
         }
         assertThat(vm.uiState.value.audioNotes).isEmpty()
         assertThat(vm.uiState.value.started?.sessionId).isEqualTo("ses_nouvelle")
+    }
+
+    @Test
+    fun `words heard by the phone land in the composer, one stretch after another, and nothing leaves`() {
+        val vm = viewModel(TranscriptionOutcome.Heard("jamais appelé"))
+        vm.onInputChange("Fais ")
+
+        vm.dictated(" le point ")
+        vm.dictated("")
+        vm.dictated("sur la boîte mail")
+
+        assertThat(vm.uiState.value.input).isEqualTo("Fais le point sur la boîte mail")
+        assertThat(sent).isEmpty()
+        coVerify(exactly = 0) { repository.startChat(any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `the phone giving up says so, and the next words clear it`() {
+        val vm = viewModel(TranscriptionOutcome.Heard("jamais appelé"))
+
+        vm.dictationFailed(TranscriptionOutcome.Failed(TranscriptionFailure.DEVICE_LANGUAGE))
+        assertThat(vm.uiState.value.transcriptionError?.failure).isEqualTo(TranscriptionFailure.DEVICE_LANGUAGE)
+
+        vm.dictated("bonjour")
+        assertThat(vm.uiState.value.transcriptionError).isNull()
+        assertThat(vm.uiState.value.input).isEqualTo("bonjour")
     }
 }

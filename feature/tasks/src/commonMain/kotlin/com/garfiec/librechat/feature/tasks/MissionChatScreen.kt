@@ -229,6 +229,8 @@ fun MissionChatScreen(
                     onAddAttachments = viewModel::addAttachments,
                     onRemoveAttachment = viewModel::removeAttachment,
                     onTranscribeAudio = viewModel::transcribeAudio,
+                    onDictate = viewModel::dictated,
+                    onDictationError = viewModel::dictationFailed,
                     onAttachAudio = viewModel::attachAudio,
                     onRemoveAudioNote = viewModel::removeAudioNote,
                     onDismissTranscriptionError = viewModel::dismissTranscriptionError,

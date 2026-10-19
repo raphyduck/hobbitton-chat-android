@@ -55,7 +55,10 @@ class MissionQuestionViewModelTest {
         every { it.events(any()) } returns feed
     }
     private val attention = mockk<AttentionSignals>(relaxed = true)
-    private val settings = mockk<SettingsDataStore>().also { every { it.chatFontSize } returns emptyFlow() }
+    private val settings = mockk<SettingsDataStore>().also {
+        every { it.chatFontSize } returns emptyFlow()
+        every { it.localDictation } returns emptyFlow()
+    }
 
     @Before
     fun setUp() {

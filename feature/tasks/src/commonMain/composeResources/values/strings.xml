@@ -79,6 +79,9 @@
     <string name="tasks_transcription_not_configured">No scheduler address is set, so audio cannot be transcribed.</string>
     <string name="tasks_recording">Recording… tap stop to transcribe.</string>
     <string name="tasks_transcribing">Transcribing…</string>
+    <string name="tasks_listening">Listening… tap stop when you are done.</string>
+    <string name="tasks_dictation_device_failed">The phone could not make out the dictation. Try again.</string>
+    <string name="tasks_dictation_device_language">French is downloading to the phone: meanwhile, dictation goes to the server. Tap the mic again.</string>
     <string name="tasks_copy_code">Copy the code</string>
     <string name="tasks_chat_add">Add to the message</string>
     <string name="tasks_chat_copy">Copy the answer</string>
