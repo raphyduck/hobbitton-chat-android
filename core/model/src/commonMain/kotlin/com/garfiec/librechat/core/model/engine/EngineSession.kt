@@ -164,6 +164,11 @@ data class EnginePart(
     val mime: String? = null,
     val url: String? = null,
     val filename: String? = null,
+    /**
+     * A text the model reads and nobody wrote (19/10/2026): the scheduler's ceiling notice in a
+     * conversation, the engine's own file readings. Not shown.
+     */
+    val synthetic: Boolean = false,
 )
 
 /**

@@ -58,6 +58,14 @@ class EngineEventParserTest {
     }
 
     @Test
+    fun aSyntheticTextIsMarkedSo() {
+        val parsed = frame(
+            """{"type":"message.part.updated","properties":{"sessionID":"ses_1","part":{"type":"text","synthetic":true,"text":"PLAFOND ATTEINT","messageID":"msg_u","sessionID":"ses_1","id":"prt_1"}}}""",
+        )
+        assertEquals(true, (parsed?.event as EngineStreamEvent.PartUpdated).part.synthetic)
+    }
+
+    @Test
     fun partDeltaIsTheTokenLevelAppend() {
         val parsed = frame(
             """{"type":"message.part.delta","properties":{"sessionID":"ses_1","messageID":"msg_a","partID":"prt_2","field":"text","delta":"Un"}}""",
