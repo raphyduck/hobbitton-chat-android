@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -22,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.outlined.Logout
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.NotificationsActive
@@ -32,6 +34,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -55,6 +58,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.garfiec.librechat.core.data.datastore.ChatFontSize
 import com.garfiec.librechat.core.data.datastore.ThemeMode
+import com.garfiec.librechat.core.model.engine.EngineSelectableModel
 import com.garfiec.librechat.core.network.engine.EngineAccess
 import com.garfiec.librechat.core.ui.components.SectionDivider
 import com.garfiec.librechat.core.ui.components.SectionGroup
@@ -68,6 +72,11 @@ import com.garfiec.librechat.shared.resources.engine_settings_back
 import com.garfiec.librechat.shared.resources.engine_settings_budget
 import com.garfiec.librechat.shared.resources.engine_settings_budget_hint
 import com.garfiec.librechat.shared.resources.engine_settings_cancel
+import com.garfiec.librechat.shared.resources.engine_settings_default_model
+import com.garfiec.librechat.shared.resources.engine_settings_default_model_hint
+import com.garfiec.librechat.shared.resources.engine_settings_default_model_server
+import com.garfiec.librechat.shared.resources.engine_settings_default_model_server_named
+import com.garfiec.librechat.shared.resources.engine_settings_default_model_unavailable
 import com.garfiec.librechat.shared.resources.engine_settings_dictation
 import com.garfiec.librechat.shared.resources.engine_settings_engine
 import com.garfiec.librechat.shared.resources.engine_settings_instructions
@@ -107,13 +116,23 @@ data class EngineSettingsUiState(
     val chatFontSize: ChatFontSize = ChatFontSize.MEDIUM,
     /** Who is signed in, and where: the drawer's foot, at the head of the settings. */
     val account: DrawerAccount = DrawerAccount(),
-)
+    /** The model a new conversation starts on, by id; null follows the engine's (19/10/2026). */
+    val defaultModelId: String? = null,
+    /** What the default can be set to: the conversations' models, empty until read. */
+    val models: List<EngineSelectableModel> = emptyList(),
+    /** The engine's own default, named on the « the server's » choice. */
+    val engineDefault: EngineSelectableModel? = null,
+) {
+    /** What the row says is set: the model's name, its raw id when the list does not name it. */
+    val defaultModelLabel: String?
+        get() = defaultModelId?.let { id -> models.firstOrNull { it.modelId == id }?.label ?: id }
+}
 
 /**
  * The engine shell's settings (D-077), laid out as Claude's since lot 4 (10/10/2026): the account
  * at the head, then groups of rows on raised cards — appearance (theme and text size, each a
- * segmented control), notifications, the assistant's instructions, usage and spending ceilings
- * (12/10/2026), the platform's
+ * segmented control), notifications, the assistant's instructions, its default model
+ * (19/10/2026), usage and spending ceilings (12/10/2026), the platform's
  * addresses (read only: changing one is signing out and in again) — and signing out alone at the
  * foot.
  */
@@ -131,8 +150,10 @@ internal fun EngineSettingsScreen(
     onLocalDictation: (Boolean) -> Unit = {},
     onChatFontSize: (ChatFontSize) -> Unit = {},
     onOpenBudget: () -> Unit = {},
+    onDefaultModel: (String?) -> Unit = {},
 ) {
     var confirmSignOut by rememberSaveable { mutableStateOf(false) }
+    var pickModel by rememberSaveable { mutableStateOf(false) }
 
     Scaffold(
         modifier = modifier,
@@ -160,8 +181,19 @@ internal fun EngineSettingsScreen(
             onChatFontSize = onChatFontSize,
             onAttentionSound = onAttentionSound,
             onLocalDictation = onLocalDictation,
+            onPickModel = { pickModel = true },
             onSignOut = { confirmSignOut = true },
         )
+        if (pickModel) {
+            DefaultModelDialog(
+                state = state,
+                onPick = { modelId ->
+                    pickModel = false
+                    onDefaultModel(modelId)
+                },
+                onDismiss = { pickModel = false },
+            )
+        }
         if (confirmSignOut) {
             SignOutDialog(
                 onConfirm = {
@@ -173,6 +205,76 @@ internal fun EngineSettingsScreen(
         }
     }
 }
+
+/**
+ * The default model, picked among the conversations' models, « the server's » first: the engine's
+ * own default, which follows the deployment when it changes. Picking closes the dialog.
+ */
+@Composable
+private fun DefaultModelDialog(
+    state: EngineSettingsUiState,
+    onPick: (String?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(Res.string.engine_settings_default_model)) },
+        text = {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                Text(
+                    stringResource(Res.string.engine_settings_default_model_hint),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
+                ModelOption(
+                    label = serverModelLabel(state.engineDefault),
+                    selected = state.defaultModelId == null,
+                    onClick = { onPick(null) },
+                )
+                state.models.forEach { model ->
+                    ModelOption(
+                        label = model.label,
+                        selected = model.modelId == state.defaultModelId,
+                        onClick = { onPick(model.modelId) },
+                    )
+                }
+                if (state.models.isEmpty()) {
+                    Text(
+                        stringResource(Res.string.engine_settings_default_model_unavailable),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.engine_settings_cancel)) }
+        },
+    )
+}
+
+@Composable
+private fun ModelOption(label: String, selected: Boolean, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .selectable(selected = selected, onClick = onClick, role = Role.RadioButton)
+            .heightIn(min = 48.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        RadioButton(selected = selected, onClick = null)
+        Text(label, style = MaterialTheme.typography.bodyLarge)
+    }
+}
+
+@Composable
+private fun serverModelLabel(engineDefault: EngineSelectableModel?): String =
+    engineDefault?.let { stringResource(Res.string.engine_settings_default_model_server_named, it.label) }
+        ?: stringResource(Res.string.engine_settings_default_model_server)
 
 /** Signing out forgets the portal session: asked once, never on a stray tap. */
 @Composable
@@ -203,6 +305,7 @@ private fun SettingsBody(
     onChatFontSize: (ChatFontSize) -> Unit,
     onAttentionSound: (Boolean) -> Unit,
     onLocalDictation: (Boolean) -> Unit,
+    onPickModel: () -> Unit,
     onSignOut: () -> Unit,
 ) {
     Column(
@@ -272,6 +375,14 @@ private fun SettingsBody(
                 supporting = stringResource(Res.string.engine_settings_instructions_hint),
                 onClick = onOpenInstructions,
                 modifier = Modifier.testTag("settings_instructions"),
+            )
+            SectionDivider()
+            NavigationRow(
+                icon = Icons.Outlined.AutoAwesome,
+                headline = stringResource(Res.string.engine_settings_default_model),
+                supporting = state.defaultModelLabel ?: serverModelLabel(state.engineDefault),
+                onClick = onPickModel,
+                modifier = Modifier.testTag("settings_default_model"),
             )
             SectionDivider()
             NavigationRow(

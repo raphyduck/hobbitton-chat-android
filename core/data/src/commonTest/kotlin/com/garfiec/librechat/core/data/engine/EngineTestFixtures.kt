@@ -31,6 +31,7 @@ internal fun testMissionRepository(
     globalProfile: GlobalProfileSource = GlobalProfileSource { GlobalProfile.NONE },
     kinds: SessionKindStore = InMemorySessionKinds(),
     reads: ConversationReads? = null,
+    modelPreference: ModelPreference? = null,
 ): EngineMissionRepository = EngineMissionRepository(
     api = AgentEngineApi(engineTestClient(engine)),
     scheduler = SchedulerApi(engineTestClient(engine), librechatJson),
@@ -39,6 +40,7 @@ internal fun testMissionRepository(
     globalProfile = globalProfile,
     kinds = kinds,
     reads = reads,
+    modelPreference = modelPreference,
 )
 
 /**

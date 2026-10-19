@@ -115,6 +115,11 @@ Most modules have their own `CLAUDE.md` with specific guidance.
 - **Global instructions** (`GlobalProfile`, sent as `system` on every chat and task turn) are edited
   from Settings → Instructions (`EngineInstructionsScreen`) and stored on the device
   (`GlobalProfileStore`, `device:` keys).
+- **Default model** (Settings → Assistant, 19/10/2026): the model a new conversation starts on,
+  stored on the device (`SettingsDataStore.defaultChatModel`, a model id) and read by the
+  repository's `models()` (`ModelPreference`) as `preselected`; « Celui du serveur » (null) follows
+  the engine's default, and so does a model the deployment no longer lists. The composer still picks
+  another for one conversation.
 - **LibreChat's leftovers** on a device that ran an earlier build (its Room database, tokens,
   WorkManager job, caches and preferences) are removed once at start by `LegacyLibreChatCleanup`;
   a LibreChat account's global profile is moved under the device keys first.

@@ -14,7 +14,7 @@ The engine's and the portal's data layer, and the app's preferences.
 - **`scheduler/SchedulerRepository`** (also the `ChatBudgetSource` of Settings' spending ceilings,
   `/plafonds`), **`pricing/ModelPriceCache`** (the gateway's price table,
   `ModelPriceSource` bound to the scheduler).
-- **`datastore/`** — `ThemeDataStore`, `SettingsDataStore` (language, read-only; the text size and the attention switch, written from Settings),
+- **`datastore/`** — `ThemeDataStore`, `SettingsDataStore` (language, read-only; the text size, the attention and dictation switches and the default model, written from Settings),
   `GlobalProfileStore`, `MissionReadingPositions`. One DataStore file (`librechat_settings`, name
   kept so an upgrade keeps its preferences).
 - **`legacy/`** — `LegacyLibreChatCleanup`: removes, once, what LibreChat left on an upgraded
@@ -67,6 +67,10 @@ Since 12/10/2026 chats and tasks are one conversation, as on Claude.ai.
   `SessionKindStore` (`EngineSessionKinds`) leave out a session that has said nothing yet; at most
   ten unknown transcripts are read per refresh and each verdict recorded. Cleared at sign-out with
   the reading positions.
+- **`models()`**: the conversations' provider only; `preselected` is the person's default
+  (`ModelPreference`, Settings' `SettingsDataStore.defaultChatModel`) while the list still has it,
+  the engine's otherwise (`engineDefault`, kept for Settings to name). A turn sent without a model
+  goes there too (`chatModel`).
 - **`ConnectorOption.actsForYou`**: the scheduler's `refuse_si_autonome`: what sends, pays or
   deletes in the person's name. The sheet lists it apart.
 - **`AudioTranscriber` (`SchedulerTranscriber`)** — the composer's speech to text on the scheduler's

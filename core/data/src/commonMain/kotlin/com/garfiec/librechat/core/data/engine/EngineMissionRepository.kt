@@ -79,11 +79,24 @@ fun runHasNews(run: SchedulerRun?): Boolean =
 fun runHidden(mission: String?, run: SchedulerRun?, discreetMissions: Set<String>): Boolean =
     mission != null && mission in discreetMissions && run?.succeeded != false && run?.incomplete != true
 
-/** What the model picker needs: the list, and the model a conversation runs on when none is picked. */
+/**
+ * What the model picker needs: the list, and the model a conversation runs on when none is picked
+ * ([preselected]: the person's default from Settings when the list still offers it, the engine's
+ * own otherwise, which [engineDefault] keeps for Settings to name).
+ */
 data class EngineModelChoice(
     val models: List<EngineSelectableModel> = emptyList(),
     val preselected: EngineSelectableModel? = null,
+    val engineDefault: EngineSelectableModel? = null,
 )
+
+/**
+ * The model a new conversation starts on, as the person set it in Settings (19/10/2026), by its
+ * model id on the conversations' provider; null to leave the engine's default.
+ */
+fun interface ModelPreference {
+    suspend fun modelId(): String?
+}
 
 /**
  * The app's conversations on the engine: the drawer's list, starting one, its turns and its feed.
@@ -103,6 +116,8 @@ class EngineMissionRepository(
     private val kinds: SessionKindStore,
     /** When this device last showed each conversation; null leaves every row read (16/10/2026). */
     private val reads: ConversationReads? = null,
+    /** The person's default model (Settings, 19/10/2026); null leaves the engine's. */
+    private val modelPreference: ModelPreference? = null,
 ) {
 
     /**
@@ -120,7 +135,8 @@ class EngineMissionRepository(
         globalProfile.current().takeIf { it.enabled }?.instructions?.takeIf { it.isNotBlank() }
 
     /**
-     * The models a conversation may run on, and the one the engine would pick itself.
+     * The models a conversation may run on, and the one it runs on when none is picked: the
+     * person's default ([modelPreference]) while the deployment still lists it, else the engine's.
      *
      * **Only the conversations' provider** (`hobbitton-chat`, D-082), and only as the deployment
      * declared it (`source == "config"`). The engine also carries the endpoint OpenCode ships with,
@@ -146,16 +162,18 @@ class EngineMissionRepository(
                 label = model?.name?.takeIf { it.isNotBlank() } ?: (model?.id ?: key),
             )
 
-        return EngineModelChoice(
-            models = declared
-                .flatMap { p -> p.models.map { (key, m) -> selectable(p.id, key, m) } }
-                .sortedBy { it.label },
-            // Null when the engine names none — and then nothing is preselected, rather than a
-            // first-in-the-list guess quietly becoming this deployment's default.
-            preselected = declared.firstNotNullOfOrNull { p ->
-                catalogue.default[p.id]?.let { key -> selectable(p.id, key, p.models[key]) }
-            },
-        )
+        val models = declared
+            .flatMap { p -> p.models.map { (key, m) -> selectable(p.id, key, m) } }
+            .sortedBy { it.label }
+        // Null when the engine names none — and then nothing is preselected, rather than a
+        // first-in-the-list guess quietly becoming this deployment's default.
+        val engineDefault = declared.firstNotNullOfOrNull { p ->
+            catalogue.default[p.id]?.let { key -> selectable(p.id, key, p.models[key]) }
+        }
+        // A preference the deployment no longer lists falls back to the engine's: a turn sent to a
+        // model the gateway dropped would only fail.
+        val preferred = modelPreference?.modelId()?.let { id -> models.firstOrNull { it.modelId == id } }
+        return EngineModelChoice(models = models, preselected = preferred ?: engineDefault, engineDefault = engineDefault)
     }
 
     /**
