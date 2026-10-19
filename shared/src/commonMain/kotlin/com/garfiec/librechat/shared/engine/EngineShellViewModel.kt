@@ -120,6 +120,10 @@ class EngineShellViewModel(
     val chatFontSize: StateFlow<ChatFontSize> = settingsDataStore.chatFontSize
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), ChatFontSize.MEDIUM)
 
+    /** The app's language: a BCP-47 tag, or `system` to follow the phone (19/10/2026). */
+    val selectedLanguage: StateFlow<String> = settingsDataStore.selectedLanguage
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), settingsDataStore.initialSelectedLanguage)
+
     /** The model a new conversation starts on, by id; null follows the engine's (19/10/2026). */
     val defaultChatModel: StateFlow<String?> = settingsDataStore.defaultChatModel
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), null)
@@ -201,6 +205,10 @@ class EngineShellViewModel(
 
     fun setChatFontSize(size: ChatFontSize) {
         viewModelScope.launch { settingsDataStore.setChatFontSize(size) }
+    }
+
+    fun setSelectedLanguage(tag: String) {
+        viewModelScope.launch { settingsDataStore.setSelectedLanguage(tag) }
     }
 
     fun setDefaultChatModel(modelId: String?) {

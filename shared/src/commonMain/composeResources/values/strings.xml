@@ -27,6 +27,10 @@
     <string name="engine_text_size_small">Small</string>
     <string name="engine_text_size_medium">Normal</string>
     <string name="engine_text_size_large">Large</string>
+    <string name="engine_settings_language">Language</string>
+    <string name="engine_language_system">System</string>
+    <string name="engine_language_french">Français</string>
+    <string name="engine_language_english">English</string>
     <string name="engine_settings_assistant">Assistant</string>
     <string name="engine_settings_platform">Platform</string>
     <string name="engine_settings_engine">Engine</string>
@@ -36,7 +40,7 @@
     <string name="engine_settings_usage">Usage and providers</string>
     <string name="engine_settings_notifications">Notifications</string>
     <string name="engine_settings_attention">Sound and notifications</string>
-    <string name="engine_settings_attention_hint">When Butler asks you a question, or a reply finishes while you are elsewhere.</string>
+    <string name="engine_settings_attention_hint">When Eva asks you a question, or a reply finishes while you are elsewhere.</string>
     <string name="engine_settings_dictation">Dictation</string>
     <string name="engine_settings_local_dictation">Dictation on the phone</string>
     <string name="engine_settings_local_dictation_hint">The mic is heard by the phone itself, nothing sent. Off, dictation is transcribed by the server. Audio files always go to the server.</string>

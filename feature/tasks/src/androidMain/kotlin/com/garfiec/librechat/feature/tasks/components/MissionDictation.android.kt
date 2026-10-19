@@ -340,7 +340,7 @@ private class DictationRecorder(private val context: Context) {
 private const val SAMPLING_RATE_HZ = 16_000
 private const val DICTATION_NAME = "dictee"
 
-/** Butler is spoken to in French; the scheduler's transcription, which guesses, is the way out. */
+/** Eva is spoken to in French; the scheduler's transcription, which guesses, is the way out. */
 private const val DICTATION_LANGUAGE = "fr-FR"
 
 /** Stretches of silence (about five seconds each) after which the phone stops listening by itself. */

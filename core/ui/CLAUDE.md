@@ -6,9 +6,9 @@ logic, no ViewModels, no repositories.
 ## What This Module Provides
 
 ### Theme (`theme/`)
-- `Theme.kt`: `LibreChatTheme` wrapping Material 3 `MaterialTheme` with Butler's one skin
-  (10/10/2026): `Color.kt` (`ButlerLightColors` / `ButlerDarkColors`, fixed warm neutrals and a
-  brick accent, nothing generated from a seed or the wallpaper), `Type.kt` (`butlerTypography`:
+- `Theme.kt`: `LibreChatTheme` wrapping Material 3 `MaterialTheme` with Eva's one skin
+  (10/10/2026, named Butler until 19/10): `Color.kt` (`EvaLightColors` / `EvaDarkColors`, fixed warm neutrals and a
+  brick accent, nothing generated from a seed or the wallpaper), `Type.kt` (`evaTypography`:
   Source Serif 4 from `composeResources/font/` for display, headline and `titleLarge`, the system
   sans below; licence in `LICENSE-SourceSerif4.md`), `Shape.kt`.
 - `LocalAppLocale.kt` / `AppLocale`: applies the stored app language at the root.
@@ -39,6 +39,8 @@ conversation's composer.
 - `ModelPriceTag` / `modelPriceLabel` — a model's price beside its name in every model picker
   (« price unknown » is never rendered as a zero).
 - `PlatformBackHandler` — predictive back, multiplatform.
+- `EvaMark` (19/10/2026) — the app's mark, the launcher icon's paths on a 100 box: the bubble in
+  `primary`, the « e » in `surface`; the sign-in shows it.
 
 ### Portal web view (`web/`, D-076)
 - `PortalWebView` — the web view the sign-in runs in (Authelia portal, the tasks' consent page).

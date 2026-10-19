@@ -76,7 +76,7 @@ class MainActivity : ComponentActivity() {
 
     @OptIn(ExperimentalComposeUiApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
-        // The launch screen (the bow tie on the page's colour) stays until the persisted theme and
+        // The launch screen (Eva's bubble on the page's colour) stays until the persisted theme and
         // language are read, then fades into the first themed frame: no white flash, no jump.
         val splash = installSplashScreen()
         super.onCreate(savedInstanceState)

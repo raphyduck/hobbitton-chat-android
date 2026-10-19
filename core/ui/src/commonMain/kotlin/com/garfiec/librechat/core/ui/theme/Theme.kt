@@ -5,8 +5,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 
 /**
- * Butler's Material 3 theme: the fixed light or dark palette ([ButlerLightColors],
- * [ButlerDarkColors]), the serif-and-sans type scale ([butlerTypography]) and the shapes.
+ * Eva's Material 3 theme: the fixed light or dark palette ([EvaLightColors],
+ * [EvaDarkColors]), the serif-and-sans type scale ([evaTypography]) and the shapes.
  *
  * There is one skin (10/10/2026). The seed-generated scheme and the wallpaper-based Material You
  * colors of the earlier builds are gone: the look must not depend on the phone.
@@ -17,8 +17,8 @@ fun LibreChatTheme(
     content: @Composable () -> Unit,
 ) {
     MaterialTheme(
-        colorScheme = if (darkTheme) ButlerDarkColors else ButlerLightColors,
-        typography = butlerTypography(),
+        colorScheme = if (darkTheme) EvaDarkColors else EvaLightColors,
+        typography = evaTypography(),
         shapes = libreChatShapes,
         content = content,
     )

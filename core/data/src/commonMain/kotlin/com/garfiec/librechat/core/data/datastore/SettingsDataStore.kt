@@ -67,6 +67,14 @@ class SettingsDataStore(
         }
     }
 
+    /**
+     * Settings › Apparence › Langue (19/10/2026): a phone set in English showed the app in
+     * English to a person who works in French. [DEFAULT_LANGUAGE] follows the phone again.
+     */
+    suspend fun setSelectedLanguage(tag: String) {
+        dataStore.edit { it[KEY_SELECTED_LANGUAGE] = tag }
+    }
+
     val chatFontSize: Flow<ChatFontSize> = dataStore.data.map { prefs ->
         ChatFontSize.fromString(prefs[KEY_CHAT_FONT_SIZE])
     }

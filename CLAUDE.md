@@ -1,8 +1,9 @@
-# Butler — hobbitton chat (Android)
+# Eva — hobbitton chat (Android)
 
-Native Android client of the hobbitton platform, named **Butler** on the launcher since 03/10/2026
-(`app_name`; release asset `butler-v<version>.apk`): its conversations run on the **OpenCode engine**,
-behind the **scheduler** and the **Authelia portal**. The app started as a fork of Switchboard, a
+Native Android client of the hobbitton platform, named **Eva** on the launcher since 19/10/2026
+(Butler from 03/10; `app_name`; release asset `eva-v<version>.apk`; the agent bears the name too,
+in the server's `chat` prompt; its mark is a brick speech bubble holding a serif « e », `EvaMark`).
+Its conversations run on the **OpenCode engine**, behind the **scheduler** and the **Authelia portal**. The app started as a fork of Switchboard, a
 LibreChat client; LibreChat is gone from the server (D-077) and from this tree. iOS was dropped
 with it: the modules stay Kotlin Multiplatform (`commonMain` / `androidMain`) but Android is the
 only target.

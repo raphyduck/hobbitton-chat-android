@@ -112,7 +112,7 @@ jobs:
         if: always() && hashFiles('app/build/outputs/apk/debug/app-debug.apk') != ''
         uses: actions/upload-artifact@v7
         with:
-          name: butler-android-debug-${{ github.event.pull_request.number || github.sha }}
+          name: eva-android-debug-${{ github.event.pull_request.number || github.sha }}
           path: app/build/outputs/apk/debug/app-debug.apk
           retention-days: 90
           if-no-files-found: error
@@ -120,7 +120,7 @@ jobs:
       - name: Write APK summary
         if: always() && steps.upload_apk.outputs.artifact-url != ''
         env:
-          ARTIFACT_NAME: butler-android-debug-${{ github.event.pull_request.number || github.sha }}
+          ARTIFACT_NAME: eva-android-debug-${{ github.event.pull_request.number || github.sha }}
           ARTIFACT_URL: ${{ steps.upload_apk.outputs.artifact-url }}
         run: |
           {
@@ -142,8 +142,8 @@ jobs:
           message: |
             ## Android debug APK
 
-            **Artifact:** `butler-android-debug-${{ github.event.pull_request.number }}`
-            **Download:** [butler-android-debug-${{ github.event.pull_request.number }}.zip](${{ steps.upload_apk.outputs.artifact-url }})
+            **Artifact:** `eva-android-debug-${{ github.event.pull_request.number }}`
+            **Download:** [eva-android-debug-${{ github.event.pull_request.number }}.zip](${{ steps.upload_apk.outputs.artifact-url }})
             **Retention:** 90 days
             **Commit:** `${{ github.event.pull_request.head.sha }}`
 

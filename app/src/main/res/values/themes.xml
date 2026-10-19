@@ -7,7 +7,7 @@
     </style>
 
     <!--
-        The launch: the bow tie on the page's own colour, held until the persisted theme and
+        The launch: Eva's bubble on the page's own colour, held until the persisted theme and
         language are read, then faded into the app (SplashScreen API, MainActivity).
     -->
     <style name="Theme.LibreChat.Starting" parent="Theme.SplashScreen">
@@ -16,6 +16,6 @@
         <item name="postSplashScreenTheme">@style/Theme.LibreChat</item>
     </style>
 
-    <!-- The light page (ButlerLightColors.surface). -->
+    <!-- The light page (EvaLightColors.surface). -->
     <color name="splash_background">#F6F4EF</color>
 </resources>

@@ -16,7 +16,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Butler"
+rootProject.name = "Eva"
 
 include(":app")
 include(":core:common")

@@ -6,6 +6,6 @@
         <item name="android:navigationBarColor">@android:color/transparent</item>
     </style>
 
-    <!-- The dark page (ButlerDarkColors.surface). -->
+    <!-- The dark page (EvaDarkColors.surface). -->
     <color name="splash_background">#1E1D1B</color>
 </resources>

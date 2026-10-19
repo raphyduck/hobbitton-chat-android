@@ -1,4 +1,4 @@
-# Butler
+# Eva
 
 The Android client of the hobbitton platform (formerly « hobbitton chat »): chats and tasks on the OpenCode engine, behind the
 platform's scheduler and its Authelia portal.

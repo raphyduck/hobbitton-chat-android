@@ -2,7 +2,7 @@
 <resources>
     <string name="tasks_title">Scheduled</string>
     <string name="tasks_empty">Nothing scheduled yet</string>
-    <string name="tasks_empty_hint">Ask Butler in a conversation to schedule something recurring or for later.</string>
+    <string name="tasks_empty_hint">Ask Eva in a conversation to schedule something recurring or for later.</string>
     <string name="tasks_retry">Retry</string>
     <string name="tasks_stop">Stop</string>
     <string name="tasks_age_minutes">%1$d min</string>
@@ -45,7 +45,7 @@
     <string name="tasks_scheduled_suspended">Suspended</string>
     <string name="tasks_scheduled_next">Next %1$s</string>
     <string name="tasks_scheduled_never">Never run</string>
-    <string name="tasks_scheduled_last_ok">Last run %1$s · %2$s tokens</string>
+    <string name="tasks_scheduled_last_ok">Last run %1$s</string>
     <string name="tasks_scheduled_last_failed">Last run failed: %1$s</string>
     <plurals name="tasks_scheduled_tools">
         <item quantity="one">%1$d tool per turn</item>
@@ -151,7 +151,7 @@
     <string name="chat_new">New chat</string>
     <string name="chat_title">Chat</string>
     <string name="chat_empty">What can I do for you?</string>
-    <string name="chat_hint">Ask Butler</string>
+    <string name="chat_hint">Ask Eva</string>
     <string name="chat_greeting_morning">Good day, %1$s.</string>
     <string name="chat_greeting_evening">Good evening, %1$s.</string>
     <string name="chat_greeting_morning_anonymous">Good day.</string>
@@ -164,7 +164,7 @@
     <string name="tasks_prompt_emails">Summarise my unread emails</string>
     <string name="tasks_prompt_calendar">What's on my calendar this week?</string>
     <string name="tasks_prompt_document">Find a document on the NAS</string>
-    <string name="tasks_question_title">Butler is asking</string>
+    <string name="tasks_question_title">Eva is asking</string>
     <string name="tasks_question_other">Your own answer…</string>
     <string name="tasks_question_pick_several">Several choices possible</string>
     <string name="tasks_question_send">Reply</string>
@@ -173,5 +173,24 @@
     <string name="tasks_connectors_hint">What this conversation may use. Change it at any time, even after the first message.</string>
     <string name="tasks_connectors_read">Read and search</string>
     <string name="tasks_connectors_act">Act on your behalf</string>
-    <string name="tasks_scheduled_intro">What Butler does on its own. Each run opens as a conversation, in the menu's list.</string>
+    <string name="tasks_scheduled_intro">What Eva does on her own. Each run opens as a conversation, in the menu's list.</string>
+    <string-array name="tasks_days">
+        <item>Monday</item><item>Tuesday</item><item>Wednesday</item><item>Thursday</item><item>Friday</item><item>Saturday</item><item>Sunday</item>
+    </string-array>
+    <string-array name="tasks_days_short">
+        <item>Mon</item><item>Tue</item><item>Wed</item><item>Thu</item><item>Fri</item><item>Sat</item><item>Sun</item>
+    </string-array>
+    <string-array name="tasks_months_short">
+        <item>Jan</item><item>Feb</item><item>Mar</item><item>Apr</item><item>May</item><item>Jun</item><item>Jul</item><item>Aug</item><item>Sep</item><item>Oct</item><item>Nov</item><item>Dec</item>
+    </string-array>
+    <string name="tasks_time_hour">%1$s:00</string>
+    <string name="tasks_time_hour_minute">%1$s:%2$s</string>
+    <string name="tasks_cron_daily">Every day at %1$s</string>
+    <string name="tasks_cron_weekdays">Weekdays at %1$s</string>
+    <string name="tasks_cron_weekly">Every %1$s at %2$s</string>
+    <string name="tasks_cron_monthly">On day %1$s of each month at %2$s</string>
+    <string name="tasks_cron_hourly_between">Every hour from %1$s to %2$s</string>
+    <string name="tasks_cron_hourly">Every hour</string>
+    <string name="tasks_date">%1$s %2$s %3$s, %4$s</string>
+    <string name="tasks_and">and</string>
 </resources>

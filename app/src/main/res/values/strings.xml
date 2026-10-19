@@ -1,23 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name" translatable="false">Butler</string>
+    <string name="app_name" translatable="false">Eva</string>
 
     <!-- Connectivity -->
     <string name="no_connection">No internet connection</string>
 
     <!-- Attention: a question waiting for an answer, a reply ready -->
     <string name="attention_channel_questions">Questions</string>
-    <string name="attention_channel_questions_hint">Butler is waiting for your answer to go on.</string>
+    <string name="attention_channel_questions_hint">Eva is waiting for your answer to go on.</string>
     <string name="attention_channel_replies">Replies</string>
     <string name="attention_channel_replies_hint">A reply finished while you were elsewhere.</string>
     <string name="attention_channel_decisions">Decisions</string>
     <string name="attention_channel_decisions_hint">A decision waits for you in a conversation.</string>
     <string name="push_listening">Standing by</string>
     <string name="push_channel_listening">Push notifications</string>
-    <string name="push_channel_listening_hint">Keeps the connection that brings Butler’s notifications.</string>
-    <string name="attention_question">Butler has a question</string>
+    <string name="push_channel_listening_hint">Keeps the connection that brings Eva’s notifications.</string>
+    <string name="attention_question">Eva has a question</string>
     <string name="attention_question_in">Question · %1$s</string>
-    <string name="attention_question_hint">Butler is waiting for your answer.</string>
+    <string name="attention_question_hint">Eva is waiting for your answer.</string>
     <string name="attention_reply_ready">Reply ready</string>
-    <string name="attention_reply_ready_hint">Butler has answered.</string>
+    <string name="attention_reply_ready_hint">Eva has answered.</string>
 </resources>

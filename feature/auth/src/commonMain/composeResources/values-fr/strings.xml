@@ -5,8 +5,8 @@
     <string name="portal_sign_in_hint">Une seule connexion pour les conversations et les tâches : mot de passe et second facteur au portail, puis une autorisation.</string>
     <string name="portal_title">Connexion</string>
     <string name="portal_close">Fermer</string>
-    <string name="portal_brand">Butler</string>
-    <string name="portal_tagline">Votre assistant, sur votre plateforme.</string>
+    <string name="portal_brand">Eva</string>
+    <string name="portal_tagline">Votre assistante, sur votre plateforme.</string>
     <string name="portal_platform">Plateforme : %1$s</string>
     <string name="portal_other_platform">Autre plateforme</string>
     <string name="portal_addresses_hint">Les trois adresses de votre plateforme. Elles restent sur cet appareil.</string>

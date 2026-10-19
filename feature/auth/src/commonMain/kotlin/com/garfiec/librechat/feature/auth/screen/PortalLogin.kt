@@ -1,6 +1,5 @@
 package com.garfiec.librechat.feature.auth.screen
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,12 +33,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.geometry.RoundRect
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -47,6 +40,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.garfiec.librechat.core.data.engine.EngineAddressField
+import com.garfiec.librechat.core.ui.components.EvaMark
 import com.garfiec.librechat.core.ui.components.PlatformBackHandler
 import com.garfiec.librechat.core.ui.web.PortalWebView
 import com.garfiec.librechat.feature.auth.resources.Res
@@ -145,7 +139,7 @@ internal fun PortalAddressForm(
                 .padding(horizontal = 24.dp, vertical = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            BowTie(modifier = Modifier.size(64.dp))
+            EvaMark(modifier = Modifier.size(72.dp))
             Spacer(Modifier.height(20.dp))
             Text(
                 stringResource(Res.string.portal_brand),
@@ -276,56 +270,6 @@ private fun SignInControls(
         }
 }
 }
-
-/**
- * The bow tie, Butler's mark, drawn in the accent: two wings meeting at a knot. The launcher icon's
- * shape, redrawn here because the icon is an Android drawable the shared code cannot see.
- */
-@Composable
-private fun BowTie(modifier: Modifier = Modifier, color: Color = MaterialTheme.colorScheme.primary) {
-    Canvas(modifier) {
-        val w = size.width
-        val h = w * WING_HEIGHT
-        val top = (size.height - h) / 2
-        val knotWidth = w * KNOT_WIDTH
-        val knotLeft = (w - knotWidth) / 2
-        val knotRight = knotLeft + knotWidth
-        val inset = h * WING_INSET
-        val wings = Path().apply {
-            moveTo(0f, top)
-            lineTo(knotLeft, top + inset)
-            lineTo(knotLeft, top + h - inset)
-            lineTo(0f, top + h)
-            close()
-            moveTo(w, top)
-            lineTo(knotRight, top + inset)
-            lineTo(knotRight, top + h - inset)
-            lineTo(w, top + h)
-            close()
-        }
-        drawPath(wings, color)
-        val knotHeight = h * KNOT_HEIGHT
-        val knot = Path().apply {
-            addRoundRect(
-                RoundRect(
-                    rect = Rect(
-                        Offset(knotLeft - knotWidth * KNOT_OVERLAP, top + (h - knotHeight) / 2),
-                        Offset(knotRight + knotWidth * KNOT_OVERLAP, top + (h + knotHeight) / 2),
-                    ),
-                    cornerRadius = CornerRadius(knotWidth * KNOT_RADIUS),
-                ),
-            )
-        }
-        drawPath(knot, color)
-    }
-}
-
-private const val WING_HEIGHT = 0.58f
-private const val WING_INSET = 0.22f
-private const val KNOT_WIDTH = 0.2f
-private const val KNOT_HEIGHT = 0.62f
-private const val KNOT_OVERLAP = 0.15f
-private const val KNOT_RADIUS = 0.3f
 
 @Composable
 private fun AddressField(

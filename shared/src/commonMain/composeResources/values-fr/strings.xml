@@ -27,6 +27,10 @@
     <string name="engine_text_size_small">Petite</string>
     <string name="engine_text_size_medium">Normale</string>
     <string name="engine_text_size_large">Grande</string>
+    <string name="engine_settings_language">Langue</string>
+    <string name="engine_language_system">Système</string>
+    <string name="engine_language_french">Français</string>
+    <string name="engine_language_english">English</string>
     <string name="engine_settings_assistant">Assistant</string>
     <string name="engine_settings_platform">Plateforme</string>
     <string name="engine_settings_engine">Moteur</string>
@@ -36,7 +40,7 @@
     <string name="engine_settings_usage">Consommation et fournisseurs</string>
     <string name="engine_settings_notifications">Notifications</string>
     <string name="engine_settings_attention">Son et notifications</string>
-    <string name="engine_settings_attention_hint">Quand Butler vous pose une question, ou qu’une réponse se termine pendant que vous êtes ailleurs.</string>
+    <string name="engine_settings_attention_hint">Quand Eva vous pose une question, ou qu’une réponse se termine pendant que vous êtes ailleurs.</string>
     <string name="engine_settings_dictation">Dictée</string>
     <string name="engine_settings_local_dictation">Dictée sur le téléphone</string>
     <string name="engine_settings_local_dictation_hint">Le micro est entendu par le téléphone lui-même, sans rien envoyer. Désactivé, la dictée est transcrite par le serveur. Les fichiers audio passent toujours par le serveur.</string>

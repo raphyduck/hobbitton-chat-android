@@ -4,8 +4,8 @@ The app's only way in (D-077): `PortalSignInScreen`, composed by `EngineNavHost`
 
 ## Screen
 
-- `PortalSignInScreen` (`screen/PortalLogin.kt`) — since lot 4 (10/10/2026) the bow tie and
-  « Butler » in the serif, one « Se connecter » button, and the three addresses of the platform
+- `PortalSignInScreen` (`screen/PortalLogin.kt`) — since lot 4 (10/10/2026) the app's mark
+  (`EvaMark`, Eva's bubble since 19/10/2026) and « Eva » in the serif, one « Se connecter » button, and the three addresses of the platform
   (engine, scheduler, portal: `EngineSettingsStore`, validated by `validateEngineAddresses`) folded
   away when the build names a platform (`PlatformDefaults`, from `platform.properties`), shown
   from the start otherwise or on « Autre plateforme ». Then the portal's round trip in the app's

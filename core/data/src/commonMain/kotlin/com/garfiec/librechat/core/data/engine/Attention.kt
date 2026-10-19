@@ -27,7 +27,7 @@ interface AttentionNotifier {
     /** The notification sound, played once, for something the person is already looking at. */
     fun chime()
 
-    /** « Butler is asking you something », opening the conversation when tapped. Sounds on its channel. */
+    /** « Eva is asking you something », opening the conversation when tapped. Sounds on its channel. */
     fun showQuestion(conversation: OpenConversation, requestId: String, question: String)
 
     /** « The reply is ready », for a turn the person was waiting on. */

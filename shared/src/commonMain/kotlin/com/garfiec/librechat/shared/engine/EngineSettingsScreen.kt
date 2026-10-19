@@ -57,6 +57,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.garfiec.librechat.core.data.datastore.ChatFontSize
+import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.datastore.ThemeMode
 import com.garfiec.librechat.core.model.engine.EngineSelectableModel
 import com.garfiec.librechat.core.network.engine.EngineAccess
@@ -64,6 +65,9 @@ import com.garfiec.librechat.core.ui.components.SectionDivider
 import com.garfiec.librechat.core.ui.components.SectionGroup
 import com.garfiec.librechat.core.ui.components.SectionLabel
 import com.garfiec.librechat.shared.resources.Res
+import com.garfiec.librechat.shared.resources.engine_language_english
+import com.garfiec.librechat.shared.resources.engine_language_french
+import com.garfiec.librechat.shared.resources.engine_language_system
 import com.garfiec.librechat.shared.resources.engine_settings_appearance
 import com.garfiec.librechat.shared.resources.engine_settings_assistant
 import com.garfiec.librechat.shared.resources.engine_settings_attention
@@ -81,6 +85,7 @@ import com.garfiec.librechat.shared.resources.engine_settings_dictation
 import com.garfiec.librechat.shared.resources.engine_settings_engine
 import com.garfiec.librechat.shared.resources.engine_settings_instructions
 import com.garfiec.librechat.shared.resources.engine_settings_instructions_hint
+import com.garfiec.librechat.shared.resources.engine_settings_language
 import com.garfiec.librechat.shared.resources.engine_settings_local_dictation
 import com.garfiec.librechat.shared.resources.engine_settings_local_dictation_hint
 import com.garfiec.librechat.shared.resources.engine_settings_notifications
@@ -122,6 +127,8 @@ data class EngineSettingsUiState(
     val models: List<EngineSelectableModel> = emptyList(),
     /** The engine's own default, named on the « the server's » choice. */
     val engineDefault: EngineSelectableModel? = null,
+    /** The app's language (19/10/2026). */
+    val language: AppLanguage = AppLanguage.SYSTEM,
 ) {
     /** What the row says is set: the model's name, its raw id when the list does not name it. */
     val defaultModelLabel: String?
@@ -151,6 +158,7 @@ internal fun EngineSettingsScreen(
     onChatFontSize: (ChatFontSize) -> Unit = {},
     onOpenBudget: () -> Unit = {},
     onDefaultModel: (String?) -> Unit = {},
+    onLanguage: (AppLanguage) -> Unit = {},
 ) {
     var confirmSignOut by rememberSaveable { mutableStateOf(false) }
     var pickModel by rememberSaveable { mutableStateOf(false) }
@@ -181,6 +189,7 @@ internal fun EngineSettingsScreen(
             onChatFontSize = onChatFontSize,
             onAttentionSound = onAttentionSound,
             onLocalDictation = onLocalDictation,
+            onLanguage = onLanguage,
             onPickModel = { pickModel = true },
             onSignOut = { confirmSignOut = true },
         )
@@ -305,6 +314,7 @@ private fun SettingsBody(
     onChatFontSize: (ChatFontSize) -> Unit,
     onAttentionSound: (Boolean) -> Unit,
     onLocalDictation: (Boolean) -> Unit,
+    onLanguage: (AppLanguage) -> Unit,
     onPickModel: () -> Unit,
     onSignOut: () -> Unit,
 ) {
@@ -337,6 +347,14 @@ private fun SettingsBody(
                 selected = state.chatFontSize,
                 optionLabel = { stringResource(it.label()) },
                 onPick = onChatFontSize,
+            )
+            SectionDivider()
+            ChoiceRow(
+                label = stringResource(Res.string.engine_settings_language),
+                options = AppLanguage.entries,
+                selected = state.language,
+                optionLabel = { stringResource(it.label()) },
+                onPick = onLanguage,
             )
         }
         Spacer(Modifier.height(GROUP_GAP))
@@ -453,13 +471,14 @@ private fun AccountHeader(account: DrawerAccount) {
         horizontalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Box(
-            modifier = Modifier.size(56.dp).background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
+            // The drawer's foot draws the same mark: one person, one look.
+            modifier = Modifier.size(56.dp).background(MaterialTheme.colorScheme.primary, CircleShape),
             contentAlignment = Alignment.Center,
         ) {
             Text(
                 account.initial,
                 style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                color = MaterialTheme.colorScheme.onPrimary,
             )
         }
         Column {
@@ -598,6 +617,27 @@ private fun ThemeMode.label(): StringResource = when (this) {
     ThemeMode.SYSTEM -> Res.string.engine_theme_system
     ThemeMode.LIGHT -> Res.string.engine_theme_light
     ThemeMode.DARK -> Res.string.engine_theme_dark
+}
+
+/**
+ * The app's language (19/10/2026). The two the app is written in; « Système » follows the phone.
+ * Each is named in its own language, as a language picker does.
+ */
+enum class AppLanguage(val tag: String) {
+    SYSTEM(SettingsDataStore.DEFAULT_LANGUAGE),
+    FRENCH("fr"),
+    ENGLISH("en"),
+    ;
+
+    companion object {
+        fun fromTag(tag: String): AppLanguage = entries.firstOrNull { it.tag == tag } ?: SYSTEM
+    }
+}
+
+private fun AppLanguage.label(): StringResource = when (this) {
+    AppLanguage.SYSTEM -> Res.string.engine_language_system
+    AppLanguage.FRENCH -> Res.string.engine_language_french
+    AppLanguage.ENGLISH -> Res.string.engine_language_english
 }
 
 private fun ChatFontSize.label(): StringResource = when (this) {

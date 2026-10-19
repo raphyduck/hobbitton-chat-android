@@ -6,10 +6,12 @@ Single Activity. `MainActivity` is the sole entry point; `LibreChatApplication` 
 
 - Composes `EngineNavHost` (`:shared`) under `LibreChatTheme`, once the persisted theme
   (`ThemeDataStore`) and language (`SettingsDataStore`) have been read, so the first frame never
-  shows the wrong theme or locale. The SplashScreen API (`Theme.LibreChat.Starting`, the bow tie
-  on the page's colour) covers that wait and fades into the first frame.
-- The launcher icon is the bow tie (`drawable/ic_launcher_foreground.xml`, monochrome variant,
-  ivory background), adaptive only: minSdk 26 needs no legacy PNGs.
+  shows the wrong theme or locale. The SplashScreen API (`Theme.LibreChat.Starting`, the
+  bubble on the page's colour) covers that wait and fades into the first frame.
+- The launcher icon is Eva's mark since 19/10/2026 (it was Butler's bow tie): a brick speech bubble
+  holding an ivory « e » of Source Serif 4 semibold, drawn as paths (`drawable/ic_launcher_foreground.xml`;
+  the monochrome variant cuts the « e » out of the bubble, even-odd), ivory background, adaptive
+  only: minSdk 26 needs no legacy PNGs. The same paths draw `EvaMark` (`:core:ui`).
 - Offline banner: `ConnectivityObserver` drives a strip above the shell when the network is lost.
 - **One link**: the portal's return, `at.hobbitton.chat://oauth` (see the manifest's comment for
   why the code comes back through the scheduler and a deep link). `handleIntent` hands it to
@@ -30,7 +32,8 @@ Single Activity. `MainActivity` is the sole entry point; `LibreChatApplication` 
   application plugin fills from `platform.properties` (git-ignored) or the same-named environment
   variables: the sign-in starts on them.
 - `attention/`: `AndroidAttentionNotifier` (the notification sound, the « Questions » and
-  « Replies » channels, the notification that opens a conversation) and `attentionModule`.
+  « Replies » channels, the notification that opens a conversation) and `attentionModule`. The
+  channels' ids keep their `butler_` prefix: renamed, Android would drop the settings set on them.
 - Starts `LegacyLibreChatCleanup` once: removes what LibreChat left on an upgraded device.
 - Diagnostics after Koin: the persistent log writer, the crash record, the startup header, the
   main-thread watchdog. Best-effort — a failure there never blocks launch.

@@ -224,7 +224,7 @@ class EngineMissionRepository(
                 val moved = read?.isUnread(session.id, lastActivity) == true
                 chats += EngineChatSummary(
                     sessionId = session.id,
-                    title = mission ?: session.title.orEmpty().ifBlank { session.id },
+                    title = mission?.let(::missionDisplayName) ?: session.title.orEmpty().ifBlank { session.id },
                     lastActivityMillis = lastActivity,
                     running = active != null && active.type != IDLE_STATUS,
                     kind = kind,
