@@ -14,6 +14,7 @@ import com.garfiec.librechat.core.data.engine.ConversationRequests
 import com.garfiec.librechat.core.data.engine.EngineAttentionWatcher
 import com.garfiec.librechat.core.data.engine.EngineChatSummary
 import com.garfiec.librechat.core.data.engine.EngineMissionRepository
+import com.garfiec.librechat.core.data.engine.EngineModelChoice
 import com.garfiec.librechat.core.data.engine.EngineSettingsStore
 import com.garfiec.librechat.core.data.engine.OpenConversation
 import com.garfiec.librechat.core.data.engine.SessionKindStore
@@ -119,6 +120,15 @@ class EngineShellViewModel(
     val chatFontSize: StateFlow<ChatFontSize> = settingsDataStore.chatFontSize
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), ChatFontSize.MEDIUM)
 
+    /** The model a new conversation starts on, by id; null follows the engine's (19/10/2026). */
+    val defaultChatModel: StateFlow<String?> = settingsDataStore.defaultChatModel
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), null)
+
+    private val _models = MutableStateFlow(EngineModelChoice())
+
+    /** What Settings offers as the default model: read when Settings opens, empty until then. */
+    val models: StateFlow<EngineModelChoice> = _models.asStateFlow()
+
     /** A conversation a notification asked to open, until the shell has opened it. */
     val openRequest: StateFlow<OpenConversation?> = conversationRequests?.pending
         ?: MutableStateFlow<OpenConversation?>(null).asStateFlow()
@@ -191,6 +201,27 @@ class EngineShellViewModel(
 
     fun setChatFontSize(size: ChatFontSize) {
         viewModelScope.launch { settingsDataStore.setChatFontSize(size) }
+    }
+
+    fun setDefaultChatModel(modelId: String?) {
+        viewModelScope.launch { settingsDataStore.setDefaultChatModel(modelId) }
+    }
+
+    /**
+     * Reads the models the default can be set to, on each opening of Settings: the deployment's
+     * list may have moved. A failure leaves the last list, or none, and the row names what is set.
+     */
+    fun loadModels() {
+        val source = repository ?: return
+        viewModelScope.launch {
+            try {
+                _models.value = source.models()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Logger.w(e) { "Settings: the engine's models could not be read" }
+            }
+        }
     }
 
     /** The shell opened the conversation a notification named: it is not opened twice. */

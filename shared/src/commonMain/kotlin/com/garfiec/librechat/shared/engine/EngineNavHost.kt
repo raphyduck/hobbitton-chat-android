@@ -71,6 +71,8 @@ fun EngineNavHost(
     val attentionSound by viewModel.attentionSound.collectAsStateWithLifecycle()
     val localDictation by viewModel.localDictation.collectAsStateWithLifecycle()
     val chatFontSize by viewModel.chatFontSize.collectAsStateWithLifecycle()
+    val defaultChatModel by viewModel.defaultChatModel.collectAsStateWithLifecycle()
+    val models by viewModel.models.collectAsStateWithLifecycle()
     val openRequest by viewModel.openRequest.collectAsStateWithLifecycle()
     val identity by viewModel.identity.collectAsStateWithLifecycle()
 
@@ -105,6 +107,9 @@ fun EngineNavHost(
                                 localDictation = localDictation,
                                 chatFontSize = chatFontSize,
                                 account = account,
+                                defaultModelId = defaultChatModel,
+                                models = models.models,
+                                engineDefault = models.engineDefault,
                             ),
                             openRequest = openRequest,
                             onConsumeOpenRequest = viewModel::consumeOpenRequest,
@@ -118,6 +123,8 @@ fun EngineNavHost(
                                 if (enabled) onRequestNotificationPermission()
                             },
                             onLocalDictation = viewModel::setLocalDictation,
+                            onDefaultModel = viewModel::setDefaultChatModel,
+                            onLoadModels = viewModel::loadModels,
                             onSignOut = viewModel::signOut,
                         )
                     }
@@ -147,6 +154,8 @@ private fun EngineMainLayout(
     onChatFontSize: (ChatFontSize) -> Unit,
     onAttentionSound: (Boolean) -> Unit,
     onLocalDictation: (Boolean) -> Unit,
+    onDefaultModel: (String?) -> Unit,
+    onLoadModels: () -> Unit,
     onSignOut: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -156,6 +165,7 @@ private fun EngineMainLayout(
     val scope = rememberCoroutineScope()
     val refreshChats by rememberUpdatedState(onRefreshChats)
     val refreshAllChats by rememberUpdatedState(onRefreshAllChats)
+    val loadModels by rememberUpdatedState(onLoadModels)
 
     // The drawer re-reads the chats each time it opens: a chat started on another device, or
     // answered while the drawer was shut, moves to the top.
@@ -263,6 +273,8 @@ private fun EngineMainLayout(
                     onOpenDrawer = openDrawer,
                 )
                 entry<EngineAppSettings> {
+                    // Read on every arrival: the deployment's models may have moved since.
+                    LaunchedEffect(Unit) { loadModels() }
                     EngineSettingsScreen(
                         state = settings,
                         onBack = { navigator.goBack() },
@@ -273,6 +285,7 @@ private fun EngineMainLayout(
                         onChatFontSize = onChatFontSize,
                         onAttentionSound = onAttentionSound,
                         onLocalDictation = onLocalDictation,
+                        onDefaultModel = onDefaultModel,
                         onSignOut = {
                             // The stack first: its conversations close with their entries — their
                             // view models, their live feeds — before the portal's tokens go.

@@ -88,6 +88,30 @@ class EngineModelChoiceTest {
     }
 
     @Test
+    fun `the default set in Settings is preselected, the engine's kept beside it`() = runTest {
+        val choice = testMissionRepository(
+            catalogueEngine(),
+            modelPreference = ModelPreference { "claude-sonnet-5" },
+        ).models()
+
+        assertEquals("claude-sonnet-5", choice.preselected?.modelId)
+        assertEquals("hobbitton-chat", choice.preselected?.providerId)
+        // Settings names it on « the server's » choice.
+        assertEquals("gpt-5.5", choice.engineDefault?.modelId)
+    }
+
+    @Test
+    fun `a default the deployment no longer lists falls back to the engine's`() = runTest {
+        val choice = testMissionRepository(
+            catalogueEngine(),
+            modelPreference = ModelPreference { "a-model-the-gateway-dropped" },
+        ).models()
+
+        // A turn sent to a model the gateway no longer carries would only fail.
+        assertEquals("gpt-5.5", choice.preselected?.modelId)
+    }
+
+    @Test
     fun `an engine that names no default preselects nothing`() = runTest {
         val sansDefaut = catalogue.replace(
             """"default": { "opencode": "big-pickle", "hobbitton-gateway": "claude-sonnet-5", "hobbitton-chat": "gpt-5.5" }""",

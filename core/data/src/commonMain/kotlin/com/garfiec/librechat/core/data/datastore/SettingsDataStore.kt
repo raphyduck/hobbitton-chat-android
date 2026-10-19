@@ -20,8 +20,8 @@ import kotlin.concurrent.Volatile
 /**
  * The display preferences: the language applied at the root (set from LibreChat's settings screens
  * and read as stored), the size of the conversation's text (Settings › Apparence since lot 4),
- * whether a question or a finished reply rings ([attentionSound]) and where the mic's dictation is
- * heard ([localDictation]).
+ * whether a question or a finished reply rings ([attentionSound]), where the mic's dictation is
+ * heard ([localDictation]) and the model a new conversation starts on ([defaultChatModel]).
  */
 class SettingsDataStore(
     private val dataStore: DataStore<Preferences>,
@@ -99,6 +99,19 @@ class SettingsDataStore(
         dataStore.edit { it[KEY_LOCAL_DICTATION] = enabled }
     }
 
+    /**
+     * The model a new conversation starts on (Settings › Assistant, 19/10/2026), by its model id on
+     * the conversations' provider; null follows the engine's default. The composer can still pick
+     * another for one conversation.
+     */
+    val defaultChatModel: Flow<String?> = dataStore.data.map { prefs -> prefs[KEY_DEFAULT_CHAT_MODEL] }
+
+    suspend fun setDefaultChatModel(modelId: String?) {
+        dataStore.edit { prefs ->
+            if (modelId == null) prefs.remove(KEY_DEFAULT_CHAT_MODEL) else prefs[KEY_DEFAULT_CHAT_MODEL] = modelId
+        }
+    }
+
     companion object {
         /**
          * Sentinel meaning "follow the device locale" — the default until the user picks a
@@ -111,5 +124,6 @@ class SettingsDataStore(
         private val KEY_CHAT_FONT_SIZE = stringPreferencesKey("chat_font_size")
         private val KEY_ATTENTION_SOUND = booleanPreferencesKey("attention_sound")
         private val KEY_LOCAL_DICTATION = booleanPreferencesKey("local_dictation")
+        private val KEY_DEFAULT_CHAT_MODEL = stringPreferencesKey("default_chat_model")
     }
 }

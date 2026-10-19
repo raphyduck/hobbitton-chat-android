@@ -1,13 +1,16 @@
 package com.garfiec.librechat.feature.tasks.di
 
 import com.garfiec.librechat.core.common.di.KoinQualifiers
+import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.engine.EngineAttentionWatcher
 import com.garfiec.librechat.core.data.engine.EngineMissionRepository
+import com.garfiec.librechat.core.data.engine.ModelPreference
 import com.garfiec.librechat.feature.tasks.EngineSettingsViewModel
 import com.garfiec.librechat.feature.tasks.MissionChatArgs
 import com.garfiec.librechat.feature.tasks.MissionChatViewModel
 import com.garfiec.librechat.feature.tasks.TasksViewModel
 import com.garfiec.librechat.feature.tasks.UsageViewModel
+import kotlinx.coroutines.flow.first
 import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
@@ -18,6 +21,7 @@ import org.koin.dsl.module
  */
 val tasksModule = module {
     single {
+        val settings = get<SettingsDataStore>()
         EngineMissionRepository(
             api = get(),
             scheduler = get(),
@@ -26,6 +30,7 @@ val tasksModule = module {
             globalProfile = get(),
             kinds = get(),
             reads = get(),
+            modelPreference = ModelPreference { settings.defaultChatModel.first() },
         )
     }
     // Questions asked anywhere on the engine, rung through the attention signals: the shell runs it
