@@ -43,7 +43,10 @@ import java.net.URL
  * conversation, or a question an agent asked while the app was closed.
  *
  * A foreground service, as Android requires to keep a connection while the app is in the
- * background; its own notification is silent and minimal. It stops by itself when the Settings
+ * background; its own notification is as discreet as Android allows (Raphaël, 19/10/2026: keep
+ * the stream, make the notice discreet): the lowest channel, no badge, no sound, no time, hidden on
+ * the lock screen, dismissable, and never posted again once the service runs, so a notice swiped
+ * away stays away until the phone restarts. It stops by itself when the Settings
  * switch is off or the platform has no push channel, and resumes the stream after the last
  * message it showed, so a reconnection loses nothing and replays nothing.
  */
@@ -58,6 +61,11 @@ class PushService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    override fun onCreate() {
+        super.onCreate()
+        running = true
+    }
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         goForeground()
         if (listening?.isActive != true) listening = scope.launch { listen() }
@@ -65,6 +73,7 @@ class PushService : Service() {
     }
 
     override fun onDestroy() {
+        running = false
         scope.cancel()
         super.onDestroy()
     }
@@ -124,20 +133,31 @@ class PushService : Service() {
     private fun goForeground() {
         val manager = getSystemService(NotificationManager::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            // A channel's settings are fixed once created: the first one (badge, lock screen) goes.
+            manager?.deleteNotificationChannel(OLD_CHANNEL_LISTENING)
             manager?.createNotificationChannel(
                 NotificationChannel(
                     CHANNEL_LISTENING,
                     getString(R.string.push_channel_listening),
                     NotificationManager.IMPORTANCE_MIN,
-                ).apply { description = getString(R.string.push_channel_listening_hint) },
+                ).apply {
+                    description = getString(R.string.push_channel_listening_hint)
+                    setShowBadge(false)
+                    setSound(null, null)
+                    enableVibration(false)
+                    lockscreenVisibility = Notification.VISIBILITY_SECRET
+                },
             )
         }
         val notification: Notification = NotificationCompat.Builder(this, CHANNEL_LISTENING)
             .setSmallIcon(android.R.drawable.stat_notify_chat)
             .setContentTitle(getString(R.string.push_listening))
             .setPriority(NotificationCompat.PRIORITY_MIN)
-            .setOngoing(true)
+            .setCategory(NotificationCompat.CATEGORY_SERVICE)
+            .setVisibility(NotificationCompat.VISIBILITY_SECRET)
+            .setShowWhen(false)
             .setSilent(true)
+            .setLocalOnly(true)
             .build()
         val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             ServiceInfo.FOREGROUND_SERVICE_TYPE_REMOTE_MESSAGING
@@ -153,7 +173,8 @@ class PushService : Service() {
 
         /** A first stream reads back what the last hour published, so nothing just sent is missed. */
         private const val FIRST_SINCE = "1h"
-        private const val CHANNEL_LISTENING = "butler_listening"
+        private const val CHANNEL_LISTENING = "butler_listening_discreet"
+        private const val OLD_CHANNEL_LISTENING = "butler_listening"
         private const val LISTENING_ID = 4242
 
         private const val CONNECT_TIMEOUT_MS = 20_000
@@ -162,8 +183,16 @@ class PushService : Service() {
         private const val MAX_RETRY_MS = 300_000L
         private const val NO_CHANNEL_RETRY_MS = 900_000L
 
-        /** Starts (or keeps) the service. Safe to call often: a running service is left alone. */
+        /** True between the service's creation and its end, in this process. */
+        @Volatile
+        private var running = false
+
+        /**
+         * Starts the service unless it runs already. Called at every launch: a running service is
+         * not asked again, which would post its notice again after it was swiped away.
+         */
         fun start(context: Context) {
+            if (running) return
             runCatching {
                 ContextCompat.startForegroundService(context, Intent(context, PushService::class.java))
             }.onFailure { Logger.w(it) { "Push: the service could not start" } }

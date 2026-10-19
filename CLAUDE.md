@@ -106,7 +106,9 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   (`GET /notifications` → `PushChannel`), keeps the topic's JSON stream open and resumes after the
   last message shown. `parsePushLine` reads a message, `shouldNotifyPush` keeps it quiet when the app
   is on screen or when the in-app watcher (`attentionWatcherRunning`) already rings that question.
-  Off with the Settings switch.
+  Off with the Settings switch. Its own notice is as discreet as Android allows (Raphaël,
+  19/10/2026: keep the stream, no Firebase): lowest channel, no badge or sound, hidden on the lock
+  screen, dismissable, and never posted again while the service runs.
 - **Spending ceilings** (Settings → Plafonds de dépense, 12/10/2026): the conversations' key per
   day, per week and over 30 days, read and set through the scheduler's `/plafonds`
   (`EngineBudgetScreen`). The scheduled missions' key is not set from here.
