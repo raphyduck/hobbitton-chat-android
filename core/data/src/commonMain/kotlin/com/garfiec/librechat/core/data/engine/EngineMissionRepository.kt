@@ -41,7 +41,8 @@ data class EngineChatSummary(
 )
 
 /**
- * Which sessions a list holds (16/10/2026, Raphaël's rule).
+ * Which sessions a list holds (16/10/2026, Raphaël's rule). Since 19/10/2026 the drawer shows the
+ * Conversations page's [ALL] too: the two lists show the same sessions; [MANUAL] is unused.
  *
  *  * [MANUAL], the drawer: the conversations the person started, never a run of the scheduler —
  *    a mission run every half hour would bury them within a morning.
