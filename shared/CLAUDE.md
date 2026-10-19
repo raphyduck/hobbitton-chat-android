@@ -8,9 +8,9 @@ The engine shell, and the Koin module list the application starts from. KMP libr
 - `EngineNavHost` — the app's root (D-077): the portal sign-in (`PortalSignInScreen`) when signed
   out, the conversation under a drawer when signed in. Re-checks the signed-in state on every return to the
   foreground. Provides `SafeUriHandler` (http(s) and mailto only) to everything below it.
-- `EngineShellViewModel` — signed-in state (`isPortalSignedIn`), the drawer's recent conversations
-  (started by hand only, since 16/10/2026), the Conversations page's (`allChats`, every session,
-  unread first), `markRead` (called by `EngineMainLayout` when a conversation opens, is left, or the
+- `EngineShellViewModel` — signed-in state (`isPortalSignedIn`), the Conversations page's sessions
+  (`allChats`, every session, unread first) and the drawer's (`chats`: the same read, by latest
+  activity; the same sessions in both lists since 19/10/2026), `markRead` (called by `EngineMainLayout` when a conversation opens, is left, or the
   app goes to the background), the theme, and sign-out: `PortalSignOut` (the portal's tokens and web-view cookies), then this device's
   session kinds, read marks and reading positions. Every engine dependency is nullable (`getOrNull`).
 - `EngineNavigator`: the back stack: the conversation as root (`EngineChat`, any session since
@@ -20,7 +20,7 @@ The engine shell, and the Koin module list the application starts from. KMP libr
   rest, each by latest activity; pushed like Programmées (`EngineConversations`), pull to refresh.
   Its rows are the drawer's (`RecentChatItem`, an unread title in bold).
 - `EngineDrawer` (Claude's layout since lot 3, 10/10/2026) — a search over the titles (local
-  filter), three short entries (new conversation, Conversations, Programmées), the recent conversations started by hand as bare titles under day
+  filter), three short entries (new conversation, Conversations, Programmées), every session (the same as the Conversations page, a small clock on a run) as bare titles under day
   headers (Today / Yesterday / Previous 7 days / Older, in the phone's time zone: `groupRecent` in
   `RecentGrouping.kt`, the offset from `localUtcOffsetMillis`, actual in `androidMain`), an unread title in bold,
   a dot of the accent while one answers, a short age; placeholder rows on

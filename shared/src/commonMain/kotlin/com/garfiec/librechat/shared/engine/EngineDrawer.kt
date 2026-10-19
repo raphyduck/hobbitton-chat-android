@@ -96,9 +96,9 @@ data class DrawerAccount(
  * over the titles, two short entries (a new conversation, Programmées), the recent conversations as
  * bare titles under quiet day headers, and the account at the foot, which opens the settings.
  *
- * Since 16/10/2026 the list holds the conversations the person started, never a run of the
- * scheduler (`ChatScope.MANUAL`): a mission run every half hour buried them. Every session, the
- * runs included, is on the Conversations page, the entry above Programmées. A conversation still
+ * The list holds the same sessions as the Conversations page, the scheduler's runs included with
+ * their small clock (19/10/2026, Raphaël's rule; from 16/10 it had held only the conversations
+ * started by hand), here by latest activity under day headers. A conversation still
  * answering carries a dot of the accent, an unread one a bold title; a first load shows
  * placeholder rows instead of a progress bar over an empty list.
  */
