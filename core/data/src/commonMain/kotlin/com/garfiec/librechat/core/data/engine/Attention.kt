@@ -47,6 +47,23 @@ data class OpenConversation(
     val title: String?,
 )
 
+/**
+ * The session a conversation link names, or null (19/10/2026). The server's push notifications
+ * (ntfy, a decision to make, a question asked) carry `at.hobbitton.chat://conversation/<session>`:
+ * tapped, the app opens that conversation. Only an engine session id is taken, so a link cannot
+ * smuggle anything else into the navigation.
+ */
+fun sessionOfConversationLink(scheme: String?, host: String?, path: String?): String? {
+    if (!scheme.equals(CONVERSATION_LINK_SCHEME, ignoreCase = true)) return null
+    if (!host.equals(CONVERSATION_LINK_HOST, ignoreCase = true)) return null
+    val session = path?.trim('/')?.takeIf { it.isNotEmpty() } ?: return null
+    return session.takeIf { SESSION_ID.matches(it) }
+}
+
+const val CONVERSATION_LINK_SCHEME = "at.hobbitton.chat"
+const val CONVERSATION_LINK_HOST = "conversation"
+private val SESSION_ID = Regex("ses_[A-Za-z0-9]{6,64}")
+
 /** Whether the person wants to be signalled at all: the Settings switch. */
 fun interface AttentionPreference {
     suspend fun enabled(): Boolean

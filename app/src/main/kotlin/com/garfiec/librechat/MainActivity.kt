@@ -50,6 +50,8 @@ import com.garfiec.librechat.core.data.datastore.ThemeDataStore
 import com.garfiec.librechat.core.data.datastore.ThemeMode
 import com.garfiec.librechat.core.data.engine.ConversationRequests
 import com.garfiec.librechat.core.data.engine.EngineCallbackDelivery
+import com.garfiec.librechat.core.data.engine.OpenConversation
+import com.garfiec.librechat.core.data.engine.sessionOfConversationLink
 import com.garfiec.librechat.core.network.engine.auth.CALLBACK_SCHEME
 import com.garfiec.librechat.core.ui.theme.LibreChatTheme
 import com.garfiec.librechat.shared.engine.EngineNavHost
@@ -204,7 +206,8 @@ class MainActivity : ComponentActivity() {
             PackageManager.PERMISSION_GRANTED
 
     /**
-     * The only link this app still acts on (D-077): the portal's return. LibreChat's own deep links
+     * The links this app acts on: the portal's return (D-077), and since 19/10/2026 a conversation
+     * named by a server push notification. LibreChat's own deep links
      * (`librechat://`, a conversation, a model shortcut, an OAuth hop) and shares into a chat named
      * screens that no longer exist; they are ignored, and the manifest no longer asks for them.
      */
@@ -215,6 +218,12 @@ class MainActivity : ComponentActivity() {
             return
         }
         val uri = intent?.data ?: return
+        // A push notification of the server (ntfy, 19/10/2026): a decision to make or a question
+        // asked, its link naming the conversation.
+        sessionOfConversationLink(uri.scheme, uri.host, uri.path)?.let { session ->
+            conversationRequests.open(OpenConversation(session, title = null))
+            return
+        }
         // Le retour du portail d'authentification. Il ne désigne aucun écran — il porte un code
         // d'autorisation que le tour de connexion attend — et va donc droit à la boîte aux lettres.
         if (uri.scheme.equals(CALLBACK_SCHEME, ignoreCase = true)) {
