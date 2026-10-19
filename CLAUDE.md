@@ -41,8 +41,10 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   git-ignored `platform.properties`; « Autre plateforme » unfolds the fields) and saves them in
   `EngineSettingsStore`. Signed in = addresses set **and** portal tokens held (`isPortalSignedIn`).
 - **Root = `EngineNavHost`** (`shared/.../engine/`): the conversation under a drawer (new
-  conversation, Conversations, Programmées, the recent sessions, Settings). `MainActivity` composes it; the
-  only link it acts on is the portal's return (`at.hobbitton.chat://oauth`).
+  conversation, Conversations, Programmées, the recent sessions, Settings). `MainActivity` composes it; it acts on
+  two links only: the portal's return (`at.hobbitton.chat://oauth`) and, since 19/10/2026, a
+  conversation named by a server push notification (`at.hobbitton.chat://conversation/<session>`,
+  ntfy: a decision to make, a question asked; `sessionOfConversationLink`).
 - **One kind of conversation** (D-082, 12/10/2026, as on Claude.ai): chats and tasks are fused.
   Every conversation is a session on agent `chat` whose model always comes from provider
   `hobbitton-chat` (the conversations' budget; the scheduled missions spend on the gateway's key).

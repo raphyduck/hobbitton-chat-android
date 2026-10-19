@@ -67,6 +67,19 @@
             </intent-filter>
 
             <!--
+                Une notification poussée du serveur (ntfy, 19/10/2026) : une décision à prendre, une
+                question posée. Son lien nomme la conversation à ouvrir.
+            -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:host="conversation"
+                    android:scheme="at.hobbitton.chat" />
+            </intent-filter>
+
+            <!--
                 D-077 : plus de liens `librechat://` ni de partage vers une conversation. Les écrans
                 qu'ils ouvraient appartenaient à LibreChat, qui n'existe plus ; seul le retour du
                 portail ci-dessus est encore reçu.
