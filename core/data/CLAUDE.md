@@ -74,7 +74,8 @@ Since 12/10/2026 chats and tasks are one conversation, as on Claude.ai.
 - **Attention (`Attention.kt`, 03/10/2026)**: `AttentionSignals` decides when a question or a
   finished reply rings (chime when its conversation is on screen, notification otherwise, nothing
   when `SettingsDataStore.attentionSound` is off, each question once per process);
-  `EngineAttentionWatcher` folds the global feed for questions and reads the pending list at start;
+  `EngineAttentionWatcher` folds the global feed for questions and reads the pending list at start,
+  and notifies the end of a reminder's turn (a user message opening with `REMINDER_PREFIX`);
   `ConversationRequests` holds the conversation a tapped notification opens. `AttentionNotifier` is
   the platform's, bound by `:app`. `AttentionSignals` and `ConversationRequests` are bound in
   `engineModule`, the watcher in `tasksModule`.

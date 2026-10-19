@@ -1,5 +1,6 @@
 package com.garfiec.librechat.core.data.engine
 
+import com.garfiec.librechat.core.model.engine.EnginePartSnapshot
 import com.garfiec.librechat.core.model.engine.EngineQuestionInfo
 import com.garfiec.librechat.core.model.engine.EngineQuestionRequest
 import com.garfiec.librechat.core.model.engine.EngineStreamEvent
@@ -156,5 +157,45 @@ class AttentionTest {
             ),
             notifier.questions.map { it.first },
         )
+    }
+
+    @Test
+    fun aReminderPlayedInItsConversationIsNotifiedWhenItEnds() = runTest {
+        val engine = MockEngine {
+            respond(
+                content = """{"id":"ses_3","title":"Garagiste"}""",
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+            )
+        }
+        val notifier = RecordingNotifier(inForeground = false)
+        val reminder = EnginePartSnapshot(type = "text", text = "$REMINDER_PREFIX « garagiste » :\n\nRelance.")
+        val watcher = EngineAttentionWatcher(
+            repository = testMissionRepository(engine),
+            signals = AttentionSignals(notifier) { true },
+            events = {
+                flowOf(
+                    // An ordinary turn: the person's own message, then idle. No notification here.
+                    SessionEvent("ses_4", EngineStreamEvent.MessageStarted("msg_a", "user")),
+                    SessionEvent("ses_4", EngineStreamEvent.PartUpdated("msg_a", "prt_a", EnginePartSnapshot("text", "Bonjour"))),
+                    SessionEvent("ses_4", EngineStreamEvent.Idle),
+                    // The agent quoting the marker is not a reminder either.
+                    SessionEvent("ses_4", EngineStreamEvent.MessageStarted("msg_b", "assistant")),
+                    SessionEvent("ses_4", EngineStreamEvent.PartUpdated("msg_b", "prt_b", reminder)),
+                    SessionEvent("ses_4", EngineStreamEvent.Idle),
+                    // The reminder.
+                    SessionEvent("ses_3", EngineStreamEvent.MessageStarted("msg_c", "user")),
+                    SessionEvent("ses_3", EngineStreamEvent.PartUpdated("msg_c", "prt_c", reminder)),
+                    SessionEvent("ses_3", EngineStreamEvent.MessageStarted("msg_d", "assistant")),
+                    SessionEvent("ses_3", EngineStreamEvent.Idle),
+                    SessionEvent("ses_3", EngineStreamEvent.Idle),
+                )
+            },
+            pending = { emptyList() },
+        )
+
+        watcher.watch()
+
+        assertEquals(listOf("reply:ses_3"), notifier.calls)
     }
 }

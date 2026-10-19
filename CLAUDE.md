@@ -84,7 +84,9 @@ Most modules have their own `CLAUDE.md` with specific guidance.
 - **Sound and notifications** (Settings → Notifications, on by default): a question chimes when its
   conversation is on screen and is notified otherwise (`EngineAttentionWatcher`, run by the shell
   over the global feed, every session); a reply the screen saw start is notified when it ends out
-  of sight. The decision is common (`AttentionSignals`), the sound and channels are `:app`'s
+  of sight, and so is a reminder the scheduler plays back into the conversation that set it
+  (`planifier(..., dans_cette_conversation=True)`, 19/10/2026; its turn opens with
+  `REMINDER_PREFIX`). The decision is common (`AttentionSignals`), the sound and channels are `:app`'s
   (`AndroidAttentionNotifier`); a tap opens the conversation (`ConversationRequests`).
 - **Spending ceilings** (Settings → Plafonds de dépense, 12/10/2026): the conversations' key per
   day, per week and over 30 days, read and set through the scheduler's `/plafonds`
