@@ -93,6 +93,8 @@ data class EnginePartSnapshot(
      */
     val input: JsonElement? = null,
     val output: String? = null,
+    /** Files a tool handed back with its answer (see [EngineToolState.attachments]). */
+    val attachments: List<EngineFileAttachment> = emptyList(),
     /** A `type = "file"` part — an attachment sent with a message, its bytes as a data URL. */
     val mime: String? = null,
     val url: String? = null,
@@ -134,6 +136,7 @@ fun engineHistoryEvents(messages: List<EngineMessage>): List<EngineStreamEvent> 
                             status = part.state?.status,
                             input = part.state?.input,
                             output = part.state?.output,
+                            attachments = part.state?.attachments.orEmpty(),
                             mime = part.mime,
                             url = part.url,
                             filename = part.filename,

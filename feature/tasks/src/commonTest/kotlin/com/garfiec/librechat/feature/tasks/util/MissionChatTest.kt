@@ -407,6 +407,20 @@ class ChatBlockTest {
     }
 
     @Test
+    fun aFileATookHandedBackShowsAfterItsFold() {
+        // 19/10/2026: two invoice pages rendered by `fichiers_apercu_page`, « au-dessus de ce
+        // message » said the agent, folded away with the call where nobody could see them.
+        val page = ChatPart.Attachment("t1#0", "image/png", "data:image/png;base64,AAAA", null)
+        val rendered = ChatPart.Tool("t1", "fichiers_apercu_page", ToolState.OK, attachments = listOf(page))
+        val blocks = listOf(tool("t0"), rendered, tool("t2"), text("p1", "Voici la facture.")).asBlocks()
+
+        assertEquals(listOf("t0", "t1"), assertIs<ChatBlock.Activity>(blocks[0]).parts.map { it.id })
+        assertEquals(page, assertIs<ChatBlock.Media>(blocks[1]).part)
+        assertEquals(listOf("t2"), assertIs<ChatBlock.Activity>(blocks[2]).parts.map { it.id })
+        assertIs<ChatBlock.Prose>(blocks[3])
+    }
+
+    @Test
     fun anEmptyTextPartDoesNotCutTheActivityRunInTwo() {
         // An empty text part is a part awaiting its deltas, not a paragraph — it would otherwise
         // open a second fold mid-thought, live, while the answer is still arriving.

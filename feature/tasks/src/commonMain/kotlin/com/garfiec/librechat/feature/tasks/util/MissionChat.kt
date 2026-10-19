@@ -90,6 +90,8 @@ sealed interface ChatPart {
         val arguments: List<ToolArgument> = emptyList(),
         /** What the tool answered. Long — a median of 760 characters, a measured maximum of 51 425. */
         val output: String? = null,
+        /** Files the tool handed back: shown after the fold, as content (19/10/2026). */
+        val attachments: List<Attachment> = emptyList(),
     ) : ChatPart
 }
 
@@ -181,6 +183,9 @@ private fun EnginePartSnapshot.asChatPart(partId: String): ChatPart? = when (typ
         name = input.directoryTarget(tool) ?: tool ?: callId ?: partId,
         arguments = (if (input.directoryTarget(tool) != null) input.directoryArguments() else input).asToolArguments(),
         output = output?.takeIf { it.isNotBlank() },
+        attachments = attachments.mapIndexedNotNull { index, file ->
+            file.url?.let { ChatPart.Attachment("$partId#$index", file.mime ?: DEFAULT_MIME, it, file.filename) }
+        },
         state = when (status) {
             "completed" -> ToolState.OK
             "error" -> ToolState.FAILED
@@ -331,6 +336,15 @@ fun List<ChatPart>.asBlocks(): List<ChatBlock> {
             is ChatPart.Attachment -> {
                 flush()
                 blocks += ChatBlock.Media(part)
+            }
+            // A page the tool rendered, a document it fetched: the agent says « here it is,
+            // above », and it was folded away with the call (19/10/2026). Shown after it.
+            is ChatPart.Tool -> {
+                pending += part
+                if (part.attachments.isNotEmpty()) {
+                    flush()
+                    part.attachments.forEach { blocks += ChatBlock.Media(it) }
+                }
             }
             else -> pending += part
         }

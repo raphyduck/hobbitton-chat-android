@@ -1,5 +1,6 @@
 package com.garfiec.librechat.core.network.engine
 
+import com.garfiec.librechat.core.model.engine.EngineFileAttachment
 import com.garfiec.librechat.core.model.engine.EngineModelRef
 import com.garfiec.librechat.core.model.engine.EnginePartSnapshot
 import com.garfiec.librechat.core.model.engine.EngineQuestionRequest
@@ -7,6 +8,7 @@ import com.garfiec.librechat.core.model.engine.EngineStreamEvent
 import com.garfiec.librechat.core.model.engine.readableEngineError
 import com.garfiec.librechat.core.network.sse.SseEvent
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 
@@ -85,6 +87,9 @@ class EngineEventParser(private val json: Json) {
                             // what it did.
                             input = state?.get("input"),
                             output = state?.str("output"),
+                            attachments = (state?.get("attachments") as? JsonArray).orEmpty()
+                                .mapNotNull { it as? JsonObject }
+                                .map { EngineFileAttachment(it.str("mime"), it.str("url"), it.str("filename")) },
                             mime = part.str("mime"),
                             url = part.str("url"),
                             filename = part.str("filename"),

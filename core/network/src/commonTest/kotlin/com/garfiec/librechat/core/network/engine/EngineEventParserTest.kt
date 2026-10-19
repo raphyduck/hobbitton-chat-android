@@ -77,6 +77,17 @@ class EngineEventParserTest {
     }
 
     @Test
+    fun aToolPartCarriesTheFilesItHandedBack() {
+        // 19/10/2026: a page rendered by a tool rides on its state, not as a part of its own.
+        val parsed = frame(
+            """{"type":"message.part.updated","properties":{"sessionID":"ses_1","part":{"type":"tool","tool":"planificateur_annuaire_appeler","messageID":"msg_a","id":"prt_4","state":{"status":"completed","output":"{}","attachments":[{"type":"file","mime":"image/png","url":"data:image/png;base64,AAAA"}]}}}}""",
+        )
+        val part = (parsed?.event as EngineStreamEvent.PartUpdated).part
+        assertEquals("image/png", part.attachments.single().mime)
+        assertEquals("data:image/png;base64,AAAA", part.attachments.single().url)
+    }
+
+    @Test
     fun sessionIdleEndsTheTurn() {
         val parsed = frame("""{"type":"session.idle","properties":{"sessionID":"ses_1"}}""")
         assertEquals(EngineStreamEvent.Idle, parsed?.event)
