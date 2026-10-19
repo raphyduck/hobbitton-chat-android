@@ -10,6 +10,7 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -56,9 +57,11 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -324,10 +327,25 @@ private fun MissionTurns(
     // finishes by dropping to the tail. Without a saved position the tail IS the right place, and
     // that is what this screen did for everyone before 31/08/2026.
     var restored by rememberSaveable(turns.isNotEmpty()) { mutableStateOf(false) }
+    // Whether the list follows the answer as it grows (19/10/2026). Decided by the reader's own
+    // scrolls, never by the content: it is re-read each time a scroll settles, from where the list
+    // stands then. A token that grows the answer past the tail does not turn following off.
+    val tailSlackPx = with(LocalDensity.current) { TAIL_SLACK.toPx() }
+    var following by rememberSaveable { mutableStateOf(true) }
     LaunchedEffect(positionKnown, turns.isNotEmpty()) {
         if (restored || !positionKnown || turns.isEmpty()) return@LaunchedEffect
-        restoredPosition?.let { listState.scrollToItem(it.index, it.offset) }
+        restoredPosition?.let {
+            listState.scrollToItem(it.index, it.offset)
+            withFrameNanos { }
+            following = listState.isNearTail(tailSlackPx)
+        }
         restored = true
+    }
+    LaunchedEffect(listState, restored) {
+        if (!restored) return@LaunchedEffect
+        snapshotFlow { listState.isScrollInProgress }.collect { scrolling ->
+            if (!scrolling) following = listState.isNearTail(tailSlackPx)
+        }
     }
     // Remember where they are, debounced: the position is written as they scroll, and a store write
     // per frame would be one per pixel. `collectLatest` cancels the pending delay on the next
@@ -345,20 +363,26 @@ private fun MissionTurns(
                 remember(index, offset)
             }
     }
-    // Follow the answer as it grows — but only while the reader is already at the tail. An
-    // unconditional scroll stole the list from anyone reading back through a streaming mission:
-    // every token snapped the screen to the bottom. The chat gates its follow the same way.
+    // Follow the answer as it grows — but only while the reader is following. An unconditional
+    // scroll stole the list from anyone reading back through a streaming mission: every token
+    // snapped the screen to the bottom.
+    //
+    // 19/10/2026 : it follows the END of the answer. It used to scroll to the last item, which
+    // puts the item's TOP at the top of the screen: once an answer outgrew the screen, every token
+    // threw the reader back up to where it began (« la conversation saute à des endroits plus
+    // anciens »). Not during a drag either: the reader's thumb wins.
     //
     // Gated on `restored` too, or the very first emission would scroll to the bottom before the
-    // saved position has been applied — the follow reads an empty `visibleItemsInfo` as « at the
-    // tail », which is exactly the state a list that has not drawn yet is in.
+    // saved position has been applied.
     LaunchedEffect(turns.size, tailLength(chat), restored) {
-        if (!restored) return@LaunchedEffect
-        if (listState.isNearTail()) listState.animateScrollToItem((turns.size - 1).coerceAtLeast(0))
+        if (!restored || !following || listState.isScrollInProgress) return@LaunchedEffect
+        listState.scrollToEnd(turns.lastIndex)
     }
     // Scrolled back up to read while the answer keeps coming: one round button brings the tail back.
     // Derived, so it only recomposes the button when the answer actually crosses the threshold.
-    val awayFromTail by remember(listState) { derivedStateOf { !listState.isNearTail() } }
+    val awayFromTail by remember(listState, tailSlackPx) {
+        derivedStateOf { !listState.isNearTail(tailSlackPx) }
+    }
     val scope = rememberCoroutineScope()
 
     Box(Modifier.fillMaxSize()) {
@@ -402,7 +426,10 @@ private fun MissionTurns(
             exit = fadeOut() + scaleOut(),
         ) {
             Surface(
-                onClick = { scope.launch { listState.animateScrollToItem((turns.size - 1).coerceAtLeast(0)) } },
+                onClick = {
+                    following = true
+                    scope.launch { listState.scrollToEnd(turns.lastIndex) }
+                },
                 shape = CircleShape,
                 color = ChatInputDefaults.containerColor,
                 border = BorderStroke(1.dp, ChatInputDefaults.borderColor),
@@ -420,10 +447,33 @@ private fun MissionTurns(
 }
 
 /** At the tail, or one item short of it; an undrawn list counts as at the tail. */
-private fun LazyListState.isNearTail(): Boolean {
+/**
+ * How far the end of the list is below the bottom of the viewport, in pixels: 0 when it shows,
+ * [Int.MAX_VALUE] when the last item is not even on screen. An empty list, or one not drawn yet,
+ * reads as 0: there is nothing below.
+ */
+private fun LazyListState.distanceToEnd(): Int {
     val info = layoutInfo
-    val last = info.visibleItemsInfo.lastOrNull() ?: return true
-    return last.index >= info.totalItemsCount - 2
+    val last = info.visibleItemsInfo.lastOrNull() ?: return 0
+    if (last.index < info.totalItemsCount - 1) return Int.MAX_VALUE
+    return (last.offset + last.size - (info.viewportEndOffset - info.afterContentPadding)).coerceAtLeast(0)
+}
+
+/** At the end of the list, give or take [slackPx]: where a reader follows the answer from. */
+private fun LazyListState.isNearTail(slackPx: Float): Boolean = distanceToEnd() <= slackPx
+
+/**
+ * Bring the END of the last item into view: to the last item first if it is off screen, then down
+ * by whatever of it still hangs below the viewport.
+ */
+private suspend fun LazyListState.scrollToEnd(lastIndex: Int) {
+    if (lastIndex < 0) return
+    if ((layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1) < lastIndex) {
+        scrollToItem(lastIndex)
+        withFrameNanos { }
+    }
+    val remaining = distanceToEnd()
+    if (remaining in 1 until Int.MAX_VALUE) scrollBy(remaining.toFloat())
 }
 
 /**
@@ -551,6 +601,9 @@ private fun tailLength(chat: MissionChatState): Int {
     }
     return parts.sumOf { part -> if (part is ChatPart.Text) part.text.length else 1 }
 }
+
+/** How close to the end still counts as « at the end »: a line or two of text. */
+private val TAIL_SLACK = 48.dp
 
 /** A pause long enough to mean « stopped here », short enough to survive a quick exit. */
 private const val POSITION_SETTLE_MS = 400L
