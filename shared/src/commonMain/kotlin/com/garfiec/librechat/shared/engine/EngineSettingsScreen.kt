@@ -23,6 +23,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.QueryStats
 import androidx.compose.material.icons.outlined.Savings
@@ -67,9 +68,12 @@ import com.garfiec.librechat.shared.resources.engine_settings_back
 import com.garfiec.librechat.shared.resources.engine_settings_budget
 import com.garfiec.librechat.shared.resources.engine_settings_budget_hint
 import com.garfiec.librechat.shared.resources.engine_settings_cancel
+import com.garfiec.librechat.shared.resources.engine_settings_dictation
 import com.garfiec.librechat.shared.resources.engine_settings_engine
 import com.garfiec.librechat.shared.resources.engine_settings_instructions
 import com.garfiec.librechat.shared.resources.engine_settings_instructions_hint
+import com.garfiec.librechat.shared.resources.engine_settings_local_dictation
+import com.garfiec.librechat.shared.resources.engine_settings_local_dictation_hint
 import com.garfiec.librechat.shared.resources.engine_settings_notifications
 import com.garfiec.librechat.shared.resources.engine_settings_platform
 import com.garfiec.librechat.shared.resources.engine_settings_platform_hint
@@ -97,6 +101,8 @@ data class EngineSettingsUiState(
     val addresses: EngineAccess? = null,
     /** A question or a finished reply rings and notifies (03/10/2026). */
     val attentionSound: Boolean = true,
+    /** The mic heard by the phone itself rather than the scheduler (19/10/2026). */
+    val localDictation: Boolean = true,
     /** The conversation's text size (lot 4, 10/10/2026). */
     val chatFontSize: ChatFontSize = ChatFontSize.MEDIUM,
     /** Who is signed in, and where: the drawer's foot, at the head of the settings. */
@@ -122,6 +128,7 @@ internal fun EngineSettingsScreen(
     onSignOut: () -> Unit,
     modifier: Modifier = Modifier,
     onAttentionSound: (Boolean) -> Unit = {},
+    onLocalDictation: (Boolean) -> Unit = {},
     onChatFontSize: (ChatFontSize) -> Unit = {},
     onOpenBudget: () -> Unit = {},
 ) {
@@ -152,6 +159,7 @@ internal fun EngineSettingsScreen(
             onThemeMode = onThemeMode,
             onChatFontSize = onChatFontSize,
             onAttentionSound = onAttentionSound,
+            onLocalDictation = onLocalDictation,
             onSignOut = { confirmSignOut = true },
         )
         if (confirmSignOut) {
@@ -194,6 +202,7 @@ private fun SettingsBody(
     onThemeMode: (ThemeMode) -> Unit,
     onChatFontSize: (ChatFontSize) -> Unit,
     onAttentionSound: (Boolean) -> Unit,
+    onLocalDictation: (Boolean) -> Unit,
     onSignOut: () -> Unit,
 ) {
     Column(
@@ -238,6 +247,19 @@ private fun SettingsBody(
                 checked = state.attentionSound,
                 onCheckedChange = onAttentionSound,
                 modifier = Modifier.testTag("settings_attention_sound"),
+            )
+        }
+        Spacer(Modifier.height(GROUP_GAP))
+
+        SectionLabel(stringResource(Res.string.engine_settings_dictation))
+        SectionGroup {
+            ToggleRow(
+                icon = Icons.Outlined.Mic,
+                headline = stringResource(Res.string.engine_settings_local_dictation),
+                supporting = stringResource(Res.string.engine_settings_local_dictation_hint),
+                checked = state.localDictation,
+                onCheckedChange = onLocalDictation,
+                modifier = Modifier.testTag("settings_local_dictation"),
             )
         }
         Spacer(Modifier.height(GROUP_GAP))

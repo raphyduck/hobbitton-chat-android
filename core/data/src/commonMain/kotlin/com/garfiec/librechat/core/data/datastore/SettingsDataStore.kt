@@ -19,8 +19,9 @@ import kotlin.concurrent.Volatile
 
 /**
  * The display preferences: the language applied at the root (set from LibreChat's settings screens
- * and read as stored), the size of the conversation's text (Settings › Apparence since lot 4) and
- * whether a question or a finished reply rings ([attentionSound]).
+ * and read as stored), the size of the conversation's text (Settings › Apparence since lot 4),
+ * whether a question or a finished reply rings ([attentionSound]) and where the mic's dictation is
+ * heard ([localDictation]).
  */
 class SettingsDataStore(
     private val dataStore: DataStore<Preferences>,
@@ -86,6 +87,18 @@ class SettingsDataStore(
         dataStore.edit { it[KEY_ATTENTION_SOUND] = enabled }
     }
 
+    /**
+     * The composer's mic heard by the phone's own speech recognition (19/10/2026), on unless
+     * switched off in Settings: the words come as they are spoken, and nothing leaves the device.
+     * Off, the dictation is recorded and sent to the scheduler's transcription, as before. Audio
+     * files go to the scheduler either way.
+     */
+    val localDictation: Flow<Boolean> = dataStore.data.map { prefs -> prefs[KEY_LOCAL_DICTATION] ?: true }
+
+    suspend fun setLocalDictation(enabled: Boolean) {
+        dataStore.edit { it[KEY_LOCAL_DICTATION] = enabled }
+    }
+
     companion object {
         /**
          * Sentinel meaning "follow the device locale" — the default until the user picks a
@@ -97,5 +110,6 @@ class SettingsDataStore(
         private val KEY_SELECTED_LANGUAGE = stringPreferencesKey("selected_language")
         private val KEY_CHAT_FONT_SIZE = stringPreferencesKey("chat_font_size")
         private val KEY_ATTENTION_SOUND = booleanPreferencesKey("attention_sound")
+        private val KEY_LOCAL_DICTATION = booleanPreferencesKey("local_dictation")
     }
 }

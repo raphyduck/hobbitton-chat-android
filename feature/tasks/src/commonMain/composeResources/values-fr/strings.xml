@@ -79,6 +79,9 @@
     <string name="tasks_transcription_not_configured">Aucune adresse de planificateur n'est définie : impossible de transcrire.</string>
     <string name="tasks_recording">Enregistrement… touchez stop pour transcrire.</string>
     <string name="tasks_transcribing">Transcription en cours…</string>
+    <string name="tasks_listening">À l’écoute… touchez stop quand vous avez fini.</string>
+    <string name="tasks_dictation_device_failed">Le téléphone n’a pas compris la dictée. Réessayez.</string>
+    <string name="tasks_dictation_device_language">Le français se télécharge sur le téléphone : en attendant, la dictée passe par le serveur. Touchez de nouveau le micro.</string>
     <string name="tasks_copy_code">Copier le code</string>
     <string name="tasks_chat_add">Ajouter au message</string>
     <string name="tasks_chat_copy">Copier la réponse</string>

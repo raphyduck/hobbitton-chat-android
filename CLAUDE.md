@@ -71,9 +71,14 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   (`:core:ui` `input/`). Messages settle in with `animateItem`, « Réflexion… » shimmers before the
   first token, a round button brings the tail back when one has scrolled up, send and stop click
   under the thumb.
-- **Dictation and audio files** (the composer) go to the scheduler's `POST /transcription`
-  (`SchedulerApi.transcribe` → `SchedulerTranscriber`). A dictation lands in the composer and is
-  never sent on its own; an audio file leaves with the message as a quoted transcription.
+- **Dictation and audio files** (the composer). The mic is heard by the phone itself (19/10/2026,
+  Settings → Dictée, on by default): Android 12's on-device recognizer in French, its words shown
+  as they come and dropped into the composer one stretch of speech at a time (`PhoneDictation`,
+  `MissionDictation.android.kt`), never the network recognizer, which would send the voice to
+  Google. Without one on the phone, with the switch off, or while the phone downloads its French,
+  the take is recorded and goes to the scheduler's `POST /transcription` (`SchedulerApi.transcribe`
+  → `SchedulerTranscriber`), and so do audio files. A dictation lands in the composer and is never
+  sent on its own; an audio file leaves with the message as a quoted transcription.
 - **Questions from the agent** (OpenCode's `question` tool, 03/10/2026): the engine announces one on
   the feed (`question.asked`) and blocks the turn until `POST /question/{id}/reply` or `/reject`.
   The conversation shows it as a form in place of the composer (`MissionQuestionForm`, options,

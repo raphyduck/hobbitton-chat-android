@@ -51,9 +51,7 @@ internal class ComposerStagingDelegate(
                 when (transcribed) {
                     is TranscriptionOutcome.Heard -> current.copy(
                         transcribing = false,
-                        input = listOf(current.input.trimEnd(), transcribed.text.trim())
-                            .filter { it.isNotEmpty() }
-                            .joinToString(" "),
+                        input = appended(current.input, transcribed.text),
                     )
                     is TranscriptionOutcome.Failed -> current.copy(
                         transcribing = false,
@@ -63,6 +61,23 @@ internal class ComposerStagingDelegate(
             }
         }
     }
+
+    /**
+     * Words the phone's own recognition heard (19/10/2026): the same landing as [transcribeAudio],
+     * in the composer and never sent, without the round trip — they arrive one stretch of speech
+     * at a time.
+     */
+    fun dictated(text: String) {
+        if (text.isBlank()) return
+        state.update { it.copy(input = appended(it.input, text), transcriptionError = null) }
+    }
+
+    fun dictationFailed(failure: TranscriptionOutcome.Failed) {
+        state.update { it.copy(transcriptionError = failure) }
+    }
+
+    private fun appended(input: String, heard: String): String =
+        listOf(input.trimEnd(), heard.trim()).filter { it.isNotEmpty() }.joinToString(" ")
 
     /**
      * A deposited audio file becomes a quoted transcription in the **thread**.
