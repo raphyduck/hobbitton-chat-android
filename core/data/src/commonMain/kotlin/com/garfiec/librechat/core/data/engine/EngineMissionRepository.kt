@@ -80,6 +80,15 @@ fun runHidden(mission: String?, run: SchedulerRun?, discreetMissions: Set<String
     mission != null && mission in discreetMissions && run?.succeeded != false && run?.incomplete != true
 
 /**
+ * Whether a session that moved since this device showed it counts as unread: a conversation always,
+ * a run when it has something to say ([runHasNews]), a discreet mission's run never (Raphaël's rule,
+ * 19/10/2026: traiter-les-non-lus, failing on a spent budget every half hour, filled « Non lues »).
+ * Its failure still shows in the list ([runHidden]), among the read.
+ */
+fun runUnread(mission: String?, run: SchedulerRun?, discreetMissions: Set<String>): Boolean =
+    mission == null || (mission !in discreetMissions && runHasNews(run))
+
+/**
  * What the model picker needs: the list, and the model a conversation runs on when none is picked
  * ([preselected]: the person's default from Settings when the list still offers it, the engine's
  * own otherwise, which [engineDefault] keeps for Settings to name).
@@ -229,7 +238,7 @@ class EngineMissionRepository(
                     running = active != null && active.type != IDLE_STATUS,
                     kind = kind,
                     scheduled = mission != null,
-                    unread = moved && (mission == null || runHasNews(runs[session.id])),
+                    unread = moved && runUnread(mission, runs[session.id], discreetMissions),
                 )
             }
         }
