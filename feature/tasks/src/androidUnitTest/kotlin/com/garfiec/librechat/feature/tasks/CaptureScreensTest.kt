@@ -197,6 +197,7 @@ private val NO_ACTIONS = TasksListActions(
     onSetScheduledEnabled = { _, _ -> },
     onReschedule = { _, _, _ -> },
     onDeleteScheduled = {},
+    onSetDiscreet = { _, _ -> },
 )
 
 private val SCHEDULED = listOf(
