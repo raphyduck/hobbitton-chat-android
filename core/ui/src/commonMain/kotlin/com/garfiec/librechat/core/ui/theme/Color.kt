@@ -6,7 +6,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
 
 /**
- * Butler's one skin (10/10/2026): warm neutrals, a single brick accent, light and dark drawn
+ * Eva's one skin (10/10/2026): warm neutrals, a single brick accent, light and dark drawn
  * separately. Nothing here is generated from a seed or the wallpaper, so the app looks the same
  * on every phone and the accent never drifts with a theme engine.
  *
@@ -14,7 +14,7 @@ import androidx.compose.ui.graphics.Color
  * (the composer, a settings group), `surfaceContainerLow` the drawer, `secondaryContainer` the
  * person's bubble, `outlineVariant` the hairline, `onSurfaceVariant` the quiet text.
  */
-val ButlerLightColors: ColorScheme = lightColorScheme(
+val EvaLightColors: ColorScheme = lightColorScheme(
     primary = Color(0xFFBF6B49),
     onPrimary = Color(0xFFFFFFFF),
     primaryContainer = Color(0xFFF4DED3),
@@ -53,7 +53,7 @@ val ButlerLightColors: ColorScheme = lightColorScheme(
     surfaceContainerHighest = Color(0xFFDCD8CE),
 )
 
-val ButlerDarkColors: ColorScheme = darkColorScheme(
+val EvaDarkColors: ColorScheme = darkColorScheme(
     primary = Color(0xFFD9896A),
     onPrimary = Color(0xFF3B1A0D),
     primaryContainer = Color(0xFF5B2E1D),

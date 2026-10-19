@@ -1,11 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The bow tie as a single silhouette: the launcher tints it for themed icons. -->
+<!-- Eva's mark as one silhouette, the « e » cut out (even-odd): the launcher tints it for themed icons. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path
-        android:fillColor="#000000"
-        android:pathData="M52,47.5 C44,43.5 36,39.5 30.5,39.5 C27.5,39.5 26,44 26,54 C26,64 27.5,68.5 30.5,68.5 C36,68.5 44,64.5 52,60.5 Z M56,47.5 C64,43.5 72,39.5 77.5,39.5 C80.5,39.5 82,44 82,54 C82,64 80.5,68.5 77.5,68.5 C72,68.5 64,64.5 56,60.5 Z M51,45.5 H57 A3.5,3.5 0 0 1 60.5,49 V59 A3.5,3.5 0 0 1 57,62.5 H51 A3.5,3.5 0 0 1 47.5,59 V49 A3.5,3.5 0 0 1 51,45.5 Z" />
+    <group
+        android:scaleX="0.66"
+        android:scaleY="0.66"
+        android:translateX="21"
+        android:translateY="21.66">
+        <path
+            android:fillColor="#000000"
+            android:fillType="evenOdd"
+            android:pathData="M24.88 68.91L14 86L34.79 76.41A34 34 0 1 0 24.88 68.91ZM51.02 34.23Q49.46 34.23 47.99 35.13Q46.52 36.03 45.5 38.13Q44.48 40.23 44.24 43.83H52.34Q54.68 43.83 55.43 42.93Q56.18 42.03 56.18 40.41Q56.18 37.29 54.74 35.76Q53.3 34.23 51.02 34.23ZM51.32 61.71Q46.94 61.71 43.64 59.97Q40.34 58.23 38.51 54.9Q36.68 51.57 36.68 46.83Q36.68 42.03 38.6 38.55Q40.52 35.07 43.79 33.18Q47.06 31.29 51.02 31.29Q54.62 31.29 57.32 32.79Q60.02 34.29 61.52 36.99Q63.02 39.69 63.02 43.35Q63.02 45.27 62.66 46.65H44.18Q44.42 51.75 47 54.36Q49.58 56.97 53.6 56.97Q58.58 56.97 61.7 53.43L63.32 54.75Q61.46 58.05 58.7 59.88Q55.94 61.71 51.32 61.71Z" />
+    </group>
 </vector>

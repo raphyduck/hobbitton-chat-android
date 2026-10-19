@@ -147,9 +147,9 @@ private const val HOUR = 3_600_000L
 private val CHATS = listOf(
     EngineChatSummary("c1", "Résumé des e-mails du matin", NOW - 5 * 60_000, running = true),
     EngineChatSummary("c2", "Agenda de la semaine", NOW - 3 * HOUR, running = false, unread = true),
-    EngineChatSummary("r1", "point-mails-matin", NOW - 4 * HOUR, running = false, kind = EngineSessionKind.TASK, scheduled = true),
-    EngineChatSummary("r2", "suivi-dossiers-ouverts", NOW - 20 * 60_000, running = false, kind = EngineSessionKind.TASK, scheduled = true),
-    EngineChatSummary("r3", "guet-reponses", NOW - 50 * 60_000, running = false, kind = EngineSessionKind.TASK, scheduled = true, unread = true),
+    EngineChatSummary("r1", "Point mails matin", NOW - 4 * HOUR, running = false, kind = EngineSessionKind.TASK, scheduled = true),
+    EngineChatSummary("r2", "Suivi dossiers ouverts", NOW - 20 * 60_000, running = false, kind = EngineSessionKind.TASK, scheduled = true),
+    EngineChatSummary("r3", "Guet reponses", NOW - 50 * 60_000, running = false, kind = EngineSessionKind.TASK, scheduled = true, unread = true),
     EngineChatSummary("t1", "Vente Audi Q5 : relance des acheteurs", NOW - 26 * HOUR, running = false, kind = EngineSessionKind.TASK),
     EngineChatSummary("c3", "Devis assurance Matmut", NOW - 3 * 24 * HOUR, running = false),
     EngineChatSummary("c4", "Idées cadeau pour Lucie", NOW - 12 * 24 * HOUR, running = false),

@@ -46,10 +46,22 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.garfiec.librechat.core.data.engine.missionDisplayName
 import com.garfiec.librechat.core.model.scheduler.ScheduledMission
 import com.garfiec.librechat.feature.tasks.components.TasksBottomSheet
 import com.garfiec.librechat.feature.tasks.resources.Res
+import com.garfiec.librechat.feature.tasks.resources.tasks_and
 import com.garfiec.librechat.feature.tasks.resources.tasks_cancel
+import com.garfiec.librechat.feature.tasks.resources.tasks_cron_daily
+import com.garfiec.librechat.feature.tasks.resources.tasks_cron_hourly
+import com.garfiec.librechat.feature.tasks.resources.tasks_cron_hourly_between
+import com.garfiec.librechat.feature.tasks.resources.tasks_cron_monthly
+import com.garfiec.librechat.feature.tasks.resources.tasks_cron_weekdays
+import com.garfiec.librechat.feature.tasks.resources.tasks_cron_weekly
+import com.garfiec.librechat.feature.tasks.resources.tasks_date
+import com.garfiec.librechat.feature.tasks.resources.tasks_days
+import com.garfiec.librechat.feature.tasks.resources.tasks_days_short
+import com.garfiec.librechat.feature.tasks.resources.tasks_months_short
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_actions
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_cron
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_cron_hint
@@ -73,10 +85,13 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_save
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_show_runs
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_suspended
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_timezone
-import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_tools
 import com.garfiec.librechat.feature.tasks.resources.tasks_state_running
-import com.garfiec.librechat.feature.tasks.util.groupThousands
-import org.jetbrains.compose.resources.pluralStringResource
+import com.garfiec.librechat.feature.tasks.resources.tasks_time_hour
+import com.garfiec.librechat.feature.tasks.resources.tasks_time_hour_minute
+import com.garfiec.librechat.feature.tasks.util.ScheduleWords
+import com.garfiec.librechat.feature.tasks.util.humanCron
+import com.garfiec.librechat.feature.tasks.util.humanDateTime
+import org.jetbrains.compose.resources.stringArrayResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -115,7 +130,7 @@ internal fun ScheduledMissionRow(
         StatusDot(color = mission.dotColour(), label = mission.stateLabel())
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
-                mission.name,
+                missionDisplayName(mission.name),
                 style = MaterialTheme.typography.bodyLarge,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -132,7 +147,7 @@ internal fun ScheduledMissionRow(
         IconButton(onClick = { acting = true }) {
             Icon(
                 Icons.Default.MoreVert,
-                contentDescription = stringResource(Res.string.tasks_scheduled_actions, mission.name),
+                contentDescription = stringResource(Res.string.tasks_scheduled_actions, missionDisplayName(mission.name)),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
@@ -177,7 +192,7 @@ internal fun ScheduledMissionRow(
     if (confirmingDelete) {
         AlertDialog(
             onDismissRequest = { confirmingDelete = false },
-            title = { Text(stringResource(Res.string.tasks_scheduled_delete_title, mission.name)) },
+            title = { Text(stringResource(Res.string.tasks_scheduled_delete_title, missionDisplayName(mission.name))) },
             // Ce que la suppression emporte, et ce qu'elle n'emporte pas : l'historique reste, et
             // c'est la seule question qu'on se pose avant de confirmer.
             text = { Text(stringResource(Res.string.tasks_scheduled_delete_body)) },
@@ -204,18 +219,37 @@ internal fun ScheduledMissionRow(
 /** « 0 7 * * 1-5 · 14 outils par tour · Prochaine 2026-10-13T07:00 », or « Suspendue », or « En cours ». */
 @Composable
 private fun ScheduledMission.scheduleLine(): String {
+    // Said as a person says it (19/10/2026): « Du lundi au vendredi à 7 h », not « 0 7 * * 1-5 ».
+    // The tools declared per turn went with it: a budget figure, kept in the scheduler's own view.
+    val words = scheduleWords()
     val state = when {
         running -> stringResource(Res.string.tasks_state_running)
         !enabled -> stringResource(Res.string.tasks_scheduled_suspended)
-        nextRun != null -> stringResource(Res.string.tasks_scheduled_next, nextRun!!)
+        // A one-shot's next run is its date, already said.
+        nextRun != null && cron != null -> stringResource(Res.string.tasks_scheduled_next, humanDateTime(nextRun!!, words))
         else -> null
     }
-    return listOfNotNull(
-        cron ?: runAt,
-        pluralStringResource(Res.plurals.tasks_scheduled_tools, declaredTools, declaredTools),
-        state,
-    ).joinToString(" · ")
+    val schedule = cron?.let { humanCron(it, words) ?: it } ?: runAt?.let { humanDateTime(it, words) }
+    return listOfNotNull(schedule, state).joinToString(" · ")
 }
+
+/** The schedule's words in the screen's language. */
+@Composable
+internal fun scheduleWords(): ScheduleWords = ScheduleWords(
+    days = stringArrayResource(Res.array.tasks_days),
+    shortDays = stringArrayResource(Res.array.tasks_days_short),
+    shortMonths = stringArrayResource(Res.array.tasks_months_short),
+    hour = stringResource(Res.string.tasks_time_hour),
+    hourMinute = stringResource(Res.string.tasks_time_hour_minute),
+    daily = stringResource(Res.string.tasks_cron_daily),
+    weekdays = stringResource(Res.string.tasks_cron_weekdays),
+    weekly = stringResource(Res.string.tasks_cron_weekly),
+    monthly = stringResource(Res.string.tasks_cron_monthly),
+    hourlyBetween = stringResource(Res.string.tasks_cron_hourly_between),
+    hourly = stringResource(Res.string.tasks_cron_hourly),
+    date = stringResource(Res.string.tasks_date),
+    and = stringResource(Res.string.tasks_and),
+)
 
 @Composable
 private fun ScheduledMission.stateLabel(): String = when {
@@ -251,7 +285,7 @@ private fun ActionsSheet(
 ) {
     TasksBottomSheet(onDismiss = onDismiss) {
         Text(
-            mission.name,
+            missionDisplayName(mission.name),
             style = MaterialTheme.typography.titleLarge,
             modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
         )
@@ -352,7 +386,7 @@ private fun RescheduleSheet(
         horizontalPadding = 24.dp,
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text(mission.name, style = MaterialTheme.typography.titleLarge)
+        Text(missionDisplayName(mission.name), style = MaterialTheme.typography.titleLarge)
 
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(
@@ -437,11 +471,7 @@ private fun LastRunLine(mission: ScheduledMission) {
         )
 
         last.succeeded == true -> Text(
-            stringResource(
-                Res.string.tasks_scheduled_last_ok,
-                last.startedAt.orEmpty(),
-                groupThousands((last.tokens ?: 0).toLong()),
-            ),
+            stringResource(Res.string.tasks_scheduled_last_ok, humanDateTime(last.startedAt.orEmpty(), scheduleWords())),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,

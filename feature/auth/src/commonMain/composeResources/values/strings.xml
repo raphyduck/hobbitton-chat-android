@@ -5,7 +5,7 @@
     <string name="portal_sign_in_hint">One sign-in for chats and tasks: password and second factor at the portal, then one consent.</string>
     <string name="portal_title">Sign in</string>
     <string name="portal_close">Close</string>
-    <string name="portal_brand">Butler</string>
+    <string name="portal_brand">Eva</string>
     <string name="portal_tagline">Your assistant, on your platform.</string>
     <string name="portal_platform">Platform: %1$s</string>
     <string name="portal_other_platform">Another platform</string>

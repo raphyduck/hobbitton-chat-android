@@ -5,17 +5,17 @@
 
     <!-- Attention : une question qui attend une réponse, une réponse prête -->
     <string name="attention_channel_questions">Questions</string>
-    <string name="attention_channel_questions_hint">Butler attend votre réponse pour continuer.</string>
+    <string name="attention_channel_questions_hint">Eva attend votre réponse pour continuer.</string>
     <string name="attention_channel_replies">Réponses</string>
     <string name="attention_channel_replies_hint">Une réponse s’est terminée pendant que vous étiez ailleurs.</string>
     <string name="attention_channel_decisions">Décisions</string>
     <string name="attention_channel_decisions_hint">Une décision vous attend dans une conversation.</string>
     <string name="push_listening">En veille</string>
     <string name="push_channel_listening">Notifications poussées</string>
-    <string name="push_channel_listening_hint">Garde ouverte la connexion qui apporte les notifications de Butler.</string>
-    <string name="attention_question">Butler a une question</string>
+    <string name="push_channel_listening_hint">Garde ouverte la connexion qui apporte les notifications d’Eva.</string>
+    <string name="attention_question">Eva a une question</string>
     <string name="attention_question_in">Question · %1$s</string>
-    <string name="attention_question_hint">Butler attend votre réponse.</string>
+    <string name="attention_question_hint">Eva attend votre réponse.</string>
     <string name="attention_reply_ready">Réponse prête</string>
-    <string name="attention_reply_ready_hint">Butler a répondu.</string>
+    <string name="attention_reply_ready_hint">Eva a répondu.</string>
 </resources>

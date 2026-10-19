@@ -17,7 +17,7 @@ import kotlinx.coroutines.launch
 import kotlin.concurrent.Volatile
 
 /**
- * The theme preference: system, light or dark. Butler has one skin (10/10/2026), so the accent
+ * The theme preference: system, light or dark. Eva has one skin (10/10/2026), so the accent
  * seed and the wallpaper-colour switch earlier builds stored here are no longer read; their keys
  * are dropped from the store on the first write.
  */

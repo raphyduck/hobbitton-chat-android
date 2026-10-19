@@ -112,7 +112,7 @@ jobs:
           VERSION: ${{ steps.bump.outputs.version_name }}
         run: |
           src="app/build/outputs/apk/release/app-release.apk"
-          out="butler-v${VERSION}.apk"
+          out="eva-v${VERSION}.apk"
           cp "$src" "$out"
           sha256sum "$out" > "${out}.sha256"
           echo "apk=$out" >> "$GITHUB_OUTPUT"

@@ -185,4 +185,12 @@ class RecentMissionsTest {
 
         assertTrue(recents.isEmpty())
     }
+
+    @Test
+    fun `a mission's name reads as words`() {
+        assertEquals("Point mails matin", missionDisplayName("point-mails-matin"))
+        assertEquals("Guet des non lus", missionDisplayName("guet_des-non_lus"))
+        assertEquals("Veille", missionDisplayName("veille"))
+        assertEquals("Déjà lisible", missionDisplayName("Déjà lisible"))
+    }
 }

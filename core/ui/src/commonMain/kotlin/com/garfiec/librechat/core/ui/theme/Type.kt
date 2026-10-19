@@ -21,7 +21,7 @@ import org.jetbrains.compose.resources.Font
  * stays on the system sans.
  */
 @Composable
-fun butlerSerif(): FontFamily = FontFamily(
+fun evaSerif(): FontFamily = FontFamily(
     Font(Res.font.source_serif_4_regular, FontWeight.Normal),
     Font(Res.font.source_serif_4_italic, FontWeight.Normal, FontStyle.Italic),
     Font(Res.font.source_serif_4_semibold, FontWeight.SemiBold),
@@ -32,8 +32,8 @@ fun butlerSerif(): FontFamily = FontFamily(
  * from `titleMedium` down in the sans, with a body line of 26 sp that lets a reply breathe.
  */
 @Composable
-fun butlerTypography(): Typography {
-    val serif = butlerSerif()
+fun evaTypography(): Typography {
+    val serif = evaSerif()
     return remember(serif) {
         val sans = FontFamily.SansSerif
         Typography(

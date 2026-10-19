@@ -12,7 +12,7 @@ class PushTest {
     @Test
     fun `a decision names its conversation`() {
         val line = """{"id":"abc123","time":1,"event":"message","topic":"t","title":"À décider : devis",""" +
-            """"message":"Une décision t'attend dans Butler.","tags":["bell","decision"],""" +
+            """"message":"Une décision t'attend dans Eva.","tags":["bell","decision"],""" +
             """"click":"at.hobbitton.chat://conversation/ses_eac49655fffeyMLLs9ywOJiMSE"}"""
         val message = parsePushLine(line)!!
         assertEquals("abc123", message.id)

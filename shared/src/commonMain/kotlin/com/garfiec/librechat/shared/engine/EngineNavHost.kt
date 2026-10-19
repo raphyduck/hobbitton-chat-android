@@ -72,6 +72,7 @@ fun EngineNavHost(
     val localDictation by viewModel.localDictation.collectAsStateWithLifecycle()
     val chatFontSize by viewModel.chatFontSize.collectAsStateWithLifecycle()
     val defaultChatModel by viewModel.defaultChatModel.collectAsStateWithLifecycle()
+    val selectedLanguage by viewModel.selectedLanguage.collectAsStateWithLifecycle()
     val models by viewModel.models.collectAsStateWithLifecycle()
     val openRequest by viewModel.openRequest.collectAsStateWithLifecycle()
     val identity by viewModel.identity.collectAsStateWithLifecycle()
@@ -108,6 +109,7 @@ fun EngineNavHost(
                                 chatFontSize = chatFontSize,
                                 account = account,
                                 defaultModelId = defaultChatModel,
+                                language = AppLanguage.fromTag(selectedLanguage),
                                 models = models.models,
                                 engineDefault = models.engineDefault,
                             ),
@@ -124,6 +126,7 @@ fun EngineNavHost(
                             },
                             onLocalDictation = viewModel::setLocalDictation,
                             onDefaultModel = viewModel::setDefaultChatModel,
+                            onLanguage = { viewModel.setSelectedLanguage(it.tag) },
                             onLoadModels = viewModel::loadModels,
                             onSignOut = viewModel::signOut,
                         )
@@ -155,6 +158,7 @@ private fun EngineMainLayout(
     onAttentionSound: (Boolean) -> Unit,
     onLocalDictation: (Boolean) -> Unit,
     onDefaultModel: (String?) -> Unit,
+    onLanguage: (AppLanguage) -> Unit,
     onLoadModels: () -> Unit,
     onSignOut: () -> Unit,
     modifier: Modifier = Modifier,
@@ -286,6 +290,7 @@ private fun EngineMainLayout(
                         onAttentionSound = onAttentionSound,
                         onLocalDictation = onLocalDictation,
                         onDefaultModel = onDefaultModel,
+                        onLanguage = onLanguage,
                         onSignOut = {
                             // The stack first: its conversations close with their entries — their
                             // view models, their live feeds — before the portal's tokens go.

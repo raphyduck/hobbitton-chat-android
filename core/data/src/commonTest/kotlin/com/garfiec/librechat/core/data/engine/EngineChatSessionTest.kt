@@ -271,7 +271,7 @@ class EngineChatSessionTest {
         val chats = testMissionRepository(engine(), kinds = kinds).recentChats(scope = ChatScope.ALL)
 
         assertEquals<List<String>>(listOf("ses_here", "ses_run"), chats.map { it.sessionId })
-        assertEquals("veille", chats.single { it.scheduled }.title)
+        assertEquals("Veille", chats.single { it.scheduled }.title)
     }
 
     @Test
@@ -323,6 +323,6 @@ class EngineChatSessionTest {
         val chats = testMissionRepository(engine()).recentChats(scope = ChatScope.ALL)
 
         assertTrue(sent.none { it.url.encodedPath == "/session/ses_run/message" })
-        assertEquals("veille", chats.single().title)
+        assertEquals("Veille", chats.single().title)
     }
 }

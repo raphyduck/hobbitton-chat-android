@@ -127,6 +127,13 @@ fun scheduledMissionName(title: String): String? {
     return title.substring(0, separator)
 }
 
+/**
+ * A mission's name as a person reads it (19/10/2026): `point-mails-matin` reads « Point mails
+ * matin ». The name itself stays the key everywhere; only what is shown changes.
+ */
+fun missionDisplayName(name: String): String =
+    name.replace('-', ' ').replace('_', ' ').trim().replaceFirstChar { it.uppercaseChar() }
+
 private const val IDLE = "idle"
 private const val SCHEDULER_SEPARATOR = " — "
 private val SCHEDULER_TRIGGER =
