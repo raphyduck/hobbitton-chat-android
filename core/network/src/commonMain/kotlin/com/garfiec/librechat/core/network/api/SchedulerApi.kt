@@ -6,6 +6,7 @@ import com.garfiec.librechat.core.model.scheduler.Consumption
 import com.garfiec.librechat.core.model.scheduler.ModelPrices
 import com.garfiec.librechat.core.model.scheduler.PortalIdentity
 import com.garfiec.librechat.core.model.scheduler.ProviderHealth
+import com.garfiec.librechat.core.model.scheduler.PushChannel
 import com.garfiec.librechat.core.model.scheduler.SchedulerRun
 import com.garfiec.librechat.core.model.scheduler.SchedulerState
 import com.garfiec.librechat.core.model.scheduler.SessionScope
@@ -313,6 +314,22 @@ class SchedulerApi(
             throw EngineHttpException(response.status.value, response.request.url.toString(), response.bodyAsText())
         }
         return json.decodeFromString(PortalIdentity.serializer(), response.bodyAsText())
+    }
+
+    /**
+     * Where to follow the server's push notifications: `GET /notifications` (19/10/2026), a plain
+     * HTTP route like [identity]. Null on a scheduler from before the route (404).
+     */
+    suspend fun pushChannel(): PushChannel? {
+        val response = client.get {
+            url { path("notifications") }
+            accept(ContentType.Application.Json)
+        }
+        if (response.status == HttpStatusCode.NotFound) return null
+        if (!response.status.isSuccess()) {
+            throw EngineHttpException(response.status.value, response.request.url.toString(), response.bodyAsText())
+        }
+        return json.decodeFromString(PushChannel.serializer(), response.bodyAsText())
     }
 
     /**

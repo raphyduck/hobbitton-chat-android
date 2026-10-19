@@ -96,6 +96,13 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   (`planifier(..., dans_cette_conversation=True)`, 19/10/2026; its turn opens with
   `REMINDER_PREFIX`). The decision is common (`AttentionSignals`), the sound and channels are `:app`'s
   (`AndroidAttentionNotifier`); a tap opens the conversation (`ConversationRequests`).
+  **Push** (19/10/2026, Raphaël's rule: no third-party app, nothing to configure): the server
+  publishes decisions and questions on its ntfy topic; `PushService` (`:app`, a foreground service of
+  type `remoteMessaging`, restarted at boot by `PushBootReceiver`) asks the scheduler where
+  (`GET /notifications` → `PushChannel`), keeps the topic's JSON stream open and resumes after the
+  last message shown. `parsePushLine` reads a message, `shouldNotifyPush` keeps it quiet when the app
+  is on screen or when the in-app watcher (`attentionWatcherRunning`) already rings that question.
+  Off with the Settings switch.
 - **Spending ceilings** (Settings → Plafonds de dépense, 12/10/2026): the conversations' key per
   day, per week and over 30 days, read and set through the scheduler's `/plafonds`
   (`EngineBudgetScreen`). The scheduled missions' key is not set from here.

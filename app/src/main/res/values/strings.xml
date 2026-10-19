@@ -10,6 +10,11 @@
     <string name="attention_channel_questions_hint">Butler is waiting for your answer to go on.</string>
     <string name="attention_channel_replies">Replies</string>
     <string name="attention_channel_replies_hint">A reply finished while you were elsewhere.</string>
+    <string name="attention_channel_decisions">Decisions</string>
+    <string name="attention_channel_decisions_hint">A decision waits for you in a conversation.</string>
+    <string name="push_listening">Butler is listening</string>
+    <string name="push_channel_listening">Push notifications</string>
+    <string name="push_channel_listening_hint">Keeps the connection that brings Butler’s notifications.</string>
     <string name="attention_question">Butler has a question</string>
     <string name="attention_question_in">Question · %1$s</string>
     <string name="attention_question_hint">Butler is waiting for your answer.</string>

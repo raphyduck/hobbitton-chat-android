@@ -19,6 +19,8 @@ import com.garfiec.librechat.MainActivity
 import com.garfiec.librechat.R
 import com.garfiec.librechat.core.data.engine.AttentionNotifier
 import com.garfiec.librechat.core.data.engine.OpenConversation
+import com.garfiec.librechat.core.data.engine.PushKind
+import com.garfiec.librechat.core.data.engine.PushMessage
 
 /**
  * Android's half of [AttentionNotifier]: the notification sound, and two notification channels
@@ -86,11 +88,27 @@ class AndroidAttentionNotifier(private val context: Context) : AttentionNotifier
         )
     }
 
+    /**
+     * A push of the server (19/10/2026, `PushService`): a decision waiting in a conversation the
+     * scheduler opened, or a question asked while the app was closed. A question rings on the
+     * questions' channel, a decision on its own.
+     */
+    fun showPush(message: PushMessage) {
+        val conversation = message.sessionId?.let { OpenConversation(it, title = null) }
+        post(
+            id = "p:${message.sessionId ?: message.id}".hashCode(),
+            channel = if (message.kind == PushKind.DECISION) CHANNEL_DECISIONS else CHANNEL_QUESTIONS,
+            title = message.title.ifBlank { context.getString(R.string.attention_question) },
+            text = message.text,
+            conversation = conversation,
+        )
+    }
+
     override fun cancelQuestion(requestId: String) = manager.cancel(questionId(requestId))
 
     override fun cancelReplyReady(sessionId: String) = manager.cancel(replyId(sessionId))
 
-    private fun post(id: Int, channel: String, title: String, text: String, conversation: OpenConversation) {
+    private fun post(id: Int, channel: String, title: String, text: String, conversation: OpenConversation?) {
         if (!canPost()) return
         val notification = NotificationCompat.Builder(context, channel)
             .setSmallIcon(android.R.drawable.stat_notify_chat)
@@ -118,11 +136,13 @@ class AndroidAttentionNotifier(private val context: Context) : AttentionNotifier
     }
 
     /** Back to the app, on the conversation: `MainActivity` hands the extras to the shell. */
-    private fun openIntent(id: Int, conversation: OpenConversation): PendingIntent {
+    private fun openIntent(id: Int, conversation: OpenConversation?): PendingIntent {
         val intent = Intent(context, MainActivity::class.java)
             .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-            .putExtra(EXTRA_SESSION_ID, conversation.sessionId)
-            .putExtra(EXTRA_TITLE, conversation.title)
+        if (conversation != null) {
+            intent.putExtra(EXTRA_SESSION_ID, conversation.sessionId)
+                .putExtra(EXTRA_TITLE, conversation.title)
+        }
         return PendingIntent.getActivity(
             context,
             id,
@@ -148,6 +168,13 @@ class AndroidAttentionNotifier(private val context: Context) : AttentionNotifier
                 NotificationManager.IMPORTANCE_HIGH,
             ).apply { description = context.getString(R.string.attention_channel_replies_hint) },
         )
+        system.createNotificationChannel(
+            NotificationChannel(
+                CHANNEL_DECISIONS,
+                context.getString(R.string.attention_channel_decisions),
+                NotificationManager.IMPORTANCE_HIGH,
+            ).apply { description = context.getString(R.string.attention_channel_decisions_hint) },
+        )
     }
 
     // One notification per question, one per conversation's reply: a second reply replaces the
@@ -162,6 +189,7 @@ class AndroidAttentionNotifier(private val context: Context) : AttentionNotifier
 
         private const val CHANNEL_QUESTIONS = "butler_questions"
         private const val CHANNEL_REPLIES = "butler_replies"
+        private const val CHANNEL_DECISIONS = "butler_decisions"
 
         /** The conversation a notification's intent names, or null for any other intent. */
         fun conversationOf(intent: Intent?): OpenConversation? {

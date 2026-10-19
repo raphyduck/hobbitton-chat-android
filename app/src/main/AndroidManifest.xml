@@ -6,6 +6,10 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <!-- Une question qui attend une réponse, une réponse prête : notifiées hors de l'écran. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Les notifications poussées du serveur (19/10/2026), suivies par l'app elle-même. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_REMOTE_MESSAGING" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <!--
         allowBackup="false" covers cloud backup on every Android version; dataExtractionRules
@@ -85,5 +89,20 @@
                 portail ci-dessus est encore reçu.
             -->
         </activity>
+
+        <!-- Le flux des notifications poussées (PushService, 19/10/2026). -->
+        <service
+            android:name=".push.PushService"
+            android:exported="false"
+            android:foregroundServiceType="remoteMessaging" />
+
+        <receiver
+            android:name=".push.PushBootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>

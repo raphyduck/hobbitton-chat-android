@@ -7,6 +7,7 @@ import com.garfiec.librechat.core.model.scheduler.Consumption
 import com.garfiec.librechat.core.model.scheduler.ModelPrices
 import com.garfiec.librechat.core.model.scheduler.PortalIdentity
 import com.garfiec.librechat.core.model.scheduler.ProviderHealth
+import com.garfiec.librechat.core.model.scheduler.PushChannel
 import com.garfiec.librechat.core.model.scheduler.ScheduledMission
 import com.garfiec.librechat.core.network.api.SchedulerApi
 
@@ -36,6 +37,15 @@ class SchedulerRepository(
     suspend fun identity(): PortalIdentity? {
         if (!isConfigured()) return null
         return runCatching { api.identity() }.getOrNull()
+    }
+
+    /**
+     * Where the server publishes its push notifications (19/10/2026), or null: no scheduler, a
+     * scheduler without the route or without ntfy, or one that cannot be reached right now.
+     */
+    suspend fun pushChannel(): PushChannel? {
+        if (!isConfigured()) return null
+        return runCatching { api.pushChannel() }.getOrNull()?.takeIf { it.usable }
     }
 
     /**
