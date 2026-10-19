@@ -76,7 +76,11 @@ Since 12/10/2026 chats and tasks are one conversation, as on Claude.ai.
   when `SettingsDataStore.attentionSound` is off, each question once per process);
   `EngineAttentionWatcher` folds the global feed for questions and reads the pending list at start,
   and notifies the end of a reminder's turn (a user message opening with `REMINDER_PREFIX`);
-  `ConversationRequests` holds the conversation a tapped notification opens. `AttentionNotifier` is
+  `ConversationRequests` holds the conversation a tapped notification opens. `Push.kt`
+  (19/10/2026): `parsePushLine` (one line of the server's ntfy stream: a decision or a question,
+  its conversation from the click link), `shouldNotifyPush`; `attentionWatcherRunning` says whether
+  the watcher is following the engine in this process. `SchedulerRepository.pushChannel()` reads
+  `GET /notifications`. `AttentionNotifier` is
   the platform's, bound by `:app`. `AttentionSignals` and `ConversationRequests` are bound in
   `engineModule`, the watcher in `tasksModule`.
 - **`GlobalProfileStore`** — the device's (`device:` keys). `GlobalProfileEditor` is the editor's

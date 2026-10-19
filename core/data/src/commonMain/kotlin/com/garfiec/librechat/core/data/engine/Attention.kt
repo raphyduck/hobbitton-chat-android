@@ -145,6 +145,15 @@ class AttentionSignals(
 const val REMINDER_PREFIX = "⏰ Rappel programmé"
 
 /**
+ * Whether an [EngineAttentionWatcher] is following the engine in this process (19/10/2026). The
+ * push service reads it: while the watcher runs, it already rings the questions, and the server's
+ * push for the same question would ring twice.
+ */
+@kotlin.concurrent.Volatile
+var attentionWatcherRunning: Boolean = false
+    private set
+
+/**
  * Listens to the whole engine for questions: the one signal that cannot wait for a screen to be
  * open. A task launched and left behind blocks on its question until somebody answers; the
  * conversation screen would only see it once opened.
@@ -167,6 +176,15 @@ class EngineAttentionWatcher(
     private val pending: suspend () -> List<EngineQuestionRequest> = repository::allPendingQuestions,
 ) {
     suspend fun watch() {
+        attentionWatcherRunning = true
+        try {
+            follow()
+        } finally {
+            attentionWatcherRunning = false
+        }
+    }
+
+    private suspend fun follow() {
         // What was asked while nobody was listening (the app closed, the phone asleep). Read once
         // at start; the feed takes over from there. A failure costs this catch-up, not the watch.
         try {

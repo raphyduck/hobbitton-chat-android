@@ -8,6 +8,11 @@
     <string name="attention_channel_questions_hint">Butler attend votre réponse pour continuer.</string>
     <string name="attention_channel_replies">Réponses</string>
     <string name="attention_channel_replies_hint">Une réponse s’est terminée pendant que vous étiez ailleurs.</string>
+    <string name="attention_channel_decisions">Décisions</string>
+    <string name="attention_channel_decisions_hint">Une décision vous attend dans une conversation.</string>
+    <string name="push_listening">Butler est à l’écoute</string>
+    <string name="push_channel_listening">Notifications poussées</string>
+    <string name="push_channel_listening_hint">Garde ouverte la connexion qui apporte les notifications de Butler.</string>
     <string name="attention_question">Butler a une question</string>
     <string name="attention_question_in">Question · %1$s</string>
     <string name="attention_question_hint">Butler attend votre réponse.</string>

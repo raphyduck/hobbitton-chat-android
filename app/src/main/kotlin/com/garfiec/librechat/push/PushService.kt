@@ -1,0 +1,172 @@
+package com.garfiec.librechat.push
+
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.Service
+import android.content.Context
+import android.content.Intent
+import android.content.pm.ServiceInfo
+import android.os.Build
+import android.os.IBinder
+import androidx.core.app.NotificationCompat
+import androidx.core.app.ServiceCompat
+import androidx.core.content.ContextCompat
+import co.touchlab.kermit.Logger
+import com.garfiec.librechat.R
+import com.garfiec.librechat.attention.AndroidAttentionNotifier
+import com.garfiec.librechat.core.data.datastore.SettingsDataStore
+import com.garfiec.librechat.core.data.engine.AttentionNotifier
+import com.garfiec.librechat.core.data.engine.attentionWatcherRunning
+import com.garfiec.librechat.core.data.engine.parsePushLine
+import com.garfiec.librechat.core.data.engine.shouldNotifyPush
+import com.garfiec.librechat.core.data.scheduler.SchedulerRepository
+import com.garfiec.librechat.core.model.scheduler.PushChannel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import org.koin.android.ext.android.inject
+import java.net.HttpURLConnection
+import java.net.URL
+
+/**
+ * The server's push notifications, followed by the app itself (19/10/2026, Raphaël's rule: no
+ * third-party app, nothing to configure). The scheduler says where it publishes
+ * (`GET /notifications`, behind the portal); this service keeps ntfy's JSON stream of that topic
+ * open and turns each message into the app's own notification: a decision waiting in a
+ * conversation, or a question an agent asked while the app was closed.
+ *
+ * A foreground service, as Android requires to keep a connection while the app is in the
+ * background; its own notification is silent and minimal. It stops by itself when the Settings
+ * switch is off or the platform has no push channel, and resumes the stream after the last
+ * message it showed, so a reconnection loses nothing and replays nothing.
+ */
+class PushService : Service() {
+
+    private val scheduler: SchedulerRepository by inject()
+    private val settings: SettingsDataStore by inject()
+    private val notifier: AttentionNotifier by inject()
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var listening: Job? = null
+
+    override fun onBind(intent: Intent?): IBinder? = null
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        goForeground()
+        if (listening?.isActive != true) listening = scope.launch { listen() }
+        return START_STICKY
+    }
+
+    override fun onDestroy() {
+        scope.cancel()
+        super.onDestroy()
+    }
+
+    private suspend fun listen() {
+        var wait = FIRST_RETRY_MS
+        while (scope.isActive) {
+            if (!settings.attentionSound.first()) {
+                stopSelf()
+                return
+            }
+            val channel = scheduler.pushChannel()
+            if (channel == null) {
+                // No scheduler, no route, no ntfy, or no network: look again later.
+                delay(NO_CHANNEL_RETRY_MS)
+                continue
+            }
+            val received = runCatching { follow(channel) }
+                .onFailure { Logger.w(it) { "Push: the stream dropped, reconnecting" } }
+                .getOrDefault(false)
+            wait = if (received) FIRST_RETRY_MS else (wait * 2).coerceAtMost(MAX_RETRY_MS)
+            delay(wait)
+        }
+    }
+
+    /** One connection to the topic's stream, until it drops. True if anything came through. */
+    private fun follow(channel: PushChannel): Boolean {
+        val connection = URL(channel.streamUrl(since())).openConnection() as HttpURLConnection
+        connection.connectTimeout = CONNECT_TIMEOUT_MS
+        // ntfy sends a keepalive every 45 s: a longer silence is a dead connection.
+        connection.readTimeout = READ_TIMEOUT_MS
+        var received = false
+        try {
+            connection.inputStream.bufferedReader().useLines { lines ->
+                for (line in lines) {
+                    received = true
+                    val message = parsePushLine(line) ?: continue
+                    remember(message.id)
+                    if (shouldNotifyPush(message.kind, notifier.inForeground, attentionWatcherRunning)) {
+                        (notifier as? AndroidAttentionNotifier)?.showPush(message)
+                    }
+                }
+            }
+        } finally {
+            connection.disconnect()
+        }
+        return received
+    }
+
+    private fun since(): String =
+        getSharedPreferences(PREFS, MODE_PRIVATE).getString(KEY_LAST_ID, null) ?: FIRST_SINCE
+
+    private fun remember(id: String) {
+        getSharedPreferences(PREFS, MODE_PRIVATE).edit().putString(KEY_LAST_ID, id).apply()
+    }
+
+    private fun goForeground() {
+        val manager = getSystemService(NotificationManager::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            manager?.createNotificationChannel(
+                NotificationChannel(
+                    CHANNEL_LISTENING,
+                    getString(R.string.push_channel_listening),
+                    NotificationManager.IMPORTANCE_MIN,
+                ).apply { description = getString(R.string.push_channel_listening_hint) },
+            )
+        }
+        val notification: Notification = NotificationCompat.Builder(this, CHANNEL_LISTENING)
+            .setSmallIcon(android.R.drawable.stat_notify_chat)
+            .setContentTitle(getString(R.string.push_listening))
+            .setPriority(NotificationCompat.PRIORITY_MIN)
+            .setOngoing(true)
+            .setSilent(true)
+            .build()
+        val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_REMOTE_MESSAGING
+        } else {
+            0
+        }
+        ServiceCompat.startForeground(this, LISTENING_ID, notification, type)
+    }
+
+    companion object {
+        private const val PREFS = "push"
+        private const val KEY_LAST_ID = "last_id"
+
+        /** A first stream reads back what the last hour published, so nothing just sent is missed. */
+        private const val FIRST_SINCE = "1h"
+        private const val CHANNEL_LISTENING = "butler_listening"
+        private const val LISTENING_ID = 4242
+
+        private const val CONNECT_TIMEOUT_MS = 20_000
+        private const val READ_TIMEOUT_MS = 120_000
+        private const val FIRST_RETRY_MS = 5_000L
+        private const val MAX_RETRY_MS = 300_000L
+        private const val NO_CHANNEL_RETRY_MS = 900_000L
+
+        /** Starts (or keeps) the service. Safe to call often: a running service is left alone. */
+        fun start(context: Context) {
+            runCatching {
+                ContextCompat.startForegroundService(context, Intent(context, PushService::class.java))
+            }.onFailure { Logger.w(it) { "Push: the service could not start" } }
+        }
+    }
+}
