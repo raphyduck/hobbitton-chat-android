@@ -67,6 +67,10 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   Unread = moved since this device last showed it (`ConversationReads`); for a run, also « had
   something to say »: the scheduler's `historique(json_brut=True)` carries `a_signaler`, false when
   the run answered « RIEN À SIGNALER » (`runHasNews`).
+  A **discreet** mission (Raphaël's rule, 19/10/2026: the guet's lots crowded both lists) keeps its
+  runs out of both, a failed or interrupted run aside (`runHidden`, the scheduler's `discrete` on
+  each run); its history stays under Programmées, whose actions sheet hides or shows it
+  (`modifier(discrete=…)`).
 - **A new chat greets** (lot 2, 10/10/2026): « Bonjour, <prénom>. » in the serif, the first name
   read from the scheduler's `GET /identite` (the portal's `Remote-Name`, via `SchedulerRepository.identity`),
   without a name when it gives none. The composer is Claude's: a raised box, bare field, plain

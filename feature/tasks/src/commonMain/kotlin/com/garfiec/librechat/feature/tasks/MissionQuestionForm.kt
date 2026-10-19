@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
@@ -33,10 +35,15 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
@@ -54,6 +61,7 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_question_title
 import com.garfiec.librechat.feature.tasks.resources.tasks_question_waiting
 import com.garfiec.librechat.feature.tasks.util.QuestionDraft
 import com.garfiec.librechat.feature.tasks.util.title
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -200,13 +208,22 @@ private fun QuestionBlock(
         }
         // The engine's default, and the model is told so: it never offers an « Other » of its own.
         if (question.custom || question.options.isEmpty()) {
+            // The form scrolls under a ceiling: a field that grows a line would push its new line
+            // below the fold, out of sight while one types (19/10/2026). Each growth brings it
+            // back; not while it is empty, so opening the form still shows the question first.
+            val keepInView = remember { BringIntoViewRequester() }
+            val scope = rememberCoroutineScope()
+            val hasText by rememberUpdatedState(typed.isNotEmpty())
             ChatInputField(
                 value = typed,
                 onValueChange = onType,
                 enabled = enabled,
                 placeholder = stringResource(Res.string.tasks_question_other),
                 maxLines = 4,
-                modifier = Modifier.border(1.dp, ChatInputDefaults.borderColor, OptionShape),
+                modifier = Modifier
+                    .border(1.dp, ChatInputDefaults.borderColor, OptionShape)
+                    .bringIntoViewRequester(keepInView)
+                    .onSizeChanged { if (hasText) scope.launch { keepInView.bringIntoView() } },
             )
         }
     }

@@ -226,12 +226,14 @@ class SchedulerApi(
         name: String,
         cron: String? = null,
         runAt: String? = null,
+        discreet: Boolean? = null,
     ): String = callTool(
         "modifier",
         buildJsonObject {
             put("nom", name)
             cron?.let { put("cron", it) }
             runAt?.let { put("quand", it) }
+            discreet?.let { put("discrete", it) }
         },
     )
 

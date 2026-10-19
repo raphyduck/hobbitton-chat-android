@@ -40,6 +40,8 @@
     <string name="tasks_scheduled_run">Run now</string>
     <string name="tasks_scheduled_disable">Suspend</string>
     <string name="tasks_scheduled_enable">Resume</string>
+    <string name="tasks_scheduled_hide_runs">Hide from conversations</string>
+    <string name="tasks_scheduled_show_runs">Show in conversations</string>
     <string name="tasks_scheduled_suspended">Suspended</string>
     <string name="tasks_scheduled_next">Next %1$s</string>
     <string name="tasks_scheduled_never">Never run</string>

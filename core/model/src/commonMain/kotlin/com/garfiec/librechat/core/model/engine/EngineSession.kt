@@ -179,4 +179,17 @@ data class EngineToolState(
     /** Whatever the tool takes — every tool has its own keys, so this stays untyped. */
     val input: JsonElement? = null,
     val output: String? = null,
+    /**
+     * Files the tool handed back with its answer (19/10/2026): a page rendered as an image, a
+     * document. They are content for the person, not process, so the conversation shows them.
+     */
+    val attachments: List<EngineFileAttachment> = emptyList(),
+)
+
+/** A file riding on a tool's answer: its type, its bytes as a data URL, and its name if any. */
+@Serializable
+data class EngineFileAttachment(
+    val mime: String? = null,
+    val url: String? = null,
+    val filename: String? = null,
 )

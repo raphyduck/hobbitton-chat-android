@@ -90,6 +90,17 @@
             -->
         </activity>
 
+        <!-- Les fichiers d'une conversation, ouverts par le visualiseur du téléphone (19/10/2026). -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/attachment_paths" />
+        </provider>
+
         <!-- Le flux des notifications poussées (PushService, 19/10/2026). -->
         <service
             android:name=".push.PushService"

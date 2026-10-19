@@ -200,6 +200,10 @@ class TasksViewModel(
     fun rescheduleMission(name: String, cron: String?, runAt: String?) =
         actThenRefresh("reschedule $name") { scheduler.updateMission(name, cron, runAt) }
 
+    /** Its runs leave the conversation lists (a failure aside), or come back to them. */
+    fun setScheduledDiscreet(name: String, discreet: Boolean) =
+        actThenRefresh("discreet $name") { scheduler.setDiscreet(name, discreet) }
+
     /**
      * Deletes a scheduled mission — the thing suspending could not do.
      *

@@ -111,6 +111,10 @@ class SchedulerRepository(
     suspend fun updateMission(name: String, cron: String?, runAt: String?): String =
         api.updateMission(name = name, cron = cron, runAt = runAt)
 
+    /** Keeps a mission's runs out of the conversation lists, or brings them back (19/10/2026). */
+    suspend fun setDiscreet(name: String, discreet: Boolean): String =
+        api.updateMission(name = name, discreet = discreet)
+
     /** Deletes a scheduled mission. Its run history is kept server-side. */
     suspend fun deleteMission(name: String): String = api.deleteMission(name)
 

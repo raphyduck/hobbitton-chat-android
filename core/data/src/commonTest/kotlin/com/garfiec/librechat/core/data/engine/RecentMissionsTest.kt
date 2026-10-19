@@ -35,6 +35,8 @@ class RecentMissionsTest {
         assertTrue(isScheduledRun("traiter-une-reponse — manuel (lancement) (à blanc)"))
         assertTrue(isScheduledRun("traiter-une-reponse — manuel reprise 3 (à blanc)"))
         assertTrue(isScheduledRun("suivi-dossiers-ouverts — reprise après panne"))
+        // 19/10/2026: the unread watch's lots.
+        assertTrue(isScheduledRun("traiter-les-non-lus — non-lus #8 (lancement)"))
     }
 
     @Test

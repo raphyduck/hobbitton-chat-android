@@ -158,6 +158,7 @@ fun TasksScreen(
                         onSetScheduledEnabled = { mission, enabled -> viewModel.setScheduledEnabled(mission.name, enabled) },
                         onReschedule = { mission, cron, runAt -> viewModel.rescheduleMission(mission.name, cron, runAt) },
                         onDeleteScheduled = { viewModel.deleteScheduled(it.name) },
+                        onSetDiscreet = { mission, discreet -> viewModel.setScheduledDiscreet(mission.name, discreet) },
                     ),
                 )
             }
@@ -194,6 +195,7 @@ internal class TasksListActions(
     val onSetScheduledEnabled: (ScheduledMission, Boolean) -> Unit,
     val onReschedule: (ScheduledMission, cron: String?, runAt: String?) -> Unit,
     val onDeleteScheduled: (ScheduledMission) -> Unit,
+    val onSetDiscreet: (ScheduledMission, Boolean) -> Unit,
 )
 
 /**
@@ -253,6 +255,7 @@ internal fun TasksListBody(
                             onToggle = { actions.onSetScheduledEnabled(mission, !mission.enabled) },
                             onReschedule = { cron, runAt -> actions.onReschedule(mission, cron, runAt) },
                             onDelete = { actions.onDeleteScheduled(mission) },
+                            onToggleDiscreet = { actions.onSetDiscreet(mission, !mission.discreet) },
                         )
                     }
                 }

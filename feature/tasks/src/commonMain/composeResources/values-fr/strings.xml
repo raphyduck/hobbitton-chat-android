@@ -40,6 +40,8 @@
     <string name="tasks_scheduled_run">Lancer</string>
     <string name="tasks_scheduled_disable">Suspendre</string>
     <string name="tasks_scheduled_enable">Réactiver</string>
+    <string name="tasks_scheduled_hide_runs">Masquer des conversations</string>
+    <string name="tasks_scheduled_show_runs">Montrer dans les conversations</string>
     <string name="tasks_scheduled_suspended">Suspendue</string>
     <string name="tasks_scheduled_next">Prochaine %1$s</string>
     <string name="tasks_scheduled_never">Jamais lancée</string>

@@ -11,6 +11,9 @@ import kotlinx.serialization.Serializable
  * (« RIEN À SIGNALER »), true otherwise (a failure, a run stopped short, a report), null for a run
  * recorded before the scheduler kept it. It decides whether the run's conversation counts as
  * unread: a mission run every half hour that finds nothing must not crowd the inbox.
+ *
+ * [discreet] (19/10/2026): its mission keeps its runs out of the conversation lists (a background
+ * mission, which speaks through a report or a decision conversation); only a failed run shows.
  */
 @Serializable
 data class SchedulerRun(
@@ -20,4 +23,5 @@ data class SchedulerRun(
     @SerialName("succes") val succeeded: Boolean? = null,
     @SerialName("incomplet") val incomplete: Boolean = false,
     @SerialName("a_signaler") val hasNews: Boolean? = null,
+    @SerialName("discrete") val discreet: Boolean = false,
 )

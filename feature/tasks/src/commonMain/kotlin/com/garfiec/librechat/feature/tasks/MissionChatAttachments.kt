@@ -1,5 +1,6 @@
 package com.garfiec.librechat.feature.tasks
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,6 +28,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.garfiec.librechat.feature.tasks.components.rememberAttachmentOpener
 import com.garfiec.librechat.feature.tasks.resources.Res
 import com.garfiec.librechat.feature.tasks.resources.tasks_attached_photo
 import com.garfiec.librechat.feature.tasks.resources.tasks_attachment_remove
@@ -37,24 +39,29 @@ import org.jetbrains.compose.resources.stringResource
 
 /**
  * One attachment in the transcript. An image draws as the picture — bounded, clipped like a bubble;
- * anything else names itself, because rendering raw base64 helps nobody.
+ * anything else names itself, because rendering raw base64 helps nobody. Either opens with the
+ * phone's viewer when tapped (19/10/2026), which saves or shares it.
  */
 @Composable
 internal fun AttachmentContent(part: ChatPart.Attachment) {
+    val open = rememberAttachmentOpener()
+    val onOpen: (() -> Unit)? = open?.let { { it(part) } }
     if (part.mime.startsWith("image/")) {
         AsyncImage(
             model = part.dataUrl,
             contentDescription = part.filename ?: stringResource(Res.string.tasks_attached_photo),
             modifier = Modifier
                 .heightIn(max = ATTACHMENT_MAX_HEIGHT)
-                .clip(RoundedCornerShape(12.dp)),
+                .clip(RoundedCornerShape(12.dp))
+                .then(if (onOpen != null) Modifier.clickable(onClick = onOpen) else Modifier),
             contentScale = ContentScale.Fit,
         )
     } else {
-        Text(
-            part.filename ?: part.mime,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        AssistChip(
+            onClick = { onOpen?.invoke() },
+            enabled = onOpen != null,
+            leadingIcon = { Icon(Icons.Outlined.Description, null, Modifier.size(16.dp)) },
+            label = { Text(part.filename ?: part.mime) },
         )
     }
 }
