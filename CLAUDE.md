@@ -69,8 +69,8 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   something to say »: the scheduler's `historique(json_brut=True)` carries `a_signaler`, false when
   the run answered « RIEN À SIGNALER » (`runHasNews`).
   A **discreet** mission (Raphaël's rule, 19/10/2026: the guet's lots crowded both lists) keeps its
-  runs out of both, a failed or interrupted run aside (`runHidden`, the scheduler's `discrete` on
-  each run), and never counts one as unread (`runUnread`: a failing run shows among the read); its history stays under Programmées, whose actions sheet hides or shows it
+  runs out of both, failed or not (`runHidden`, the scheduler's `discrete` on each run; Raphaël,
+  20/10/2026: the failing runs filled the drawer; a failure shows on its row under Programmées); its history stays under Programmées, whose actions sheet hides or shows it
   (`modifier(discrete=…)`).
 - **A new chat greets** (lot 2, 10/10/2026): « Bonjour, <prénom>. » in the serif, the first name
   read from the scheduler's `GET /identite` (the portal's `Remote-Name`, via `SchedulerRepository.identity`),
