@@ -130,8 +130,8 @@ Most modules have their own `CLAUDE.md` with specific guidance.
 `LibreChatApplication` starts `sharedKoinModules` (`commonModule`, `loggingModule`,
 `networkModule`, `dataModule`, `authModule`, `sharedAppModule`) plus `engineModule` (`:core:data`
 androidMain: the engine, scheduler and portal clients, the portal session, the stores),
-`tasksModule`, `attentionModule` and `platformModule` (the build's default addresses). The shell
-and the sign-in resolve the engine graph with `getOrNull`.
+`tasksModule`, `attentionModule` and `platformModule` (the build's default addresses, and the share
+sheet for the diagnostic log). The shell and the sign-in resolve the engine graph with `getOrNull`.
 `KoinGraphVerificationTest` (`:app`) verifies `sharedKoinModules`.
 
 ## Architecture Rules
@@ -159,3 +159,8 @@ and the sign-in resolve the engine graph with `getOrNull`.
 - The engine's and the scheduler's clients carry the portal's bearer as `Proxy-Authorization`,
   scoped to their own host; the edge presents the engine's own credential.
 - Custom SSE parser (`SseLineParser`) over the raw byte stream, not Ktor's SSE plugin.
+- The feed is global and heavy (a tool's whole output again on every frame that grows it):
+  `EngineMissionRepository.events` / `allEvents` read and parse it on the IO dispatcher whoever
+  collects (20/10/2026: parsed on the main thread by the attention watcher, a scheduled run's
+  tools froze the app). The phone's own traces come out through Settings → Plateforme → « Partager
+  le journal de diagnostic » (`DiagnosticLogShare`).

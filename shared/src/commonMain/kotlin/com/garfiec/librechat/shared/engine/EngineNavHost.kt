@@ -129,6 +129,7 @@ fun EngineNavHost(
                             onDefaultModel = viewModel::setDefaultChatModel,
                             onLanguage = { viewModel.setSelectedLanguage(it.tag) },
                             onLoadModels = viewModel::loadModels,
+                            onShareDiagnostics = viewModel::shareDiagnostics,
                             onSignOut = viewModel::signOut,
                         )
                     }
@@ -161,6 +162,7 @@ private fun EngineMainLayout(
     onDefaultModel: (String?) -> Unit,
     onLanguage: (AppLanguage) -> Unit,
     onLoadModels: () -> Unit,
+    onShareDiagnostics: () -> Unit,
     onSignOut: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -296,6 +298,7 @@ private fun EngineMainLayout(
                         onLocalDictation = onLocalDictation,
                         onDefaultModel = onDefaultModel,
                         onLanguage = onLanguage,
+                        onShareDiagnostics = onShareDiagnostics,
                         onSignOut = {
                             // The stack first: its conversations close with their entries — their
                             // view models, their live feeds — before the portal's tokens go.

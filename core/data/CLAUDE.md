@@ -78,6 +78,10 @@ Since 12/10/2026 chats and tasks are one conversation, as on Claude.ai.
   `POST /transcription`. Answers `TranscriptionOutcome` (the words, or a `TranscriptionFailure` plus
   the server's `erreur`), never throws past `:core:data`. The language hint is the device's when it
   is a bare ISO 639-1 code (`isoLanguageOrNull`), nothing otherwise. Bound in `engineModule`.
+- **`events(sessionId)` / `allEvents()`** are the live feed, read and parsed on `ioDispatcher`
+  whatever scope collects them (20/10/2026): the watcher collects from the shell's main scope, and
+  the global feed repeats each tool's whole output on every frame that grows it; parsed on the main
+  thread, a scheduled run streaming its tools froze the app.
 - **Attention (`Attention.kt`, 03/10/2026)**: `AttentionSignals` decides when a question or a
   finished reply rings (chime when its conversation is on screen, notification otherwise, nothing
   when `SettingsDataStore.attentionSound` is off, each question once per process);

@@ -30,7 +30,10 @@ Single Activity. `MainActivity` is the sole entry point; `LibreChatApplication` 
   `allowOverride(false)`. `platformModule` binds `PlatformDefaults` from the `BuildConfig`
   fields `PLATFORM_ENGINE_URL` / `PLATFORM_SCHEDULER_URL` / `PLATFORM_PORTAL_URL`, which the
   application plugin fills from `platform.properties` (git-ignored) or the same-named environment
-  variables: the sign-in starts on them.
+  variables: the sign-in starts on them. It also binds `DiagnosticLogShare` (20/10/2026):
+  `diagnostics/AndroidDiagnosticLogShare`, the diagnostic log written to the cache's `attachments/`
+  and handed to the share sheet (`ACTION_SEND`, the conversation files' FileProvider), from
+  Settings → Plateforme.
 - `attention/`: `AndroidAttentionNotifier` (the notification sound, the « Questions » and
   « Replies » channels, the notification that opens a conversation) and `attentionModule`. The
   channels' ids keep their `butler_` prefix: renamed, Android would drop the settings set on them.

@@ -37,6 +37,8 @@
     <string name="engine_settings_scheduler">Scheduler</string>
     <string name="engine_settings_portal">Portal</string>
     <string name="engine_settings_platform_hint">To change an address, sign out and sign in again.</string>
+    <string name="engine_settings_diagnostics">Share the diagnostic log</string>
+    <string name="engine_settings_diagnostics_hint">The app's own traces of the last seven days, secrets removed.</string>
     <string name="engine_settings_usage">Usage and providers</string>
     <string name="engine_settings_notifications">Notifications</string>
     <string name="engine_settings_attention">Sound and notifications</string>

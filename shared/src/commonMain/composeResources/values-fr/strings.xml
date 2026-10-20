@@ -37,6 +37,8 @@
     <string name="engine_settings_scheduler">Planificateur</string>
     <string name="engine_settings_portal">Portail</string>
     <string name="engine_settings_platform_hint">Pour changer une adresse, déconnectez-vous puis reconnectez-vous.</string>
+    <string name="engine_settings_diagnostics">Partager le journal de diagnostic</string>
+    <string name="engine_settings_diagnostics_hint">Les traces de l'application sur sept jours, secrets retirés.</string>
     <string name="engine_settings_usage">Consommation et fournisseurs</string>
     <string name="engine_settings_notifications">Notifications</string>
     <string name="engine_settings_attention">Son et notifications</string>

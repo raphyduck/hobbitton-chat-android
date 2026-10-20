@@ -39,8 +39,10 @@ The engine shell, and the Koin module list the application starts from. KMP libr
   (`DrawerAccount`), then groups of rows on raised cards (`SectionGroup`, `:core:ui`): Apparence
   (theme and text size as segmented controls, the size written to `SettingsDataStore`),
   Notifications (the switch), Assistant (instructions, usage, spending ceilings), Plateforme (the addresses, read
-  only), and sign-out alone at the foot. Test tags `settings_attention_sound`,
-  `settings_instructions`, `settings_sign_out`, `settings_sign_out_confirm` are kept.
+  only, and « Partager le journal de diagnostic », 20/10/2026: `EngineShellViewModel.shareDiagnostics`
+  over `DiagnosticLogShare`, bound by `:app`, a no-op without it), and sign-out alone at the foot.
+  Test tags `settings_attention_sound`, `settings_instructions`, `settings_diagnostics`,
+  `settings_sign_out`, `settings_sign_out_confirm` are kept.
   `EngineInstructionsScreen` + `EngineInstructionsViewModel` — the global instructions' editor over
   `GlobalProfileEditor` (Enregistrer / Annuler; the MCP servers an earlier build stored are kept as
   they are, never edited here).
