@@ -89,4 +89,5 @@
     <string name="engine_age_hours">%1$d h</string>
     <string name="engine_age_days">%1$d j</string>
     <string name="engine_drawer_scheduled_run">Exécution programmée</string>
+    <string name="engine_open_drawer">Ouvrir le menu</string>
 </resources>

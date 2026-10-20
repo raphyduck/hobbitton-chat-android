@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -31,6 +32,7 @@ import com.garfiec.librechat.shared.resources.engine_drawer_conversations
 import com.garfiec.librechat.shared.resources.engine_drawer_empty
 import com.garfiec.librechat.shared.resources.engine_drawer_failed
 import com.garfiec.librechat.shared.resources.engine_drawer_retry
+import com.garfiec.librechat.shared.resources.engine_open_drawer
 import com.garfiec.librechat.shared.resources.engine_settings_back
 import org.jetbrains.compose.resources.stringResource
 import kotlin.time.Clock
@@ -46,7 +48,8 @@ import kotlin.time.Clock
 @Composable
 internal fun EngineConversationsScreen(
     state: EngineChatsState,
-    onBack: () -> Unit,
+    onBack: (() -> Unit)?,
+    onOpenDrawer: () -> Unit,
     onOpenChat: (EngineChatSummary) -> Unit,
     onRefresh: () -> Unit,
     modifier: Modifier = Modifier,
@@ -57,11 +60,18 @@ internal fun EngineConversationsScreen(
             TopAppBar(
                 title = { Text(stringResource(Res.string.engine_drawer_conversations)) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(Res.string.engine_settings_back),
-                        )
+                    // Reached by back from a session, the page is the floor: the menu, as on a chat.
+                    if (onBack == null) {
+                        IconButton(onClick = onOpenDrawer) {
+                            Icon(Icons.Default.Menu, contentDescription = stringResource(Res.string.engine_open_drawer))
+                        }
+                    } else {
+                        IconButton(onClick = onBack) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(Res.string.engine_settings_back),
+                            )
+                        }
                     }
                 },
             )

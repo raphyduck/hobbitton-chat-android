@@ -45,14 +45,31 @@ val engineShellSavedStateConfig = SavedStateConfiguration {
  *
  * The conversation is the root: every drawer destination that is a conversation replaces it,
  * Programmées and the settings are pushed over it, and backing out of either lands on it again.
+ * Backing out of a session at the root lands on the Conversations page, which takes its place
+ * (Raphaël's rule, 20/10/2026: back used to close the app); backing out of that page closes it.
  */
 class EngineNavigator(val backStack: NavBackStack<NavKey>) {
 
     val currentRoute: NavKey? get() = backStack.lastOrNull()
 
-    /** Pops one entry, never the last one: the chat is the floor. */
+    /** Pops one entry; at the floor, a session gives way to the Conversations page. */
     fun goBack() {
-        if (backStack.size > 1) backStack.removeLastOrNull()
+        if (backStack.size > 1) backStack.removeLastOrNull() else backToConversations()
+    }
+
+    /** A session alone on the stack: back shows the Conversations page rather than closing the app. */
+    val backLeadsToConversations: Boolean
+        get() = backStack.size == 1 && (backStack.lastOrNull() as? EngineChat)?.sessionId != null
+
+    /** The Conversations page reached that way: the floor, so it offers the menu, not a back arrow. */
+    val conversationsAtFloor: Boolean
+        get() = backStack.size == 1 && backStack.lastOrNull() == EngineConversations
+
+    /** The page slipped under the session, then the session popped: it arrives as a back, not a push. */
+    fun backToConversations() {
+        if (!backLeadsToConversations) return
+        backStack.add(0, EngineConversations)
+        backStack.removeLastOrNull()
     }
 
     /** A blank chat as the root. A no-op when one is already all there is. */

@@ -78,6 +78,7 @@ private fun Conversations() {
     EngineConversationsScreen(
         state = EngineChatsState(chats = inboxOrder(CHATS)),
         onBack = {},
+        onOpenDrawer = {},
         onOpenChat = {},
         onRefresh = {},
     )

@@ -35,6 +35,7 @@ import androidx.navigation3.ui.NavDisplay
 import com.garfiec.librechat.core.data.datastore.ChatFontSize
 import com.garfiec.librechat.core.data.datastore.ThemeMode
 import com.garfiec.librechat.core.data.engine.OpenConversation
+import com.garfiec.librechat.core.ui.components.PlatformBackHandler
 import com.garfiec.librechat.core.ui.theme.AppLocale
 import com.garfiec.librechat.core.ui.util.SafeUriHandler
 import com.garfiec.librechat.feature.auth.screen.PortalSignInScreen
@@ -205,6 +206,10 @@ private fun EngineMainLayout(
     }
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { activeChat?.let(markRead) }
 
+    // A session alone on the stack: Nav 3 hands back to the system there, which closed the app.
+    // Composed before the drawer, so an open drawer still takes the back first.
+    PlatformBackHandler(enabled = navigator.backLeadsToConversations) { navigator.backToConversations() }
+
     ModalNavigationDrawer(
         drawerState = drawerState,
         modifier = modifier,
@@ -304,7 +309,8 @@ private fun EngineMainLayout(
                     LaunchedEffect(Unit) { refreshAllChats() }
                     EngineConversationsScreen(
                         state = allChats,
-                        onBack = { navigator.goBack() },
+                        onBack = if (navigator.conversationsAtFloor) null else ({ navigator.goBack() }),
+                        onOpenDrawer = openDrawer,
                         onOpenChat = { chat -> navigator.openChat(chat.sessionId, chat.title) },
                         onRefresh = onRefreshAllChats,
                     )

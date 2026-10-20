@@ -15,7 +15,10 @@ The engine shell, and the Koin module list the application starts from. KMP libr
   session kinds, read marks and reading positions. Every engine dependency is nullable (`getOrNull`).
 - `EngineNavigator`: the back stack: the conversation as root (`EngineChat`, any session since
   D-082), a new one's blank entry replaced in place once the engine has the session; Programmées,
-  usage, settings and instructions pushed on top.
+  usage, settings and instructions pushed on top. Back from a session alone on the stack lands on
+  the Conversations page, which takes its place with the menu in place of its back arrow; back from
+  there closes the app (Raphaël's rule, 20/10/2026: back closed the app; `backToConversations`, run
+  by a `PlatformBackHandler` since Nav 3 hands a one-entry stack's back to the system).
 - `EngineConversationsScreen` (16/10/2026): every session, the unread under « Non lues », then the
   rest, each by latest activity; pushed like Programmées (`EngineConversations`), pull to refresh.
   Its rows are the drawer's (`RecentChatItem`, an unread title in bold).
