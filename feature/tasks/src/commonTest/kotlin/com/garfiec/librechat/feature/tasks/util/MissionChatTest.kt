@@ -445,6 +445,17 @@ class ChatBlockTest {
     }
 
     @Test
+    fun theGatewaysPlaceholderIsNotAParagraph() {
+        // 20/10/2026: one such line between every two tool calls of a long browsing turn.
+        val placeholder = "[System: Empty message content sanitised to satisfy protocol]"
+        val blocks = listOf(tool("t1"), text("p1", placeholder), tool("t2"), text("p2", "$placeholder\n\nDarty bloque ce chemin.")).asBlocks()
+
+        assertEquals(2, blocks.size)
+        assertEquals(listOf("t1", "t2"), (blocks.first() as ChatBlock.Activity).parts.map { it.id })
+        assertEquals("Darty bloque ce chemin.", (blocks.last() as ChatBlock.Prose).part.text)
+    }
+
+    @Test
     fun aTurnOfPureProseHasNothingToFold() {
         val blocks = listOf(text("p1", "bonsoir")).asBlocks()
 

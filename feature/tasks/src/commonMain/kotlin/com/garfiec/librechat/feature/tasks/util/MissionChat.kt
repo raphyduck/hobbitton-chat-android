@@ -327,13 +327,15 @@ fun List<ChatPart>.asBlocks(): List<ChatBlock> {
 
     forEach { part ->
         when (part) {
-            is ChatPart.Text ->
+            is ChatPart.Text -> {
                 // A text part that is still empty is a part awaiting its deltas, not a paragraph. It
                 // would otherwise cut the activity run in two and open a second block mid-thought.
-                if (part.text.isNotBlank()) {
+                val shown = part.text.withoutSanitisedPlaceholder()
+                if (shown.isNotBlank()) {
                     flush()
-                    blocks += ChatBlock.Prose(part)
+                    blocks += ChatBlock.Prose(if (shown == part.text) part else part.copy(text = shown))
                 }
+            }
             is ChatPart.Attachment -> {
                 flush()
                 blocks += ChatBlock.Media(part)
@@ -374,4 +376,17 @@ fun ChatBlock.Activity.hasFailure(): Boolean =
 fun ChatTurn.text(): String = when (this) {
     is ChatTurn.User -> parts
     is ChatTurn.Assistant -> parts
-}.filterIsInstance<ChatPart.Text>().joinToString("\n\n") { it.text }.trim()
+}.filterIsInstance<ChatPart.Text>().map { it.text.withoutSanitisedPlaceholder() }
+    .filter { it.isNotBlank() }.joinToString("\n\n").trim()
+
+/**
+ * The text without the gateway's placeholder (20/10/2026). The gateway writes
+ * « [System: Empty message content sanitised to satisfy protocol] » in place of an empty step the
+ * engine hands it back, the model then reads its own earlier steps saying it and repeats it, and the
+ * conversation filled with one such line between every two tool calls. It says nothing: dropped,
+ * the tool calls around it fold into one block again.
+ */
+internal fun String.withoutSanitisedPlaceholder(): String =
+    if (SANITISED_PLACEHOLDER in this) replace(SANITISED_PLACEHOLDER, "").trim() else this
+
+private const val SANITISED_PLACEHOLDER = "[System: Empty message content sanitised to satisfy protocol]"

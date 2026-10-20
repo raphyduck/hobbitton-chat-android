@@ -62,8 +62,8 @@ Since 12/10/2026 chats and tasks are one conversation, as on Claude.ai.
   `unread` comes from `ConversationReads` (`EngineConversationReads`: when each session was last
   shown here, and a floor so a first launch marks nothing; cleared at sign-out) and, for a run, from
   the scheduler's `runs()` (`runHasNews`: news, failed or stopped short). A discreet mission's
-  runs are left out (`runHidden`, 19/10/2026), a failed or interrupted one aside, and never
-  count as unread (`runUnread`), so a failing one shows among the read; a session the
+  runs are left out (`runHidden`, 19/10/2026), failed or not since 20/10 (its failure shows on its row
+  under Programmées); a session the
   scheduler lists as a run counts as one even when its title is not recognised. `classifySession` +
   `SessionKindStore` (`EngineSessionKinds`) leave out a session that has said nothing yet; at most
   ten unknown transcripts are read per refresh and each verdict recorded. Cleared at sign-out with

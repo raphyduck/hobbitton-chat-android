@@ -5,33 +5,25 @@ import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/** A discreet mission's runs stay out of the conversation lists, a failure aside, and are never unread (19/10/2026). */
+/** A discreet mission's runs stay out of the conversation lists, failed or not (20/10/2026). */
 class DiscreetRunsTest {
     private val discreet = setOf("traiter-les-non-lus")
 
     @Test
-    fun `a discreet mission's run is hidden, even when its own run fell out of the window`() {
-        val run = SchedulerRun(session = "ses_1", mission = "traiter-les-non-lus", succeeded = true, discreet = true)
-        assertTrue(runHidden("traiter-les-non-lus", run, discreet))
-        assertTrue(runHidden("traiter-les-non-lus", null, discreet))
+    fun `a discreet mission's run is hidden, failed or not`() {
+        assertTrue(runHidden("traiter-les-non-lus", discreet))
     }
 
     @Test
-    fun `a failed or interrupted run shows, and so does every other mission's`() {
-        val failed = SchedulerRun(mission = "traiter-les-non-lus", succeeded = false, discreet = true)
-        val cut = SchedulerRun(mission = "traiter-les-non-lus", succeeded = true, incomplete = true, discreet = true)
-        assertFalse(runHidden("traiter-les-non-lus", failed, discreet))
-        assertFalse(runHidden("traiter-les-non-lus", cut, discreet))
-        assertFalse(runHidden("brief-crypto", SchedulerRun(mission = "brief-crypto"), discreet))
-        assertFalse(runHidden(null, null, discreet))
+    fun `every other mission's run and every conversation shows`() {
+        assertFalse(runHidden("brief-crypto", discreet))
+        assertFalse(runHidden(null, discreet))
     }
 
     @Test
-    fun `a discreet mission's failed run shows among the read, never the unread`() {
-        val failed = SchedulerRun(mission = "traiter-les-non-lus", succeeded = false, discreet = true)
-        assertFalse(runUnread("traiter-les-non-lus", failed, discreet))
-        assertTrue(runUnread("brief-crypto", SchedulerRun(mission = "brief-crypto", succeeded = false), discreet))
-        assertFalse(runUnread("brief-crypto", SchedulerRun(mission = "brief-crypto", hasNews = false), discreet))
-        assertTrue(runUnread(null, null, discreet))
+    fun `a run is unread when it has something to say, a conversation whenever it moved`() {
+        assertTrue(runUnread("brief-crypto", SchedulerRun(mission = "brief-crypto", succeeded = false)))
+        assertFalse(runUnread("brief-crypto", SchedulerRun(mission = "brief-crypto", hasNews = false)))
+        assertTrue(runUnread(null, null))
     }
 }

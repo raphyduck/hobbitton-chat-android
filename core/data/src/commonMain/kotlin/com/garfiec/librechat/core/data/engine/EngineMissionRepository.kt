@@ -71,22 +71,21 @@ fun runHasNews(run: SchedulerRun?): Boolean =
 
 /**
  * Whether a run stays out of the conversation lists (19/10/2026): its mission is discreet (a
- * background mission, which speaks through a report or a decision conversation) and the run did
- * not fail. A failed or interrupted run shows, so a breakage is never silent. [discreetMissions]
- * names the missions the scheduler marks discreet, read off its latest runs: a session whose own
- * run fell outside that window is still known by its mission.
+ * background mission, which speaks through a report or a decision conversation), failed or not
+ * (Raphaël's rule, 20/10/2026: traiter-les-non-lus, failing on a spent budget, filled the drawer;
+ * its failure stays in the mission's history under Programmées, whose row turns red).
+ * [discreetMissions] names the missions the scheduler marks discreet, read off its latest runs: a
+ * session whose own run fell outside that window is still known by its mission.
  */
-fun runHidden(mission: String?, run: SchedulerRun?, discreetMissions: Set<String>): Boolean =
-    mission != null && mission in discreetMissions && run?.succeeded != false && run?.incomplete != true
+fun runHidden(mission: String?, discreetMissions: Set<String>): Boolean =
+    mission != null && mission in discreetMissions
 
 /**
  * Whether a session that moved since this device showed it counts as unread: a conversation always,
- * a run when it has something to say ([runHasNews]), a discreet mission's run never (Raphaël's rule,
- * 19/10/2026: traiter-les-non-lus, failing on a spent budget every half hour, filled « Non lues »).
- * Its failure still shows in the list ([runHidden]), among the read.
+ * a run when it has something to say ([runHasNews]). A discreet mission's run is not listed at all
+ * ([runHidden]).
  */
-fun runUnread(mission: String?, run: SchedulerRun?, discreetMissions: Set<String>): Boolean =
-    mission == null || (mission !in discreetMissions && runHasNews(run))
+fun runUnread(mission: String?, run: SchedulerRun?): Boolean = mission == null || runHasNews(run)
 
 /**
  * What the model picker needs: the list, and the model a conversation runs on when none is picked
@@ -219,7 +218,7 @@ class EngineMissionRepository(
             val mission = session.title?.let(::scheduledMissionName) ?: runs[session.id]?.mission
             // Before any transcript is read: a run never costs the drawer one.
             if (mission != null && scope == ChatScope.MANUAL) continue
-            if (runHidden(mission, runs[session.id], discreetMissions)) continue
+            if (runHidden(mission, discreetMissions)) continue
             var kind = classifySession(session.title, recorded[session.id], messages = null)
             if (kind == null && classified < MAX_CLASSIFICATION_READS) {
                 classified++
@@ -238,7 +237,7 @@ class EngineMissionRepository(
                     running = active != null && active.type != IDLE_STATUS,
                     kind = kind,
                     scheduled = mission != null,
-                    unread = moved && runUnread(mission, runs[session.id], discreetMissions),
+                    unread = moved && runUnread(mission, runs[session.id]),
                 )
             }
         }
