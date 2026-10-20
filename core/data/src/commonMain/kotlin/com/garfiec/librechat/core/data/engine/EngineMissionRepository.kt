@@ -1,6 +1,7 @@
 package com.garfiec.librechat.core.data.engine
 
 import co.touchlab.kermit.Logger
+import com.garfiec.librechat.core.common.di.ioDispatcher
 import com.garfiec.librechat.core.data.datastore.GlobalProfileSource
 import com.garfiec.librechat.core.model.engine.CreateEngineSessionRequest
 import com.garfiec.librechat.core.model.engine.EngineModelRef
@@ -19,6 +20,7 @@ import com.garfiec.librechat.core.network.engine.EngineEventTransport
 import com.garfiec.librechat.core.network.engine.EngineHttpException
 import com.garfiec.librechat.core.network.engine.EngineStreamClient
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOn
 
 /**
  * One conversation as the lists show it. Since D-082 (12/10/2026) every session opens the same
@@ -355,14 +357,23 @@ class EngineMissionRepository(
     /**
      * What is happening in the session right now. The engine's feed is global; the client keeps only
      * this session's frames.
+     *
+     * Read and parsed on the IO dispatcher whoever collects it (20/10/2026). The feed carries every
+     * session's frames, and a frame repeats a tool's whole output each time it grows (60 000
+     * characters since the scheduler's ceiling went up): parsed on the main thread, a scheduled run
+     * streaming its tools froze the app until it was killed, the conversation on screen left on its
+     * placeholders. The collector's own work (a state update, a chime) stays where it collects.
      */
-    fun events(sessionId: String): Flow<EngineStreamEvent> = streamClient.connect(sessionId, eventTransport)
+    fun events(sessionId: String): Flow<EngineStreamEvent> =
+        streamClient.connect(sessionId, eventTransport).flowOn(ioDispatcher)
 
     /**
      * Every session's events, each naming its session: what the attention watcher listens to, so a
-     * question asked in a conversation nobody has open still reaches the person.
+     * question asked in a conversation nobody has open still reaches the person. Off the main
+     * thread like [events]: the watcher collects it from the shell's scope, which is the main one.
      */
-    fun allEvents(): Flow<EngineStreamClient.SessionEvent> = streamClient.connectAll(eventTransport)
+    fun allEvents(): Flow<EngineStreamClient.SessionEvent> =
+        streamClient.connectAll(eventTransport).flowOn(ioDispatcher)
 
     /**
      * The questions this session's agent is waiting on. The feed announces each one once; a screen

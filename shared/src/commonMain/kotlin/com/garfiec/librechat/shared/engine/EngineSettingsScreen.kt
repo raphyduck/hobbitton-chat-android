@@ -24,6 +24,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.NotificationsActive
@@ -81,6 +82,8 @@ import com.garfiec.librechat.shared.resources.engine_settings_default_model_hint
 import com.garfiec.librechat.shared.resources.engine_settings_default_model_server
 import com.garfiec.librechat.shared.resources.engine_settings_default_model_server_named
 import com.garfiec.librechat.shared.resources.engine_settings_default_model_unavailable
+import com.garfiec.librechat.shared.resources.engine_settings_diagnostics
+import com.garfiec.librechat.shared.resources.engine_settings_diagnostics_hint
 import com.garfiec.librechat.shared.resources.engine_settings_dictation
 import com.garfiec.librechat.shared.resources.engine_settings_engine
 import com.garfiec.librechat.shared.resources.engine_settings_instructions
@@ -159,6 +162,7 @@ internal fun EngineSettingsScreen(
     onOpenBudget: () -> Unit = {},
     onDefaultModel: (String?) -> Unit = {},
     onLanguage: (AppLanguage) -> Unit = {},
+    onShareDiagnostics: () -> Unit = {},
 ) {
     var confirmSignOut by rememberSaveable { mutableStateOf(false) }
     var pickModel by rememberSaveable { mutableStateOf(false) }
@@ -191,6 +195,7 @@ internal fun EngineSettingsScreen(
             onLocalDictation = onLocalDictation,
             onLanguage = onLanguage,
             onPickModel = { pickModel = true },
+            onShareDiagnostics = onShareDiagnostics,
             onSignOut = { confirmSignOut = true },
         )
         if (pickModel) {
@@ -316,6 +321,7 @@ private fun SettingsBody(
     onLocalDictation: (Boolean) -> Unit,
     onLanguage: (AppLanguage) -> Unit,
     onPickModel: () -> Unit,
+    onShareDiagnostics: () -> Unit,
     onSignOut: () -> Unit,
 ) {
     Column(
@@ -427,6 +433,16 @@ private fun SettingsBody(
             ValueRow(stringResource(Res.string.engine_settings_scheduler), state.addresses?.schedulerUrl)
             SectionDivider()
             ValueRow(stringResource(Res.string.engine_settings_portal), state.addresses?.issuerUrl)
+            SectionDivider()
+            // The app's own traces (the feed, the watchdog's stalls, the crashes), the one way to
+            // read them off a phone when it freezes (20/10/2026).
+            NavigationRow(
+                icon = Icons.Outlined.BugReport,
+                headline = stringResource(Res.string.engine_settings_diagnostics),
+                supporting = stringResource(Res.string.engine_settings_diagnostics_hint),
+                onClick = onShareDiagnostics,
+                modifier = Modifier.testTag("settings_diagnostics"),
+            )
         }
         Text(
             text = stringResource(Res.string.engine_settings_platform_hint),

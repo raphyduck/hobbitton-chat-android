@@ -21,6 +21,7 @@ import com.garfiec.librechat.core.data.engine.SessionKindStore
 import com.garfiec.librechat.core.data.portal.PortalSignOut
 import com.garfiec.librechat.core.data.portal.isPortalSignedIn
 import com.garfiec.librechat.core.data.scheduler.SchedulerRepository
+import com.garfiec.librechat.core.logging.DiagnosticLogShare
 import com.garfiec.librechat.core.model.scheduler.PortalIdentity
 import com.garfiec.librechat.core.network.engine.EngineAccess
 import com.garfiec.librechat.core.network.engine.EngineTokenStore
@@ -75,6 +76,8 @@ class EngineShellViewModel(
     private val conversationRequests: ConversationRequests? = null,
     /** Who the portal says is signed in, for the drawer's foot (lot 3). Null without the engine graph. */
     private val scheduler: SchedulerRepository? = null,
+    /** The phone's share sheet for the diagnostic log (Settings → Plateforme, 20/10/2026). Null in tests. */
+    private val diagnostics: DiagnosticLogShare? = null,
 ) : ViewModel() {
 
     private val _signedIn = MutableStateFlow<Boolean?>(null)
@@ -193,6 +196,20 @@ class EngineShellViewModel(
     private fun stopAttention() {
         attentionJob?.cancel()
         attentionJob = null
+    }
+
+    /** Settings → Plateforme: the diagnostic log to whatever the person picks to send it with. */
+    fun shareDiagnostics() {
+        val share = diagnostics ?: return
+        viewModelScope.launch {
+            try {
+                share.share()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Logger.w(e) { "Diagnostics: the log could not be shared" }
+            }
+        }
     }
 
     fun setAttentionSound(enabled: Boolean) {
