@@ -23,8 +23,8 @@ The engine shell, and the Koin module list the application starts from. KMP libr
   rest, each by latest activity; pushed like Programmées (`EngineConversations`), pull to refresh.
   Its rows are the drawer's (`RecentChatItem`, an unread title in bold).
 - `EngineDrawer` (Claude's layout since lot 3, 10/10/2026) — a search over the titles (local
-  filter), three short entries (new conversation, Conversations, Programmées), every session (the same as the Conversations page, a small clock on a run) as bare titles under day
-  headers (Today / Yesterday / Previous 7 days / Older, in the phone's time zone: `groupRecent` in
+  filter), three short entries (new conversation, Conversations, Programmées), every session (the same as the Conversations page, a small clock on a run) as bare titles, the unread
+  first under « Non lues » (20/10/2026), the rest under day headers (Today / Yesterday / Previous 7 days / Older, in the phone's time zone: `groupRecent` in
   `RecentGrouping.kt`, the offset from `localUtcOffsetMillis`, actual in `androidMain`), an unread title in bold,
   a dot of the accent while one answers, a short age; placeholder rows on
   a first load; pulled down, the list re-reads (11/10/2026). At the foot, the account (`DrawerAccount`: the portal's name from

@@ -60,6 +60,7 @@ import com.garfiec.librechat.shared.resources.engine_age_hours
 import com.garfiec.librechat.shared.resources.engine_age_minutes
 import com.garfiec.librechat.shared.resources.engine_chat_running
 import com.garfiec.librechat.shared.resources.engine_chat_unread
+import com.garfiec.librechat.shared.resources.engine_conversations_unread
 import com.garfiec.librechat.shared.resources.engine_drawer_account
 import com.garfiec.librechat.shared.resources.engine_drawer_conversations
 import com.garfiec.librechat.shared.resources.engine_drawer_empty
@@ -440,6 +441,7 @@ internal fun PlaceholderRow() {
 }
 
 private fun RecentDay.label() = when (this) {
+    RecentDay.UNREAD -> Res.string.engine_conversations_unread
     RecentDay.TODAY -> Res.string.engine_drawer_today
     RecentDay.YESTERDAY -> Res.string.engine_drawer_yesterday
     RecentDay.PREVIOUS_WEEK -> Res.string.engine_drawer_previous_week

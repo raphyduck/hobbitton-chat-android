@@ -2,8 +2,12 @@ package com.garfiec.librechat.shared.engine
 
 import com.garfiec.librechat.core.data.engine.EngineChatSummary
 
-/** The drawer's headers over the recent conversations, in the order they are shown. */
-internal enum class RecentDay { TODAY, YESTERDAY, PREVIOUS_WEEK, OLDER }
+/**
+ * The drawer's headers over the recent conversations, in the order they are shown: the unread
+ * first, whatever their day (Raphaël's rule, 20/10/2026, as on the Conversations page), then the
+ * rest by day.
+ */
+internal enum class RecentDay { UNREAD, TODAY, YESTERDAY, PREVIOUS_WEEK, OLDER }
 
 /** One header and the conversations under it, in the order the list gave them. */
 internal data class RecentGroup(val day: RecentDay, val chats: List<EngineChatSummary>)
@@ -33,13 +37,15 @@ internal fun recentDay(
     }
 }
 
-/** The conversations under their headers; empty headers are left out. */
+/** The conversations under their headers, the unread first; empty headers are left out. */
 internal fun groupRecent(
     chats: List<EngineChatSummary>,
     nowMillis: Long,
     utcOffsetMillis: (epochMillis: Long) -> Long,
 ): List<RecentGroup> {
-    val byDay = chats.groupBy { recentDay(it.lastActivityMillis, nowMillis, utcOffsetMillis) }
+    val byDay = chats.groupBy {
+        if (it.unread) RecentDay.UNREAD else recentDay(it.lastActivityMillis, nowMillis, utcOffsetMillis)
+    }
     return RecentDay.entries.mapNotNull { day -> byDay[day]?.let { RecentGroup(day, it) } }
 }
 
