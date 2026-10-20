@@ -100,4 +100,27 @@ class EngineNavigatorTest {
         subject.goBack()
         assertEquals(listOf<NavKey>(EngineChat(), EngineAppSettings), subject.backStack.toList())
     }
+
+    @Test
+    fun `back from a session at the floor lands on Conversations, and back from there closes the app`() {
+        val subject = navigator(EngineChat("ses_1", "Bonjour"))
+
+        subject.goBack()
+
+        assertEquals(listOf<NavKey>(EngineConversations), subject.backStack.toList())
+        assertEquals(true, subject.conversationsAtFloor)
+        assertEquals(false, subject.backLeadsToConversations)
+        subject.openChat("ses_2", "Autre")
+        assertEquals(listOf<NavKey>(EngineChat("ses_2", "Autre")), subject.backStack.toList())
+    }
+
+    @Test
+    fun `a blank chat at the floor still hands back to the system`() {
+        val subject = navigator(EngineChat())
+
+        subject.goBack()
+
+        assertEquals(listOf<NavKey>(EngineChat()), subject.backStack.toList())
+        assertEquals(false, subject.backLeadsToConversations)
+    }
 }

@@ -89,4 +89,5 @@
     <string name="engine_age_hours">%1$d h</string>
     <string name="engine_age_days">%1$d d</string>
     <string name="engine_drawer_scheduled_run">Scheduled run</string>
+    <string name="engine_open_drawer">Open navigation drawer</string>
 </resources>
