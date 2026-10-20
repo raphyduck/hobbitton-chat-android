@@ -73,6 +73,20 @@ class RecentGroupingTest {
     }
 
     @Test
+    fun theUnreadComeFirstWhateverTheirDay() {
+        val chats = listOf(
+            chat("a", now - HOUR),
+            chat("b", now - 3 * DAY).copy(unread = true),
+            chat("c", now - 2 * HOUR).copy(unread = true),
+        )
+
+        val groups = groupRecent(chats, now, paris)
+
+        assertEquals(listOf(RecentDay.UNREAD, RecentDay.TODAY), groups.map { it.day })
+        assertEquals(listOf("b", "c"), groups.first().chats.map { it.sessionId })
+    }
+
+    @Test
     fun emptyHeadersAreLeftOut() {
         val groups = groupRecent(listOf(chat("a", now - 10 * DAY)), now, paris)
 
