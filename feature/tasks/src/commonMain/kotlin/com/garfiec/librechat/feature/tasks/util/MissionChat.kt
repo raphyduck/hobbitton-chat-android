@@ -380,13 +380,14 @@ fun ChatTurn.text(): String = when (this) {
     .filter { it.isNotBlank() }.joinToString("\n\n").trim()
 
 /**
- * The text without the gateway's placeholder (20/10/2026). The gateway writes
+ * The text without the gateway's placeholders (20/10/2026). The gateway writes
  * « [System: Empty message content sanitised to satisfy protocol] » in place of an empty step the
  * engine hands it back, the model then reads its own earlier steps saying it and repeats it, and the
  * conversation filled with one such line between every two tool calls. It says nothing: dropped,
- * the tool calls around it fold into one block again.
+ * the tool calls around it fold into one block again. Its sibling « [System: Empty name
+ * sanitised] » showed up on 21/10/2026: every « [System: … sanitised …] » goes the same way.
  */
 internal fun String.withoutSanitisedPlaceholder(): String =
-    if (SANITISED_PLACEHOLDER in this) replace(SANITISED_PLACEHOLDER, "").trim() else this
+    if ("[System:" in this) replace(SANITISED_PLACEHOLDER, "").trim() else this
 
-private const val SANITISED_PLACEHOLDER = "[System: Empty message content sanitised to satisfy protocol]"
+private val SANITISED_PLACEHOLDER = Regex("""\[System: [^\]\n]*saniti[sz]ed[^\]\n]*]""")
