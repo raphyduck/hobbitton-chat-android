@@ -456,6 +456,16 @@ class ChatBlockTest {
     }
 
     @Test
+    fun everySanitisedPlaceholderOfTheGatewayGoes() {
+        // 21/10/2026: « [System: Empty name sanitised] » after the message one.
+        val blocks = listOf(tool("t1"), text("p1", "[System: Empty name sanitised]"), tool("t2")).asBlocks()
+
+        assertEquals(1, blocks.size)
+        assertEquals(listOf("t1", "t2"), (blocks.single() as ChatBlock.Activity).parts.map { it.id })
+        assertEquals("[System: autre chose] reste", "[System: autre chose] reste".withoutSanitisedPlaceholder())
+    }
+
+    @Test
     fun aTurnOfPureProseHasNothingToFold() {
         val blocks = listOf(text("p1", "bonsoir")).asBlocks()
 
