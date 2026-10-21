@@ -47,6 +47,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -302,6 +303,7 @@ private fun MissionChatBody(
                         fontScale = state.fontScale,
                         restoredPosition = state.restoredPosition,
                         positionKnown = state.positionKnown,
+                        historyLoaded = !state.loadingHistory,
                         onRememberPosition = onRememberPosition,
                     )
                 }
@@ -311,11 +313,13 @@ private fun MissionChatBody(
 }
 
 @Composable
-private fun MissionTurns(
+internal fun MissionTurns(
     chat: MissionChatState,
     fontScale: Float,
     restoredPosition: MissionReadingPosition?,
     positionKnown: Boolean,
+    /** The transcript has landed (or failed to): until then the turns on screen are the feed's only. */
+    historyLoaded: Boolean,
     onRememberPosition: (index: Int, offset: Int) -> Unit,
 ) {
     val listState = rememberLazyListState()
@@ -324,18 +328,22 @@ private fun MissionTurns(
     // Open where the reader left off. Once — hence the flag, saved across rotation: a second
     // restore would yank the list back out from under someone who has since scrolled.
     //
-    // It waits on BOTH the stored position having been read and the transcript having landed,
-    // because scrolling to item 40 of an empty list is a no-op the follow effect below then
-    // finishes by dropping to the tail. Without a saved position the tail IS the right place, and
-    // that is what this screen did for everyone before 31/08/2026.
+    // It waits on the stored position having been read AND the transcript having landed, because
+    // scrolling to item 40 of a shorter list stops at its end, and the follow effect below then
+    // finishes the job by dropping to the tail. « Landed » means the history call is over, not
+    // merely « some turn is on screen » (21/10/2026) : on a conversation where the agent was
+    // talking, the live feed delivered its first token before the history did, the restore ran on
+    // that one turn, clamped to the tail and wrote the tail back as the saved position. Every
+    // conversation reopened while it was running thus opened at its end. Without a saved position
+    // the tail IS the right place, and that is what this screen did for everyone before 31/08/2026.
     var restored by rememberSaveable(turns.isNotEmpty()) { mutableStateOf(false) }
     // Whether the list follows the answer as it grows (19/10/2026). Decided by the reader's own
     // scrolls, never by the content: it is re-read each time a scroll settles, from where the list
     // stands then. A token that grows the answer past the tail does not turn following off.
     val tailSlackPx = with(LocalDensity.current) { TAIL_SLACK.toPx() }
     var following by rememberSaveable { mutableStateOf(true) }
-    LaunchedEffect(positionKnown, turns.isNotEmpty()) {
-        if (restored || !positionKnown || turns.isEmpty()) return@LaunchedEffect
+    LaunchedEffect(positionKnown, historyLoaded, turns.isNotEmpty()) {
+        if (restored || !positionKnown || !historyLoaded || turns.isEmpty()) return@LaunchedEffect
         restoredPosition?.let {
             listState.scrollToItem(it.index, it.offset)
             withFrameNanos { }
@@ -364,6 +372,14 @@ private fun MissionTurns(
                 delay(POSITION_SETTLE_MS)
                 remember(index, offset)
             }
+    }
+    // And once more on the way out (21/10/2026): a scroll followed by « back » within the pause
+    // above left the list where it was before that scroll. The write outlives this screen, see
+    // MissionChatViewModel.rememberPosition.
+    DisposableEffect(listState) {
+        onDispose {
+            if (restored) remember(listState.firstVisibleItemIndex, listState.firstVisibleItemScrollOffset)
+        }
     }
     // Follow the answer as it grows — but only while the reader is following. An unconditional
     // scroll stole the list from anyone reading back through a streaming mission: every token
