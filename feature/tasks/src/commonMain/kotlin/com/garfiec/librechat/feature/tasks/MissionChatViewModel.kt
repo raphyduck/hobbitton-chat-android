@@ -33,6 +33,7 @@ import com.garfiec.librechat.feature.tasks.util.reduce
 import com.garfiec.librechat.feature.tasks.util.withPendingQuestions
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -216,6 +217,12 @@ class MissionChatViewModel(
     private val ioDispatcher: CoroutineDispatcher,
     /** Who the portal says is signed in, for the greeting of a new chat; null where unavailable. */
     private val scheduler: SchedulerRepository? = null,
+    /**
+     * Where the reading position is written: a scope that outlives this ViewModel, because the last
+     * write comes as the screen leaves (21/10/2026), when `viewModelScope` is about to be cancelled
+     * with it. Null (the tests) writes on `viewModelScope`.
+     */
+    private val appScope: CoroutineScope? = null,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(
@@ -773,7 +780,7 @@ class MissionChatViewModel(
      */
     fun rememberPosition(index: Int, offset: Int) {
         val sessionId = sessionId ?: return
-        viewModelScope.launch {
+        (appScope ?: viewModelScope).launch {
             runCatching { positions.remember(sessionId, MissionReadingPosition(index, offset)) }
         }
     }

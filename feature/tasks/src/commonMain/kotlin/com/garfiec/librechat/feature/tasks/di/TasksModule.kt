@@ -55,6 +55,7 @@ val tasksModule = module {
             attention = get(),
             ioDispatcher = get(KoinQualifiers.IO),
             scheduler = get(),
+            appScope = get(KoinQualifiers.ApplicationScope),
         )
     }
 }
