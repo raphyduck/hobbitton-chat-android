@@ -21,9 +21,12 @@ The engine shell, and the Koin module list the application starts from. KMP libr
   by a `PlatformBackHandler` since Nav 3 hands a one-entry stack's back to the system).
 - `EngineConversationsScreen` (16/10/2026): every session, the unread under « Non lues », then the
   rest, each by latest activity; pushed like Programmées (`EngineConversations`), pull to refresh.
-  Its rows are the drawer's (`RecentChatItem`, an unread title in bold).
-- `EngineDrawer` (Claude's layout since lot 3, 10/10/2026) — a search over the titles (local
-  filter), three short entries (new conversation, Conversations, Programmées), every session (the same as the Conversations page, a small clock on a run) as bare titles, the unread
+  Its rows are the drawer's (`RecentChatItem`, an unread title in bold). Both lists read 200
+  sessions at a time; « Plus anciennes » at their foot reads 200 more (`loadOlder`,
+  `EngineChatsState.more`, 21/10/2026: the lists had stopped at 200, a few days of runs).
+- `EngineDrawer` (Claude's layout since lot 3, 10/10/2026) — a search over the titles of every
+  session the engine holds, accents folded (21/10/2026: `EngineShellViewModel.search`, a pause of
+  300 ms, then `recentChats(query = …)`; the rows already drawn are filtered meanwhile), three short entries (new conversation, Conversations, Programmées), every session (the same as the Conversations page, a small clock on a run) as bare titles, the unread
   first under « Non lues » (20/10/2026), the rest under day headers (Today / Yesterday / Previous 7 days / Older, in the phone's time zone: `groupRecent` in
   `RecentGrouping.kt`, the offset from `localUtcOffsetMillis`, actual in `androidMain`), an unread title in bold,
   a dot of the accent while one answers, a short age; placeholder rows on

@@ -14,6 +14,8 @@
     <string name="engine_drawer_retry">Retry</string>
     <string name="engine_drawer_search">Search</string>
     <string name="engine_drawer_no_match">No conversation matches.</string>
+    <string name="engine_drawer_searching">Searching every conversation…</string>
+    <string name="engine_drawer_load_older">Older conversations</string>
     <string name="engine_drawer_account">Account and settings</string>
     <string name="engine_chat_running">Running</string>
     <string name="engine_settings_title">Settings</string>

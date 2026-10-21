@@ -204,6 +204,9 @@ class EngineMissionRepository(
     suspend fun recentChats(
         scope: ChatScope = ChatScope.MANUAL,
         limit: Int = if (scope == ChatScope.ALL) CONVERSATIONS_SHOWN else RECENT_CHATS_SHOWN,
+        // The session search (21/10/2026): over EVERY session the engine lists, not over the rows
+        // already drawn, accents folded ([matchesSearch]). Blank lists as before.
+        query: String = "",
     ): List<EngineChatSummary> {
         val statuses = runCatching { api.status() }.getOrDefault(emptyMap())
         val recorded = recordedKinds()
@@ -215,14 +218,20 @@ class EngineMissionRepository(
         val learned = mutableMapOf<String, EngineSessionKind>()
         var classified = 0
         val chats = mutableListOf<EngineChatSummary>()
+        val searching = query.isNotBlank()
+        val reads = if (searching) MAX_SEARCH_CLASSIFICATION_READS else MAX_CLASSIFICATION_READS
         for (session in sessions) {
             if (chats.size >= limit) break
             val mission = session.title?.let(::scheduledMissionName) ?: runs[session.id]?.mission
-            // Before any transcript is read: a run never costs the drawer one.
-            if (mission != null && scope == ChatScope.MANUAL) continue
-            if (runHidden(mission, discreetMissions)) continue
+            val title = mission?.let(::missionDisplayName) ?: session.title.orEmpty().ifBlank { session.id }
+            // Before any transcript is read: a run never costs the drawer one, nor does a session
+            // the search does not name.
+            val left = (mission != null && scope == ChatScope.MANUAL) ||
+                runHidden(mission, discreetMissions) ||
+                (searching && !title.matchesSearch(query))
+            if (left) continue
             var kind = classifySession(session.title, recorded[session.id], messages = null)
-            if (kind == null && classified < MAX_CLASSIFICATION_READS) {
+            if (kind == null && classified < reads) {
                 classified++
                 val messages = runCatching { api.messages(session.id) }.getOrNull()
                 kind = classifySession(session.title, null, messages)
@@ -234,7 +243,7 @@ class EngineMissionRepository(
                 val moved = read?.isUnread(session.id, lastActivity) == true
                 chats += EngineChatSummary(
                     sessionId = session.id,
-                    title = mission?.let(::missionDisplayName) ?: session.title.orEmpty().ifBlank { session.id },
+                    title = title,
                     lastActivityMillis = lastActivity,
                     running = active != null && active.type != IDLE_STATUS,
                     kind = kind,
@@ -523,6 +532,12 @@ class EngineMissionRepository(
          * verdict is recorded, so a backlog drains over a few openings instead of one slow one.
          */
         const val MAX_CLASSIFICATION_READS = 10
+
+        /**
+         * The same, for a search (21/10/2026): it reaches old sessions this device may never have
+         * shown, and its matches are few, so it may read more of them at once.
+         */
+        const val MAX_SEARCH_CLASSIFICATION_READS = 40
 
         /**
          * `source` of a provider this deployment declared in its own `opencode.json`, as opposed

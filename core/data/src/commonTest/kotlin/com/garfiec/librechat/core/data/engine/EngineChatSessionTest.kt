@@ -275,6 +275,38 @@ class EngineChatSessionTest {
     }
 
     @Test
+    fun `a search reaches every session, past the page, accents folded`() = runTest {
+        // 21/10/2026: the drawer's search filtered only the rows drawn, and « energie » did not find
+        // « Énergie du Pic ».
+        sessionsJson = """[
+            {"id":"ses_new","title":"Une conversation récente","time":{"updated":900}},
+            {"id":"ses_mid","title":"Autre chose","time":{"updated":500}},
+            {"id":"ses_old","title":"À décider · Énergie du Pic en congés","time":{"updated":10}}
+        ]"""
+        val kinds = InMemorySessionKinds(
+            listOf("ses_new", "ses_mid", "ses_old").associateWith { EngineSessionKind.CHAT },
+        )
+        val repository = testMissionRepository(engine(), kinds = kinds)
+
+        assertEquals<List<String>>(
+            listOf("ses_new", "ses_mid"),
+            repository.recentChats(scope = ChatScope.ALL, limit = 2).map { it.sessionId },
+        )
+        assertEquals<List<String>>(
+            listOf("ses_old"),
+            repository.recentChats(scope = ChatScope.ALL, limit = 2, query = "energie DU pic").map { it.sessionId },
+        )
+    }
+
+    @Test
+    fun `the search fold lowers case and drops accents`() {
+        assertEquals("a decider · energie du pic, coeur", "À décider · Énergie du Pic, cœur".foldForSearch())
+        assertTrue("Relance énergie".matchesSearch("ENERGIE"))
+        assertTrue("Relance énergie".matchesSearch("  "))
+        assertTrue(!"Relance énergie".matchesSearch("garage"))
+    }
+
+    @Test
     fun `unread come first, and a run is unread only when it had something to say`() = runTest {
         sessionsJson = """[
             {"id":"ses_quiet","title":"guet — 2026-10-16T17:30+0200","time":{"updated":900}},

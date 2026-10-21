@@ -66,7 +66,9 @@ Since 12/10/2026 chats and tasks are one conversation, as on Claude.ai.
   under Programmées); a session the
   scheduler lists as a run counts as one even when its title is not recognised. `classifySession` +
   `SessionKindStore` (`EngineSessionKinds`) leave out a session that has said nothing yet; at most
-  ten unknown transcripts are read per refresh and each verdict recorded. Cleared at sign-out with
+  ten unknown transcripts are read per refresh and each verdict recorded (forty for a search).
+  `query` (21/10/2026) keeps only the sessions whose title matches, over every session the engine
+  lists, accents folded (`foldForSearch` / `matchesSearch`, `SearchFold.kt`); `limit` is the page. Cleared at sign-out with
   the reading positions.
 - **`models()`**: the conversations' provider only; `preselected` is the person's default
   (`ModelPreference`, Settings' `SettingsDataStore.defaultChatModel`) while the list still has it,
