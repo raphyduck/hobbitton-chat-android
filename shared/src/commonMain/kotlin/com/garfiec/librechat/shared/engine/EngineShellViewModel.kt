@@ -28,6 +28,7 @@ import com.garfiec.librechat.core.network.engine.EngineTokenStore
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -44,6 +45,8 @@ data class EngineChatsState(
     val chats: List<EngineChatSummary> = emptyList(),
     val loading: Boolean = false,
     val failed: Boolean = false,
+    /** Older sessions remain past this read: the lists offer « Plus anciennes » (21/10/2026). */
+    val more: Boolean = false,
 )
 
 /**
@@ -141,6 +144,18 @@ class EngineShellViewModel(
         ?: MutableStateFlow<OpenConversation?>(null).asStateFlow()
 
     private var allChatsJob: Job? = null
+
+    /** How many sessions the lists read: a page more each « Plus anciennes » (21/10/2026). */
+    private var shown = PAGE
+
+    private val _search = MutableStateFlow<EngineChatsState?>(null)
+
+    /**
+     * The drawer's search over every session the engine holds, accents folded (21/10/2026); null
+     * while nothing is typed. Before, it filtered only the rows already drawn.
+     */
+    val search: StateFlow<EngineChatsState?> = _search.asStateFlow()
+    private var searchJob: Job? = null
     private var attentionJob: Job? = null
 
     init {
@@ -272,12 +287,49 @@ class EngineShellViewModel(
         allChatsJob = viewModelScope.launch {
             _allChats.update { it.copy(loading = true) }
             try {
-                _allChats.value = EngineChatsState(chats = source.recentChats(scope = ChatScope.ALL))
+                val limit = shown
+                val chats = source.recentChats(scope = ChatScope.ALL, limit = limit)
+                _allChats.value = EngineChatsState(chats = chats, more = chats.size >= limit)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 Logger.w(e) { "Conversations: the engine's sessions could not be read" }
                 _allChats.update { it.copy(loading = false, failed = true) }
+            }
+        }
+    }
+
+    /** « Plus anciennes », at the foot of both lists: a page more, read at once. */
+    fun loadOlder() {
+        shown += PAGE
+        allChatsJob?.cancel()
+        refreshAllChats()
+    }
+
+    /**
+     * Searches every session's title for [query], after a short pause so each keystroke does not
+     * read the engine; a blank query clears it. The latest query wins.
+     */
+    fun search(query: String) {
+        searchJob?.cancel()
+        val source = repository
+        if (query.isBlank() || source == null) {
+            _search.value = null
+            return
+        }
+        searchJob = viewModelScope.launch {
+            delay(SEARCH_PAUSE_MS)
+            _search.update { (it ?: EngineChatsState()).copy(loading = true) }
+            try {
+                val found = source.recentChats(scope = ChatScope.ALL, limit = PAGE, query = query)
+                _search.value = EngineChatsState(
+                    chats = found.sortedByDescending { it.lastActivityMillis ?: Long.MIN_VALUE },
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Logger.w(e) { "Search: the engine's sessions could not be read" }
+                _search.value = EngineChatsState(failed = true)
             }
         }
     }
@@ -317,6 +369,9 @@ class EngineShellViewModel(
             allChatsJob?.cancel()
             stopAttention()
             _allChats.value = EngineChatsState()
+            shown = PAGE
+            searchJob?.cancel()
+            _search.value = null
             _identity.value = null
             _signedIn.value = false
         }
@@ -324,5 +379,11 @@ class EngineShellViewModel(
 
     private companion object {
         const val STOP_TIMEOUT_MS = 5_000L
+
+        /** Sessions per read of the lists, and per « Plus anciennes ». */
+        const val PAGE = 200
+
+        /** The typing pause before a search reads the engine. */
+        const val SEARCH_PAUSE_MS = 300L
     }
 }

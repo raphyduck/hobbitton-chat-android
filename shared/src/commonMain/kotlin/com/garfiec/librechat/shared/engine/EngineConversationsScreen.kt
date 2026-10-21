@@ -53,6 +53,7 @@ internal fun EngineConversationsScreen(
     onOpenChat: (EngineChatSummary) -> Unit,
     onRefresh: () -> Unit,
     modifier: Modifier = Modifier,
+    onLoadOlder: () -> Unit = {},
 ) {
     Scaffold(
         modifier = modifier,
@@ -82,7 +83,7 @@ internal fun EngineConversationsScreen(
             onRefresh = onRefresh,
             modifier = Modifier.padding(padding).fillMaxSize().testTag("conversations_refresh"),
         ) {
-            ConversationList(state = state, onOpenChat = onOpenChat, onRetry = onRefresh)
+            ConversationList(state = state, onOpenChat = onOpenChat, onRetry = onRefresh, onLoadOlder = onLoadOlder)
         }
     }
 }
@@ -92,6 +93,7 @@ private fun ConversationList(
     state: EngineChatsState,
     onOpenChat: (EngineChatSummary) -> Unit,
     onRetry: () -> Unit,
+    onLoadOlder: () -> Unit,
 ) {
     // Read once per list: the ages of one drawing agree on what « now » is.
     val now = remember(state.chats) { Clock.System.now().toEpochMilliseconds() }
@@ -122,6 +124,9 @@ private fun ConversationList(
                 }
                 items(read, key = { it.sessionId }) { chat ->
                     RecentChatItem(chat = chat, nowMillis = now, selected = false, onClick = { onOpenChat(chat) })
+                }
+                if (state.more) {
+                    item(key = "older") { LoadOlder(onLoadOlder) }
                 }
             }
         }

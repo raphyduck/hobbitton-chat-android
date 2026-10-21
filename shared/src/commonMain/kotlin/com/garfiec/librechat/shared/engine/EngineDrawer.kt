@@ -53,6 +53,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.garfiec.librechat.core.data.engine.EngineChatSummary
+import com.garfiec.librechat.core.data.engine.matchesSearch
 import com.garfiec.librechat.core.ui.input.ChatInputDefaults
 import com.garfiec.librechat.shared.resources.Res
 import com.garfiec.librechat.shared.resources.engine_age_days
@@ -65,6 +66,7 @@ import com.garfiec.librechat.shared.resources.engine_drawer_account
 import com.garfiec.librechat.shared.resources.engine_drawer_conversations
 import com.garfiec.librechat.shared.resources.engine_drawer_empty
 import com.garfiec.librechat.shared.resources.engine_drawer_failed
+import com.garfiec.librechat.shared.resources.engine_drawer_load_older
 import com.garfiec.librechat.shared.resources.engine_drawer_new_chat
 import com.garfiec.librechat.shared.resources.engine_drawer_no_match
 import com.garfiec.librechat.shared.resources.engine_drawer_older
@@ -73,6 +75,7 @@ import com.garfiec.librechat.shared.resources.engine_drawer_recent
 import com.garfiec.librechat.shared.resources.engine_drawer_retry
 import com.garfiec.librechat.shared.resources.engine_drawer_scheduled_run
 import com.garfiec.librechat.shared.resources.engine_drawer_search
+import com.garfiec.librechat.shared.resources.engine_drawer_searching
 import com.garfiec.librechat.shared.resources.engine_drawer_settings
 import com.garfiec.librechat.shared.resources.engine_drawer_tasks
 import com.garfiec.librechat.shared.resources.engine_drawer_today
@@ -117,10 +120,19 @@ internal fun EngineDrawerContent(
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
     account: DrawerAccount? = null,
+    search: EngineChatsState? = null,
+    onSearch: (String) -> Unit = {},
+    onLoadOlder: () -> Unit = {},
 ) {
     var query by rememberSaveable { mutableStateOf("") }
     Column(modifier = modifier.fillMaxSize().padding(top = 12.dp)) {
-        SearchField(query = query, onQueryChange = { query = it })
+        SearchField(
+            query = query,
+            onQueryChange = {
+                query = it
+                onSearch(it)
+            },
+        )
         Spacer(Modifier.height(6.dp))
         DrawerEntry(
             icon = Icons.Outlined.Edit,
@@ -152,9 +164,11 @@ internal fun EngineDrawerContent(
             RecentChats(
                 state = state,
                 query = query,
+                search = search,
                 activeSessionId = activeSessionId,
                 onOpenChat = onOpenChat,
                 onRetry = onRetry,
+                onLoadOlder = onLoadOlder,
                 modifier = Modifier.fillMaxSize(),
             )
         }
@@ -225,16 +239,24 @@ private fun DrawerEntry(icon: ImageVector, label: String, onClick: () -> Unit, m
 private fun RecentChats(
     state: EngineChatsState,
     query: String,
+    search: EngineChatsState?,
     activeSessionId: String?,
     onOpenChat: (EngineChatSummary) -> Unit,
     onRetry: () -> Unit,
+    onLoadOlder: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     // Read once per list: the headers and ages of one drawing agree on what « now » is.
     val now = remember(state.chats) { Clock.System.now().toEpochMilliseconds() }
-    val shown = remember(state.chats, query) {
-        val needle = query.trim()
-        if (needle.isEmpty()) state.chats else state.chats.filter { it.title.contains(needle, ignoreCase = true) }
+    val searching = query.isNotBlank()
+    // A search shows what the engine found over every session (21/10/2026); until its answer
+    // lands, the rows already drawn are filtered here, accents folded the same way.
+    val shown = remember(state.chats, query, search) {
+        when {
+            !searching -> state.chats
+            search != null && !search.loading && !search.failed -> search.chats
+            else -> state.chats.filter { it.title.matchesSearch(query) }
+        }
     }
     val groups = remember(shown, now) { groupRecent(shown, now, ::localUtcOffsetMillis) }
     LazyColumn(modifier = modifier.fillMaxWidth()) {
@@ -261,6 +283,9 @@ private fun RecentChats(
                 item { RecentHeader(stringResource(Res.string.engine_drawer_recent)) }
                 item { QuietLine(stringResource(Res.string.engine_drawer_empty)) }
             }
+            shown.isEmpty() && searching && search?.loading == true -> {
+                item { QuietLine(stringResource(Res.string.engine_drawer_searching)) }
+            }
             shown.isEmpty() -> {
                 item { QuietLine(stringResource(Res.string.engine_drawer_no_match)) }
             }
@@ -276,8 +301,20 @@ private fun RecentChats(
                 }
             }
         }
+        if (!searching && state.more) {
+            item(key = "older") { LoadOlder(onLoadOlder) }
+        }
         item { Spacer(Modifier.height(8.dp)) }
     }
+}
+
+/** « Plus anciennes » at the foot of a list that stopped at its page (21/10/2026). */
+@Composable
+internal fun LoadOlder(onClick: () -> Unit) {
+    TextButton(
+        onClick = onClick,
+        modifier = Modifier.padding(horizontal = 12.dp).testTag("load_older"),
+    ) { Text(stringResource(Res.string.engine_drawer_load_older)) }
 }
 
 @Composable

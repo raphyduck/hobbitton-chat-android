@@ -67,6 +67,7 @@ fun EngineNavHost(
     val signedIn by viewModel.signedIn.collectAsStateWithLifecycle()
     val chats by viewModel.chats.collectAsStateWithLifecycle()
     val allChats by viewModel.allChats.collectAsStateWithLifecycle()
+    val search by viewModel.search.collectAsStateWithLifecycle()
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val addresses by viewModel.addresses.collectAsStateWithLifecycle()
     val attentionSound by viewModel.attentionSound.collectAsStateWithLifecycle()
@@ -101,6 +102,7 @@ fun EngineNavHost(
                         EngineMainLayout(
                             chats = chats,
                             allChats = allChats,
+                            search = search,
                             account = account,
                             settings = EngineSettingsUiState(
                                 themeMode = themeMode,
@@ -118,6 +120,8 @@ fun EngineNavHost(
                             onConsumeOpenRequest = viewModel::consumeOpenRequest,
                             onRefreshChats = viewModel::refreshChats,
                             onRefreshAllChats = viewModel::refreshAllChats,
+                            onSearch = viewModel::search,
+                            onLoadOlder = viewModel::loadOlder,
                             onMarkRead = viewModel::markRead,
                             onThemeMode = viewModel::setThemeMode,
                             onChatFontSize = viewModel::setChatFontSize,
@@ -148,12 +152,15 @@ fun EngineNavHost(
 private fun EngineMainLayout(
     chats: EngineChatsState,
     allChats: EngineChatsState,
+    search: EngineChatsState?,
     account: DrawerAccount,
     settings: EngineSettingsUiState,
     openRequest: OpenConversation?,
     onConsumeOpenRequest: (OpenConversation) -> Unit,
     onRefreshChats: () -> Unit,
     onRefreshAllChats: () -> Unit,
+    onSearch: (String) -> Unit,
+    onLoadOlder: () -> Unit,
     onMarkRead: (String) -> Unit,
     onThemeMode: (ThemeMode) -> Unit,
     onChatFontSize: (ChatFontSize) -> Unit,
@@ -242,6 +249,9 @@ private fun EngineMainLayout(
                     },
                     onRetry = onRefreshChats,
                     account = account,
+                    search = search,
+                    onSearch = onSearch,
+                    onLoadOlder = onLoadOlder,
                 )
             }
         },
@@ -316,6 +326,7 @@ private fun EngineMainLayout(
                         onOpenDrawer = openDrawer,
                         onOpenChat = { chat -> navigator.openChat(chat.sessionId, chat.title) },
                         onRefresh = onRefreshAllChats,
+                        onLoadOlder = onLoadOlder,
                     )
                 }
                 entry<EngineInstructions> {
