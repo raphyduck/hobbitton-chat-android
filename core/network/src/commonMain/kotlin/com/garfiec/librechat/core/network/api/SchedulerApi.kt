@@ -196,11 +196,15 @@ class SchedulerApi(
      * rules only carry the *direct* connectors; everything else is served by the annuaire, which
      * consults this record. Returns the list as recorded, so a caller can check it round-tripped.
      */
-    suspend fun setScope(sessionId: String, connectors: List<String>): List<String> =
+    suspend fun setScope(sessionId: String, connectors: List<String>, level: String? = null): List<String> =
         decode<SessionScope>(
             callTool("perimetre", buildJsonObject {
                 put("session", sessionId)
                 putJsonArray("connecteurs") { connectors.forEach { add(it) } }
+                // D-083 (22/10/2026): with a level, the scheduler derives what the session reaches
+                // from WHO speaks to it; `connecteurs` then only ticks what that level leaves on
+                // demand (the shell, for the titulaire).
+                level?.let { put("niveau", it) }
             }),
             "perimetre",
         ).connectors.orEmpty()

@@ -291,12 +291,12 @@ class EngineMissionRepository(
      * Since D-082 (12/10/2026) this is the only way the app starts one: chats and tasks are one
      * conversation, as on Claude.ai, and the `chat` profile carries what the tasks' did:
      *
-     *  * the perimeter is the [connectors] ticked on the composer, or what the scheduler ticks by
-     *    default when the screen never knew its ticks (its catalogue did not load): recorded with
-     *    the scheduler
-     *    before the first prompt (D-071; a recording that fails is a start that fails, rather
-     *    than a session handed the whole catalogue), and turned into the session's rules by
-     *    [permissionsFor];
+     *  * the session stands at the titulaire's trust level (D-083, 22/10/2026): the scheduler,
+     *    not the app, decides what it reaches through the annuaire. Of [connectors], only the
+     *    shell still counts, the one thing that level leaves on demand. The level is recorded
+     *    before the first prompt (D-071; a recording that fails is a start that fails), and the
+     *    direct connectors of [ConnectorCatalogue.titularPerimeter] become the session's rules
+     *    ([permissionsFor]);
      *  * the model comes from `hobbitton-chat` ([forChat]), which carries the conversations'
      *    budget (its default when none is named).
      *
@@ -313,10 +313,10 @@ class EngineMissionRepository(
         files: List<EnginePromptPart> = emptyList(),
     ): String {
         val catalogue = connectors()
-        // Unknown ticks are not « none »: a conversation started while the composer's catalogue
-        // was down would otherwise get no connector at all, and say nothing about it.
-        val ticked = connectors ?: catalogue.offered().filter { it.tickedByDefault }.map { it.name }
-        val perimeter = ticked.sorted()
+        // D-083 (22/10/2026): the session stands at the titulaire's level and the scheduler
+        // decides what that reaches. Of the ticks, only the shell still means something.
+        val shell = connectors?.contains(SHELL_CONNECTOR) == true
+        val perimeter = catalogue.titularPerimeter(shell)
         val session = api.createSession(
             CreateEngineSessionRequest(
                 agent = CHAT_AGENT,
@@ -326,7 +326,7 @@ class EngineMissionRepository(
         )
         runCatching { kinds.record(session.id, EngineSessionKind.CHAT) }
             .onFailure { Logger.w(it) { "Could not record a new chat's kind" } }
-        scheduler.setScope(session.id, perimeter)
+        scheduler.setScope(session.id, shellTick(shell), level = TITULAR_LEVEL)
         api.prompt(
             sessionId = session.id,
             request = EnginePromptRequest(
@@ -495,22 +495,26 @@ class EngineMissionRepository(
     }
 
     /**
-     * Re-grants a **live** session's connectors, replacing its whole ruleset.
-     *
-     * Unticking therefore revokes. That the engine takes this at all is what lets the conversation
-     * offer connector chips: a mission launched with memory alone can be handed the mail connector
-     * without a restart, and without losing the transcript that is its only record.
+     * Re-grants a **live** session at the titulaire's level, replacing its whole ruleset: the shell
+     * opened when [connectors] holds it, closed otherwise (D-083, 22/10/2026; the composer's only
+     * choice left). A scheduled run opened from the app is lifted to the titulaire's level by it:
+     * the person is now the one speaking to it.
      */
     suspend fun setConnectors(sessionId: String, connectors: List<String>) {
         // The scope first (D-071): if recording it fails, nothing has changed and the caller hears
         // it; recording it after the rules would leave a session whose direct tools moved while
         // the annuaire still serves yesterday's list.
-        scheduler.setScope(sessionId, connectors)
+        val shell = SHELL_CONNECTOR in connectors
+        scheduler.setScope(sessionId, shellTick(shell), level = TITULAR_LEVEL)
         // Never autonomous here: someone is looking at the screen, which is the whole premise of
         // §4.2's ban — an approval prompt nobody answers is not a safeguard, but one they *do*
         // answer is exactly the supervision the rule asks for.
-        api.setPermissions(sessionId, permissionsFor(connectors(), connectors))
+        val catalogue = connectors()
+        api.setPermissions(sessionId, permissionsFor(catalogue, catalogue.titularPerimeter(shell)))
     }
+
+    /** What the titulaire's level is asked for on top of what it reaches: the shell, or nothing. */
+    private fun shellTick(shell: Boolean): List<String> = if (shell) listOf(SHELL_CONNECTOR) else emptyList()
 
     private var cachedConnectors: ConnectorCatalogue? = null
 

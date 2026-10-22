@@ -143,6 +143,24 @@ fun ConnectorCatalogue.offered(): List<ConnectorOption> =
         )
     }
 
+/**
+ * The trust level every session this app builds stands at (D-083, 22/10/2026): the person signed
+ * in through the portal. The scheduler, not the app, decides what that level reaches.
+ */
+const val TITULAR_LEVEL = "titulaire"
+
+/** The one connector the titulaire's level leaves on demand: the shell inherits everything. */
+const val SHELL_CONNECTOR = "shell"
+
+/**
+ * What a titulaire's session reaches, as the scheduler computes it (`connecteurs_du_niveau`):
+ * every connector of the catalogue, the shell only when asked for. The app no longer chooses
+ * connectors (Raphaël, 22/10/2026): it needs this list only to write the session's rules for the
+ * direct ones ([permissionsFor]).
+ */
+fun ConnectorCatalogue.titularPerimeter(shell: Boolean): List<String> =
+    connecteurs.keys.filter { it != SHELL_CONNECTOR || shell }.sorted()
+
 /** One tickable connector, as a picker needs it. */
 data class ConnectorOption(
     val name: String,

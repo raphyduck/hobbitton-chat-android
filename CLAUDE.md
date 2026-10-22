@@ -49,11 +49,12 @@ Most modules have their own `CLAUDE.md` with specific guidance.
 - **One kind of conversation** (D-082, 12/10/2026, as on Claude.ai): chats and tasks are fused.
   Every conversation is a session on agent `chat` whose model always comes from provider
   `hobbitton-chat` (the conversations' budget; the scheduled missions spend on the gateway's key).
-  The server's `chat` profile carries what the tasks' did (shell, local files, pages); the session's
-  rules close what is not ticked. The composer offers the model and the connectors (everything
-  ticked by default but the shell, the scheduler's `defaut`), grouped « Lire et chercher » /
-  « Agir en votre nom »; the first message creates the session with the ticks as its perimeter
-  (`EngineMissionRepository.startChat`, registered with the scheduler before the prompt). One
+  The server's `chat` profile carries what the tasks' did (shell, local files, pages). No connector
+  choice since 22/10/2026 (D-083, Raphaël's rule): the scheduler decides what a session reaches from
+  WHO speaks to it, and every session this app starts stands at the titulaire's level
+  (`perimetre(niveau="titulaire")`, recorded before the first prompt by
+  `EngineMissionRepository.startChat`). The composer offers the model and one switch, the shell
+  (« Sans shell » / « Shell activé »), the only thing that level leaves on demand. One
   screen (`MissionChatScreen`), one route (`EngineChat`) for every session: a chat, a task of an
   earlier version, a scheduled run, whose follow-ups run on `chat` too.
 - **Programmées** (ex Tasks tab): the scheduler's entries only, recurring then one-shot, each row
