@@ -60,7 +60,10 @@ Since 12/10/2026 chats and tasks are one conversation, as on Claude.ai.
   before any transcript is read; `ChatScope.ALL` (the Conversations page) keeps them, named after
   their mission (`scheduledMissionName`) and marked `scheduled`, sorted unread first (`inboxOrder`).
   `unread` comes from `ConversationReads` (`EngineConversationReads`: when each session was last
-  shown here, and a floor so a first launch marks nothing; cleared at sign-out) and, for a run, from
+  shown here, and a floor so a first launch marks nothing; cleared at sign-out), merged with the
+  scheduler's own read marks (`SchedulerApi.serverReads`, its `conversations_lues` tool, 22/10/2026:
+  a conversation whose question the unread mission withdrew because a reply made it moot; the
+  later mark wins, `ReadSnapshot.withServerReads`) and, for a run, from
   the scheduler's `runs()` (`runHasNews`: news, failed or stopped short). A discreet mission's
   runs are left out (`runHidden`, 19/10/2026), failed or not since 20/10 (its failure shows on its row
   under Programmées); a session the

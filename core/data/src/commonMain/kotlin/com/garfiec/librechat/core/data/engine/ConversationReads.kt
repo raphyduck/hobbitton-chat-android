@@ -25,6 +25,17 @@ data class ReadSnapshot(
     /** Whether [sessionId] moved after it was last shown here (or after the floor, never shown). */
     fun isUnread(sessionId: String, lastActivityMillis: Long?): Boolean =
         lastActivityMillis != null && lastActivityMillis > (seen[sessionId] ?: floorMillis)
+
+    /**
+     * With the scheduler's own read marks (22/10/2026): a conversation whose question the server
+     * withdrew reads as read up to then, on this device too. The later of the two marks wins.
+     */
+    fun withServerReads(server: Map<String, Long>): ReadSnapshot =
+        if (server.isEmpty()) {
+            this
+        } else {
+            copy(seen = seen + server.filter { (session, at) -> at > (seen[session] ?: Long.MIN_VALUE) })
+        }
 }
 
 /** What the lists read to tell an unread conversation, and what opening one writes. */

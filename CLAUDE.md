@@ -67,7 +67,9 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   activity under day headers, a run with its small clock. Both read 200 sessions at a time,
   « Plus anciennes » reads more, and the drawer's search covers every session, accents folded
   (21/10/2026).
-  Unread = moved since this device last showed it (`ConversationReads`); for a run, also « had
+  Unread = moved since this device last showed it (`ConversationReads`), or since the scheduler
+  marked it read (22/10/2026: its unread mission withdrew a question a reply had made moot,
+  `retirer_question`, read back through `conversations_lues`); for a run, also « had
   something to say »: the scheduler's `historique(json_brut=True)` carries `a_signaler`, false when
   the run answered « RIEN À SIGNALER » (`runHasNews`).
   A **discreet** mission (Raphaël's rule, 19/10/2026: the guet's lots crowded both lists) keeps its
