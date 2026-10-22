@@ -53,9 +53,13 @@ Since 12/10/2026 chats and tasks are one conversation, as on Claude.ai.
   default (`build` on 29/09/2026, a tool-less `repli` profile on the server since D-082). Old task
   sessions and scheduled runs answered from the phone go through `chat` too; their own rules still
   decide what they may do. `models()` offers the chat provider only.
-- **`startChat(text, connectors, model, files)`**: the ticked connectors are the perimeter:
-  turned into the session's rules by `permissionsFor`, recorded with the scheduler before the first
-  prompt (D-071), and the session's kind recorded locally before anything can fail.
+- **`startChat(text, connectors, model, files)`**: the session stands at the titulaire's trust level
+  (D-083, 22/10/2026, Raphaël: the scheduler decides what a session reaches from WHO speaks to it,
+  never from the caller's ticks). `perimetre(session, niveau="titulaire")` is recorded before the
+  first prompt (D-071); of `connectors`, only the shell counts (`SHELL_CONNECTOR`, the one thing that
+  level leaves on demand). The direct connectors of `titularPerimeter` become the session's rules
+  (`permissionsFor`); the session's kind is recorded locally before anything can fail.
+  `setConnectors` re-grants a live session the same way, shell on or off.
 - **`recentChats(scope)`**: `ChatScope.MANUAL` (the drawer) leaves the scheduler's runs out
   before any transcript is read; `ChatScope.ALL` (the Conversations page) keeps them, named after
   their mission (`scheduledMissionName`) and marked `scheduled`, sorted unread first (`inboxOrder`).
@@ -77,8 +81,6 @@ Since 12/10/2026 chats and tasks are one conversation, as on Claude.ai.
   (`ModelPreference`, Settings' `SettingsDataStore.defaultChatModel`) while the list still has it,
   the engine's otherwise (`engineDefault`, kept for Settings to name). A turn sent without a model
   goes there too (`chatModel`).
-- **`ConnectorOption.actsForYou`**: the scheduler's `refuse_si_autonome`: what sends, pays or
-  deletes in the person's name. The sheet lists it apart.
 - **`AudioTranscriber` (`SchedulerTranscriber`)** — the composer's speech to text on the scheduler's
   `POST /transcription`. Answers `TranscriptionOutcome` (the words, or a `TranscriptionFailure` plus
   the server's `erreur`), never throws past `:core:data`. The language hint is the device's when it

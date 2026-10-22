@@ -109,50 +109,38 @@ class EngineChatSessionTest {
     }
 
     @Test
-    fun `its perimeter is the connectors ticked on the composer, recorded with the scheduler`() = runTest {
+    fun `it stands at the titulaire's level, recorded with the scheduler before the first prompt`() = runTest {
+        // D-083 (22/10/2026): the scheduler decides what the titulaire reaches; ticks no longer travel.
         testMissionRepository(engine()).startChat("Bonjour", connectors = listOf("planificateur", "banque", "memoire"))
 
         val scope = sent.last { "\"perimetre\"" in ((it.body as? TextContent)?.text ?: "") }
         val arguments = librechatJson.parseToJsonElement((scope.body as TextContent).text)
             .jsonObject["params"]!!.jsonObject["arguments"]!!.jsonObject
-        assertEquals<List<String>>(
-            listOf("banque", "memoire", "planificateur"),
-            arguments["connecteurs"]!!.jsonArray.map { it.jsonPrimitive.content },
-        )
-        // …and the scope is recorded BEFORE the first prompt (D-071).
+        assertEquals("titulaire", arguments["niveau"]!!.jsonPrimitive.content)
+        assertEquals(emptyList(), arguments["connecteurs"]!!.jsonArray.map { it.jsonPrimitive.content })
         val scopeIndex = sent.indexOf(scope)
         val promptIndex = sent.indexOfFirst { it.url.encodedPath.endsWith("/prompt_async") }
         assertTrue(scopeIndex < promptIndex)
     }
 
     @Test
-    fun `its rules open the ticked direct connectors, and the shell only when ticked`() = runTest {
-        testMissionRepository(engine()).startChat("Bonjour", connectors = listOf("memoire", "banque"))
+    fun `its rules open every direct connector, and the shell only when asked for`() = runTest {
+        testMissionRepository(engine()).startChat("Bonjour", connectors = null)
 
         val allowed = allowedOn(bodyOf(isPost("/session")))
         assertTrue("memoire_lire" in allowed)
-        assertTrue("planificateur_lister" !in allowed)
+        assertTrue("planificateur_lister" in allowed)
         assertTrue("bash" !in allowed)
-        // The annuaire serves `banque`: in the scope, never in the model's tool list (D-071).
+        // The annuaire serves `banque`: never in the model's tool list (D-071).
         assertTrue("banque_soldes" !in allowed)
 
         sent.clear()
-        testMissionRepository(engine()).startChat("Bonjour", connectors = listOf("memoire", "shell"))
+        testMissionRepository(engine()).startChat("Bonjour", connectors = listOf("shell"))
         assertTrue("bash" in allowedOn(bodyOf(isPost("/session"))))
-    }
-
-    @Test
-    fun `unknown ticks start on the scheduler's defaults, not on nothing`() = runTest {
-        testMissionRepository(engine()).startChat("Bonjour", connectors = null)
-
         val scope = sent.last { "\"perimetre\"" in ((it.body as? TextContent)?.text ?: "") }
         val arguments = librechatJson.parseToJsonElement((scope.body as TextContent).text)
             .jsonObject["params"]!!.jsonObject["arguments"]!!.jsonObject
-        // `banque` is served by the annuaire, so ticked (D-071); no direct one is `defaut` here.
-        assertEquals<List<String>>(
-            listOf("banque"),
-            arguments["connecteurs"]!!.jsonArray.map { it.jsonPrimitive.content },
-        )
+        assertEquals(listOf("shell"), arguments["connecteurs"]!!.jsonArray.map { it.jsonPrimitive.content })
     }
 
     private fun allowedOn(session: JsonObject): List<String> = session["permission"]!!.jsonArray

@@ -15,7 +15,6 @@
     <string name="tasks_not_configured_hint">Déconnectez-vous, puis reconnectez-vous avec l'adresse du planificateur.</string>
     <string name="tasks_state_running">En cours</string>
     <string name="tasks_model">Modèle</string>
-    <string name="tasks_connectors">Connecteurs</string>
     <string name="tasks_cancel">Annuler</string>
     <string name="tasks_settings_title">Assistant</string>
     <string name="tasks_settings_open">Configurer l'assistant</string>
@@ -113,16 +112,13 @@
     <string name="tasks_sign_in_refused">Le portail a refusé : consentement décliné, second facteur abandonné, ou demande expirée. Recommencer ne coûte rien.</string>
     <string name="tasks_sign_in_interrupted">L'aller-retour ne s'est pas terminé — interrompu en route, ou plus de cinq minutes écoulées. Réessayez.</string>
     <string name="tasks_sign_in_missing_scope">Vous êtes connecté, mais le portail n'a pas donné à ce compte l'accès à l'assistant. Demandez à l'administrateur de corriger cela côté serveur.</string>
-    <string name="tasks_chat_no_connector">Aucun connecteur</string>
-    <plurals name="tasks_chat_connector_count">
-        <item quantity="one">%1$d connecteur</item>
-        <item quantity="other">%1$d connecteurs</item>
-    </plurals>
     <plurals name="tasks_chat_tool_count">
         <item quantity="one">%1$d outil</item>
         <item quantity="other">%1$d outils</item>
     </plurals>
     <string name="tasks_model_default_short">Modèle par défaut</string>
+    <string name="tasks_chat_shell_on">Shell activé</string>
+    <string name="tasks_chat_shell_off">Sans shell</string>
     <string name="tasks_chat_connectors_failed">Connecteurs indisponibles</string>
     <string name="tasks_chat_models_failed">Modèles indisponibles</string>
     <string name="tasks_chat_reasoning">réflexion</string>
@@ -146,7 +142,6 @@
         <item quantity="one">%1$d caractère de plus</item>
         <item quantity="other">%1$d caractères de plus</item>
     </plurals>
-    <string name="tasks_connector_default">par défaut</string>
     <!-- D-077 : la conversation, une session du moteur sur le profil chat -->
     <string name="chat_new">Nouvelle conversation</string>
     <string name="chat_title">Conversation</string>
@@ -170,9 +165,6 @@
     <string name="tasks_question_send">Répondre</string>
     <string name="tasks_question_dismiss">Ignorer</string>
     <string name="tasks_question_waiting">Envoi…</string>
-    <string name="tasks_connectors_hint">Ce que cette conversation peut utiliser. Modifiable à tout moment, même après le premier message.</string>
-    <string name="tasks_connectors_read">Lire et chercher</string>
-    <string name="tasks_connectors_act">Agir en votre nom</string>
     <string name="tasks_scheduled_intro">Ce qu’Eva fait sans vous. Chaque exécution s'ouvre comme une conversation, dans la liste du menu.</string>
     <string-array name="tasks_days">
         <item>lundi</item><item>mardi</item><item>mercredi</item><item>jeudi</item><item>vendredi</item><item>samedi</item><item>dimanche</item>

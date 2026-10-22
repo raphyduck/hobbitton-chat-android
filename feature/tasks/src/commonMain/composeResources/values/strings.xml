@@ -15,7 +15,6 @@
     <string name="tasks_not_configured_hint">Sign out, then sign in again with the scheduler address.</string>
     <string name="tasks_state_running">Running</string>
     <string name="tasks_model">Model</string>
-    <string name="tasks_connectors">Connectors</string>
     <string name="tasks_cancel">Cancel</string>
     <string name="tasks_settings_title">Assistant</string>
     <string name="tasks_settings_open">Set the assistant up</string>
@@ -113,16 +112,13 @@
     <string name="tasks_sign_in_refused">The portal refused: consent declined, second factor abandoned, or the request expired. Starting again is safe.</string>
     <string name="tasks_sign_in_interrupted">The round trip did not finish — it broke on the way, or took more than five minutes. Try again.</string>
     <string name="tasks_sign_in_missing_scope">You are signed in, but the portal did not give this account access to the assistant. Ask the administrator to fix it on the server.</string>
-    <string name="tasks_chat_no_connector">No connector</string>
-    <plurals name="tasks_chat_connector_count">
-        <item quantity="one">%1$d connector</item>
-        <item quantity="other">%1$d connectors</item>
-    </plurals>
     <plurals name="tasks_chat_tool_count">
         <item quantity="one">%1$d tool</item>
         <item quantity="other">%1$d tools</item>
     </plurals>
     <string name="tasks_model_default_short">Default model</string>
+    <string name="tasks_chat_shell_on">Shell on</string>
+    <string name="tasks_chat_shell_off">No shell</string>
     <string name="tasks_chat_connectors_failed">Connectors unavailable</string>
     <string name="tasks_chat_models_failed">Models unavailable</string>
     <string name="tasks_chat_reasoning">reasoning</string>
@@ -146,7 +142,6 @@
         <item quantity="one">%1$d more character</item>
         <item quantity="other">%1$d more characters</item>
     </plurals>
-    <string name="tasks_connector_default">on by default</string>
     <!-- D-077: the chat, an engine session on the chat profile -->
     <string name="chat_new">New chat</string>
     <string name="chat_title">Chat</string>
@@ -170,9 +165,6 @@
     <string name="tasks_question_send">Reply</string>
     <string name="tasks_question_dismiss">Dismiss</string>
     <string name="tasks_question_waiting">Sending…</string>
-    <string name="tasks_connectors_hint">What this conversation may use. Change it at any time, even after the first message.</string>
-    <string name="tasks_connectors_read">Read and search</string>
-    <string name="tasks_connectors_act">Act on your behalf</string>
     <string name="tasks_scheduled_intro">What Eva does on her own. Each run opens as a conversation, in the menu's list.</string>
     <string-array name="tasks_days">
         <item>Monday</item><item>Tuesday</item><item>Wednesday</item><item>Thursday</item><item>Friday</item><item>Saturday</item><item>Sunday</item>

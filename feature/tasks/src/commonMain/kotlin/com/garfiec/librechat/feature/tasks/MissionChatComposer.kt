@@ -49,6 +49,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import com.garfiec.librechat.core.data.engine.SHELL_CONNECTOR
 import com.garfiec.librechat.core.data.engine.TranscriptionOutcome
 import com.garfiec.librechat.core.model.engine.EngineSelectableModel
 import com.garfiec.librechat.core.ui.input.ChatInputBox
@@ -56,7 +57,6 @@ import com.garfiec.librechat.core.ui.input.ChatInputDefaults
 import com.garfiec.librechat.core.ui.input.ChatInputField
 import com.garfiec.librechat.core.ui.input.ChatInputPill
 import com.garfiec.librechat.core.ui.input.ComposerSendButton
-import com.garfiec.librechat.feature.tasks.components.ConnectorPickerSheet
 import com.garfiec.librechat.feature.tasks.components.MissionDictation
 import com.garfiec.librechat.feature.tasks.components.ModelPickerSheet
 import com.garfiec.librechat.feature.tasks.components.rememberMissionAttachmentPicker
@@ -69,12 +69,11 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_attach_audio
 import com.garfiec.librechat.feature.tasks.resources.tasks_attach_file
 import com.garfiec.librechat.feature.tasks.resources.tasks_attach_photo
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_add
-import com.garfiec.librechat.feature.tasks.resources.tasks_chat_connector_count
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_connectors_failed
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_models_failed
-import com.garfiec.librechat.feature.tasks.resources.tasks_chat_no_connector
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_send
-import com.garfiec.librechat.feature.tasks.resources.tasks_connectors
+import com.garfiec.librechat.feature.tasks.resources.tasks_chat_shell_off
+import com.garfiec.librechat.feature.tasks.resources.tasks_chat_shell_on
 import com.garfiec.librechat.feature.tasks.resources.tasks_dictate
 import com.garfiec.librechat.feature.tasks.resources.tasks_dictate_stop
 import com.garfiec.librechat.feature.tasks.resources.tasks_listening
@@ -86,7 +85,6 @@ import com.garfiec.librechat.feature.tasks.util.StagedAttachment
 import com.garfiec.librechat.feature.tasks.util.message
 import com.garfiec.librechat.feature.tasks.util.shortModelLabel
 import com.garfiec.librechat.feature.tasks.util.title
-import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -200,7 +198,7 @@ internal fun MissionChatInput(
                 ) {
                     ComposerChips(
                         state = state,
-                        onOpenConnectors = { picker = Picker.CONNECTORS },
+                        onToggleShell = { onToggleConnector(SHELL_CONNECTOR) },
                         onOpenModels = { picker = Picker.MODELS },
                         onRetryCatalogue = onRetryCatalogue,
                     )
@@ -224,12 +222,6 @@ internal fun MissionChatInput(
     }
 
     when (picker) {
-        Picker.CONNECTORS -> ConnectorPickerSheet(
-            options = state.connectors,
-            ticked = state.enabledConnectors.orEmpty(),
-            onToggle = onToggleConnector,
-            onDismiss = { picker = Picker.NONE },
-        )
         Picker.MODELS -> ModelPickerSheet(
             models = state.models,
             selected = state.effectiveModel,
@@ -244,7 +236,7 @@ internal fun MissionChatInput(
     }
 }
 
-private enum class Picker { NONE, CONNECTORS, MODELS }
+private enum class Picker { NONE, MODELS }
 
 /** One line above the box that says what went wrong, dismissed by a tap on it. */
 @Composable
@@ -367,11 +359,12 @@ private fun AddButton(
 }
 
 /**
- * The labels under the text: the model the next message runs on, then what this session can reach.
+ * The labels under the text: the model the next message runs on, then whether the shell is open.
  *
- * Both carry their current value — the model's name, « 3 connecteurs » — because the answer to
- * « what is this conversation allowed to do » should not require opening a sheet. The model leads, as
- * on Claude's composer.
+ * No connector choice since 22/10/2026 (D-083, Raphaël's rule): the scheduler decides what a session
+ * reaches from WHO speaks to it, the titulaire here, not from ticks the caller sends. The one thing
+ * that level leaves on demand is the shell, which inherits everything: one tap opens or closes it.
+ * The model leads, as on Claude's composer.
  *
  * The two are independent: the connectors come from the scheduler and the models from the engine,
  * so one host being unreachable leaves the other's label standing. A single row that vanished
@@ -381,7 +374,7 @@ private fun AddButton(
 @Composable
 private fun ComposerChips(
     state: MissionChatUiState,
-    onOpenConnectors: () -> Unit,
+    onToggleShell: () -> Unit,
     onOpenModels: () -> Unit,
     onRetryCatalogue: () -> Unit,
 ) {
@@ -408,19 +401,17 @@ private fun ComposerChips(
             icon = Icons.Outlined.Refresh,
             onClick = onRetryCatalogue,
         )
-        state.connectors.isNotEmpty() -> {
-            val granted = state.enabledConnectors
-            ComposerPill(
-                label = when {
-                    // Not read back yet. « No connector » here was a claim the screen had no
-                    // grounds for, and it was wrong on every mission the scheduler launched.
-                    granted == null -> stringResource(Res.string.tasks_connectors)
-                    granted.isEmpty() -> stringResource(Res.string.tasks_chat_no_connector)
-                    else -> pluralStringResource(Res.plurals.tasks_chat_connector_count, granted.size, granted.size)
+        // Not read back yet: no label rather than a claim the screen has no grounds for.
+        state.connectors.isNotEmpty() && state.enabledConnectors != null -> ComposerPill(
+            label = stringResource(
+                if (SHELL_CONNECTOR in state.enabledConnectors) {
+                    Res.string.tasks_chat_shell_on
+                } else {
+                    Res.string.tasks_chat_shell_off
                 },
-                onClick = onOpenConnectors,
-            )
-        }
+            ),
+            onClick = onToggleShell,
+        )
     }
 }
 
