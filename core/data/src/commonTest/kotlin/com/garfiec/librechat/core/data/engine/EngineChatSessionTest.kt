@@ -35,6 +35,7 @@ class EngineChatSessionTest {
 
     /** What the scheduler's `historique(json_brut=True)` answers. */
     private var runsJson = "[]"
+    private var serverReadsJson = "{}"
 
     private val providersJson = """
         {
@@ -64,6 +65,7 @@ class EngineChatSessionTest {
                 when {
                     "\"perimetre\"" in text -> toolFrame("""{"session":"ses_chat","connecteurs":[],"enregistre":true}""")
                     "\"historique\"" in text -> toolFrame(runsJson)
+                    "\"conversations_lues\"" in text -> toolFrame(serverReadsJson)
                     else -> catalogueFrame()
                 }
             }
@@ -346,6 +348,28 @@ class EngineChatSessionTest {
         assertTrue(repository.recentChats().single().unread)
         repository.markRead("ses_reply", atMillis = 600)
         assertTrue(!repository.recentChats().single().unread)
+    }
+
+    @Test
+    fun `a conversation whose question the scheduler withdrew reads as read`() = runTest {
+        sessionsJson = """[
+            {"id":"ses_moot","title":"À décider · relance du maçon","time":{"updated":700}},
+            {"id":"ses_open","title":"À décider · devis","time":{"updated":650}}
+        ]"""
+        serverReadsJson = """{"ses_moot":700,"ses_ailleurs":900}"""
+        val kinds = InMemorySessionKinds(listOf("ses_moot", "ses_open").associateWith { EngineSessionKind.CHAT })
+        val reads = InMemoryConversationReads(floorMillis = 100, seen = mapOf("ses_moot" to 200))
+
+        val chats = testMissionRepository(engine(), kinds = kinds, reads = reads).recentChats(scope = ChatScope.ALL)
+
+        assertEquals(mapOf("ses_open" to true, "ses_moot" to false), chats.associate { it.sessionId to it.unread })
+    }
+
+    @Test
+    fun `a later local mark is not pulled back by the scheduler's`() {
+        val snapshot = ReadSnapshot(floorMillis = 0, seen = mapOf("ses_a" to 900))
+        assertEquals(900L, snapshot.withServerReads(mapOf("ses_a" to 500)).seen["ses_a"])
+        assertTrue(!snapshot.withServerReads(mapOf("ses_b" to 500)).isUnread("ses_b", 400))
     }
 
     @Test

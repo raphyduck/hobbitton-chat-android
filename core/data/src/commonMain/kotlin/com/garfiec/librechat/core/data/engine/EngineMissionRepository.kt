@@ -197,9 +197,10 @@ class EngineMissionRepository(
      * nothing yet (no message) is left out: it is either a conversation being created right now,
      * which its creator recorded, or nobody's.
      *
-     * Unread ([EngineChatSummary.unread]) costs two reads per refresh, whatever the number of rows:
-     * this device's read marks, and, for [ChatScope.ALL], the scheduler's latest runs, which say
-     * whether each had something to say ([runHasNews]). Without either, rows read as read.
+     * Unread ([EngineChatSummary.unread]) costs three reads per refresh, whatever the number of
+     * rows: this device's read marks, the scheduler's (a conversation whose question it withdrew,
+     * 22/10/2026), and, for [ChatScope.ALL], the scheduler's latest runs, which say whether each
+     * had something to say ([runHasNews]). Without this device's marks, rows read as read.
      */
     suspend fun recentChats(
         scope: ChatScope = ChatScope.MANUAL,
@@ -211,6 +212,7 @@ class EngineMissionRepository(
         val statuses = runCatching { api.status() }.getOrDefault(emptyMap())
         val recorded = recordedKinds()
         val read = reads?.let { store -> runCatching { store.snapshot() }.getOrNull() }
+            ?.withServerReads(serverReads())
         val runs = if (scope == ChatScope.ALL) latestRuns() else emptyMap()
         val discreetMissions = runs.values.filter { it.discreet }.mapNotNull { it.mission }.toSet()
         val sessions = api.sessions()
@@ -268,6 +270,12 @@ class EngineMissionRepository(
      * a session may carry several runs: the newest, listed first, is the one that says how it ended.
      * Empty when the scheduler cannot say: every run then reads as read, never as news.
      */
+    /** The scheduler's read marks ([SchedulerApi.serverReads]); none when it does not answer. */
+    private suspend fun serverReads(): Map<String, Long> =
+        runCatching { scheduler.serverReads() }
+            .onFailure { Logger.w(it) { "Conversations: the scheduler's read marks are unavailable" } }
+            .getOrDefault(emptyMap())
+
     private suspend fun latestRuns(): Map<String, SchedulerRun> {
         val runs = runCatching { scheduler.runs() }
             .onFailure { Logger.w(it) { "Conversations: the scheduler's runs are unavailable" } }

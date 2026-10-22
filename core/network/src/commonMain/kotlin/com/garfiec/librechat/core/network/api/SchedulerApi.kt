@@ -137,6 +137,22 @@ class SchedulerApi(
     }
 
     /**
+     * The conversations the scheduler holds as read (22/10/2026), session id to epoch millis: the
+     * unread mission withdrew a question a reply had made moot, and nothing waits on the person
+     * there any more. A JSON object; a failure is raised like [runs]'.
+     */
+    suspend fun serverReads(): Map<String, Long> {
+        val payload = callTool("conversations_lues", buildJsonObject {})
+        return try {
+            json.decodeFromString(payload)
+        } catch (e: SerializationException) {
+            throw EngineHttpException(HTTP_OK, "conversations_lues", "$UNEXPECTED_ANSWER: ${e.message}", e)
+        } catch (e: IllegalArgumentException) {
+            throw EngineHttpException(HTTP_OK, "conversations_lues", "$UNEXPECTED_ANSWER: ${e.message}", e)
+        }
+    }
+
+    /**
      * Which providers answer right now.
      *
      * **This performs a real call to every model in the catalogue.** Measured server-side on
