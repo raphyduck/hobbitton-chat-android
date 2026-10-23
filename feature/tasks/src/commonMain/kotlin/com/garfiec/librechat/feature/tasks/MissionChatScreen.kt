@@ -313,9 +313,10 @@ internal fun MissionTurns(
     val listState = rememberLazyListState()
     // One drawn turn per run of assistant steps: their tool calls fold into one growing line.
     val turns = remember(chat.turns) { chat.turns.mergedAssistantRuns() }
-    // Open at the start of the last message (Raphaël, 23/10/2026): where the agent's latest word,
-    // and the question it asks, begin. Once, hence the flag, saved across rotation. It replaces the
-    // position saved per conversation (31/08 to 22/10/2026), which kept reopening at the wrong place.
+    // Open at the very bottom (Raphaël, 23/10/2026): the end of the last message in view. Once,
+    // hence the flag, saved across rotation. It replaces the position saved per conversation
+    // (31/08 to 22/10/2026), which kept reopening at the wrong place, then the start of the last
+    // message (v2026.10.28), which left a long one opening above the bottom.
     //
     // It waits for the history call to end, not for the first turn on screen: on a conversation
     // where the agent was talking, the live feed delivered a turn before the history did.
@@ -334,6 +335,8 @@ internal fun MissionTurns(
         var frames = 0
         while (frames++ < OPENING_FRAMES) {
             listState.scrollToItem(turns.lastIndex)
+            val below = listState.distanceToEnd()
+            if (below in 1 until Int.MAX_VALUE) listState.scrollBy(below.toFloat())
             withFrameNanos { }
             val measured = listState.layoutInfo.visibleItemsInfo.map { it.size }
             if (measured == sizes) break
@@ -357,8 +360,7 @@ internal fun MissionTurns(
     // threw the reader back up to where it began (« la conversation saute à des endroits plus
     // anciens »). Not during a drag either: the reader's thumb wins.
     //
-    // Gated on `opened` too, or the very first emission would scroll to the bottom before the
-    // opening scroll to the last message.
+    // Gated on `opened` too, or the very first emission would scroll before the opening scroll.
     LaunchedEffect(turns.size, tailLength(chat), opened) {
         if (!opened || !following || listState.isScrollInProgress) return@LaunchedEffect
         listState.scrollToEnd(turns.lastIndex)
