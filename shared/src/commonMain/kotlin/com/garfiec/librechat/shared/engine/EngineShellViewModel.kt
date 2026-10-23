@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.data.datastore.ChatFontSize
-import com.garfiec.librechat.core.data.datastore.MissionReadingPositions
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.datastore.ThemeDataStore
 import com.garfiec.librechat.core.data.datastore.ThemeMode
@@ -69,7 +68,6 @@ class EngineShellViewModel(
     private val kinds: SessionKindStore,
     /** What this device has shown of each conversation: forgotten at sign-out (16/10/2026). */
     private val reads: ConversationReads,
-    private val positions: MissionReadingPositions,
     private val themeDataStore: ThemeDataStore,
     /** The Settings switch for sound and notifications (03/10/2026). */
     private val settingsDataStore: SettingsDataStore,
@@ -351,8 +349,8 @@ class EngineShellViewModel(
 
     /**
      * Signs out (D-077): the portal's tokens and the web view's cookies ([PortalSignOut], as the
-     * D-076 logout did), then this device's chat caches — which session was a chat, where each
-     * transcript was left. The addresses stay: they are not a secret, and the next sign-in starts
+     * D-076 logout did), then this device's chat caches — which session was a chat, what was
+     * read. The addresses stay: they are not a secret, and the next sign-in starts
      * from them.
      *
      * Non-cancellable: leaving the screen that asked must not leave half a sign-out behind.
@@ -364,7 +362,6 @@ class EngineShellViewModel(
                     .onFailure { Logger.w(it) { "Portal sign-out failed" } }
                 runCatching { kinds.clear() }.onFailure { Logger.w(it) { "Could not clear the session kinds" } }
                 runCatching { reads.clear() }.onFailure { Logger.w(it) { "Could not clear the read marks" } }
-                runCatching { positions.clear() }.onFailure { Logger.w(it) { "Could not clear the reading positions" } }
             }
             allChatsJob?.cancel()
             stopAttention()

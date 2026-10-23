@@ -29,7 +29,6 @@ val sharedAppModule = module {
             repository = getOrNull<EngineMissionRepository>(),
             kinds = get(),
             reads = get(),
-            positions = get(),
             themeDataStore = get(),
             settingsDataStore = get(),
             attentionWatcher = getOrNull<EngineAttentionWatcher>(),

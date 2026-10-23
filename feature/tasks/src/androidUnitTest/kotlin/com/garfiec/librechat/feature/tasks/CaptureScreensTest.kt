@@ -253,7 +253,6 @@ private val CONNECTORS = listOf(
 
 private val BASE = MissionChatUiState(
     loadingHistory = false,
-    positionKnown = true,
     models = MODELS,
     model = MODELS[0],
     connectors = CONNECTORS,

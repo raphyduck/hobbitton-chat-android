@@ -83,11 +83,9 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   labels for the model and the connectors, send only once there is something to send
   (`:core:ui` `input/`). Messages settle in with `animateItem`, « Réflexion… » shimmers before the
   first token, a round button brings the tail back when one has scrolled up, send and stop click
-  under the thumb. A conversation reopens where it was left (`MissionReadingPositions`, device
-  only): the restore waits for the history call to end, not for the feed's first turn (21/10/2026:
-  a conversation reopened while the agent talked opened at its tail), and leaving the screen
-  writes the position once more, on the application scope, so a scroll followed by « back »
-  within the settle pause is kept.
+  under the thumb. A conversation opens at the start of its last message (Raphaël, 23/10/2026: the
+  position saved per conversation from 31/08 kept reopening at the wrong place), once the history
+  call has ended, not at the feed's first turn (`MissionTurns`).
 - **Dictation and audio files** (the composer). The mic is heard by the phone itself (19/10/2026,
   Settings → Dictée, on by default): Android 12's on-device recognizer in French, its words shown
   as they come and dropped into the composer one stretch of speech at a time (`PhoneDictation`,
@@ -149,7 +147,7 @@ sheet for the diagnostic log). The shell and the sign-in resolve the engine grap
 - Single Activity with Nav 3 (`NavDisplay` + `NavBackStack<NavKey>` + `entryProvider`)
 - Unidirectional data flow: UI → ViewModel → Repository → API
 - The engine is the source of truth; the app keeps only preferences, the portal's tokens and small
-  local records (session kinds, reading positions)
+  local records (session kinds, read marks)
 
 ## Adding a New Feature Module
 

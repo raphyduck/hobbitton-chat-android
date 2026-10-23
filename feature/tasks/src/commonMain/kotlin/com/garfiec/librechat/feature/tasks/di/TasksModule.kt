@@ -49,13 +49,11 @@ val tasksModule = module {
             repository = get(),
             modelPrices = get(),
             settings = get(),
-            positions = get(),
             // The scheduler's transcription (`engineModule`): LibreChat's speech route went with it.
             transcriber = get(),
             attention = get(),
             ioDispatcher = get(KoinQualifiers.IO),
             scheduler = get(),
-            appScope = get(KoinQualifiers.ApplicationScope),
         )
     }
 }
