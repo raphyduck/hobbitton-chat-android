@@ -2,6 +2,7 @@ package com.garfiec.librechat.feature.tasks
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.engine.AttentionSignals
 import com.garfiec.librechat.core.data.engine.AudioTranscriber
@@ -41,6 +42,7 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * One mission session, as a conversation you can talk to.
@@ -402,7 +404,14 @@ class MissionChatViewModel(
         val sessionId = sessionId ?: return
         viewModelScope.launch {
             try {
-                val events = withContext(ioDispatcher) { repository.history(sessionId) }
+                val events = fetchHistory(sessionId)
+                if (events == null) {
+                    Logger.w(LOG_TAG) { "History of $sessionId: no answer after $HISTORY_ATTEMPTS attempts" }
+                    _uiState.update {
+                        it.copy(loadingHistory = false, refreshing = false, historyError = EngineFailureKind.UNREACHABLE)
+                    }
+                    return@launch
+                }
                 _uiState.update { current ->
                     // Fold the past *under* whatever the live feed already delivered, so nothing that
                     // arrived while we were fetching is lost.
@@ -413,6 +422,7 @@ class MissionChatViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                Logger.w(LOG_TAG, e) { "History of $sessionId failed" }
                 _uiState.update {
                     it.copy(
                         loadingHistory = false,
@@ -422,6 +432,22 @@ class MissionChatViewModel(
                 }
             }
         }
+    }
+
+    /**
+     * The transcript, asked again when an attempt hangs (23/10/2026). The engine answers in a
+     * hundredth of a second, yet a conversation sometimes stayed on its placeholders until it was
+     * left and reopened, when a new read came at once: a read that hangs is dropped and re-asked
+     * rather than waited on, and after the third the screen says so instead of waiting for ever.
+     * Null when none came.
+     */
+    private suspend fun fetchHistory(sessionId: String): List<EngineStreamEvent>? {
+        repeat(HISTORY_ATTEMPTS) { attempt ->
+            withTimeoutOrNull(HISTORY_ATTEMPT_MS) { withContext(ioDispatcher) { repository.history(sessionId) } }
+                ?.let { return it }
+            Logger.w(LOG_TAG) { "History of $sessionId: attempt ${attempt + 1} hung" }
+        }
+        return null
     }
 
     /**
@@ -765,6 +791,10 @@ class MissionChatViewModel(
         _uiState.update { it.copy(sendError = null) }
     }
 }
+
+private const val LOG_TAG = "Conversation"
+private const val HISTORY_ATTEMPTS = 3
+private const val HISTORY_ATTEMPT_MS = 10_000L
 
 /** A user turn carrying exactly these words: a send made mid-turn that reached the engine. */
 private fun MissionChatState.hasUserText(text: String): Boolean = turns.any { turn ->

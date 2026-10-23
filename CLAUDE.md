@@ -86,7 +86,8 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   under the thumb. A conversation opens at its very bottom, the end of its last message in view
   (Raphaël, 23/10/2026: the position saved per conversation from 31/08 kept reopening at the wrong
   place, then the start of the last message left a long one opening higher), once the history
-  call has ended, not at the feed's first turn (`MissionTurns`). A message typed while the session
+  call has ended, not at the feed's first turn (`MissionTurns`); a history read that hangs is
+  dropped after 10 s and asked again, three times, then the screen says so (23/10/2026). A message typed while the session
   works goes out at once (23/10/2026): the engine records it and the running turn reads it at its
   next step, never interrupted; send shows over stop as long as something is staged.
 - **Dictation and audio files** (the composer). The mic is heard by the phone itself (19/10/2026,
