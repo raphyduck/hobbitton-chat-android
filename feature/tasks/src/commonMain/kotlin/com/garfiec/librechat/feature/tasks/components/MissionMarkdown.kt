@@ -116,6 +116,7 @@ private fun Prose(content: String, color: Color, fontScale: Float, trailingCurso
         typography = chatMarkdownTypography(fontScale),
         annotator = if (trailingCursor) StreamingCursorAnnotator else NoOpMarkdownAnnotator,
         inlineContent = rememberStreamingCursorInlineContent(),
+        imageTransformer = MarkdownImages,
     )
 }
 
