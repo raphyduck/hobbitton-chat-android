@@ -12,7 +12,7 @@ The engine shell, and the Koin module list the application starts from. KMP libr
   (`allChats`, every session, unread first) and the drawer's (`chats`: the same read, by latest
   activity; the same sessions in both lists since 19/10/2026), `markRead` (called by `EngineMainLayout` when a conversation opens, is left, or the
   app goes to the background), the theme, and sign-out: `PortalSignOut` (the portal's tokens and web-view cookies), then this device's
-  session kinds, read marks and reading positions. Every engine dependency is nullable (`getOrNull`).
+  session kinds and read marks. Every engine dependency is nullable (`getOrNull`).
 - `EngineNavigator`: the back stack: the conversation as root (`EngineChat`, any session since
   D-082), a new one's blank entry replaced in place once the engine has the session; Programmées,
   usage, settings and instructions pushed on top. Back from a session alone on the stack lands on

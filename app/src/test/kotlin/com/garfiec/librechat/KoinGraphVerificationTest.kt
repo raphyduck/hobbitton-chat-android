@@ -3,7 +3,6 @@ package com.garfiec.librechat
 import android.app.Application
 import android.content.Context
 import com.garfiec.librechat.core.data.datastore.GlobalProfileEditor
-import com.garfiec.librechat.core.data.datastore.MissionReadingPositions
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.datastore.ThemeDataStore
 import com.garfiec.librechat.core.data.engine.ConversationReads
@@ -51,7 +50,6 @@ class KoinGraphVerificationTest {
             CoroutineScope::class,
             // core:data provides; verify() resolves one module at a time
             ThemeDataStore::class,
-            MissionReadingPositions::class,
             SessionKindStore::class,
             ConversationReads::class,
             GlobalProfileEditor::class,

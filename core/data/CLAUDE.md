@@ -15,7 +15,7 @@ The engine's and the portal's data layer, and the app's preferences.
   `/plafonds`), **`pricing/ModelPriceCache`** (the gateway's price table,
   `ModelPriceSource` bound to the scheduler).
 - **`datastore/`** — `ThemeDataStore`, `SettingsDataStore` (language, read-only; the text size, the attention and dictation switches and the default model, written from Settings),
-  `GlobalProfileStore`, `MissionReadingPositions`. One DataStore file (`librechat_settings`, name
+  `GlobalProfileStore`. One DataStore file (`librechat_settings`, name
   kept so an upgrade keeps its preferences).
 - **`legacy/`** — `LegacyLibreChatCleanup`: removes, once, what LibreChat left on an upgraded
   device (below).
@@ -75,8 +75,7 @@ Since 12/10/2026 chats and tasks are one conversation, as on Claude.ai.
   `SessionKindStore` (`EngineSessionKinds`) leave out a session that has said nothing yet; at most
   ten unknown transcripts are read per refresh and each verdict recorded (forty for a search).
   `query` (21/10/2026) keeps only the sessions whose title matches, over every session the engine
-  lists, accents folded (`foldForSearch` / `matchesSearch`, `SearchFold.kt`); `limit` is the page. Cleared at sign-out with
-  the reading positions.
+  lists, accents folded (`foldForSearch` / `matchesSearch`, `SearchFold.kt`); `limit` is the page. Cleared at sign-out.
 - **`models()`**: the conversations' provider only; `preselected` is the person's default
   (`ModelPreference`, Settings' `SettingsDataStore.defaultChatModel`) while the list still has it,
   the engine's otherwise (`engineDefault`, kept for Settings to name). A turn sent without a model

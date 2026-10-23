@@ -67,7 +67,6 @@ class MissionChatTranscriptionTest {
         repository = repository,
         modelPrices = mockk(relaxed = true),
         settings = settings,
-        positions = mockk(relaxed = true),
         transcriber = transcriber(outcome),
         attention = mockk(relaxed = true),
         ioDispatcher = dispatcher,

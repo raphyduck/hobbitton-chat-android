@@ -29,9 +29,8 @@ interface SessionKindStore {
 }
 
 /**
- * [SessionKindStore] over the app's preferences: one JSON map, capped, the same arrangement as
- * `MissionReadingPositions` and for the same reasons — a key per session would grow without bound
- * on ids that disappear when the engine prunes its history.
+ * [SessionKindStore] over the app's preferences: one JSON map, capped. A key per session would grow
+ * without bound on ids that disappear when the engine prunes its history.
  *
  * Device-scoped: the portal identity is the only one this app has, and signing out clears it.
  */

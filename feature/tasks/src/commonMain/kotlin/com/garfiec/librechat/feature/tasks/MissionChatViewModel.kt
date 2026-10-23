@@ -2,8 +2,6 @@ package com.garfiec.librechat.feature.tasks
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.garfiec.librechat.core.data.datastore.MissionReadingPosition
-import com.garfiec.librechat.core.data.datastore.MissionReadingPositions
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.engine.AttentionSignals
 import com.garfiec.librechat.core.data.engine.AudioTranscriber
@@ -33,7 +31,6 @@ import com.garfiec.librechat.feature.tasks.util.reduce
 import com.garfiec.librechat.feature.tasks.util.withPendingQuestions
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -132,16 +129,6 @@ data class MissionChatUiState(
      */
     val greetingName: String? = null,
     /**
-     * Where this transcript was left last time, once the answer is known — see [positionKnown].
-     *
-     * Null means « never left mid-transcript », and the screen then opens at the tail as it always
-     * did. The screen must not restore before this has been read, or it would race the read and
-     * land at the bottom anyway.
-     */
-    val restoredPosition: MissionReadingPosition? = null,
-    /** False until the stored position has been read. Distinguishes « none » from « not yet ». */
-    val positionKnown: Boolean = false,
-    /**
      * The conversations' provider default, shown on the chip of a conversation that has not run
      * yet, so a new one names the model it is about to use.
      */
@@ -209,7 +196,6 @@ class MissionChatViewModel(
     private val repository: EngineMissionRepository,
     private val modelPrices: ModelPriceCache,
     private val settings: SettingsDataStore,
-    private val positions: MissionReadingPositions,
     /** Speech to text for the dictation and the audio files: the scheduler's, since D-077. */
     private val transcriber: AudioTranscriber,
     /** Sound and notification when a reply this screen was waiting on finishes out of sight. */
@@ -217,19 +203,12 @@ class MissionChatViewModel(
     private val ioDispatcher: CoroutineDispatcher,
     /** Who the portal says is signed in, for the greeting of a new chat; null where unavailable. */
     private val scheduler: SchedulerRepository? = null,
-    /**
-     * Where the reading position is written: a scope that outlives this ViewModel, because the last
-     * write comes as the screen leaves (21/10/2026), when `viewModelScope` is about to be cancelled
-     * with it. Null (the tests) writes on `viewModelScope`.
-     */
-    private val appScope: CoroutineScope? = null,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(
         MissionChatUiState(
-            // Nothing to load for a chat that does not exist yet: no transcript, no saved position.
+            // Nothing to load for a chat that does not exist yet.
             loadingHistory = sessionId != null,
-            positionKnown = sessionId == null,
             isNew = sessionId == null,
         ),
     )
@@ -263,10 +242,6 @@ class MissionChatViewModel(
         if (sessionId != null) {
             loadHistory()
             openStream()
-            viewModelScope.launch {
-                val saved = runCatching { positions.positionOf(sessionId) }.getOrNull()
-                _uiState.update { it.copy(restoredPosition = saved, positionKnown = true) }
-            }
         }
         loadCatalogue()
         // A new conversation greets by name: one small read, and a greeting without a name if it fails.
@@ -769,20 +744,6 @@ class MissionChatViewModel(
         if (sessionId == null) return
         _uiState.update { it.copy(loadingHistory = true, historyError = null) }
         loadHistory()
-    }
-
-    /**
-     * Records where the reader is, so the next visit opens there.
-     *
-     * Fire-and-forget on purpose: this is called as the list scrolls, and a failed write costs the
-     * accuracy of one position, never the scroll. `runCatching` rather than a `try` inside the
-     * launch because a store that cannot be written must not tear the screen's scope down.
-     */
-    fun rememberPosition(index: Int, offset: Int) {
-        val sessionId = sessionId ?: return
-        (appScope ?: viewModelScope).launch {
-            runCatching { positions.remember(sessionId, MissionReadingPosition(index, offset)) }
-        }
     }
 
     fun dismissSendError() {

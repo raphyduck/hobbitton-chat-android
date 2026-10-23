@@ -4,7 +4,6 @@ import com.garfiec.librechat.core.common.di.KoinQualifiers
 import com.garfiec.librechat.core.data.datastore.GlobalProfileEditor
 import com.garfiec.librechat.core.data.datastore.GlobalProfileSource
 import com.garfiec.librechat.core.data.datastore.GlobalProfileStore
-import com.garfiec.librechat.core.data.datastore.MissionReadingPositions
 import com.garfiec.librechat.core.data.engine.ConversationReads
 import com.garfiec.librechat.core.data.engine.EngineConversationReads
 import com.garfiec.librechat.core.data.engine.EngineSessionKinds
@@ -14,23 +13,12 @@ import org.koin.dsl.binds
 import org.koin.dsl.module
 
 /**
- * The engine's local records in `:core:data`, included by `dataModule`: reading positions, session
- * kinds, the global profile's two faces and the price cache. Platform-neutral on purpose: what
+ * The engine's local records in `:core:data`, included by `dataModule`: session kinds, read marks, the global profile's two faces and the price cache. Platform-neutral on purpose: what
  * needs the engine's clients stays in `engineModule`, which this module does not touch.
  */
 val hobbittonDataModule = module {
-    /** Where each mission transcript was left, so the conversation reopens there. */
-    single {
-        MissionReadingPositions(
-            dataStore = get(),
-            json = get(),
-            ioDispatcher = get(KoinQualifiers.IO),
-        )
-    }
-
     /**
-     * Which engine session is a chat and which a task (D-077). Platform-neutral like the reading
-     * positions: plain preferences, no secret — the engine graph that reads it stays Android-only.
+     * Which engine session is a chat and which a task (D-077). Platform-neutral: plain preferences, no secret — the engine graph that reads it stays Android-only.
      */
     single<SessionKindStore> {
         EngineSessionKinds(

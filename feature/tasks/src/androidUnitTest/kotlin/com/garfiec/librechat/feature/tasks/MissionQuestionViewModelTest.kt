@@ -75,7 +75,6 @@ class MissionQuestionViewModelTest {
         repository = repository,
         modelPrices = mockk(relaxed = true),
         settings = settings,
-        positions = mockk(relaxed = true),
         transcriber = AudioTranscriber { _, _, _ -> TranscriptionOutcome.Heard("") },
         attention = attention,
         ioDispatcher = dispatcher,
