@@ -22,6 +22,8 @@ import com.garfiec.librechat.feature.tasks.delegate.CatalogueFetch
 import com.garfiec.librechat.feature.tasks.delegate.ComposerStagingDelegate
 import com.garfiec.librechat.feature.tasks.delegate.MissionCatalogueDelegate
 import com.garfiec.librechat.feature.tasks.util.AudioNote
+import com.garfiec.librechat.feature.tasks.util.ChatPart
+import com.garfiec.librechat.feature.tasks.util.ChatTurn
 import com.garfiec.librechat.feature.tasks.util.MissionChatState
 import com.garfiec.librechat.feature.tasks.util.QuestionDraft
 import com.garfiec.librechat.feature.tasks.util.StagedAttachment
@@ -222,6 +224,9 @@ class MissionChatViewModel(
      * here watched start (a re-read, the feed's own reconnect) rings nothing.
      */
     private var awaitingReply = false
+
+    /** Sends still waiting for their turn's end: more than one when a message is added mid-turn. */
+    private var sendsInFlight = 0
 
     // Declared before `init`, which reads the catalogue: initializers run in textual order.
     private val catalogueLoader = MissionCatalogueDelegate(
@@ -629,14 +634,21 @@ class MissionChatViewModel(
         // The typed words plus each audio note as a quoted block — what the thread will show.
         val text = outgoingMessageText(staged.input, staged.audioNotes)
         val attachments = staged.attachments
-        if ((text.isEmpty() && attachments.isEmpty()) || staged.sending || staged.started != null) return
+        // A send while a turn runs (`sending`, or the reply streaming) is not refused (23/10/2026,
+        // Raphaël): the engine records the message at once and its running turn reads it after the
+        // step under way, without interrupting it; the call returns when that turn ends.
+        if ((text.isEmpty() && attachments.isEmpty()) || staged.started != null) return
         val sessionId = sessionId ?: return start(text, staged)
         val input = staged.input
         val notes = staged.audioNotes
         val before = staged.chat
+        // Mid-turn, the transcript moves anyway: whether this send reached the engine is told by
+        // its own words appearing as a user turn, not by the transcript having changed.
+        val midTurn = staged.sending || staged.chat.streaming
         _uiState.update {
             it.copy(input = "", attachments = emptyList(), audioNotes = emptyList(), sending = true, sendError = null)
         }
+        sendsInFlight++
         awaitingReply = true
         viewModelScope.launch {
             try {
@@ -658,7 +670,8 @@ class MissionChatViewModel(
                 throw e
             } catch (e: Exception) {
                 _uiState.update { current ->
-                    if (current.chat == before) {
+                    val reached = if (midTurn) current.chat.hasUserText(text) else current.chat != before
+                    if (!reached) {
                         // Never swallow the words — nor the photos, nor the audio notes: everything
                         // goes back in the composer as it was, not as the flattened outgoing text.
                         current.copy(
@@ -672,7 +685,9 @@ class MissionChatViewModel(
                     }
                 }
             } finally {
-                _uiState.update { it.copy(sending = false) }
+                // Up while any send is in flight: a second one typed during the turn ends with it.
+                sendsInFlight--
+                _uiState.update { it.copy(sending = sendsInFlight > 0) }
             }
         }
     }
@@ -749,6 +764,11 @@ class MissionChatViewModel(
     fun dismissSendError() {
         _uiState.update { it.copy(sendError = null) }
     }
+}
+
+/** A user turn carrying exactly these words: a send made mid-turn that reached the engine. */
+private fun MissionChatState.hasUserText(text: String): Boolean = turns.any { turn ->
+    turn is ChatTurn.User && turn.parts.any { it is ChatPart.Text && it.text.trim() == text.trim() }
 }
 
 /** The drawer's name for a new chat: its first line, as the engine titles the session. */

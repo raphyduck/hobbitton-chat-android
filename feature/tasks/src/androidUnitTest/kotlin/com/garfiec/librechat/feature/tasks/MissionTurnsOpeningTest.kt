@@ -23,7 +23,7 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
 /**
- * A conversation opens at the start of its last message (23/10/2026), even when the agent is
+ * A conversation opens at its very bottom (23/10/2026), even when the agent is
  * talking as it opens: the history, not the feed's first turn, decides where the end is.
  */
 @RunWith(RobolectricTestRunner::class)
@@ -38,20 +38,21 @@ class MissionTurnsOpeningTest {
         ChatTurn.User("u$n", listOf(ChatPart.Text("t$n", "Message numéro $n")))
     }
 
-    /** A last message taller than the screen: its first line must be the one in view. */
+    /** A last message taller than the screen: its end must be the one in view. */
     private val draft = ChatTurn.Assistant(
         "draft",
         listOf(
             ChatPart.Text(
                 "d",
-                (listOf("Début du brouillon") + (1..80).map { "Ligne $it du brouillon" } +
-                    "Fin du brouillon").joinToString("\n\n"),
+                (listOf("Début du brouillon") + (1..80).map { "Ligne $it du brouillon" })
+                    .joinToString("\n\n"),
             ),
+            ChatPart.Text("f", "Fin du brouillon"),
         ),
     )
 
     @Test
-    fun `it opens at the start of the last message`() {
+    fun `it opens at the bottom of the last message`() {
         rule.setContent {
             LibreChatTheme {
                 Box(Modifier.fillMaxWidth().height(600.dp)) {
@@ -65,7 +66,7 @@ class MissionTurnsOpeningTest {
         }
         rule.waitForIdle()
 
-        rule.onNodeWithText("Début du brouillon", substring = true).assertIsDisplayed()
+        rule.onNodeWithText("Fin du brouillon").assertIsDisplayed()
         rule.onNodeWithText("Message numéro 0").assertDoesNotExist()
     }
 

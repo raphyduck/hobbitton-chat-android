@@ -27,6 +27,10 @@ import androidx.compose.ui.unit.dp
  * Both swaps are animated — the states occupy one place, and a hard cut reads as the button having
  * been replaced.
  *
+ * While the answer runs, something staged wins over stop (23/10/2026, Raphaël): a message typed
+ * during a turn is sent at once and read after the step under way, without interrupting it. Stop
+ * comes back as soon as the box is empty.
+ *
  * The labels are the caller's, as [ChatInputPill]'s are — each feature already has « send » and
  * « stop » in its own strings, in its own words.
  */
@@ -48,7 +52,7 @@ fun ComposerSendButton(
         label = "composer_send_visible",
     ) {
         AnimatedContent(
-            targetState = running,
+            targetState = running && !canSend,
             transitionSpec = { (fadeIn() + scaleIn()).togetherWith(fadeOut() + scaleOut()) },
             label = "composer_send_stop_toggle",
         ) { showStop ->

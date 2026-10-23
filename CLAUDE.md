@@ -83,9 +83,12 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   labels for the model and the connectors, send only once there is something to send
   (`:core:ui` `input/`). Messages settle in with `animateItem`, « Réflexion… » shimmers before the
   first token, a round button brings the tail back when one has scrolled up, send and stop click
-  under the thumb. A conversation opens at the start of its last message (Raphaël, 23/10/2026: the
-  position saved per conversation from 31/08 kept reopening at the wrong place), once the history
-  call has ended, not at the feed's first turn (`MissionTurns`).
+  under the thumb. A conversation opens at its very bottom, the end of its last message in view
+  (Raphaël, 23/10/2026: the position saved per conversation from 31/08 kept reopening at the wrong
+  place, then the start of the last message left a long one opening higher), once the history
+  call has ended, not at the feed's first turn (`MissionTurns`). A message typed while the session
+  works goes out at once (23/10/2026): the engine records it and the running turn reads it at its
+  next step, never interrupted; send shows over stop as long as something is staged.
 - **Dictation and audio files** (the composer). The mic is heard by the phone itself (19/10/2026,
   Settings → Dictée, on by default): Android 12's on-device recognizer in French, its words shown
   as they come and dropped into the composer one stretch of speech at a time (`PhoneDictation`,
