@@ -89,7 +89,9 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   call has ended, not at the feed's first turn (`MissionTurns`); a history read that hangs is
   dropped after 10 s and asked again, three times, then the screen says so (23/10/2026). A message typed while the session
   works goes out at once (23/10/2026): the engine records it and the running turn reads it at its
-  next step, never interrupted; send shows over stop as long as something is staged.
+  next step, never interrupted; send shows over stop as long as something is staged. An image a
+  message names in markdown, `![description](https://…)`, is drawn in the message (23/10/2026,
+  `MarkdownImages`, the app's Coil loader).
 - **Dictation and audio files** (the composer). The mic is heard by the phone itself (19/10/2026,
   Settings → Dictée, on by default): Android 12's on-device recognizer in French, its words shown
   as they come and dropped into the composer one stretch of speech at a time (`PhoneDictation`,
