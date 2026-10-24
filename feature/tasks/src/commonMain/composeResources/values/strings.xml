@@ -194,4 +194,12 @@
     <string name="tasks_cron_hourly">Every hour</string>
     <string name="tasks_date">%1$s %2$s %3$s, %4$s</string>
     <string name="tasks_and">and</string>
+    <string name="tasks_context">Context</string>
+    <string name="tasks_context_window">Context window</string>
+    <string name="tasks_context_percent">%1$d% used</string>
+    <string name="tasks_context_count">%1$s tokens of context</string>
+    <string name="tasks_context_of">%1$s of %2$s tokens</string>
+    <string name="tasks_context_unknown_window">%1$s tokens; the gateway does not know this model's window.</string>
+    <string name="tasks_context_model">Measured against %1$s, the model of the next message.</string>
+    <string name="tasks_context_hint">What the last answer read: the whole conversation, the instructions and the tools' results. Near the limit, start a new conversation.</string>
 </resources>

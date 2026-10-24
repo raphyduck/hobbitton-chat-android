@@ -38,6 +38,13 @@ sealed interface EngineStreamEvent {
          * the person's question (« Can't see replies », a gateway budget refusal).
          */
         val error: String? = null,
+        /**
+         * What the turn's last model call read and wrote (24/10/2026). The engine rewrites it after
+         * each step of a turn, so on an assistant message it is the size of the session's context
+         * at that step: what the conversation's context indicator shows. Zero while the first step
+         * runs; null on a user message.
+         */
+        val tokens: EngineTokens? = null,
     ) : EngineStreamEvent
 
     /**
@@ -121,6 +128,7 @@ fun engineHistoryEvents(messages: List<EngineMessage>): List<EngineStreamEvent> 
                         message.info.providerId?.let { EngineModelRef(it, modelId) }
                     },
                     error = message.info.error?.readable(),
+                    tokens = message.info.tokens,
                 ),
             )
             message.parts.forEachIndexed { index, part ->

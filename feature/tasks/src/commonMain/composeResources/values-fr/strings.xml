@@ -194,4 +194,12 @@
     <string name="tasks_cron_hourly">Toutes les heures</string>
     <string name="tasks_date">%1$s %2$s %3$s à %4$s</string>
     <string name="tasks_and">et</string>
+    <string name="tasks_context">Contexte</string>
+    <string name="tasks_context_window">Fenêtre de contexte</string>
+    <string name="tasks_context_percent">%1$d % utilisé</string>
+    <string name="tasks_context_count">%1$s jetons de contexte</string>
+    <string name="tasks_context_of">%1$s sur %2$s jetons</string>
+    <string name="tasks_context_unknown_window">%1$s jetons ; la passerelle ne connaît pas la fenêtre de ce modèle.</string>
+    <string name="tasks_context_model">Mesuré sur %1$s, le modèle du prochain message.</string>
+    <string name="tasks_context_hint">Ce que la dernière réponse a lu : toute la conversation, les consignes et les résultats des outils. Près de la limite, mieux vaut commencer une nouvelle conversation.</string>
 </resources>

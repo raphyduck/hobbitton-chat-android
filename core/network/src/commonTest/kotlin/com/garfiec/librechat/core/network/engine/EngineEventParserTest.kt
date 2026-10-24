@@ -38,6 +38,25 @@ class EngineEventParserTest {
     }
 
     @Test
+    fun anAssistantEnvelopeCarriesItsTokens() {
+        // 24/10/2026, the context indicator: the engine rewrites `tokens` after each step.
+        val parsed = frame(
+            """{"type":"message.updated","properties":{"sessionID":"ses_1","info":{"id":"msg_a","role":"assistant","modelID":"claude-opus-5-5","providerID":"hobbitton-chat","tokens":{"input":1200,"output":300,"reasoning":50,"cache":{"read":80000,"write":2000}}}}}""",
+        )
+        val event = parsed?.event as EngineStreamEvent.MessageStarted
+        assertEquals(83_550L, event.tokens?.total)
+    }
+
+    @Test
+    fun malformedTokensAreDroppedNotFatal() {
+        val parsed = frame(
+            """{"type":"message.updated","properties":{"sessionID":"ses_1","info":{"id":"msg_a","role":"assistant","tokens":{"input":"beaucoup"}}}}""",
+        )
+        val event = parsed?.event as EngineStreamEvent.MessageStarted
+        assertEquals(null, event.tokens)
+    }
+
+    @Test
     fun anErrorWithoutAMessageIsNamed() {
         val parsed = frame(
             """{"type":"message.updated","properties":{"sessionID":"ses_1","info":{"id":"msg_a","role":"assistant","error":{"name":"MessageAbortedError"}}}}""",

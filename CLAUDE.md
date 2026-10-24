@@ -103,7 +103,12 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   words for that model, a tap opens the model picker (`imageStagedForBlindModel`). Who is blind is
   the gateway's word, relayed by the scheduler's `tarifs` (`ModelPrice.seesImages`, `voit_images`),
   not the engine's: the engine is told such a model takes images so that it forwards them instead
-  of refusing them.
+  of refusing them. The top bar carries a **context ring** (24/10/2026, Raphaël: as in Claude's
+  app): the share of the model's window the session fills, error colour past 80 %, a tap opening
+  a sheet with the count (« 290,8 k sur 1 M jetons »). The count is the engine's, the tokens of the
+  last model call (`message.updated` → `MessageStarted.tokens` → `MissionChatState.contextTokens`);
+  the window is the gateway's, `max_input_tokens` relayed by the scheduler's `tarifs`
+  (`ModelPrice.contextWindow`, `contexte`), for the model of the next message (`contextUsage`).
 - **Dictation and audio files** (the composer). The mic is heard by the phone itself (19/10/2026,
   Settings → Dictée, on by default): Android 12's on-device recognizer in French, its words shown
   as they come and dropped into the composer one stretch of speech at a time (`PhoneDictation`,
