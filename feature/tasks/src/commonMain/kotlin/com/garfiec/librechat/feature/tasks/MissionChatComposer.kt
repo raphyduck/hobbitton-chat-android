@@ -70,6 +70,7 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_attach_file
 import com.garfiec.librechat.feature.tasks.resources.tasks_attach_photo
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_add
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_connectors_failed
+import com.garfiec.librechat.feature.tasks.resources.tasks_chat_model_blind
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_models_failed
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_send
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_shell_off
@@ -82,6 +83,7 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_recording
 import com.garfiec.librechat.feature.tasks.resources.tasks_stop
 import com.garfiec.librechat.feature.tasks.resources.tasks_transcribing
 import com.garfiec.librechat.feature.tasks.util.StagedAttachment
+import com.garfiec.librechat.feature.tasks.util.imageStagedForBlindModel
 import com.garfiec.librechat.feature.tasks.util.message
 import com.garfiec.librechat.feature.tasks.util.shortModelLabel
 import com.garfiec.librechat.feature.tasks.util.title
@@ -162,6 +164,18 @@ internal fun MissionChatInput(
             // The send failed and the text was put back — say why, once, dismissible on tap.
             ComposerNotice(stringResource(kind.title()), onDismissError)
         }
+        if (imageStagedForBlindModel(state.effectiveModel, state.attachments)) {
+            // The photo will reach this model as words (the gateway describes it): say so before
+            // it leaves, and let a tap pick a model that sees, for this conversation.
+            ComposerNotice(
+                text = stringResource(
+                    Res.string.tasks_chat_model_blind,
+                    shortModelLabel(state.effectiveModel?.label.orEmpty()),
+                ),
+                onDismiss = { picker = Picker.MODELS },
+                color = MaterialTheme.colorScheme.tertiary,
+            )
+        }
 
         ChatInputBox(Modifier.padding(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 12.dp)) {
             if (state.attachments.isNotEmpty() || state.audioNotes.isNotEmpty()) {
@@ -238,13 +252,16 @@ internal fun MissionChatInput(
 
 private enum class Picker { NONE, MODELS }
 
-/** One line above the box that says what went wrong, dismissed by a tap on it. */
+/**
+ * One line above the box that says what went wrong, dismissed by a tap on it; in another [color],
+ * a warning whose tap acts rather than dismisses.
+ */
 @Composable
-private fun ComposerNotice(text: String, onDismiss: () -> Unit) {
+private fun ComposerNotice(text: String, onDismiss: () -> Unit, color: Color = MaterialTheme.colorScheme.error) {
     Text(
         text = text,
         style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.error,
+        color = color,
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onDismiss)

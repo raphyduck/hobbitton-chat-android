@@ -170,6 +170,9 @@ class EngineMissionRepository(
                 providerId = providerId,
                 modelId = model?.id ?: key,
                 label = model?.name?.takeIf { it.isNotBlank() } ?: (model?.id ?: key),
+                // Declared modalities without « image » mean blind; nothing declared means unknown,
+                // taken as seeing: a warning on every model would be a warning on none.
+                seesImages = model?.modalities?.input?.let { IMAGE_MODALITY in it } ?: true,
             )
 
         val models = declared
@@ -557,5 +560,8 @@ class EngineMissionRepository(
          * `hobbitton-gateway` reports `config`, OpenCode's own bundled endpoint reports `custom`.
          */
         const val DECLARED_PROVIDER = "config"
+
+        /** The input modality a model declares when it sees images (`opencode.json`, `modalities.input`). */
+        private const val IMAGE_MODALITY = "image"
     }
 }

@@ -50,6 +50,19 @@ data class EngineProvider(
 data class EngineProviderModel(
     val id: String? = null,
     val name: String? = null,
+    /**
+     * What the model takes in and gives out, as the deployment declared it in `opencode.json`
+     * (`input: ["text", "image", "pdf"]`). Null when it declared nothing: the engine then says
+     * nothing about what the model sees, and the app assumes it sees everything rather than
+     * warning about a model it knows nothing of.
+     */
+    val modalities: EngineModelModalities? = null,
+)
+
+@Serializable
+data class EngineModelModalities(
+    val input: List<String> = emptyList(),
+    val output: List<String> = emptyList(),
 )
 
 /**
@@ -63,6 +76,13 @@ data class EngineSelectableModel(
     val modelId: String,
     /** What to show. The engine's own label when it has one, the raw id otherwise. */
     val label: String,
+    /**
+     * False only when the deployment declared the model's input modalities and left `image` out
+     * (24/10/2026: DeepSeek). The composer then warns before a photo leaves for it: the platform's
+     * gateway describes the image in words for such a model, which is better than nothing but
+     * less than seeing it.
+     */
+    val seesImages: Boolean = true,
 ) {
     val ref: EngineModelRef get() = EngineModelRef(providerId = providerId, modelId = modelId)
 }
