@@ -34,4 +34,14 @@ class ModelPricesTest {
         val prices = json.decodeFromString<ModelPrices>("""{"modeles":[{"nom":"x","entree":1.0}]}""")
         assertNull(prices.byModel.getValue("x").seesImages)
     }
+
+    @Test
+    fun theContextWindowIsTheGatewaysOrUnknown() {
+        val prices = json.decodeFromString<ModelPrices>(
+            """{"modeles":[{"nom":"opus","entree":5.0,"contexte":1000000},{"nom":"kimi","contexte":null},{"nom":"old","entree":1.0}]}""",
+        )
+        assertEquals(1_000_000L, prices.byModel.getValue("opus").contextWindow)
+        assertNull(prices.byModel.getValue("kimi").contextWindow)
+        assertNull(prices.byModel.getValue("old").contextWindow)
+    }
 }

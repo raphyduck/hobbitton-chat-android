@@ -43,6 +43,12 @@ data class MissionChatState(
      * question once, and a screen opened after it would never hear of it otherwise).
      */
     val questions: List<EngineQuestionRequest> = emptyList(),
+    /**
+     * The session's context, in tokens: what its last model call read and wrote (24/10/2026, the
+     * context indicator). Taken from the latest assistant message that reports any, since the
+     * engine rewrites a message's tokens after each step; null until one does.
+     */
+    val contextTokens: Long? = null,
 )
 
 sealed interface ChatTurn {
@@ -114,6 +120,7 @@ fun MissionChatState.reduce(event: EngineStreamEvent): MissionChatState = when (
             // the model being decided.
             known -> copy(
                 model = event.model ?: model,
+                contextTokens = event.contextOr(contextTokens),
                 turns = if (event.error == null) {
                     turns
                 } else {
@@ -130,7 +137,11 @@ fun MissionChatState.reduce(event: EngineStreamEvent): MissionChatState = when (
             // depuis des heures. Constaté le 30/08/2026. Seul un delta prouve qu'un tour
             // parle maintenant — et seul le flux vivant en émet.
             else ->
-                copy(turns = turns + ChatTurn.Assistant(event.messageId, error = event.error), model = event.model ?: model)
+                copy(
+                    turns = turns + ChatTurn.Assistant(event.messageId, error = event.error),
+                    model = event.model ?: model,
+                    contextTokens = event.contextOr(contextTokens),
+                )
         }
     }
 
@@ -155,6 +166,10 @@ fun MissionChatState.reduce(event: EngineStreamEvent): MissionChatState = when (
 
     is EngineStreamEvent.QuestionClosed -> copy(questions = questions.filterNot { it.id == event.requestId })
 }
+
+/** An assistant envelope's context size when it reports one, [current] otherwise (a step still running reports zero). */
+private fun EngineStreamEvent.MessageStarted.contextOr(current: Long?): Long? =
+    tokens?.total?.takeIf { role != ROLE_USER && it > 0 } ?: current
 
 /**
  * Pending questions read from the engine (`GET /question`), merged under what the feed said: a

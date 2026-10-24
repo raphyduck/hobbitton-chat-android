@@ -70,6 +70,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.garfiec.librechat.core.ui.input.ChatInputDefaults
+import com.garfiec.librechat.feature.tasks.components.ContextRing
+import com.garfiec.librechat.feature.tasks.components.ContextSheet
 import com.garfiec.librechat.feature.tasks.components.Explanation
 import com.garfiec.librechat.feature.tasks.resources.Res
 import com.garfiec.librechat.feature.tasks.resources.chat_empty
@@ -89,6 +91,7 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_retry
 import com.garfiec.librechat.feature.tasks.util.ChatPart
 import com.garfiec.librechat.feature.tasks.util.ChatTurn
 import com.garfiec.librechat.feature.tasks.util.MissionChatState
+import com.garfiec.librechat.feature.tasks.util.contextUsage
 import com.garfiec.librechat.feature.tasks.util.currentHourOfDay
 import com.garfiec.librechat.feature.tasks.util.hint
 import com.garfiec.librechat.feature.tasks.util.mergedAssistantRuns
@@ -188,6 +191,19 @@ fun MissionChatScreen(
                     }
                 },
                 actions = {
+                    // How full the session's context is (24/10/2026), as in Claude's app.
+                    val usage = contextUsage(state.chat.contextTokens, state.effectiveModel, state.prices)
+                    if (usage != null) {
+                        var showContext by rememberSaveable { mutableStateOf(false) }
+                        ContextRing(usage = usage, onClick = { showContext = true })
+                        if (showContext) {
+                            ContextSheet(
+                                usage = usage,
+                                modelLabel = state.effectiveModel?.label,
+                                onDismiss = { showContext = false },
+                            )
+                        }
+                    }
                     if (onNewChat != null) {
                         IconButton(onClick = onNewChat) {
                             Icon(

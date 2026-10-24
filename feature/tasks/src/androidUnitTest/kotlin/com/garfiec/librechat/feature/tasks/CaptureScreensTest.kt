@@ -31,15 +31,22 @@ import com.garfiec.librechat.core.model.engine.EngineQuestionOption
 import com.garfiec.librechat.core.model.engine.EngineQuestionRequest
 import com.garfiec.librechat.core.model.engine.EngineSelectableModel
 import com.garfiec.librechat.core.model.scheduler.MissionRun
+import com.garfiec.librechat.core.model.scheduler.ModelPrice
+import com.garfiec.librechat.core.model.scheduler.ModelPrices
 import com.garfiec.librechat.core.model.scheduler.ScheduledMission
 import com.garfiec.librechat.core.ui.theme.LibreChatTheme
+import com.garfiec.librechat.feature.tasks.components.ContextRing
+import com.garfiec.librechat.feature.tasks.components.ContextSheet
 import com.garfiec.librechat.feature.tasks.util.ChatPart
 import com.garfiec.librechat.feature.tasks.util.ChatTurn
 import com.garfiec.librechat.feature.tasks.util.MissionChatState
 import com.garfiec.librechat.feature.tasks.util.ToolArgument
 import com.garfiec.librechat.feature.tasks.util.ToolState
+import com.garfiec.librechat.feature.tasks.util.contextUsage
 import com.garfiec.librechat.feature.tasks.util.mergedAssistantRuns
+import com.github.takahirom.roborazzi.ExperimentalRoborazziApi
 import com.github.takahirom.roborazzi.captureRoboImage
+import com.github.takahirom.roborazzi.captureScreenRoboImage
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -53,6 +60,7 @@ import org.robolectric.annotation.GraphicsMode
  * take a ViewModel, so what is composed here is their body and their bars, from the same internal
  * pieces, over fixed state: the point is to see them without a device.
  */
+@OptIn(ExperimentalRoborazziApi::class)
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [35], qualifiers = "fr-rFR-w411dp-h891dp-port-420dpi")
@@ -69,6 +77,31 @@ class CaptureScreensTest {
 
     @Test
     fun chatStreaming() = capture("chat-streaming", dark = false) { ChatScreen(STREAMING) }
+
+    @Test
+    fun chatContext() = capture("chat-context", dark = false) { ChatScreen(CONTEXT) }
+
+    @Test
+    fun chatContextNearlyFull() = capture("chat-context-full", dark = true) {
+        ChatScreen(CONTEXT.copy(chat = CONTEXT.chat.copy(contextTokens = 870_000)))
+    }
+
+    @Test
+    fun contextSheet() {
+        rule.setContent {
+            LibreChatTheme(darkTheme = true) {
+                Surface(Modifier.fillMaxSize()) {
+                    ContextSheet(
+                        usage = contextUsage(290_800, CONTEXT.effectiveModel, CONTEXT.prices)!!,
+                        modelLabel = CONTEXT.effectiveModel?.label,
+                        onDismiss = {},
+                    )
+                }
+            }
+        }
+        rule.waitForIdle()
+        captureScreenRoboImage("build/captures/context-sheet.png")
+    }
 
     @Test
     fun chatEmpty() = capture("chat-empty", dark = false) { ChatScreen(EMPTY) }
@@ -104,7 +137,12 @@ private fun ChatScreen(state: MissionChatUiState) {
             TopAppBar(
                 title = { Text("Conversation") },
                 navigationIcon = { IconButton(onClick = {}) { Icon(Icons.Default.Menu, null) } },
-                actions = { IconButton(onClick = {}) { Icon(Icons.Outlined.Edit, null) } },
+                actions = {
+                    contextUsage(state.chat.contextTokens, state.effectiveModel, state.prices)?.let { usage ->
+                        ContextRing(usage = usage, onClick = {})
+                    }
+                    IconButton(onClick = {}) { Icon(Icons.Outlined.Edit, null) }
+                },
             )
         },
         bottomBar = {
@@ -277,6 +315,11 @@ private val FIRST_EXCHANGE = listOf(
             ),
         ),
     ),
+)
+
+private val CONTEXT get() = SETTLED.copy(
+    chat = SETTLED.chat.copy(contextTokens = 290_800),
+    prices = ModelPrices(models = MODELS.map { ModelPrice(model = it.modelId, input = 3.0, contextWindow = 1_000_000) }),
 )
 
 private val SETTLED = BASE.copy(

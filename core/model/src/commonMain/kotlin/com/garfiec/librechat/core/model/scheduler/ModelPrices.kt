@@ -62,6 +62,12 @@ data class ModelPrice(
      * in words before the call, and the composer says so before the photo leaves.
      */
     @SerialName("voit_images") val seesImages: Boolean? = null,
+    /**
+     * The model's context window in tokens, as the gateway knows it (`max_input_tokens`, from its
+     * table or declared in its configuration); null when it does not. The conversation's context
+     * indicator (24/10/2026) measures the session against it; the gateway stays the one source.
+     */
+    @SerialName("contexte") val contextWindow: Long? = null,
 ) {
     /**
      * True once an input or an output price is known — the two that let someone estimate a turn.

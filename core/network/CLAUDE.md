@@ -90,7 +90,10 @@ So everything a mission session needs goes through the classic routes:
   re-reads the transcript instead.
 
 `engineHistoryEvents` replays a fetched transcript as the same `EngineStreamEvent`s a live turn
-emits, so the past and the present fold through one reducer and cannot drift apart.
+emits, so the past and the present fold through one reducer and cannot drift apart. A `message.updated`
+envelope also carries the message's `tokens` (24/10/2026, the context ring): the engine rewrites
+them after each step of a turn, so on an assistant message they measure the session's context at
+that step; a malformed `tokens` object is dropped, never fatal.
 
 ## Key Configuration
 

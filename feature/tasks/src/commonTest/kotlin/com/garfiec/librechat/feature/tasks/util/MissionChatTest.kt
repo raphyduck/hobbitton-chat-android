@@ -8,6 +8,7 @@ import com.garfiec.librechat.core.model.engine.EngineMessageInfo
 import com.garfiec.librechat.core.model.engine.EnginePart
 import com.garfiec.librechat.core.model.engine.EnginePartSnapshot
 import com.garfiec.librechat.core.model.engine.EngineStreamEvent
+import com.garfiec.librechat.core.model.engine.EngineTokens
 import com.garfiec.librechat.core.model.engine.EngineToolState
 import com.garfiec.librechat.core.model.engine.engineHistoryEvents
 import kotlinx.serialization.json.JsonPrimitive
@@ -385,6 +386,33 @@ class MissionChatTest {
 
         assertEquals(emptyList(), (state.turns.single() as ChatTurn.User).parts)
     }
+
+    @Test
+    fun `le contexte est celui du dernier appel du modele, pas la somme des tours`() {
+        val tokens = { input: Long -> EngineTokens(input = input, output = 100) }
+        var state = MissionChatState()
+            .reduce(started("u1", "user"))
+            .reduce(EngineStreamEvent.MessageStarted("a1", "assistant", tokens = tokens(10_000)))
+            .reduce(started("u2", "user"))
+        assertEquals(10_100L, state.contextTokens)
+        // Le tour suivant s'annonce d'abord à zéro (son premier appel tourne) : le contexte reste.
+        state = state.reduce(EngineStreamEvent.MessageStarted("a2", "assistant", tokens = EngineTokens()))
+        assertEquals(10_100L, state.contextTokens)
+        // Puis le moteur réécrit les jetons du message à chaque étape.
+        state = state.reduce(EngineStreamEvent.MessageStarted("a2", "assistant", tokens = tokens(25_000)))
+        assertEquals(25_100L, state.contextTokens)
+    }
+
+    @Test
+    fun `un historique rejoue donne le contexte de son dernier message`() {
+        val messages = listOf(
+            EngineMessage(EngineMessageInfo(id = "a1", role = "assistant", tokens = EngineTokens(input = 5_000))),
+            EngineMessage(EngineMessageInfo(id = "u2", role = "user")),
+            EngineMessage(EngineMessageInfo(id = "a2", role = "assistant", tokens = EngineTokens(input = 9_000))),
+        )
+        val state = engineHistoryEvents(messages).fold(MissionChatState()) { s, e -> s.reduce(e) }
+        assertEquals(9_000L, state.contextTokens)
+    }
 }
 
 /**
@@ -538,4 +566,5 @@ class ChatBlockTest {
         assertEquals(4, activity.toolCount())
         assertTrue(activity.hasFailure())
     }
+
 }
