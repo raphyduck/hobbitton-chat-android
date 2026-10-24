@@ -44,10 +44,7 @@ class EngineModelChoiceTest {
               "id": "hobbitton-chat", "name": "hobbitton (chat)", "source": "config",
               "models": {
                 "gpt-5.5": { "id": "gpt-5.5", "name": "GPT-5.5" },
-                "claude-sonnet-5": { "id": "claude-sonnet-5", "name": "Claude Sonnet 5",
-                  "modalities": { "input": ["text", "image", "pdf"], "output": ["text"] } },
-                "text-only": { "id": "text-only", "name": "Text only",
-                  "modalities": { "input": ["text"], "output": ["text"] } }
+                "claude-sonnet-5": { "id": "claude-sonnet-5", "name": "Claude Sonnet 5" }
               }
             }
           ],
@@ -77,18 +74,7 @@ class EngineModelChoiceTest {
 
         // The engine hands back an object, whose key order nothing promises. A picker that
         // reshuffles between two openings is a picker that gets misread under a thumb.
-        assertEquals(listOf("Claude Sonnet 5", "GPT-5.5", "Text only"), choice.models.map { it.label })
-    }
-
-    @Test
-    fun `a model sees images unless its declared modalities leave them out`() = runTest {
-        val models = testMissionRepository(catalogueEngine()).models().models.associateBy { it.modelId }
-
-        // Declared with « image »: sees. Declared without: blind, and the composer warns before a
-        // photo leaves for it (24/10/2026). Nothing declared: unknown, taken as seeing.
-        assertTrue(models.getValue("claude-sonnet-5").seesImages)
-        assertFalse(models.getValue("text-only").seesImages)
-        assertTrue(models.getValue("gpt-5.5").seesImages)
+        assertEquals(listOf("Claude Sonnet 5", "GPT-5.5"), choice.models.map { it.label })
     }
 
     @Test

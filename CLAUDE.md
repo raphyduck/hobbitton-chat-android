@@ -92,10 +92,11 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   next step, never interrupted; send shows over stop as long as something is staged. An image a
   message names in markdown, `![description](https://…)`, is drawn in the message (23/10/2026,
   `MarkdownImages`, the app's Coil loader). A photo staged for a model that does not see images
-  (`EngineSelectableModel.seesImages`, false when `opencode.json` declares the model's input
-  modalities without `image`: DeepSeek, 24/10/2026) gets a line above the box: the platform's
-  privacy gateway describes it in words for that model, a tap opens the model picker
-  (`imageStagedForBlindModel`).
+  (DeepSeek, 24/10/2026) gets a line above the box: the platform's privacy gateway describes it in
+  words for that model, a tap opens the model picker (`imageStagedForBlindModel`). Who is blind is
+  the gateway's word, relayed by the scheduler's `tarifs` (`ModelPrice.seesImages`, `voit_images`),
+  not the engine's: the engine is told such a model takes images so that it forwards them instead
+  of refusing them.
 - **Dictation and audio files** (the composer). The mic is heard by the phone itself (19/10/2026,
   Settings → Dictée, on by default): Android 12's on-device recognizer in French, its words shown
   as they come and dropped into the composer one stretch of speech at a time (`PhoneDictation`,

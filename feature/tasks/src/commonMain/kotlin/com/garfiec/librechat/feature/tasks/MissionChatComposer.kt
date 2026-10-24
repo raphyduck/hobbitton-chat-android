@@ -164,7 +164,7 @@ internal fun MissionChatInput(
             // The send failed and the text was put back — say why, once, dismissible on tap.
             ComposerNotice(stringResource(kind.title()), onDismissError)
         }
-        if (imageStagedForBlindModel(state.effectiveModel, state.attachments)) {
+        if (imageStagedForBlindModel(state.effectiveModel, state.prices, state.attachments)) {
             // The photo will reach this model as words (the gateway describes it): say so before
             // it leaves, and let a tap pick a model that sees, for this conversation.
             ComposerNotice(
