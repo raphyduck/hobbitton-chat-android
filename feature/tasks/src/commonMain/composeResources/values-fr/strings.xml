@@ -121,6 +121,7 @@
     <string name="tasks_chat_shell_off">Sans shell</string>
     <string name="tasks_chat_connectors_failed">Connecteurs indisponibles</string>
     <string name="tasks_chat_models_failed">Modèles indisponibles</string>
+    <string name="tasks_chat_model_blind">%1$s ne voit pas les images : il recevra une description de la photo, écrite par un autre modèle. Toucher pour choisir un modèle qui voit.</string>
     <string name="tasks_chat_reasoning">réflexion</string>
     <string name="tasks_chat_expand">Voir les étapes</string>
     <string name="tasks_chat_collapse">Masquer les étapes</string>

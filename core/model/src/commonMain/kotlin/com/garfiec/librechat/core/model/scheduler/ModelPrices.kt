@@ -55,6 +55,13 @@ data class ModelPrice(
     @SerialName("sortie") val output: Double? = null,
     @SerialName("cache_lecture") val cacheRead: Double? = null,
     @SerialName("cache_ecriture") val cacheWrite: Double? = null,
+    /**
+     * Whether the model reads images, as the gateway knows it (`supports_vision`, from its table or
+     * declared in its configuration); null when it says nothing. False for DeepSeek (24/10/2026):
+     * the engine still forwards a photo to it, because the platform's privacy gateway describes it
+     * in words before the call, and the composer says so before the photo leaves.
+     */
+    @SerialName("voit_images") val seesImages: Boolean? = null,
 ) {
     /**
      * True once an input or an output price is known — the two that let someone estimate a turn.

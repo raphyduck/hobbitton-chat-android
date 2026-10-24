@@ -121,6 +121,7 @@
     <string name="tasks_chat_shell_off">No shell</string>
     <string name="tasks_chat_connectors_failed">Connectors unavailable</string>
     <string name="tasks_chat_models_failed">Models unavailable</string>
+    <string name="tasks_chat_model_blind">%1$s does not see images: it will get a description of the photo, written by another model. Tap to pick a model that sees.</string>
     <string name="tasks_chat_reasoning">reasoning</string>
     <string name="tasks_chat_expand">Show the steps</string>
     <string name="tasks_chat_collapse">Hide the steps</string>
