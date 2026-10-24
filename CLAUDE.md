@@ -56,7 +56,10 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   `EngineMissionRepository.startChat`). The composer offers the model and one switch, the shell
   (« Sans shell » / « Shell activé »), the only thing that level leaves on demand. One
   screen (`MissionChatScreen`), one route (`EngineChat`) for every session: a chat, a task of an
-  earlier version, a scheduled run, whose follow-ups run on `chat` too.
+  earlier version, a scheduled run, whose follow-ups run on `chat` too. A session the scheduler
+  recorded at another level (a run stands at `mission`, where `ssh-distant` is forbidden) is
+  lifted to the titulaire's level before the person's first message in it (24/10/2026, Raphaël's
+  « Go ssh » in a run was refused by the annuaire; `sessionScope` reads the level, `send` lifts).
 - **Programmées** (ex Tasks tab): the scheduler's entries only, recurring then one-shot, each row
   opening its actions. Their runs are not listed there: they are conversations, named after their
   mission with a small clock (`EngineChatSummary.scheduled`). `classifySession` still leaves out a

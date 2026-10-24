@@ -32,6 +32,9 @@ import kotlinx.coroutines.flow.flowOn
  * answering right now. [unread]: it moved since this device last showed it, and, for a scheduled
  * run, it has something to say (16/10/2026, [ChatScope]).
  */
+/** What a session reaches, as the screen reads it: its connectors and the trust level recorded for it. */
+data class SessionScopeRead(val connectors: Set<String>, val level: String?)
+
 data class EngineChatSummary(
     val sessionId: String,
     val title: String,
@@ -482,7 +485,17 @@ class EngineMissionRepository(
      * ruleset this app or the scheduler produced round-trips exactly; a hand-written one that opens
      * half a connector reads as off, which understates rather than overstates what the session can do.
      */
-    suspend fun sessionConnectors(sessionId: String): Set<String> {
+    suspend fun sessionConnectors(sessionId: String): Set<String> = sessionScope(sessionId).connectors
+
+    /**
+     * [sessionConnectors] together with the trust level the scheduler recorded for the session
+     * (D-083): `titulaire` for a conversation this app declared, `mission` for a scheduled run,
+     * null when the scheduler holds nothing for it or could not be reached. The screen lifts a
+     * session that is not at the titulaire's level before the person's first message in it
+     * (24/10/2026: Raphaël answered « Go ssh » in a run and the annuaire refused `ssh-distant`,
+     * forbidden to autonomous missions, because the run still stood at the mission's level).
+     */
+    suspend fun sessionScope(sessionId: String): SessionScopeRead {
         val catalogue = connectors()
         val declared = connectorsGranted(catalogue, api.session(sessionId).permission)
         // The annuaire's share of a session lives in the scheduler, not in the rules (D-071). A
@@ -490,8 +503,9 @@ class EngineMissionRepository(
         // has no scope, and its chips show what its rules carry. A scheduler that cannot be
         // reached reads the same way: the chips understate rather than invent, which is the only
         // direction a capability chip may err in.
-        val scoped = runCatching { scheduler.scope(sessionId) }.getOrNull().orEmpty()
-        return declared + scoped.filter { it in catalogue.connecteurs }
+        val scope = runCatching { scheduler.scope(sessionId) }.getOrNull()
+        val scoped = scope?.connectors.orEmpty()
+        return SessionScopeRead(declared + scoped.filter { it in catalogue.connecteurs }, scope?.level)
     }
 
     /**
