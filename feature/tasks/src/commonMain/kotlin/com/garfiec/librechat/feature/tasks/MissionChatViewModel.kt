@@ -9,6 +9,7 @@ import com.garfiec.librechat.core.data.engine.AudioTranscriber
 import com.garfiec.librechat.core.data.engine.ConnectorOption
 import com.garfiec.librechat.core.data.engine.EngineMissionRepository
 import com.garfiec.librechat.core.data.engine.OpenConversation
+import com.garfiec.librechat.core.data.engine.TITULAR_LEVEL
 import com.garfiec.librechat.core.data.engine.TranscriptionOutcome
 import com.garfiec.librechat.core.data.engine.engineFailureKind
 import com.garfiec.librechat.core.data.engine.offered
@@ -97,6 +98,12 @@ data class MissionChatUiState(
      * an empty set now means the engine really did answer « none ».
      */
     val enabledConnectors: Set<String>? = null,
+    /**
+     * The trust level the scheduler recorded for this session (D-083), null while unknown. A
+     * session not at the titulaire's level (a scheduled run) is lifted to it before the person's
+     * first message in it: it is now them speaking, and what the annuaire serves follows.
+     */
+    val sessionLevel: String? = null,
     /** The models a message may be sent on. */
     val models: List<EngineSelectableModel> = emptyList(),
     /**
@@ -306,12 +313,17 @@ class MissionChatViewModel(
                     // A conversation not started yet holds nothing: it starts from what the scheduler
                     // ticks by default (since D-082 everything but the shell), and the person
                     // adjusts before sending.
+                    val scope = if (sessionId == null) {
+                        null
+                    } else {
+                        runCatching {
+                            withContext(ioDispatcher) { repository.sessionScope(sessionId) }
+                        }.getOrNull()
+                    }
                     val granted = if (sessionId == null) {
                         fetched.value.offered().filter { it.tickedByDefault }.map { it.name }.toSet()
                     } else {
-                        runCatching {
-                            withContext(ioDispatcher) { repository.sessionConnectors(sessionId) }
-                        }.getOrNull()
+                        scope?.connectors
                     }
                     _uiState.update {
                         it.copy(
@@ -322,6 +334,8 @@ class MissionChatViewModel(
                             // said a moment ago: it has already been sent, and overwriting it here
                             // would undo a checkbox under their finger.
                             enabledConnectors = it.enabledConnectors ?: granted,
+                            // A lift done meanwhile (a send) outranks the level read before it.
+                            sessionLevel = it.sessionLevel ?: scope?.level,
                             connectorsError = null,
                         )
                     }
@@ -380,6 +394,7 @@ class MissionChatViewModel(
         viewModelScope.launch {
             try {
                 withContext(ioDispatcher) { repository.setConnectors(sessionId, after.toList()) }
+                _uiState.update { it.copy(sessionLevel = TITULAR_LEVEL) }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -678,6 +693,14 @@ class MissionChatViewModel(
         awaitingReply = true
         viewModelScope.launch {
             try {
+                // The person is now the one speaking to this session: a scheduled run (or any
+                // session not recorded at the titulaire's level) is lifted there first, once, so
+                // the annuaire serves what the titulaire reaches (D-083; 24/10/2026, « Go ssh »
+                // refused in a run that still stood at the mission's level).
+                if (staged.sessionLevel != TITULAR_LEVEL) {
+                    withContext(ioDispatcher) { repository.setConnectors(sessionId, staged.enabledConnectors.orEmpty().toList()) }
+                    _uiState.update { it.copy(sessionLevel = TITULAR_LEVEL) }
+                }
                 // The answer streams in over the feed while this call is in flight; what it returns is
                 // the finished turn, folded in to reconcile anything the feed missed.
                 val model = nextModel()

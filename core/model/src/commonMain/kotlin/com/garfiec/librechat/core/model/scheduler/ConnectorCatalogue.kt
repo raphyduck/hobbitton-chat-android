@@ -84,4 +84,11 @@ data class SessionScope(
     val connectors: List<String>? = null,
     @SerialName("enregistre")
     val recorded: Boolean = false,
+    /**
+     * The trust level the scheduler recorded for the session (D-083): `titulaire` for a
+     * conversation this app declared, `mission` for a scheduled run, `tiers` or `correspondant`
+     * for a call; null when none is recorded.
+     */
+    @SerialName("niveau")
+    val level: String? = null,
 )

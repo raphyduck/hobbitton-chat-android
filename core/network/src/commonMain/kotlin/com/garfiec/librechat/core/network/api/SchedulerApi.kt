@@ -209,12 +209,12 @@ class SchedulerApi(
             "perimetre",
         ).connectors.orEmpty()
 
-    /** The scope recorded for a session, or null when the scheduler holds none for it. */
-    suspend fun scope(sessionId: String): List<String>? =
+    /** The scope recorded for a session: its connectors (null when none is recorded) and its level. */
+    suspend fun scope(sessionId: String): SessionScope =
         decode<SessionScope>(
             callTool("perimetre", buildJsonObject { put("session", sessionId) }),
             "perimetre",
-        ).connectors
+        )
 
     /**
      * Starts a mission now. Returns the scheduler's own sentence, which is the useful thing to
