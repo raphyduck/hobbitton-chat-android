@@ -57,6 +57,7 @@ import com.garfiec.librechat.core.ui.input.ChatInputDefaults
 import com.garfiec.librechat.core.ui.input.ChatInputField
 import com.garfiec.librechat.core.ui.input.ChatInputPill
 import com.garfiec.librechat.core.ui.input.ComposerSendButton
+import com.garfiec.librechat.feature.tasks.components.ConnectorPickerSheet
 import com.garfiec.librechat.feature.tasks.components.MissionDictation
 import com.garfiec.librechat.feature.tasks.components.ModelPickerSheet
 import com.garfiec.librechat.feature.tasks.components.rememberMissionAttachmentPicker
@@ -69,11 +70,11 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_attach_audio
 import com.garfiec.librechat.feature.tasks.resources.tasks_attach_file
 import com.garfiec.librechat.feature.tasks.resources.tasks_attach_photo
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_add
+import com.garfiec.librechat.feature.tasks.resources.tasks_chat_connector_count
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_connectors_failed
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_model_blind
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_models_failed
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_send
-import com.garfiec.librechat.feature.tasks.resources.tasks_chat_shell_off
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_shell_on
 import com.garfiec.librechat.feature.tasks.resources.tasks_dictate
 import com.garfiec.librechat.feature.tasks.resources.tasks_dictate_stop
@@ -87,6 +88,7 @@ import com.garfiec.librechat.feature.tasks.util.imageStagedForBlindModel
 import com.garfiec.librechat.feature.tasks.util.message
 import com.garfiec.librechat.feature.tasks.util.shortModelLabel
 import com.garfiec.librechat.feature.tasks.util.title
+import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -212,7 +214,7 @@ internal fun MissionChatInput(
                 ) {
                     ComposerChips(
                         state = state,
-                        onToggleShell = { onToggleConnector(SHELL_CONNECTOR) },
+                        onOpenConnectors = { picker = Picker.CONNECTORS },
                         onOpenModels = { picker = Picker.MODELS },
                         onRetryCatalogue = onRetryCatalogue,
                     )
@@ -246,11 +248,19 @@ internal fun MissionChatInput(
             },
             onDismiss = { picker = Picker.NONE },
         )
+        // Direct connectors only (24/10/2026, Raphaël): what the annuaire serves is the
+        // scheduler's choice, from who speaks to the session, and is not offered here.
+        Picker.CONNECTORS -> ConnectorPickerSheet(
+            options = state.connectors.filter { !it.viaAnnuaire },
+            ticked = state.enabledConnectors.orEmpty(),
+            onToggle = onToggleConnector,
+            onDismiss = { picker = Picker.NONE },
+        )
         Picker.NONE -> Unit
     }
 }
 
-private enum class Picker { NONE, MODELS }
+private enum class Picker { NONE, MODELS, CONNECTORS }
 
 /**
  * One line above the box that says what went wrong, dismissed by a tap on it; in another [color],
@@ -391,7 +401,7 @@ private fun AddButton(
 @Composable
 private fun ComposerChips(
     state: MissionChatUiState,
-    onToggleShell: () -> Unit,
+    onOpenConnectors: () -> Unit,
     onOpenModels: () -> Unit,
     onRetryCatalogue: () -> Unit,
 ) {
@@ -418,17 +428,22 @@ private fun ComposerChips(
             icon = Icons.Outlined.Refresh,
             onClick = onRetryCatalogue,
         )
-        // Not read back yet: no label rather than a claim the screen has no grounds for.
-        state.connectors.isNotEmpty() && state.enabledConnectors != null -> ComposerPill(
-            label = stringResource(
-                if (SHELL_CONNECTOR in state.enabledConnectors) {
-                    Res.string.tasks_chat_shell_on
+        // Not read back yet: no label rather than a claim the screen has no grounds for. The count
+        // is of the DIRECT connectors ticked, the only ones the sheet offers (24/10/2026); the
+        // shell, when ticked, is named, being the one the scheduler leaves on demand.
+        state.connectors.isNotEmpty() && state.enabledConnectors != null -> {
+            val direct = state.connectors.filter { !it.viaAnnuaire }.map { it.name }.toSet()
+            val ticked = state.enabledConnectors.count { it in direct }
+            val label = pluralStringResource(Res.plurals.tasks_chat_connector_count, ticked, ticked)
+            ComposerPill(
+                label = if (SHELL_CONNECTOR in state.enabledConnectors) {
+                    label + " · " + stringResource(Res.string.tasks_chat_shell_on)
                 } else {
-                    Res.string.tasks_chat_shell_off
+                    label
                 },
-            ),
-            onClick = onToggleShell,
-        )
+                onClick = onOpenConnectors,
+            )
+        }
     }
 }
 

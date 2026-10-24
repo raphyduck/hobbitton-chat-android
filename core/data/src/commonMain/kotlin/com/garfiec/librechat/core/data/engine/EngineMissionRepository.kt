@@ -298,7 +298,7 @@ class EngineMissionRepository(
      *    not the app, decides what it reaches through the annuaire. Of [connectors], only the
      *    shell still counts, the one thing that level leaves on demand. The level is recorded
      *    before the first prompt (D-071; a recording that fails is a start that fails), and the
-     *    direct connectors of [ConnectorCatalogue.titularPerimeter] become the session's rules
+     *    direct connectors the ticks name ([ConnectorCatalogue.directPerimeter]) become the session's rules
      *    ([permissionsFor]);
      *  * the model comes from `hobbitton-chat` ([forChat]), which carries the conversations'
      *    budget (its default when none is named).
@@ -317,14 +317,14 @@ class EngineMissionRepository(
     ): String {
         val catalogue = connectors()
         // D-083 (22/10/2026): the session stands at the titulaire's level and the scheduler
-        // decides what that reaches. Of the ticks, only the shell still means something.
+        // decides what that reaches through the annuaire. The ticks choose among the engine's
+        // DIRECT connectors (24/10/2026, Raphaël), and the shell is the one the scheduler asks for.
         val shell = connectors?.contains(SHELL_CONNECTOR) == true
-        val perimeter = catalogue.titularPerimeter(shell)
         val session = api.createSession(
             CreateEngineSessionRequest(
                 agent = CHAT_AGENT,
                 title = text.trim().ifBlank { files.firstOrNull()?.filename.orEmpty() }.take(TITLE_LENGTH),
-                permission = permissionsFor(catalogue, perimeter),
+                permission = permissionsFor(catalogue, catalogue.directPerimeter(connectors)),
             ),
         )
         runCatching { kinds.record(session.id, EngineSessionKind.CHAT) }
@@ -509,10 +509,10 @@ class EngineMissionRepository(
     }
 
     /**
-     * Re-grants a **live** session at the titulaire's level, replacing its whole ruleset: the shell
-     * opened when [connectors] holds it, closed otherwise (D-083, 22/10/2026; the composer's only
-     * choice left). A scheduled run opened from the app is lifted to the titulaire's level by it:
-     * the person is now the one speaking to it.
+     * Re-grants a **live** session at the titulaire's level, replacing its whole ruleset with the
+     * direct connectors [connectors] ticks (24/10/2026; the shell among them is also what the
+     * scheduler is asked for, D-083). A scheduled run opened from the app is lifted to the
+     * titulaire's level by it: the person is now the one speaking to it.
      */
     suspend fun setConnectors(sessionId: String, connectors: List<String>) {
         // The scope first (D-071): if recording it fails, nothing has changed and the caller hears
@@ -524,7 +524,7 @@ class EngineMissionRepository(
         // §4.2's ban — an approval prompt nobody answers is not a safeguard, but one they *do*
         // answer is exactly the supervision the rule asks for.
         val catalogue = connectors()
-        api.setPermissions(sessionId, permissionsFor(catalogue, catalogue.titularPerimeter(shell)))
+        api.setPermissions(sessionId, permissionsFor(catalogue, catalogue.directPerimeter(connectors)))
     }
 
     /** What the titulaire's level is asked for on top of what it reaches: the shell, or nothing. */

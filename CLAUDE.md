@@ -49,12 +49,16 @@ Most modules have their own `CLAUDE.md` with specific guidance.
 - **One kind of conversation** (D-082, 12/10/2026, as on Claude.ai): chats and tasks are fused.
   Every conversation is a session on agent `chat` whose model always comes from provider
   `hobbitton-chat` (the conversations' budget; the scheduled missions spend on the gateway's key).
-  The server's `chat` profile carries what the tasks' did (shell, local files, pages). No connector
-  choice since 22/10/2026 (D-083, Raphaël's rule): the scheduler decides what a session reaches from
-  WHO speaks to it, and every session this app starts stands at the titulaire's level
+  The server's `chat` profile carries what the tasks' did (shell, local files, pages). The
+  scheduler decides what a session reaches through the annuaire from WHO speaks to it (D-083,
+  22/10/2026, Raphaël's rule), and every session this app starts stands at the titulaire's level
   (`perimetre(niveau="titulaire")`, recorded before the first prompt by
-  `EngineMissionRepository.startChat`). The composer offers the model and one switch, the shell
-  (« Sans shell » / « Shell activé »), the only thing that level leaves on demand. One
+  `EngineMissionRepository.startChat`). The composer offers the model and a connectors sheet
+  (24/10/2026, Raphaël's rule) limited to the engine's **direct** connectors (memory, workspace, web,
+  shell, annuaire, scheduler, alerts: `directOffered`, their ticks becoming the session's rules
+  through `directPerimeter`); what the annuaire serves (mail, messaging, browser, bank, SSH…) is
+  never listed nor declared to the engine (D-073). The shell stays the one connector the scheduler
+  leaves on demand. One
   screen (`MissionChatScreen`), one route (`EngineChat`) for every session: a chat, a task of an
   earlier version, a scheduled run, whose follow-ups run on `chat` too. A session the scheduler
   recorded at another level (a run stands at `mission`, where `ssh-distant` is forbidden) is
