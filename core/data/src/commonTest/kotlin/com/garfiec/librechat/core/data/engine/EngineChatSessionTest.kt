@@ -137,6 +137,8 @@ class EngineChatSessionTest {
         sent.clear()
         testMissionRepository(engine()).startChat("Bonjour", connectors = listOf("shell"))
         assertTrue("bash" in allowedOn(bodyOf(isPost("/session"))))
+        // Ticks choose among the direct connectors (24/10/2026): one unticked stays closed.
+        assertTrue("planificateur_lister" !in allowedOn(bodyOf(isPost("/session"))))
         val scope = sent.last { "\"perimetre\"" in ((it.body as? TextContent)?.text ?: "") }
         val arguments = librechatJson.parseToJsonElement((scope.body as TextContent).text)
             .jsonObject["params"]!!.jsonObject["arguments"]!!.jsonObject

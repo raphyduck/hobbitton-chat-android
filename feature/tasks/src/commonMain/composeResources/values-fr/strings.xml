@@ -117,8 +117,16 @@
         <item quantity="other">%1$d outils</item>
     </plurals>
     <string name="tasks_model_default_short">Modèle par défaut</string>
-    <string name="tasks_chat_shell_on">Shell activé</string>
-    <string name="tasks_chat_shell_off">Sans shell</string>
+    <string name="tasks_chat_shell_on">shell</string>
+    <plurals name="tasks_chat_connector_count">
+        <item quantity="one">%1$d connecteur</item>
+        <item quantity="other">%1$d connecteurs</item>
+    </plurals>
+    <string name="tasks_connectors">Connecteurs</string>
+    <string name="tasks_connectors_hint">Les connecteurs directs du moteur pour cette conversation. Courriel, messageries, navigateur, banque et le reste sont servis par le planificateur, qui décide d\'après qui parle.</string>
+    <string name="tasks_connector_default">par défaut</string>
+    <string name="tasks_connectors_read">Lire et chercher</string>
+    <string name="tasks_connectors_act">Agir en votre nom</string>
     <string name="tasks_chat_connectors_failed">Connecteurs indisponibles</string>
     <string name="tasks_chat_models_failed">Modèles indisponibles</string>
     <string name="tasks_chat_model_blind">%1$s ne voit pas les images : il recevra une description de la photo, écrite par un autre modèle. Toucher pour choisir un modèle qui voit.</string>

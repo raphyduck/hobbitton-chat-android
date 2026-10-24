@@ -78,4 +78,22 @@ class EngineConnectorScopeTest {
         assertEquals(listOf("question", "qonto_qonto_list_transactions"), allowed)
         assertFalse(old.offered().single().tickedByDefault)
     }
+
+    @Test
+    fun `the direct perimeter follows the ticks, and without ticks opens every direct one but the shell`() {
+        // Raphaël's rule (24/10/2026): the app chooses among the engine's direct connectors only;
+        // the annuaire's are the scheduler's, whatever the ticks say.
+        val catalogue = ConnectorCatalogue(
+            connecteurs = mapOf(
+                "memoire" to ConnectorGrant(outils = listOf("memoire_lire")),
+                "planificateur" to ConnectorGrant(outils = listOf("planificateur_lister")),
+                "shell" to ConnectorGrant(outils = listOf("bash")),
+                "beeper" to ConnectorGrant(outils = listOf("beeper_envoyer"), direct = false),
+            ),
+        )
+        assertEquals(listOf("memoire", "planificateur"), catalogue.directPerimeter(null))
+        assertEquals(listOf("memoire", "shell"), catalogue.directPerimeter(listOf("memoire", "shell", "beeper")))
+        assertEquals(emptyList(), catalogue.directPerimeter(emptyList()))
+        assertEquals(listOf("memoire", "planificateur", "shell"), catalogue.directOffered().map { it.name })
+    }
 }

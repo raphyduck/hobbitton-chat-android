@@ -55,11 +55,13 @@ Since 12/10/2026 chats and tasks are one conversation, as on Claude.ai.
   decide what they may do. `models()` offers the chat provider only.
 - **`startChat(text, connectors, model, files)`**: the session stands at the titulaire's trust level
   (D-083, 22/10/2026, Raphaël: the scheduler decides what a session reaches from WHO speaks to it,
-  never from the caller's ticks). `perimetre(session, niveau="titulaire")` is recorded before the
-  first prompt (D-071); of `connectors`, only the shell counts (`SHELL_CONNECTOR`, the one thing that
-  level leaves on demand). The direct connectors of `titularPerimeter` become the session's rules
-  (`permissionsFor`); the session's kind is recorded locally before anything can fail.
-  `setConnectors` re-grants a live session the same way, shell on or off.
+  never from the caller's ticks for what the annuaire serves). `perimetre(session, niveau="titulaire")`
+  is recorded before the first prompt (D-071), the shell ticked when `connectors` holds it
+  (`SHELL_CONNECTOR`, the one thing that level leaves on demand). Of `connectors`, the engine's
+  **direct** ones (`directPerimeter`, 24/10/2026: the app chooses among those only, `directOffered`)
+  become the session's rules (`permissionsFor`); null ticks open every direct connector but the
+  shell. The session's kind is recorded locally before anything can fail. `setConnectors` re-grants
+  a live session the same way, and `sessionScope` reads back its connectors and recorded level.
 - **`recentChats(scope)`**: `ChatScope.MANUAL` (the drawer) leaves the scheduler's runs out
   before any transcript is read; `ChatScope.ALL` (the Conversations page) keeps them, named after
   their mission (`scheduledMissionName`) and marked `scheduled`, sorted unread first (`inboxOrder`).

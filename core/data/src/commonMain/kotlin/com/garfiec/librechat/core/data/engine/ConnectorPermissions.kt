@@ -153,13 +153,23 @@ const val TITULAR_LEVEL = "titulaire"
 const val SHELL_CONNECTOR = "shell"
 
 /**
- * What a titulaire's session reaches, as the scheduler computes it (`connecteurs_du_niveau`):
- * every connector of the catalogue, the shell only when asked for. The app no longer chooses
- * connectors (Raphaël, 22/10/2026): it needs this list only to write the session's rules for the
- * direct ones ([permissionsFor]).
+ * The direct connectors a session's rules open: of [ticks], those the catalogue declares to the
+ * engine itself; without ticks, every direct connector but the shell (the scheduler's own default
+ * for a conversation, `CONNECTEURS_PAR_DEFAUT`).
+ *
+ * Raphaël's rule (24/10/2026): the app chooses only among the engine's **direct** connectors
+ * (memory, workspace, web, shell, annuaire, scheduler, alerts); whatever the annuaire serves is
+ * the scheduler's decision, from WHO speaks to the session (D-083), and never goes into the
+ * rules (D-071). So the sheet lists [directOffered] and the ticks reach the engine through here.
  */
-fun ConnectorCatalogue.titularPerimeter(shell: Boolean): List<String> =
-    connecteurs.keys.filter { it != SHELL_CONNECTOR || shell }.sorted()
+fun ConnectorCatalogue.directPerimeter(ticks: Collection<String>?): List<String> {
+    val direct = connecteurs.filterValues { it.direct }.keys
+    val chosen = ticks?.toSet() ?: (direct - SHELL_CONNECTOR)
+    return direct.filter { it in chosen }.sorted()
+}
+
+/** The connectors the sheet offers: the engine's direct ones only, the annuaire's being the scheduler's. */
+fun ConnectorCatalogue.directOffered(): List<ConnectorOption> = offered().filter { !it.viaAnnuaire }
 
 /** One tickable connector, as a picker needs it. */
 data class ConnectorOption(

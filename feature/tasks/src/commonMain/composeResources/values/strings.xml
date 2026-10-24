@@ -117,8 +117,16 @@
         <item quantity="other">%1$d tools</item>
     </plurals>
     <string name="tasks_model_default_short">Default model</string>
-    <string name="tasks_chat_shell_on">Shell on</string>
-    <string name="tasks_chat_shell_off">No shell</string>
+    <string name="tasks_chat_shell_on">shell</string>
+    <plurals name="tasks_chat_connector_count">
+        <item quantity="one">%1$d connector</item>
+        <item quantity="other">%1$d connectors</item>
+    </plurals>
+    <string name="tasks_connectors">Connectors</string>
+    <string name="tasks_connectors_hint">The engine's direct connectors for this conversation. Mail, messaging, browser, bank and the rest are served by the scheduler, which decides from who is speaking.</string>
+    <string name="tasks_connector_default">on by default</string>
+    <string name="tasks_connectors_read">Read and search</string>
+    <string name="tasks_connectors_act">Act on your behalf</string>
     <string name="tasks_chat_connectors_failed">Connectors unavailable</string>
     <string name="tasks_chat_models_failed">Models unavailable</string>
     <string name="tasks_chat_model_blind">%1$s does not see images: it will get a description of the photo, written by another model. Tap to pick a model that sees.</string>
