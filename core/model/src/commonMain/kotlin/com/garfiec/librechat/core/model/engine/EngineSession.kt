@@ -2,9 +2,18 @@ package com.garfiec.librechat.core.model.engine
 
 import kotlinx.serialization.EncodeDefault
 import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.nullable
+import kotlinx.serialization.builtins.serializer
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.json.JsonDecoder
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
 
 /**
  * The Agent engine (OpenCode) — not LibreChat. Its wire shapes come from the engine's own OpenAPI
@@ -121,9 +130,33 @@ data class EngineMessageInfo(
      * resumes the whole conversation in it when the context nears the model's window, and the
      * next turns read the summary instead of the history. The conversation shows a one-line
      * notice in its place, not the summary.
+     *
+     * On a **user** message the same key is an object, the turn's summary of its file changes
+     * (`{"diffs": []}`, written when the turn ends). Read as a boolean it refused the whole
+     * transcript (25/10/2026: every conversation with a finished turn opened on « Something went
+     * wrong », the evening the flag shipped), so anything but a boolean reads as « not a summary ».
      */
+    @Serializable(with = SummaryFlagSerializer::class)
     val summary: Boolean? = null,
 )
+
+/**
+ * `summary` as the engine writes it on a message: `true` on a compaction's summary (an assistant
+ * message), an object of diffs on a user message, absent elsewhere. Only the boolean is a flag;
+ * everything else is null.
+ */
+object SummaryFlagSerializer : KSerializer<Boolean?> {
+    override val descriptor: SerialDescriptor = Boolean.serializer().nullable.descriptor
+
+    override fun deserialize(decoder: Decoder): Boolean? {
+        val json = decoder as? JsonDecoder ?: return decoder.decodeNullableSerializableValue(Boolean.serializer())
+        return (json.decodeJsonElement() as? JsonPrimitive)?.booleanOrNull
+    }
+
+    override fun serialize(encoder: Encoder, value: Boolean?) {
+        if (value == null) encoder.encodeNull() else encoder.encodeBoolean(value)
+    }
+}
 
 @Serializable
 data class EngineError(

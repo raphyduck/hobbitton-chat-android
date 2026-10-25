@@ -115,7 +115,10 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   user message carrying the engine's `compaction` part becomes one line in small print
   (`CompactionNotice`: « Conversation compactée · 894 k jetons économisés », « Compactage de la
   conversation… » while the summary is written); the summary message (`summary: true`,
-  `ChatTurn.Assistant.summary`) is never drawn, and the context restarts from its size.
+  `ChatTurn.Assistant.summary`) is never drawn, and the context restarts from its size. The same
+  `summary` key is an object of diffs on a user message once its turn ended: only a boolean is
+  the flag (`SummaryFlagSerializer`; 25/10/2026, read as a boolean it refused every finished
+  conversation's history).
 - **Dictation and audio files** (the composer). The mic is heard by the phone itself (19/10/2026,
   Settings → Dictée, on by default): Android 12's on-device recognizer in French, its words shown
   as they come and dropped into the composer one stretch of speech at a time (`PhoneDictation`,
