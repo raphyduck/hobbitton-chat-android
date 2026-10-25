@@ -65,4 +65,23 @@ data class EngineSelectableModel(
     val label: String,
 ) {
     val ref: EngineModelRef get() = EngineModelRef(providerId = providerId, modelId = modelId)
+
+    /** True for [AUTO]: not a model, the request to pick one from the conversation's first message. */
+    val isAuto: Boolean get() = providerId.isEmpty() && modelId == AUTO_MODEL_ID
+
+    companion object {
+        /**
+         * The id Settings store for « Auto » (25/10/2026, Raphaël's rule: the model necessary and
+         * sufficient): a word no provider uses. Never sent to the engine — the repository and the
+         * conversation resolve it to a real model first.
+         */
+        const val AUTO_MODEL_ID = "auto"
+
+        /** The picker's « Auto » row. Its label is replaced by a localised one where it is shown. */
+        val AUTO = EngineSelectableModel(providerId = "", modelId = AUTO_MODEL_ID, label = "Auto")
+    }
 }
+
+/** True for the reference of [EngineSelectableModel.AUTO], which no turn may carry. */
+val EngineModelRef.isAuto: Boolean
+    get() = providerId.isEmpty() && modelId == EngineSelectableModel.AUTO_MODEL_ID

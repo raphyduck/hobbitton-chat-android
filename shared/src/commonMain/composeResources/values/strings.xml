@@ -63,6 +63,7 @@
     <string name="engine_settings_default_model">Default model</string>
     <string name="engine_settings_default_model_server">The server's</string>
     <string name="engine_settings_default_model_server_named">The server's (%1$s)</string>
+    <string name="engine_settings_default_model_auto">Auto: picked from the first message</string>
     <string name="engine_settings_default_model_hint">What a new conversation starts on. The composer can still pick another for one conversation.</string>
     <string name="engine_settings_default_model_unavailable">The models could not be read. Try again in a moment.</string>
     <string name="engine_budget_title">Spending limits</string>

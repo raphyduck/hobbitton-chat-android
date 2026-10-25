@@ -5,6 +5,8 @@ import com.garfiec.librechat.core.data.pricing.ModelPriceSource
 import com.garfiec.librechat.core.model.scheduler.ChatBudget
 import com.garfiec.librechat.core.model.scheduler.Consumption
 import com.garfiec.librechat.core.model.scheduler.ModelPrices
+import com.garfiec.librechat.core.model.scheduler.ModelTierChoice
+import com.garfiec.librechat.core.model.scheduler.ModelTiers
 import com.garfiec.librechat.core.model.scheduler.PortalIdentity
 import com.garfiec.librechat.core.model.scheduler.ProviderHealth
 import com.garfiec.librechat.core.model.scheduler.PushChannel
@@ -46,6 +48,26 @@ class SchedulerRepository(
     suspend fun pushChannel(): PushChannel? {
         if (!isConfigured()) return null
         return runCatching { api.pushChannel() }.getOrNull()?.takeIf { it.usable }
+    }
+
+    /**
+     * The tiers of model the server offers a conversation (25/10/2026), or null: no scheduler, a
+     * scheduler without the route, or one that cannot be reached. Null leaves the conversation
+     * without a « redo stronger »; nothing else depends on it.
+     */
+    suspend fun modelTiers(): ModelTiers? {
+        if (!isConfigured()) return null
+        return runCatching { api.modelTiers() }.getOrNull()
+    }
+
+    /**
+     * The tier and model a first message calls for, from the server's trieur (25/10/2026); null
+     * when there is no scheduler, no route, no trieur, or no answer. Null means « the default »,
+     * never an error to show: the conversation starts either way.
+     */
+    suspend fun triage(text: String, hasImages: Boolean): ModelTierChoice? {
+        if (!isConfigured()) return null
+        return runCatching { api.triageModel(text, hasImages) }.getOrNull()
     }
 
     /**
