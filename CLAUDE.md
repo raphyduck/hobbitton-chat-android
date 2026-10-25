@@ -109,6 +109,13 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   last model call (`message.updated` → `MessageStarted.tokens` → `MissionChatState.contextTokens`);
   the window is the gateway's, `max_input_tokens` relayed by the scheduler's `tarifs`
   (`ModelPrice.contextWindow`, `contexte`), for the model of the next message (`contextUsage`).
+  **Compaction** (25/10/2026, Raphaël: as on Claude.ai) is the engine's: it resumes the
+  conversation when its context nears the window of the model the next message goes to (kit #136
+  declares each window), before that message's first call and mid-turn. The app draws it: the
+  user message carrying the engine's `compaction` part becomes one line in small print
+  (`CompactionNotice`: « Conversation compactée · 894 k jetons économisés », « Compactage de la
+  conversation… » while the summary is written); the summary message (`summary: true`,
+  `ChatTurn.Assistant.summary`) is never drawn, and the context restarts from its size.
 - **Dictation and audio files** (the composer). The mic is heard by the phone itself (19/10/2026,
   Settings → Dictée, on by default): Android 12's on-device recognizer in French, its words shown
   as they come and dropped into the composer one stretch of speech at a time (`PhoneDictation`,

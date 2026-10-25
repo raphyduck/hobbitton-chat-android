@@ -61,6 +61,11 @@ sealed interface ChatTurn {
         val parts: List<ChatPart> = emptyList(),
         /** The engine's error on this turn, shown in place of an answer that never came. */
         val error: String? = null,
+        /**
+         * The turn holds a compaction's summary (25/10/2026): its parts are never kept and the
+         * transcript does not draw it; the compaction's notice stands for it.
+         */
+        val summary: Boolean = false,
     ) : ChatTurn
 }
 
@@ -72,6 +77,20 @@ sealed interface ChatPart {
 
     /** The model's thinking, shown muted. */
     data class Reasoning(override val id: String, val text: String) : ChatPart
+
+    /**
+     * The engine compacted the conversation here (25/10/2026, as on Claude.ai): a one-line notice
+     * in small print. [contextBefore] is the session's context when the compaction began,
+     * [contextAfter] the size of the summary that replaces it; both null while unknown.
+     */
+    data class Compaction(
+        override val id: String,
+        val contextBefore: Long? = null,
+        val contextAfter: Long? = null,
+    ) : ChatPart {
+        /** What the compaction took off the context, or null while it is not known. */
+        val savedTokens: Long? get() = contextBefore?.let { before -> contextAfter?.let { before - it } }?.takeIf { it > 0 }
+    }
 
     /**
      * A file sent with a message — the attachment itself, bytes included.
@@ -118,6 +137,12 @@ fun MissionChatState.reduce(event: EngineStreamEvent): MissionChatState = when (
             // The model rides on the envelope, so it is read even for a message already seen — a
             // live turn re-announces itself as it fills in, and the first announcement can precede
             // the model being decided.
+            known && event.summary -> copy(
+                turns = turns.map { turn ->
+                    if (turn is ChatTurn.Assistant && turn.key == event.messageId) turn.copy(summary = true, parts = emptyList()) else turn
+                }.withSummarySize(event.summarySize()),
+                contextTokens = event.summarySize() ?: contextTokens,
+            )
             known -> copy(
                 model = event.model ?: model,
                 contextTokens = event.contextOr(contextTokens),
@@ -136,6 +161,12 @@ fun MissionChatState.reduce(event: EngineStreamEvent): MissionChatState = when (
             // ici laissait le bouton Stop allumé en permanence sur une session terminée
             // depuis des heures. Constaté le 30/08/2026. Seul un delta prouve qu'un tour
             // parle maintenant — et seul le flux vivant en émet.
+            event.summary ->
+                copy(
+                    turns = (turns + ChatTurn.Assistant(event.messageId, error = event.error, summary = true))
+                        .withSummarySize(event.summarySize()),
+                    contextTokens = event.summarySize() ?: contextTokens,
+                )
             else ->
                 copy(
                     turns = turns + ChatTurn.Assistant(event.messageId, error = event.error),
@@ -145,14 +176,19 @@ fun MissionChatState.reduce(event: EngineStreamEvent): MissionChatState = when (
         }
     }
 
-    is EngineStreamEvent.PartUpdated -> {
-        val part = event.part.asChatPart(event.partId)
-        if (part == null) this else copy(turns = turns.withPart(event.messageId, part))
+    is EngineStreamEvent.PartUpdated -> when {
+        // A summary's text is not shown: the compaction's notice stands for it.
+        turns.isSummary(event.messageId) -> this
+        event.part.type == COMPACTION_PART -> copy(turns = turns.withCompaction(event.messageId, event.partId, contextTokens))
+        else -> event.part.asChatPart(event.partId)?.let { copy(turns = turns.withPart(event.messageId, it)) } ?: this
     }
 
     is EngineStreamEvent.PartDelta ->
         if (event.field != FIELD_TEXT) {
             this
+        } else if (turns.isSummary(event.messageId)) {
+            // The summary is being written: the session works, but nothing of it is shown.
+            copy(streaming = true)
         } else {
             copy(turns = turns.appendingText(event.messageId, event.partId, event.delta), streaming = true)
         }
@@ -165,6 +201,41 @@ fun MissionChatState.reduce(event: EngineStreamEvent): MissionChatState = when (
         if (questions.any { it.id == event.request.id }) this else copy(questions = questions + event.request)
 
     is EngineStreamEvent.QuestionClosed -> copy(questions = questions.filterNot { it.id == event.requestId })
+}
+
+/** The engine's marker of a compaction, a part of the user message that asks for it. */
+private const val COMPACTION_PART = "compaction"
+
+private fun List<ChatTurn>.isSummary(messageId: String): Boolean =
+    any { it is ChatTurn.Assistant && it.key == messageId && it.summary }
+
+/**
+ * The compaction notice, on the user message the engine opened for it. The context it starts from
+ * is the session's at that moment, kept on later snapshots of the same part.
+ */
+private fun List<ChatTurn>.withCompaction(messageId: String, partId: String, context: Long?): List<ChatTurn> {
+    val known = flatMap { turn -> if (turn is ChatTurn.User) turn.parts else emptyList() }
+        .filterIsInstance<ChatPart.Compaction>().firstOrNull { it.id == partId }
+    val part = known ?: ChatPart.Compaction(partId, contextBefore = context)
+    val base = if (any { it.key == messageId }) this else this + ChatTurn.User(messageId)
+    return base.map { turn ->
+        if (turn.key != messageId || turn !is ChatTurn.User) return@map turn
+        turn.copy(parts = turn.parts.filterNot { it.id == partId } + part)
+    }
+}
+
+/** The size of a written summary, the context the next turns start from; null while it is being written. */
+private fun EngineStreamEvent.MessageStarted.summarySize(): Long? = tokens?.output?.takeIf { it > 0 }
+
+/** Records [size] as what the latest compaction left, once the summary has reported it. */
+private fun List<ChatTurn>.withSummarySize(size: Long?): List<ChatTurn> {
+    if (size == null) return this
+    val index = indexOfLast { turn -> turn is ChatTurn.User && turn.parts.any { it is ChatPart.Compaction } }
+    if (index < 0) return this
+    return mapIndexed { i, turn ->
+        if (i != index || turn !is ChatTurn.User) return@mapIndexed turn
+        turn.copy(parts = turn.parts.map { if (it is ChatPart.Compaction) it.copy(contextAfter = size) else it })
+    }
 }
 
 /** An assistant envelope's context size when it reports one, [current] otherwise (a step still running reports zero). */

@@ -104,6 +104,9 @@ class CaptureScreensTest {
     }
 
     @Test
+    fun chatCompacted() = capture("chat-compacted", dark = false) { ChatScreen(COMPACTED) }
+
+    @Test
     fun chatEmpty() = capture("chat-empty", dark = false) { ChatScreen(EMPTY) }
 
     @Test
@@ -180,7 +183,7 @@ private fun ChatScreen(state: MissionChatUiState) {
             }
         },
     ) { padding ->
-        val turns = state.chat.turns.mergedAssistantRuns()
+        val turns = state.chat.turns.filterNot { it is ChatTurn.Assistant && it.summary }.mergedAssistantRuns()
         if (turns.isEmpty()) {
             Box(Modifier.fillMaxSize().padding(padding)) {
                 EmptyConversation(
@@ -200,7 +203,9 @@ private fun ChatScreen(state: MissionChatUiState) {
                     val live = state.chat.streaming && index == turns.lastIndex
                     SelectionContainer {
                         when (turn) {
-                            is ChatTurn.User -> UserBubble(turn, 1f)
+                            is ChatTurn.User -> turn.parts.filterIsInstance<ChatPart.Compaction>().lastOrNull()
+                                ?.let { CompactionNotice(it, compacting = live) }
+                                ?: UserBubble(turn, 1f)
                             is ChatTurn.Assistant -> AssistantTurn(turn, streaming = live, fontScale = 1f)
                         }
                     }
@@ -314,6 +319,16 @@ private val FIRST_EXCHANGE = listOf(
                     "Voulez-vous que je réponde à Marc ?",
             ),
         ),
+    ),
+)
+
+private val COMPACTED get() = SETTLED.copy(
+    chat = SETTLED.chat.copy(
+        turns = SETTLED.chat.turns.take(2) + listOf(
+            ChatTurn.User("uc", listOf(ChatPart.Compaction("c1", contextBefore = 902_000, contextAfter = 8_000))),
+            ChatTurn.Assistant("as", summary = true),
+        ) + SETTLED.chat.turns.drop(2),
+        contextTokens = 12_400,
     ),
 )
 

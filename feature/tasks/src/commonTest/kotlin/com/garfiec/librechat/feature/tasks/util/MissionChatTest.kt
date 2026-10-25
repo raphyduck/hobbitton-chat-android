@@ -413,6 +413,48 @@ class MissionChatTest {
         val state = engineHistoryEvents(messages).fold(MissionChatState()) { s, e -> s.reduce(e) }
         assertEquals(9_000L, state.contextTokens)
     }
+
+    @Test
+    fun `un compactage rejoue montre sa ligne, cache le resume et dit ce qu'il a economise`() {
+        val messages = listOf(
+            EngineMessage(EngineMessageInfo(id = "a1", role = "assistant", tokens = EngineTokens(input = 900_000, output = 2_000))),
+            EngineMessage(
+                EngineMessageInfo(id = "u2", role = "user"),
+                parts = listOf(EnginePart(id = "c1", type = "compaction")),
+            ),
+            EngineMessage(
+                EngineMessageInfo(id = "a2", role = "assistant", summary = true, tokens = EngineTokens(input = 902_000, output = 8_000)),
+                parts = listOf(EnginePart(id = "s1", type = "text", text = "Résumé de la conversation…")),
+            ),
+        )
+        val state = engineHistoryEvents(messages).fold(MissionChatState()) { s, e -> s.reduce(e) }
+        val compaction = (state.turns[1] as ChatTurn.User).parts.single() as ChatPart.Compaction
+        assertEquals(902_000L, compaction.contextBefore)
+        assertEquals(8_000L, compaction.contextAfter)
+        assertEquals(894_000L, compaction.savedTokens)
+        val summary = state.turns[2] as ChatTurn.Assistant
+        assertTrue(summary.summary)
+        assertTrue(summary.parts.isEmpty())
+        // Le contexte repart de la taille du résumé, pas de tout ce que le résumé a lu.
+        assertEquals(8_000L, state.contextTokens)
+    }
+
+    @Test
+    fun `un compactage en direct garde la session occupee sans afficher le resume`() {
+        var state = MissionChatState()
+            .reduce(EngineStreamEvent.MessageStarted("a1", "assistant", tokens = EngineTokens(input = 500_000)))
+            .reduce(started("u2", "user"))
+            .reduce(part("u2", "c1", EnginePartSnapshot(type = "compaction")))
+            .reduce(EngineStreamEvent.MessageStarted("a2", "assistant", tokens = EngineTokens(), summary = true))
+            .reduce(delta("a2", "s1", "Résumé"))
+        assertTrue(state.streaming)
+        assertTrue((state.turns.last() as ChatTurn.Assistant).parts.isEmpty())
+        val pending = (state.turns[1] as ChatTurn.User).parts.single() as ChatPart.Compaction
+        assertEquals(500_000L, pending.contextBefore)
+        assertEquals(null, pending.savedTokens)
+        state = state.reduce(EngineStreamEvent.MessageStarted("a2", "assistant", tokens = EngineTokens(input = 500_000, output = 6_000), summary = true))
+        assertEquals(494_000L, ((state.turns[1] as ChatTurn.User).parts.single() as ChatPart.Compaction).savedTokens)
+    }
 }
 
 /**

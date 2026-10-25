@@ -141,6 +141,8 @@ internal fun ActivityBlock(block: ChatBlock.Activity) {
                         // their own blocks in asBlocks.
                         is ChatPart.Text -> Unit
                         is ChatPart.Attachment -> Unit
+                        // On a user turn only, drawn as its own notice.
+                        is ChatPart.Compaction -> Unit
                     }
                 }
             }

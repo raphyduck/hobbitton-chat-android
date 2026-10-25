@@ -45,6 +45,8 @@ sealed interface EngineStreamEvent {
          * runs; null on a user message.
          */
         val tokens: EngineTokens? = null,
+        /** The message holds a compaction's summary ([EngineMessageInfo.summary]). */
+        val summary: Boolean = false,
     ) : EngineStreamEvent
 
     /**
@@ -129,6 +131,7 @@ fun engineHistoryEvents(messages: List<EngineMessage>): List<EngineStreamEvent> 
                     },
                     error = message.info.error?.readable(),
                     tokens = message.info.tokens,
+                    summary = message.info.summary == true,
                 ),
             )
             message.parts.forEachIndexed { index, part ->
