@@ -208,6 +208,9 @@ sheet for the diagnostic log). The shell and the sign-in resolve the engine grap
 - The engine's and the scheduler's clients carry the portal's bearer as `Proxy-Authorization`,
   scoped to their own host; the edge presents the engine's own credential.
 - Custom SSE parser (`SseLineParser`) over the raw byte stream, not Ktor's SSE plugin.
+- Each client's OkHttp dispatcher allows 32 requests in flight per host (`OkHttpWithRoom`,
+  `NetworkPlatformModule.android.kt`), not OkHttp's 5: the two event feeds held two places for
+  good, and opening a conversation queued its transcript past the screen's 10 s (25/10/2026).
 - The feed is global and heavy (a tool's whole output again on every frame that grows it):
   `EngineMissionRepository.events` / `allEvents` read and parse it on the IO dispatcher whoever
   collects (20/10/2026: parsed on the main thread by the attention watcher, a scheduled run's
