@@ -328,7 +328,12 @@ internal fun MissionTurns(
 ) {
     val listState = rememberLazyListState()
     // One drawn turn per run of assistant steps: their tool calls fold into one growing line.
-    val turns = remember(chat.turns) { chat.turns.mergedAssistantRuns() }
+    // A compaction's summary is not drawn: its notice, on the turn before, stands for it.
+    val turns = remember(chat.turns) {
+        chat.turns.filterNot { it is ChatTurn.Assistant && it.summary }.mergedAssistantRuns()
+    }
+    // The engine is writing a summary right now: the notice says so until its size is known.
+    val compacting = chat.streaming && (chat.turns.lastOrNull() as? ChatTurn.Assistant)?.summary == true
     // Open at the very bottom (Raphaël, 23/10/2026): the end of the last message in view. Once,
     // hence the flag, saved across rotation. It replaces the position saved per conversation
     // (31/08 to 22/10/2026), which kept reopening at the wrong place, then the start of the last
@@ -415,7 +420,14 @@ internal fun MissionTurns(
                 Box(Modifier.animateItem()) {
                     SelectionContainer {
                         when (turn) {
-                            is ChatTurn.User -> UserBubble(turn, fontScale)
+                            is ChatTurn.User -> {
+                                val compaction = turn.parts.filterIsInstance<ChatPart.Compaction>().lastOrNull()
+                                if (compaction != null) {
+                                    CompactionNotice(compaction, compacting = compacting && index == turns.lastIndex)
+                                } else {
+                                    UserBubble(turn, fontScale)
+                                }
+                            }
                             is ChatTurn.Assistant -> AssistantTurn(turn, streaming = live, fontScale = fontScale)
                         }
                     }

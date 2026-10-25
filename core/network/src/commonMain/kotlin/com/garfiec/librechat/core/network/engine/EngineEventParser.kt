@@ -63,6 +63,7 @@ class EngineEventParser(private val json: Json) {
                     tokens = (info["tokens"] as? JsonObject)?.let { tokens ->
                         runCatching { json.decodeFromJsonElement(EngineTokens.serializer(), tokens) }.getOrNull()
                     },
+                    summary = (info["summary"] as? JsonPrimitive)?.content == "true",
                 )
             } else {
                 null

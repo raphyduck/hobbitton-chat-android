@@ -48,6 +48,16 @@ class EngineEventParserTest {
     }
 
     @Test
+    fun aCompactionSummaryIsMarked() {
+        val parsed = frame(
+            """{"type":"message.updated","properties":{"sessionID":"ses_1","info":{"id":"msg_s","role":"assistant","summary":true,"mode":"compaction"}}}""",
+        )
+        assertEquals(true, (parsed?.event as EngineStreamEvent.MessageStarted).summary)
+        val plain = frame("""{"type":"message.updated","properties":{"sessionID":"ses_1","info":{"id":"msg_a","role":"assistant"}}}""")
+        assertEquals(false, (plain?.event as EngineStreamEvent.MessageStarted).summary)
+    }
+
+    @Test
     fun malformedTokensAreDroppedNotFatal() {
         val parsed = frame(
             """{"type":"message.updated","properties":{"sessionID":"ses_1","info":{"id":"msg_a","role":"assistant","tokens":{"input":"beaucoup"}}}}""",

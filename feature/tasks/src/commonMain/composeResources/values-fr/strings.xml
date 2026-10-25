@@ -202,4 +202,7 @@
     <string name="tasks_context_unknown_window">%1$s jetons ; la passerelle ne connaît pas la fenêtre de ce modèle.</string>
     <string name="tasks_context_model">Mesuré sur %1$s, le modèle du prochain message.</string>
     <string name="tasks_context_hint">Ce que la dernière réponse a lu : toute la conversation, les consignes et les résultats des outils. Près de la limite, mieux vaut commencer une nouvelle conversation.</string>
+    <string name="tasks_chat_compacted">Conversation compactée</string>
+    <string name="tasks_chat_compacted_saved">Conversation compactée · %1$s jetons économisés</string>
+    <string name="tasks_chat_compacting">Compactage de la conversation…</string>
 </resources>

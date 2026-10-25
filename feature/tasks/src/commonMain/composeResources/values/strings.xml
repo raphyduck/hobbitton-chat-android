@@ -202,4 +202,7 @@
     <string name="tasks_context_unknown_window">%1$s tokens; the gateway does not know this model's window.</string>
     <string name="tasks_context_model">Measured against %1$s, the model of the next message.</string>
     <string name="tasks_context_hint">What the last answer read: the whole conversation, the instructions and the tools' results. Near the limit, start a new conversation.</string>
+    <string name="tasks_chat_compacted">Conversation compacted</string>
+    <string name="tasks_chat_compacted_saved">Conversation compacted · %1$s tokens saved</string>
+    <string name="tasks_chat_compacting">Compacting the conversation…</string>
 </resources>

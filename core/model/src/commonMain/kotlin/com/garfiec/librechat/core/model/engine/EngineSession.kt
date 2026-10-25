@@ -116,6 +116,13 @@ data class EngineMessageInfo(
      * nightly run on 21/08/2026 (server-side D-032).
      */
     val error: EngineError? = null,
+    /**
+     * True on the assistant message that holds a compaction's summary (25/10/2026): the engine
+     * resumes the whole conversation in it when the context nears the model's window, and the
+     * next turns read the summary instead of the history. The conversation shows a one-line
+     * notice in its place, not the summary.
+     */
+    val summary: Boolean? = null,
 )
 
 @Serializable

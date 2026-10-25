@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -25,11 +26,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.garfiec.librechat.core.ui.components.ShimmerText
 import com.garfiec.librechat.core.ui.util.copyToClipboard
 import com.garfiec.librechat.feature.tasks.components.MissionMarkdown
 import com.garfiec.librechat.feature.tasks.resources.Res
+import com.garfiec.librechat.feature.tasks.resources.tasks_chat_compacted
+import com.garfiec.librechat.feature.tasks.resources.tasks_chat_compacted_saved
+import com.garfiec.librechat.feature.tasks.resources.tasks_chat_compacting
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_copy
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_thinking
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_turn_failed
@@ -38,6 +43,7 @@ import com.garfiec.librechat.feature.tasks.util.ChatBlock
 import com.garfiec.librechat.feature.tasks.util.ChatPart
 import com.garfiec.librechat.feature.tasks.util.ChatTurn
 import com.garfiec.librechat.feature.tasks.util.asBlocks
+import com.garfiec.librechat.feature.tasks.util.compactTokens
 import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.stringResource
 
@@ -73,6 +79,35 @@ internal fun UserBubble(turn: ChatTurn.User, fontScale: Float) {
                 }
             }
         }
+    }
+}
+
+/**
+ * Where the engine compacted the conversation (25/10/2026, Raphaël: as on Claude.ai): one line in
+ * small print between two hairlines, « Conversation compactée · 412 k jetons économisés », or
+ * « Compactage de la conversation… » while the summary is being written.
+ */
+@Composable
+internal fun CompactionNotice(part: ChatPart.Compaction, compacting: Boolean) {
+    val saved = part.savedTokens
+    val text = when {
+        compacting -> stringResource(Res.string.tasks_chat_compacting)
+        saved != null -> stringResource(Res.string.tasks_chat_compacted_saved, compactTokens(saved))
+        else -> stringResource(Res.string.tasks_chat_compacted)
+    }
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        HorizontalDivider(Modifier.weight(1f), color = MaterialTheme.colorScheme.outlineVariant)
+        Text(
+            text,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
+        HorizontalDivider(Modifier.weight(1f), color = MaterialTheme.colorScheme.outlineVariant)
     }
 }
 
