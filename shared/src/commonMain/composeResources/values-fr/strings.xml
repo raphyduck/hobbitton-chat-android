@@ -63,6 +63,7 @@
     <string name="engine_settings_default_model">Modèle par défaut</string>
     <string name="engine_settings_default_model_server">Celui du serveur</string>
     <string name="engine_settings_default_model_server_named">Celui du serveur (%1$s)</string>
+    <string name="engine_settings_default_model_auto">Auto : choisi d\'après le premier message</string>
     <string name="engine_settings_default_model_hint">Celui sur lequel démarre une nouvelle conversation. Le composeur peut toujours en choisir un autre pour une conversation.</string>
     <string name="engine_settings_default_model_unavailable">Les modèles n'ont pas pu être lus. Réessayez dans un instant.</string>
     <string name="engine_budget_title">Plafonds de dépense</string>

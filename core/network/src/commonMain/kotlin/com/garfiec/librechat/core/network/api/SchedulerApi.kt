@@ -4,6 +4,8 @@ import com.garfiec.librechat.core.model.scheduler.ChatBudget
 import com.garfiec.librechat.core.model.scheduler.ConnectorCatalogue
 import com.garfiec.librechat.core.model.scheduler.Consumption
 import com.garfiec.librechat.core.model.scheduler.ModelPrices
+import com.garfiec.librechat.core.model.scheduler.ModelTierChoice
+import com.garfiec.librechat.core.model.scheduler.ModelTiers
 import com.garfiec.librechat.core.model.scheduler.PortalIdentity
 import com.garfiec.librechat.core.model.scheduler.ProviderHealth
 import com.garfiec.librechat.core.model.scheduler.PushChannel
@@ -352,6 +354,48 @@ class SchedulerApi(
             throw EngineHttpException(response.status.value, response.request.url.toString(), response.bodyAsText())
         }
         return json.decodeFromString(PushChannel.serializer(), response.bodyAsText())
+    }
+
+    /**
+     * The tiers of model a conversation may start on, and whether the server can read a first
+     * message to pick one: `GET /palier` (25/10/2026), a plain HTTP route like [identity]. Null on
+     * a scheduler from before the route (404).
+     */
+    suspend fun modelTiers(): ModelTiers? {
+        val response = client.get {
+            url { path("palier") }
+            accept(ContentType.Application.Json)
+        }
+        if (response.status == HttpStatusCode.NotFound) return null
+        if (!response.status.isSuccess()) {
+            throw EngineHttpException(response.status.value, response.request.url.toString(), response.bodyAsText())
+        }
+        return json.decodeFromString(ModelTiers.serializer(), response.bodyAsText())
+    }
+
+    /**
+     * What tier a first message calls for, read by the server's cheap trieur: `POST /palier` with
+     * the text and whether an image comes with it (25/10/2026). The answer's `modele` is the model
+     * to start the conversation on, null when the server has no trieur or it did not answer: the
+     * caller then keeps its default. Null on a scheduler from before the route (404).
+     */
+    suspend fun triageModel(text: String, hasImages: Boolean): ModelTierChoice? {
+        val response = client.post {
+            url { path("palier") }
+            accept(ContentType.Application.Json)
+            contentType(ContentType.Application.Json)
+            setBody(
+                buildJsonObject {
+                    put("texte", text)
+                    put("images", hasImages)
+                },
+            )
+        }
+        if (response.status == HttpStatusCode.NotFound) return null
+        if (!response.status.isSuccess()) {
+            throw EngineHttpException(response.status.value, response.request.url.toString(), response.bodyAsText())
+        }
+        return json.decodeFromString(ModelTierChoice.serializer(), response.bodyAsText())
     }
 
     /**

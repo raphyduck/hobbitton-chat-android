@@ -28,6 +28,7 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_connectors_act
 import com.garfiec.librechat.feature.tasks.resources.tasks_connectors_hint
 import com.garfiec.librechat.feature.tasks.resources.tasks_connectors_read
 import com.garfiec.librechat.feature.tasks.resources.tasks_model
+import com.garfiec.librechat.feature.tasks.resources.tasks_model_auto_long
 import com.garfiec.librechat.feature.tasks.resources.tasks_model_default_short
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.pluralStringResource
@@ -71,6 +72,14 @@ internal fun ModelPickerSheet(
             price = null,
             selected = selected == null,
             onClick = { onSelect(null) },
+        )
+        // « Auto » (25/10/2026, Raphaël's rule: the model necessary and sufficient): the scheduler
+        // reads the first message and picks the tier; the conversation then keeps that model.
+        ModelRow(
+            label = stringResource(Res.string.tasks_model_auto_long),
+            price = null,
+            selected = selected?.isAuto == true,
+            onClick = { onSelect(EngineSelectableModel.AUTO) },
         )
         models.forEach { candidate ->
             ModelRow(

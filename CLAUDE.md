@@ -157,7 +157,16 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   stored on the device (`SettingsDataStore.defaultChatModel`, a model id) and read by the
   repository's `models()` (`ModelPreference`) as `preselected`; « Celui du serveur » (null) follows
   the engine's default, and so does a model the deployment no longer lists. The composer still picks
-  another for one conversation.
+  another for one conversation. **Auto** (25/10/2026, Raphaël's rule: the model necessary and
+  sufficient, the cheapest): a choice of Settings and of the picker (`EngineSelectableModel.AUTO`,
+  id `auto`, never sent to the engine). The first message of a new conversation goes to the
+  scheduler's trieur (`POST /palier`, `SchedulerRepository.triage`), which names the tier and its
+  model on the chat's provider; the conversation starts on it and keeps it (`resolveModel`), the chip
+  showing what Auto chose; no scheduler or no answer, and it runs on the engine's default. A
+  conversation that already ran keeps its model. Under the last answer, « Refaire plus fort »
+  (`redoStronger`, `MissionChatUiState.canRedoStronger`) sends the last request again, prefixed
+  (`REDO_STRONGER_PREFIX`), on the tier above the one that answered, read off the scheduler's ladder
+  (`GET /palier` → `ModelTiers.strongerThan`); at the top of the ladder the button is not shown.
 - **LibreChat's leftovers** on a device that ran an earlier build (its Room database, tokens,
   WorkManager job, caches and preferences) are removed once at start by `LegacyLibreChatCleanup`;
   a LibreChat account's global profile is moved under the device keys first.

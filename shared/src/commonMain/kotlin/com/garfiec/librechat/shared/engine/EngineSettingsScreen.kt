@@ -78,6 +78,7 @@ import com.garfiec.librechat.shared.resources.engine_settings_budget
 import com.garfiec.librechat.shared.resources.engine_settings_budget_hint
 import com.garfiec.librechat.shared.resources.engine_settings_cancel
 import com.garfiec.librechat.shared.resources.engine_settings_default_model
+import com.garfiec.librechat.shared.resources.engine_settings_default_model_auto
 import com.garfiec.librechat.shared.resources.engine_settings_default_model_hint
 import com.garfiec.librechat.shared.resources.engine_settings_default_model_server
 import com.garfiec.librechat.shared.resources.engine_settings_default_model_server_named
@@ -246,6 +247,12 @@ private fun DefaultModelDialog(
                     selected = state.defaultModelId == null,
                     onClick = { onPick(null) },
                 )
+                // « Auto » (25/10/2026): the scheduler reads the first message and picks the tier.
+                ModelOption(
+                    label = stringResource(Res.string.engine_settings_default_model_auto),
+                    selected = state.defaultModelId == EngineSelectableModel.AUTO_MODEL_ID,
+                    onClick = { onPick(EngineSelectableModel.AUTO_MODEL_ID) },
+                )
                 state.models.forEach { model ->
                     ModelOption(
                         label = model.label,
@@ -404,7 +411,11 @@ private fun SettingsBody(
             NavigationRow(
                 icon = Icons.Outlined.AutoAwesome,
                 headline = stringResource(Res.string.engine_settings_default_model),
-                supporting = state.defaultModelLabel ?: serverModelLabel(state.engineDefault),
+                supporting = when (state.defaultModelId) {
+                    null -> serverModelLabel(state.engineDefault)
+                    EngineSelectableModel.AUTO_MODEL_ID -> stringResource(Res.string.engine_settings_default_model_auto)
+                    else -> state.defaultModelLabel
+                },
                 onClick = onPickModel,
                 modifier = Modifier.testTag("settings_default_model"),
             )

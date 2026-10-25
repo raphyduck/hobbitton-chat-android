@@ -16,10 +16,13 @@ import com.garfiec.librechat.core.data.engine.offered
 import com.garfiec.librechat.core.data.pricing.ModelPriceCache
 import com.garfiec.librechat.core.data.scheduler.SchedulerRepository
 import com.garfiec.librechat.core.model.engine.EngineFailureKind
+import com.garfiec.librechat.core.model.engine.EngineModelRef
 import com.garfiec.librechat.core.model.engine.EngineQuestionRequest
 import com.garfiec.librechat.core.model.engine.EngineSelectableModel
 import com.garfiec.librechat.core.model.engine.EngineStreamEvent
 import com.garfiec.librechat.core.model.scheduler.ModelPrices
+import com.garfiec.librechat.core.model.scheduler.ModelTiers
+import com.garfiec.librechat.core.model.scheduler.asModelRef
 import com.garfiec.librechat.feature.tasks.delegate.CatalogueFetch
 import com.garfiec.librechat.feature.tasks.delegate.ComposerStagingDelegate
 import com.garfiec.librechat.feature.tasks.delegate.MissionCatalogueDelegate
@@ -144,6 +147,13 @@ data class MissionChatUiState(
      * yet, so a new one names the model it is about to use.
      */
     val defaultModel: EngineSelectableModel? = null,
+    /** The engine's own default: what « Auto » runs on when the scheduler names no model. */
+    val engineDefault: EngineSelectableModel? = null,
+    /**
+     * The tiers of model the scheduler offers a conversation (25/10/2026), lowest first, for
+     * « redo stronger »; empty without a scheduler, and the button stays away.
+     */
+    val tiers: ModelTiers = ModelTiers.NONE,
     /**
      * Set once a **new** chat exists on the engine: the screen hands it to the navigation, which
      * replaces the blank conversation with the real one. Null for an existing session.
@@ -186,6 +196,31 @@ data class MissionChatUiState(
                     label = ref.modelId,
                 )
         } ?: defaultModel
+
+    /**
+     * The model one step up the scheduler's ladder from the one the conversation runs on, for
+     * « redo stronger » (25/10/2026); null at the top, off the ladder, or while « Auto » is still
+     * unresolved. Named from the catalogue when it lists it, by its raw id otherwise.
+     */
+    val strongerModel: EngineSelectableModel?
+        get() {
+            val current = effectiveModel?.takeUnless { it.isAuto } ?: return null
+            val (_, qualified) = tiers.strongerThan(current.modelId) ?: return null
+            val ref = qualified.asModelRef() ?: return null
+            return models.firstOrNull { it.modelId == ref.modelId }
+                ?: EngineSelectableModel(providerId = ref.providerId, modelId = ref.modelId, label = ref.modelId)
+        }
+
+    /** The last thing the person wrote, what « redo stronger » asks again; null when nothing was. */
+    val lastUserText: String?
+        get() = chat.turns.filterIsInstance<ChatTurn.User>().lastOrNull()
+            ?.parts?.filterIsInstance<ChatPart.Text>()?.joinToString("\n") { it.text }
+            ?.takeIf { it.isNotBlank() }
+
+    /** « Redo stronger » is offered: an answer is in, nothing runs, and a stronger tier exists. */
+    val canRedoStronger: Boolean
+        get() = !chat.streaming && !sending && chat.turns.lastOrNull() is ChatTurn.Assistant &&
+            lastUserText != null && strongerModel != null
 }
 
 /** A chat the composer just created on the engine, as the navigation needs it. */
@@ -354,12 +389,17 @@ class MissionChatViewModel(
                             models = fetched.value.models,
                             modelsError = null,
                             defaultModel = fetched.value.preselected,
+                            engineDefault = fetched.value.engineDefault,
                         )
                     }
                     // After the models and never instead of them: the price table comes from another
                     // service, and its absence must cost the prices, not the picker.
                     val prices = catalogueLoader.prices()
                     _uiState.update { it.copy(prices = prices) }
+                    // The ladder of tiers (25/10/2026), for « redo stronger »: the scheduler's, and
+                    // its absence costs the button, nothing else.
+                    val tiers = withContext(ioDispatcher) { runCatching { scheduler?.modelTiers() }.getOrNull() }
+                    _uiState.update { it.copy(tiers = tiers ?: ModelTiers.NONE) }
                 }
             }
         }
@@ -703,7 +743,7 @@ class MissionChatViewModel(
                 }
                 // The answer streams in over the feed while this call is in flight; what it returns is
                 // the finished turn, folded in to reconcile anything the feed missed.
-                val model = nextModel()
+                val model = resolveModel(text, attachments.any { it.mime.startsWith("image/") })
                 val settled = withContext(ioDispatcher) {
                     repository.sendMessage(
                         sessionId,
@@ -763,7 +803,7 @@ class MissionChatViewModel(
                         text = text,
                         // Null while the catalogue is unknown: the repository then takes the defaults.
                         connectors = staged.enabledConnectors?.toList(),
-                        model = nextModel(),
+                        model = resolveModel(text, attachments.any { it.mime.startsWith("image/") }),
                         files = files,
                     )
                 }
@@ -794,7 +834,55 @@ class MissionChatViewModel(
      * soon as the app restarted and forgot the pick (Raphaël, 03/10/2026). The last turn's model is
      * the session's model, and it is sent as such.
      */
-    private fun nextModel() = _uiState.value.effectiveModel?.ref
+    private suspend fun resolveModel(text: String, hasImages: Boolean): EngineModelRef? {
+        val effective = _uiState.value.effectiveModel ?: return null
+        if (!effective.isAuto) return effective.ref
+        // « Auto » (25/10/2026, Raphaël's rule: the model necessary and sufficient). A conversation
+        // that already ran keeps its model: the provider's cache is built on it, and changing
+        // mid-way throws it away. A new one is read once by the scheduler's trieur; no scheduler,
+        // or no answer, and the repository runs it on the engine's default.
+        _uiState.value.chat.model?.let { return it }
+        val choice = withContext(ioDispatcher) { scheduler?.triage(text, hasImages) }
+        val ref = choice?.model?.asModelRef() ?: return null
+        val picked = _uiState.value.models.firstOrNull { it.modelId == ref.modelId }
+            ?: EngineSelectableModel(providerId = ref.providerId, modelId = ref.modelId, label = ref.modelId)
+        // On the chip from now on: the person sees what Auto chose, and the next messages follow it.
+        _uiState.update { it.copy(model = picked) }
+        return picked.ref
+    }
+
+    /**
+     * « Redo stronger » (25/10/2026): the last request again, on the tier above the model that
+     * answered, which the conversation then keeps. The engine has the first answer in its history;
+     * the message says what is asked of the stronger model.
+     */
+    fun redoStronger() {
+        val state = _uiState.value
+        val sessionId = sessionId ?: return
+        if (!state.canRedoStronger) return
+        val stronger = state.strongerModel ?: return
+        val text = state.lastUserText ?: return
+        _uiState.update { it.copy(model = stronger, sending = true, sendError = null) }
+        sendsInFlight++
+        awaitingReply = true
+        viewModelScope.launch {
+            try {
+                val settled = withContext(ioDispatcher) {
+                    repository.sendMessage(sessionId, REDO_STRONGER_PREFIX + text, stronger.ref)
+                }
+                _uiState.update { current ->
+                    current.copy(chat = settled.fold(current.chat) { chat, event -> chat.reduce(event) })
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _uiState.update { it.copy(sendError = e.engineFailureKind()) }
+            } finally {
+                sendsInFlight--
+                _uiState.update { it.copy(sending = sendsInFlight > 0) }
+            }
+        }
+    }
 
     /** Stop a reply in progress. The engine ends the run; the feed reports the session going idle. */
     fun stop() {
@@ -829,3 +917,9 @@ internal fun chatTitle(text: String): String =
     text.lineSequence().firstOrNull { it.isNotBlank() }?.trim()?.take(CHAT_TITLE_LENGTH).orEmpty()
 
 private const val CHAT_TITLE_LENGTH = 60
+
+/**
+ * What « redo stronger » puts before the person's last words. In the platform's language: the
+ * agent's prompts are French, and the message is for the model, not for the screen.
+ */
+internal const val REDO_STRONGER_PREFIX = "Reprends ma dernière demande avec plus de soin et de rigueur, sur un modèle plus fort :\n\n"

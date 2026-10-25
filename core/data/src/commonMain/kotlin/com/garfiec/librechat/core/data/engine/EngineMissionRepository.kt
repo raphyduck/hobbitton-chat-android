@@ -12,6 +12,7 @@ import com.garfiec.librechat.core.model.engine.EngineQuestionRequest
 import com.garfiec.librechat.core.model.engine.EngineSelectableModel
 import com.garfiec.librechat.core.model.engine.EngineStreamEvent
 import com.garfiec.librechat.core.model.engine.engineHistoryEvents
+import com.garfiec.librechat.core.model.engine.isAuto
 import com.garfiec.librechat.core.model.scheduler.ConnectorCatalogue
 import com.garfiec.librechat.core.model.scheduler.SchedulerRun
 import com.garfiec.librechat.core.network.api.AgentEngineApi
@@ -184,8 +185,14 @@ class EngineMissionRepository(
             catalogue.default[p.id]?.let { key -> selectable(p.id, key, p.models[key]) }
         }
         // A preference the deployment no longer lists falls back to the engine's: a turn sent to a
-        // model the gateway dropped would only fail.
-        val preferred = modelPreference?.modelId()?.let { id -> models.firstOrNull { it.modelId == id } }
+        // model the gateway dropped would only fail. « Auto » (25/10/2026) is not in any list: the
+        // conversation resolves it to a model when its first message is sent.
+        val preferredId = modelPreference?.modelId()
+        val preferred = when (preferredId) {
+            null -> null
+            EngineSelectableModel.AUTO_MODEL_ID -> EngineSelectableModel.AUTO
+            else -> models.firstOrNull { it.modelId == preferredId }
+        }
         return EngineModelChoice(models = models, preselected = preferred ?: engineDefault, engineDefault = engineDefault)
     }
 
@@ -349,7 +356,11 @@ class EngineMissionRepository(
      * the choice to the engine, and the budget is not something to leave to it.
      */
     private suspend fun chatModel(requested: EngineModelRef?): EngineModelRef? =
-        requested?.forChat() ?: runCatching { models().preselected?.ref }.getOrNull()
+        requested?.takeUnless { it.isAuto }?.forChat()
+            // « Auto » left unresolved (no scheduler to ask) runs on the engine's own default.
+            ?: runCatching {
+                models().let { choice -> choice.preselected?.takeUnless { it.isAuto } ?: choice.engineDefault }?.ref
+            }.getOrNull()
 
     private suspend fun recordedKinds(): Map<String, EngineSessionKind> =
         runCatching { kinds.all() }.getOrDefault(emptyMap())

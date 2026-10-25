@@ -79,6 +79,7 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_chat_shell_on
 import com.garfiec.librechat.feature.tasks.resources.tasks_dictate
 import com.garfiec.librechat.feature.tasks.resources.tasks_dictate_stop
 import com.garfiec.librechat.feature.tasks.resources.tasks_listening
+import com.garfiec.librechat.feature.tasks.resources.tasks_model_auto
 import com.garfiec.librechat.feature.tasks.resources.tasks_model_default_short
 import com.garfiec.librechat.feature.tasks.resources.tasks_recording
 import com.garfiec.librechat.feature.tasks.resources.tasks_stop
@@ -416,7 +417,7 @@ private fun ComposerChips(
         // Capped: the model's name is the longest thing on the row, and the connectors' label
         // beside it should stay in view. The provider is in the picker, not on the label.
         state.models.isNotEmpty() -> ComposerPill(
-            label = state.effectiveModel?.label?.let(::shortModelLabel)
+            label = state.effectiveModel?.let { if (it.isAuto) stringResource(Res.string.tasks_model_auto) else shortModelLabel(it.label) }
                 ?: stringResource(Res.string.tasks_model_default_short),
             onClick = onOpenModels,
             modifier = Modifier.widthIn(max = MODEL_PILL_MAX_WIDTH),

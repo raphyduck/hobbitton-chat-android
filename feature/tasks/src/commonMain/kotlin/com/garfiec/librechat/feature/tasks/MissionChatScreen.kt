@@ -257,6 +257,7 @@ fun MissionChatScreen(
             onRetryHistory = viewModel::retryHistory,
             onRefresh = viewModel::refresh,
             onPickPrompt = viewModel::onInputChange,
+            onRedoStronger = viewModel::redoStronger,
         )
     }
 }
@@ -271,6 +272,8 @@ private fun MissionChatBody(
     onRetryHistory: () -> Unit,
     onRefresh: () -> Unit,
     onPickPrompt: (String) -> Unit,
+    /** « Redo stronger » (25/10/2026), shown under the last answer when a stronger tier exists. */
+    onRedoStronger: () -> Unit = {},
 ) {
     // Le geste que Raphaël a cherché le 21/09/2026 avant de contourner par la liste. Il ne masque
     // pas le défaut — le flux reprend toujours à « maintenant », voir MissionChatViewModel.refresh —
@@ -312,6 +315,7 @@ private fun MissionChatBody(
                         chat = state.chat,
                         fontScale = state.fontScale,
                         historyLoaded = !state.loadingHistory,
+                        onRedoStronger = onRedoStronger.takeIf { state.canRedoStronger },
                     )
                 }
             }
@@ -325,6 +329,8 @@ internal fun MissionTurns(
     fontScale: Float,
     /** The transcript has landed (or failed to): until then the turns on screen are the feed's only. */
     historyLoaded: Boolean,
+    /** Offered under the last answer when the conversation can redo it on a stronger tier. */
+    onRedoStronger: (() -> Unit)? = null,
 ) {
     val listState = rememberLazyListState()
     // One drawn turn per run of assistant steps: their tool calls fold into one growing line.
@@ -428,7 +434,12 @@ internal fun MissionTurns(
                                     UserBubble(turn, fontScale)
                                 }
                             }
-                            is ChatTurn.Assistant -> AssistantTurn(turn, streaming = live, fontScale = fontScale)
+                            is ChatTurn.Assistant -> AssistantTurn(
+                                turn,
+                                streaming = live,
+                                fontScale = fontScale,
+                                redo = onRedoStronger.takeIf { index == turns.lastIndex },
+                            )
                         }
                     }
                 }

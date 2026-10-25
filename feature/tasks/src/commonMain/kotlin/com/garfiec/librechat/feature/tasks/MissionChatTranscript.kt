@@ -18,6 +18,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -36,6 +37,7 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_chat_compacted
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_compacted_saved
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_compacting
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_copy
+import com.garfiec.librechat.feature.tasks.resources.tasks_chat_redo_stronger
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_thinking
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_turn_failed
 import com.garfiec.librechat.feature.tasks.resources.tasks_copied
@@ -122,7 +124,13 @@ internal fun CompactionNotice(part: ChatPart.Compaction, compacting: Boolean) {
  * it flat on 30/08/2026 buried the part anyone actually reads.
  */
 @Composable
-internal fun AssistantTurn(turn: ChatTurn.Assistant, streaming: Boolean, fontScale: Float) {
+internal fun AssistantTurn(
+    turn: ChatTurn.Assistant,
+    streaming: Boolean,
+    fontScale: Float,
+    /** « Redo stronger » (25/10/2026), under the last answer only, when a stronger tier exists. */
+    redo: (() -> Unit)? = null,
+) {
     val blocks = remember(turn.parts) { turn.parts.asBlocks() }
     Column(
         Modifier.fillMaxWidth(),
@@ -156,11 +164,14 @@ internal fun AssistantTurn(turn: ChatTurn.Assistant, streaming: Boolean, fontSca
         // The engine refused this turn (11/10/2026): its reason, where the answer would have been.
         // A blank space under the question read as « nothing happened », which was false.
         turn.error?.let { error -> TurnError(error) }
-        // Under a finished answer, the action row the chat and Claude both have. Only « copy » for
-        // now: a mission has no regenerate, and its feedback would reach nobody.
+        // Under a finished answer, the action row the chat and Claude both have: « copy », and under
+        // the last answer « redo stronger » (25/10/2026), the same request on the tier above.
         if (!streaming && lastProse >= 0) {
             val prose = blocks.filterIsInstance<ChatBlock.Prose>().joinToString("\n\n") { it.part.text }
-            CopyTurnButton(prose)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                CopyTurnButton(prose)
+                redo?.let { RedoStrongerButton(it) }
+            }
         }
     }
 }
@@ -184,6 +195,20 @@ private fun TurnError(error: String) {
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.error,
         )
+    }
+}
+
+/** « Redo stronger »: the person's last request again, on the tier above the one that answered. */
+@Composable
+private fun RedoStrongerButton(onClick: () -> Unit) {
+    DisableSelection {
+        TextButton(onClick = onClick) {
+            Text(
+                stringResource(Res.string.tasks_chat_redo_stronger),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 
