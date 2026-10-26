@@ -520,6 +520,12 @@ class MissionChatViewModel(
                 } else {
                     null
                 }
+                if (trustCache) {
+                    Logger.i(LOG_TAG) {
+                        val what = kept?.let { "${it.messageCount} messages kept on the device" } ?: "nothing kept on the device"
+                        "History of $sessionId: $what"
+                    }
+                }
                 if (kept != null) {
                     _uiState.update { current ->
                         val seeded = kept.events.fold(current.chat) { state, event -> state.reduce(event) }
@@ -587,8 +593,13 @@ class MissionChatViewModel(
      */
     private suspend fun fetchHistory(sessionId: String, limit: Int?, unlessUpdatedAt: Long? = null): HistoryRead? {
         repeat(HISTORY_ATTEMPTS) { attempt ->
+            val started = Clock.System.now().toEpochMilliseconds()
             val read = try {
-                withTimeoutOrNull(HISTORY_ATTEMPT_MS) {
+                // The first try is short (26/10/2026): the engine answers in milliseconds, and a
+                // connection that died unnoticed costs this much before everything is dropped. A
+                // person who waits four seconds on the placeholders leaves; the longer tries are
+                // for a slow link, once the connections are known good.
+                withTimeoutOrNull(if (attempt == 0) HISTORY_FIRST_ATTEMPT_MS else HISTORY_ATTEMPT_MS) {
                     withContext(ioDispatcher) {
                         if (unlessUpdatedAt != null && limit != null) {
                             repository.historyUnlessUpdatedAt(sessionId, limit, unlessUpdatedAt)
@@ -610,7 +621,16 @@ class MissionChatViewModel(
                 delay(HISTORY_RETRY_PAUSE_MS)
                 return@repeat
             }
-            if (read != null) return read
+            if (read != null) {
+                val elapsed = Clock.System.now().toEpochMilliseconds() - started
+                Logger.i(LOG_TAG) {
+                    val what = (read as? HistoryRead.Fresh)
+                        ?.let { fresh -> "${fresh.events.count { it is EngineStreamEvent.MessageStarted }} messages" }
+                        ?: "unchanged"
+                    "History of $sessionId: $what in $elapsed ms (attempt ${attempt + 1})"
+                }
+                return read
+            }
             Logger.w(LOG_TAG) { "History of $sessionId: attempt ${attempt + 1} hung, dropping every connection" }
             repository.dropConnections()
         }
@@ -1111,6 +1131,9 @@ private const val HISTORY_RETRY_PAUSE_MS = 500L
 
 /** How often at most a delta on an unknown part has the transcript read again. */
 private const val RECONCILE_PAUSE_MS = 3_000L
+
+/** The first try's limit (26/10/2026): a dead connection costs this much, then every connection is dropped. */
+private const val HISTORY_FIRST_ATTEMPT_MS = 3_000L
 
 /** A user turn carrying exactly these words: a send made mid-turn that reached the engine. */
 private fun MissionChatState.hasUserText(text: String): Boolean = turns.any { turn ->

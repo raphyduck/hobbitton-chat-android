@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.shareIn
+import kotlinx.coroutines.launch
 
 /**
  * One conversation as the lists show it. Since D-082 (12/10/2026) every session opens the same
@@ -153,6 +154,9 @@ class EngineMissionRepository(
     /** The tails kept on the device (26/10/2026); null keeps nothing (tests). */
     private val transcripts: TranscriptCache? = null,
 ) {
+
+    /** The application's scope, for the work a screen must not wait on; null in tests. */
+    private val keepScope: CoroutineScope? = sharingScope
 
     private val feed: Flow<EngineEventParser.Parsed> = streamClient.frames(eventTransport).flowOn(ioDispatcher).let { frames ->
         sharingScope?.let { scope ->
@@ -417,7 +421,13 @@ class EngineMissionRepository(
      */
     suspend fun history(sessionId: String, limit: Int? = null): List<EngineStreamEvent> {
         val messages = api.messages(sessionId, limit)
-        if (limit != null) keepTail(sessionId, limit, messages)
+        // Kept off the opening's path (26/10/2026): writing the tail reads the session's clock,
+        // one more round trip, then gzips it; the screen used to wait for both before drawing.
+        // Without an application scope (tests), it is written before returning.
+        if (limit != null) {
+            val scope = keepScope
+            if (scope != null) scope.launch { keepTail(sessionId, limit, messages) } else keepTail(sessionId, limit, messages)
+        }
         return engineHistoryEvents(messages)
     }
 
