@@ -8,6 +8,7 @@ import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.datastore.ThemeDataStore
 import com.garfiec.librechat.core.data.datastore.ThemeMode
 import com.garfiec.librechat.core.data.engine.ChatScope
+import com.garfiec.librechat.core.data.engine.ConversationModelStore
 import com.garfiec.librechat.core.data.engine.ConversationReads
 import com.garfiec.librechat.core.data.engine.ConversationRequests
 import com.garfiec.librechat.core.data.engine.EngineAttentionWatcher
@@ -82,6 +83,8 @@ class EngineShellViewModel(
     private val diagnostics: DiagnosticLogShare? = null,
     /** The tails of the conversations kept on this device: forgotten at sign-out (26/10/2026). */
     private val transcripts: TranscriptCache? = null,
+    /** The model this device last sent each conversation with: forgotten at sign-out (26/10/2026). */
+    private val conversationModels: ConversationModelStore? = null,
 ) : ViewModel() {
 
     private val _signedIn = MutableStateFlow<Boolean?>(null)
@@ -366,6 +369,7 @@ class EngineShellViewModel(
                 runCatching { kinds.clear() }.onFailure { Logger.w(it) { "Could not clear the session kinds" } }
                 runCatching { reads.clear() }.onFailure { Logger.w(it) { "Could not clear the read marks" } }
                 runCatching { transcripts?.clear() }.onFailure { Logger.w(it) { "Could not clear the kept transcripts" } }
+                runCatching { conversationModels?.clear() }.onFailure { Logger.w(it) { "Could not clear the conversations' models" } }
             }
             allChatsJob?.cancel()
             stopAttention()

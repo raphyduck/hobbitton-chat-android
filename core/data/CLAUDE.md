@@ -91,6 +91,10 @@ Since 12/10/2026 chats and tasks are one conversation, as on Claude.ai.
   `POST /transcription`. Answers `TranscriptionOutcome` (the words, or a `TranscriptionFailure` plus
   the server's `erreur`), never throws past `:core:data`. The language hint is the device's when it
   is a bare ISO 639-1 code (`isoLanguageOrNull`), nothing otherwise. Bound in `engineModule`.
+- **`ConversationModelStore`** (`EngineConversationModels`, 26/10/2026): the model this device last
+  sent each conversation with, one capped JSON map in the preferences like the session kinds,
+  cleared at sign-out. The conversation screen reads it ahead of the model the last turn ran on,
+  which a reminder or a relance of the scheduler may have set to its own.
 - **`TranscriptCache`** (26/10/2026): the tail of each conversation the device opened
   (`CachedTranscript`: the engine's messages, the read's `limit`, the session's `time.updated`),
   written by `history(sessionId, limit)` when a limit is given, read back by `cachedHistory`;
