@@ -17,6 +17,8 @@ data class EngineOAuthEndpoints(
     @SerialName("authorization_endpoint") val authorizationEndpoint: String,
     @SerialName("token_endpoint") val tokenEndpoint: String,
     @SerialName("pushed_authorization_request_endpoint") val parEndpoint: String? = null,
+    /** RFC 7009: where a token is given back at sign-out (26/10/2026); absent, nothing is revoked. */
+    @SerialName("revocation_endpoint") val revocationEndpoint: String? = null,
 )
 
 /**

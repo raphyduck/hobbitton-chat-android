@@ -99,4 +99,17 @@ class EngineCallbackMailboxTest {
         assertFalse(boite.deposer(lien))
         assertIs<FormPostCallback.Malformed>(boite.attendre(1_000))
     }
+
+    @Test
+    fun `un lien d'un autre tour ne sert pas la boite armee pour celui-ci`() = runTest {
+        // 26/10/2026 : pendant les cinq minutes du tour, une application tierce pouvait déposer un
+        // lien forgé, servir la boîte la première et faire ignorer le vrai retour.
+        val boite = EngineCallbackMailbox()
+        boite.armer(state = "xyz")
+
+        assertFalse(boite.deposer("at.hobbitton.chat://oauth?code=forge&state=autre"))
+        assertTrue(boite.deposer(lien))
+
+        assertEquals(FormPostCallback.Success("abc", "xyz"), boite.attendre(1_000))
+    }
 }

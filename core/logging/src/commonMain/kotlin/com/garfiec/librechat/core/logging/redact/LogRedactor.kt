@@ -39,6 +39,7 @@ class LogRedactor(private val salt: String = DEFAULT_SALT) {
         // refresh: swap '=' for ':' so `refreshtoken=` no longer matches.
         out = refreshRegex.replace(out) { m -> "refreshtoken:" + hash8(m.groupValues[2]) }
         out = jwtRegex.replace(out) { m -> "jwt:" + hash8(m.value) }
+        out = autheliaTokenRegex.replace(out) { m -> "tok:" + hash8(m.value) }
         out = emailRegex.replace(out) { m -> "email:" + hash8(m.value) }
         // Hash bare identifiers (UUIDs, Mongo ObjectIds) wherever they appear — including inside
         // URL/request paths, which would otherwise leak conversation/message IDs verbatim. Runs
@@ -89,6 +90,10 @@ class LogRedactor(private val salt: String = DEFAULT_SALT) {
         private val bearerRegex = Regex("(?i)(authorization\\s*[:=]\\s*bearer\\s+)(\\S+)")
         private val refreshRegex = Regex("(?i)(refreshtoken=)([^;&\\s\"]+)")
         private val jwtRegex = Regex("eyJ[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+")
+
+        // Authelia's opaque tokens (`authelia_at_…`, `authelia_rt_…`): not JWTs, so the rule above
+        // would let one through if it ever rode an exception's message (26/10/2026).
+        private val autheliaTokenRegex = Regex("\\bauthelia_[a-z]{2}_[A-Za-z0-9._~-]{8,}")
 
         // Email — also matches IP-literal/single-label hosts (user@localhost, user@10.0.0.1), which a
         // dotted-TLD-only pattern would miss. Over-matching a stray `a@b` token in a log is acceptable.

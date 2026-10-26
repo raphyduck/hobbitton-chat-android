@@ -86,14 +86,13 @@ class EngineSignIn(
         // déjà valide, second facteur mémorisé — le retour peut arriver avant que cette coroutine
         // n'atteigne `attendre`, et une boîte armée après serait une boîte qui rate son propre
         // courrier.
-        inbox.armer()
+        val attempt = EngineAuthorizationAttempt(
+            pkce = generatePkcePair(),
+            state = generateStateToken(),
+            redirectUri = redirect,
+        )
+        inbox.armer(attempt.state)
         return try {
-            val attempt = EngineAuthorizationAttempt(
-                pkce = generatePkcePair(),
-                state = generateStateToken(),
-                redirectUri = redirect,
-            )
-
             val pushed = runCatching {
                 // Les audiences sont RÉCLAMÉES, pas héritées : la liste du client côté portail dit
                 // ce qui est permis, pas ce qui est accordé. Sans elles, tout le tour réussit et le

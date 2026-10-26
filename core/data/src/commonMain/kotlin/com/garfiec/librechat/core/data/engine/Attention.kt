@@ -64,6 +64,9 @@ const val CONVERSATION_LINK_SCHEME = "at.hobbitton.chat"
 const val CONVERSATION_LINK_HOST = "conversation"
 private val SESSION_ID = Regex("ses_[A-Za-z0-9]{6,64}")
 
+/** An engine session id and nothing else: what a link or an intent may name (26/10/2026). */
+fun isEngineSessionId(id: String): Boolean = SESSION_ID.matches(id)
+
 /** Whether the person wants to be signalled at all: the Settings switch. */
 fun interface AttentionPreference {
     suspend fun enabled(): Boolean

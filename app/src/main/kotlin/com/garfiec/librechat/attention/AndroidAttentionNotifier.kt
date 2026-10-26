@@ -21,6 +21,7 @@ import com.garfiec.librechat.core.data.engine.AttentionNotifier
 import com.garfiec.librechat.core.data.engine.OpenConversation
 import com.garfiec.librechat.core.data.engine.PushKind
 import com.garfiec.librechat.core.data.engine.PushMessage
+import com.garfiec.librechat.core.data.engine.isEngineSessionId
 
 /**
  * Android's half of [AttentionNotifier]: the notification sound, and two notification channels
@@ -110,6 +111,13 @@ class AndroidAttentionNotifier(private val context: Context) : AttentionNotifier
 
     private fun post(id: Int, channel: String, title: String, text: String, conversation: OpenConversation?) {
         if (!canPost()) return
+        // On a locked phone, only that something waits (26/10/2026): a question quotes the mail or
+        // the amount it is about, and Android's default shows a notification's whole text there.
+        val public = NotificationCompat.Builder(context, channel)
+            .setSmallIcon(android.R.drawable.stat_notify_chat)
+            .setContentTitle(context.getString(publicTitleOf(channel)))
+            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+            .build()
         val notification = NotificationCompat.Builder(context, channel)
             .setSmallIcon(android.R.drawable.stat_notify_chat)
             .setContentTitle(title)
@@ -117,6 +125,8 @@ class AndroidAttentionNotifier(private val context: Context) : AttentionNotifier
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+            .setPublicVersion(public)
             .setAutoCancel(true)
             .setContentIntent(openIntent(id, conversation))
             .build()
@@ -183,20 +193,34 @@ class AndroidAttentionNotifier(private val context: Context) : AttentionNotifier
 
     private fun replyId(sessionId: String) = "r:$sessionId".hashCode()
 
+    /** What the lock screen may say of a notification on [channel]: that something waits, no more. */
+    private fun publicTitleOf(channel: String): Int = when (channel) {
+        CHANNEL_REPLIES -> R.string.attention_reply_ready
+        CHANNEL_DECISIONS -> R.string.attention_decision_waiting
+        else -> R.string.attention_question
+    }
+
     companion object {
         const val EXTRA_SESSION_ID = "at.hobbitton.chat.extra.SESSION_ID"
         const val EXTRA_TITLE = "at.hobbitton.chat.extra.TITLE"
+
+        /** A title an intent may carry: a notification's, never a page. */
+        private const val MAX_TITLE_LENGTH = 120
 
         private const val CHANNEL_QUESTIONS = "butler_questions"
         private const val CHANNEL_REPLIES = "butler_replies"
         private const val CHANNEL_DECISIONS = "butler_decisions"
 
-        /** The conversation a notification's intent names, or null for any other intent. */
+        /**
+         * The conversation a notification's intent names, or null for any other intent. The
+         * activity is exported, so any app can send these extras (26/10/2026): only an engine
+         * session id is taken, the same rule as the push link's, and a title is cut short.
+         */
         fun conversationOf(intent: Intent?): OpenConversation? {
-            val sessionId = intent?.getStringExtra(EXTRA_SESSION_ID)?.takeIf { it.isNotBlank() } ?: return null
+            val sessionId = intent?.getStringExtra(EXTRA_SESSION_ID)?.trim()?.takeIf(::isEngineSessionId) ?: return null
             return OpenConversation(
                 sessionId = sessionId,
-                title = intent.getStringExtra(EXTRA_TITLE),
+                title = intent.getStringExtra(EXTRA_TITLE)?.take(MAX_TITLE_LENGTH),
             )
         }
     }

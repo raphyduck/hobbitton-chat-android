@@ -11,6 +11,7 @@ import com.garfiec.librechat.core.data.engine.ChatScope
 import com.garfiec.librechat.core.data.engine.ConversationModelStore
 import com.garfiec.librechat.core.data.engine.ConversationReads
 import com.garfiec.librechat.core.data.engine.ConversationRequests
+import com.garfiec.librechat.core.data.engine.DeviceCleanup
 import com.garfiec.librechat.core.data.engine.EngineAttentionWatcher
 import com.garfiec.librechat.core.data.engine.EngineChatSummary
 import com.garfiec.librechat.core.data.engine.EngineMissionRepository
@@ -85,6 +86,8 @@ class EngineShellViewModel(
     private val transcripts: TranscriptCache? = null,
     /** The model this device last sent each conversation with: forgotten at sign-out (26/10/2026). */
     private val conversationModels: ConversationModelStore? = null,
+    /** The platform's part of signing out: opened attachments, image cache, diagnostic log (26/10/2026). */
+    private val deviceCleanup: DeviceCleanup? = null,
 ) : ViewModel() {
 
     private val _signedIn = MutableStateFlow<Boolean?>(null)
@@ -370,6 +373,7 @@ class EngineShellViewModel(
                 runCatching { reads.clear() }.onFailure { Logger.w(it) { "Could not clear the read marks" } }
                 runCatching { transcripts?.clear() }.onFailure { Logger.w(it) { "Could not clear the kept transcripts" } }
                 runCatching { conversationModels?.clear() }.onFailure { Logger.w(it) { "Could not clear the conversations' models" } }
+                runCatching { deviceCleanup?.clear() }.onFailure { Logger.w(it) { "Could not clear the device's caches" } }
             }
             allChatsJob?.cancel()
             stopAttention()

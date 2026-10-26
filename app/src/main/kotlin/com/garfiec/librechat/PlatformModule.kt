@@ -1,5 +1,6 @@
 package com.garfiec.librechat
 
+import com.garfiec.librechat.core.data.engine.DeviceCleanup
 import com.garfiec.librechat.core.data.engine.PlatformDefaults
 import com.garfiec.librechat.core.logging.DiagnosticLogShare
 import com.garfiec.librechat.diagnostics.AndroidDiagnosticLogShare
@@ -14,6 +15,7 @@ import org.koin.dsl.module
  */
 val platformModule = module {
     single<DiagnosticLogShare> { AndroidDiagnosticLogShare(androidContext(), get()) }
+    single<DeviceCleanup> { AndroidDeviceCleanup(androidContext(), get()) }
     single {
         PlatformDefaults(
             baseUrl = BuildConfig.PLATFORM_ENGINE_URL,

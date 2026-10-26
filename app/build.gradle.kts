@@ -57,7 +57,6 @@ dependencies {
     implementation(libs.bundles.lifecycle)
     implementation(libs.coil3.compose)
     implementation(libs.coil3.network.ktor)
-    implementation(libs.coil3.svg)
     implementation(libs.kermit)
 
     debugImplementation(libs.leakcanary)

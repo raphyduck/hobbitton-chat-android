@@ -18,4 +18,5 @@
     <string name="attention_question_hint">Eva attend votre réponse.</string>
     <string name="attention_reply_ready">Réponse prête</string>
     <string name="attention_reply_ready_hint">Eva a répondu.</string>
+    <string name="attention_decision_waiting">Une décision vous attend</string>
 </resources>

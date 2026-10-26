@@ -143,4 +143,11 @@ class LogRedactorTest {
         assertFalse(out.contains("eyJsecrettoken"), out)
         assertFalse(out.contains("bob@corp.io"), out)
     }
+
+    @Test
+    fun authelia_opaque_token_is_hashed() {
+        val out = redactor.redact("refused with authelia_rt_k9ZqP3vX1mN8bT2wR5yU7eA0cD4fG6hJ in the body")
+        assertFalse(out.contains("k9ZqP3vX1mN8bT2wR5yU7eA0cD4fG6hJ"), "raw token leaked: $out")
+        assertTrue(out.contains("tok:"), "expected hashed token marker: $out")
+    }
 }

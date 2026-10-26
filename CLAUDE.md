@@ -200,6 +200,19 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   (`redoStronger`, `MissionChatUiState.canRedoStronger`) sends the last request again, prefixed
   (`REDO_STRONGER_PREFIX`), on the tier above the one that answered, read off the scheduler's ladder
   (`GET /palier` → `ModelTiers.strongerThan`); at the top of the ladder the button is not shown.
+- **What the phone keeps to itself** (26/10/2026, the review). An image a message names loads on
+  its own only from the platform's hosts or as a `data:` URL (`LocalTrustedImageHosts`,
+  `imagesOffTrustedHostsAsLinks`, `:core:ui`): any other becomes a link the person opens on purpose,
+  since a trapped content could make the model write an image URL that carries the context out.
+  No SVG decoder. Notifications keep their text off the lock screen (`VISIBILITY_PRIVATE` with a
+  public version that only says something waits). An intent's extras name a conversation only by
+  a valid engine session id (`isEngineSessionId`). Signing out also revokes the refresh token at
+  the portal (`revokeAndForget`, RFC 7009), deletes the opened attachments, the image cache and the
+  diagnostic log (`DeviceCleanup`, `AndroidDeviceCleanup`). The OAuth mailbox is armed with the
+  tour's `state` and ignores a link with another. A copy to the clipboard is marked sensitive. The
+  push stream refuses cleartext to a public host and follows no redirection. Deliberately not done:
+  `FLAG_SECURE` (screen recordings are how Raphaël reports), and encrypting the transcript cache
+  (plain gzip under the cache directory, cleared at sign-out).
 - **LibreChat's leftovers** on a device that ran an earlier build (its Room database, tokens,
   WorkManager job, caches and preferences) are removed once at start by `LegacyLibreChatCleanup`;
   a LibreChat account's global profile is moved under the device keys first.

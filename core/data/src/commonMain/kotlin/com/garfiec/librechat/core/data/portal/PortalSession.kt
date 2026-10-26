@@ -115,6 +115,22 @@ class PortalSession(
         store.clear()
     }
 
+    /**
+     * Signing out (26/10/2026): the tokens dropped here first, then the refresh token given back
+     * to the portal, best effort. Local first, so a portal that cannot be reached still leaves a
+     * signed-out phone; and the token is revoked after the store is empty, so no renewal can use
+     * it meanwhile.
+     */
+    suspend fun revokeAndForget() {
+        val refreshToken = gate.withLock {
+            val held = store.read()?.refreshToken
+            store.clear()
+            held
+        } ?: return
+        runCatching { client.revoke(requireEndpoints(), refreshToken) }
+            .onFailure { Logger.w("Portal", it) { "The refresh token could not be revoked at the portal" } }
+    }
+
     private suspend fun requireEndpoints(): EngineOAuthEndpoints =
         endpoints() ?: error("The engine's OAuth endpoints are unknown — discovery has not run")
 }

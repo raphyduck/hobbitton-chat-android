@@ -1,5 +1,7 @@
 package com.garfiec.librechat.core.data.portal
 
+import com.garfiec.librechat.core.common.network.CleartextPolicy
+
 /**
  * What to do with one navigation of the portal's web view, during the sign-in (D-076, D-077).
  *
@@ -20,10 +22,14 @@ sealed interface PortalNavigation {
     data object Refused : PortalNavigation
 }
 
-/** Classifies [url], one main-frame navigation of the sign-in's web view. */
+/**
+ * Classifies [url], one main-frame navigation of the sign-in's web view. `http://` loads only
+ * towards a private host (26/10/2026, the same rule as the clients' cleartext guard): a portal
+ * that redirected in the clear to a public host would otherwise be followed.
+ */
 fun classifyPortalNavigation(url: String): PortalNavigation = when {
     isPortalCallback(url) -> PortalNavigation.AppCallback
-    url.startsWith("https://", ignoreCase = true) || url.startsWith("http://", ignoreCase = true) ->
-        PortalNavigation.Load
+    url.startsWith("https://", ignoreCase = true) -> PortalNavigation.Load
+    url.startsWith("http://", ignoreCase = true) && CleartextPolicy.isPermitted(url) -> PortalNavigation.Load
     else -> PortalNavigation.Refused
 }

@@ -335,7 +335,7 @@ class SchedulerApi(
         }
         if (response.status == HttpStatusCode.NotFound) return null
         if (!response.status.isSuccess()) {
-            throw EngineHttpException(response.status.value, response.request.url.toString(), response.bodyAsText())
+            throw EngineHttpException(response.status.value, response.request.method.value, response.request.url.encodedPath)
         }
         return json.decodeFromString(PortalIdentity.serializer(), response.bodyAsText())
     }
@@ -351,7 +351,7 @@ class SchedulerApi(
         }
         if (response.status == HttpStatusCode.NotFound) return null
         if (!response.status.isSuccess()) {
-            throw EngineHttpException(response.status.value, response.request.url.toString(), response.bodyAsText())
+            throw EngineHttpException(response.status.value, response.request.method.value, response.request.url.encodedPath)
         }
         return json.decodeFromString(PushChannel.serializer(), response.bodyAsText())
     }
@@ -368,7 +368,7 @@ class SchedulerApi(
         }
         if (response.status == HttpStatusCode.NotFound) return null
         if (!response.status.isSuccess()) {
-            throw EngineHttpException(response.status.value, response.request.url.toString(), response.bodyAsText())
+            throw EngineHttpException(response.status.value, response.request.method.value, response.request.url.encodedPath)
         }
         return json.decodeFromString(ModelTiers.serializer(), response.bodyAsText())
     }
@@ -393,7 +393,7 @@ class SchedulerApi(
         }
         if (response.status == HttpStatusCode.NotFound) return null
         if (!response.status.isSuccess()) {
-            throw EngineHttpException(response.status.value, response.request.url.toString(), response.bodyAsText())
+            throw EngineHttpException(response.status.value, response.request.method.value, response.request.url.encodedPath)
         }
         return json.decodeFromString(ModelTierChoice.serializer(), response.bodyAsText())
     }
