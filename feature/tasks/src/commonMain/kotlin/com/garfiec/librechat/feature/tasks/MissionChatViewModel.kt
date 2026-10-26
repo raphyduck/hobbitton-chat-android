@@ -7,6 +7,7 @@ import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.engine.AttentionSignals
 import com.garfiec.librechat.core.data.engine.AudioTranscriber
 import com.garfiec.librechat.core.data.engine.ConnectorOption
+import com.garfiec.librechat.core.data.engine.ConversationModelStore
 import com.garfiec.librechat.core.data.engine.EngineMissionRepository
 import com.garfiec.librechat.core.data.engine.OpenConversation
 import com.garfiec.librechat.core.data.engine.TITULAR_LEVEL
@@ -135,6 +136,12 @@ data class MissionChatUiState(
      */
     val model: EngineSelectableModel? = null,
     /**
+     * The model this device last sent this conversation with (26/10/2026), ahead of the one the
+     * last turn ran on: a reminder or a relance the scheduler played into the conversation ran on
+     * its own model, and the person's next message used to follow it.
+     */
+    val rememberedModel: EngineModelRef? = null,
+    /**
      * The connector catalogue would not load. The chip says so instead of offering an empty list —
      * an empty connector sheet reads as « this mission can have nothing », which is a different
      * claim, and the very outcome this screen exists to have fixed.
@@ -193,13 +200,13 @@ data class MissionChatUiState(
     /**
      * What the model chip says, and what the picker shows as current.
      *
-     * The user's pick for the next message wins; failing that, the model the session's last turn
-     * actually ran on — read off the engine's own message envelopes, which is the only place that
-     * fact is written. A model the catalogue does not list still gets named, by its raw id: an
+     * The user's pick for the next message wins; failing that, the model this device last sent the
+     * conversation with ([rememberedModel]); failing that, the model the session's last turn
+     * actually ran on — read off the engine's own message envelopes. A model the catalogue does not list still gets named, by its raw id: an
      * unfamiliar model is worth showing, and « Session model » in its place says less than nothing.
      */
     val effectiveModel: EngineSelectableModel?
-        get() = model ?: chat.model?.let { ref ->
+        get() = model ?: (rememberedModel ?: chat.model)?.let { ref ->
             models.firstOrNull { it.ref == ref }
                 ?: EngineSelectableModel(
                     providerId = ref.providerId,
@@ -260,6 +267,8 @@ class MissionChatViewModel(
     private val ioDispatcher: CoroutineDispatcher,
     /** Who the portal says is signed in, for the greeting of a new chat; null where unavailable. */
     private val scheduler: SchedulerRepository? = null,
+    /** The model this device last sent each conversation with (26/10/2026); null in tests. */
+    private val conversationModels: ConversationModelStore? = null,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(
@@ -309,6 +318,10 @@ class MissionChatViewModel(
         if (sessionId != null) {
             loadHistory()
             openStream()
+            viewModelScope.launch {
+                val remembered = runCatching { withContext(ioDispatcher) { conversationModels?.modelOf(sessionId) } }.getOrNull()
+                if (remembered != null) _uiState.update { it.copy(rememberedModel = remembered) }
+            }
         } else {
             // A new conversation has no transcript to wait for. An existing one loads its catalogue
             // once its transcript has landed (26/10/2026): the models, the connectors, the session's
@@ -879,6 +892,7 @@ class MissionChatViewModel(
                 // The answer streams in over the feed while this call is in flight; what it returns is
                 // the finished turn, folded in to reconcile anything the feed missed.
                 val model = resolveModel(text, attachments.any { it.mime.startsWith("image/") })
+                model?.let { rememberModel(sessionId, it) }
                 val settled = withContext(ioDispatcher) {
                     repository.sendMessage(
                         sessionId,
@@ -933,15 +947,17 @@ class MissionChatViewModel(
         viewModelScope.launch {
             try {
                 val files = attachments.map { it.asPromptPart() }
+                val model = resolveModel(text, attachments.any { it.mime.startsWith("image/") })
                 val created = withContext(ioDispatcher) {
                     repository.startChat(
                         text = text,
                         // Null while the catalogue is unknown: the repository then takes the defaults.
                         connectors = staged.enabledConnectors?.toList(),
-                        model = resolveModel(text, attachments.any { it.mime.startsWith("image/") }),
+                        model = model,
                         files = files,
                     )
                 }
+                model?.let { rememberModel(created, it) }
                 val title = chatTitle(text).ifBlank { attachments.firstOrNull()?.filename.orEmpty() }
                 _uiState.update { it.copy(started = StartedChat(created, title)) }
             } catch (e: CancellationException) {
@@ -961,8 +977,21 @@ class MissionChatViewModel(
     }
 
     /**
-     * The model the next message names: what the chip shows — the pick, else the model the last turn
-     * ran on, else the conversations' provider default.
+     * [model] is the conversation's from now on, on this device (26/10/2026): the chip shows it
+     * whatever the scheduler plays into the conversation, and the next messages follow it.
+     */
+    private fun rememberModel(sessionId: String, model: EngineModelRef) {
+        _uiState.update { it.copy(rememberedModel = model) }
+        viewModelScope.launch {
+            runCatching { withContext(ioDispatcher) { conversationModels?.record(sessionId, model) } }
+                .onFailure { Logger.w(LOG_TAG, it) { "Could not record the model of $sessionId" } }
+        }
+    }
+
+    /**
+     * The model the next message names: what the chip shows — the pick, else the model this device
+     * last sent the conversation with, else the model the last turn ran on, else the conversations'
+     * provider default.
      *
      * Never nothing: the engine does not keep a session's model, and a message without one runs on
      * the **agent's** model. A conversation switched to another model went back to the default as
@@ -998,6 +1027,7 @@ class MissionChatViewModel(
         val stronger = state.strongerModel ?: return
         val text = state.lastUserText ?: return
         _uiState.update { it.copy(model = stronger, sending = true, sendError = null) }
+        rememberModel(sessionId, stronger.ref)
         sendsInFlight++
         awaitingReply = true
         viewModelScope.launch {

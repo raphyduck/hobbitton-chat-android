@@ -4,7 +4,9 @@ import com.garfiec.librechat.core.common.di.KoinQualifiers
 import com.garfiec.librechat.core.data.datastore.GlobalProfileEditor
 import com.garfiec.librechat.core.data.datastore.GlobalProfileSource
 import com.garfiec.librechat.core.data.datastore.GlobalProfileStore
+import com.garfiec.librechat.core.data.engine.ConversationModelStore
 import com.garfiec.librechat.core.data.engine.ConversationReads
+import com.garfiec.librechat.core.data.engine.EngineConversationModels
 import com.garfiec.librechat.core.data.engine.EngineConversationReads
 import com.garfiec.librechat.core.data.engine.EngineSessionKinds
 import com.garfiec.librechat.core.data.engine.SessionKindStore
@@ -22,6 +24,15 @@ val hobbittonDataModule = module {
      */
     single<SessionKindStore> {
         EngineSessionKinds(
+            dataStore = get(),
+            json = get(),
+            ioDispatcher = get(KoinQualifiers.IO),
+        )
+    }
+
+    /** The model this device last sent each conversation with (26/10/2026): what the chip and the next message follow. */
+    single<ConversationModelStore> {
+        EngineConversationModels(
             dataStore = get(),
             json = get(),
             ioDispatcher = get(KoinQualifiers.IO),

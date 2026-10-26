@@ -1,5 +1,6 @@
 package com.garfiec.librechat.shared.di
 
+import com.garfiec.librechat.core.data.engine.ConversationModelStore
 import com.garfiec.librechat.core.data.engine.ConversationRequests
 import com.garfiec.librechat.core.data.engine.EngineAttentionWatcher
 import com.garfiec.librechat.core.data.engine.EngineMissionRepository
@@ -37,6 +38,7 @@ val sharedAppModule = module {
             scheduler = getOrNull<SchedulerRepository>(),
             diagnostics = getOrNull<DiagnosticLogShare>(),
             transcripts = getOrNull<TranscriptCache>(),
+            conversationModels = getOrNull<ConversationModelStore>(),
         )
     }
 
