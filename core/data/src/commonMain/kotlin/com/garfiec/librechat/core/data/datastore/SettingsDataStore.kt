@@ -96,16 +96,17 @@ class SettingsDataStore(
     }
 
     /**
-     * The composer's mic heard by the phone's own speech recognition (19/10/2026), OFF by default
-     * since 26/10/2026 (Raphaël: « la transcription est trop mauvaise, elle détecte mal quand ça
-     * s'arrête et loupe des passages » ; what matters is the behaviour, not where the audio goes).
-     * The phone's recognizer listens in stretches that end at a pause and restarts between them,
-     * dropping words. Claude's app records until the person taps stop and has a server model
-     * transcribe the whole take; so does Eva now by default (the scheduler's `POST /transcription`:
-     * Whisper large-v3, then Cohere Transcribe). On, the phone's recognizer shows the words live. A new key, so that the switch every device held from 19/10 (on) does not keep
-     * the weaker path; audio files go to the scheduler either way.
+     * The composer's mic heard by the phone's own speech recognition (19/10/2026), ON by default
+     * (Raphaël, 26/10/2026: « la transcription en local, ce qui est le défaut que je veux »). It
+     * must listen without a break until the tap on stop (same day: « il faut absolument qu'il
+     * écoute sans s'arrêter jusqu'à ce que j'appuie sur le bouton STOP »): the app holds the mic
+     * and feeds the recognizer, which no longer cuts at a pause nor loses the words spoken while
+     * it restarts (`PhoneDictation`, Android 13). Off, or on a phone without that recognition, the
+     * mic records until stop and the scheduler's `POST /transcription` (Whisper large-v3, then
+     * Cohere Transcribe) hears the whole take. The key dates from 26/10 morning, when the default
+     * had briefly gone to the server; audio files go to the scheduler either way.
      */
-    val localDictation: Flow<Boolean> = dataStore.data.map { prefs -> prefs[KEY_LOCAL_DICTATION] ?: false }
+    val localDictation: Flow<Boolean> = dataStore.data.map { prefs -> prefs[KEY_LOCAL_DICTATION] ?: true }
 
     suspend fun setLocalDictation(enabled: Boolean) {
         dataStore.edit { it[KEY_LOCAL_DICTATION] = enabled }
