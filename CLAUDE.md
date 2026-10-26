@@ -232,8 +232,11 @@ sheet for the diagnostic log). The shell and the sign-in resolve the engine grap
   a sleep or a change of network leaves dead without a word, and OkHttp never evicts a multiplexed
   connection on a timeout: the connections PING every 20 s (`PING_INTERVAL_SECONDS`), a transcript
   read that hangs 8 s drops them all before its retry (`ConnectionReset`, `OkHttpConnections`:
-  the calls cancelled, the pool emptied; `repository.dropConnections()`), and so does every change
-  of network (`ConnectivityObserver.networkChanges`, collected by `LibreChatApplication`). The
+  the calls cancelled, the pool emptied; `repository.dropConnections()`), and so does a change of
+  the DEFAULT network (`ConnectivityObserver.networkChanges`: `registerDefaultNetworkCallback`, the first
+  callback skipped, a loss and a gain within 1,5 s folded into one by `LibreChatApplication`; the
+  v2026.10.43 regression listened to every network, and the mobile one comes and goes every few
+  seconds under Wi-Fi: each time the transcript being read was killed, two minutes of placeholders). The
   transcript goes first: the catalogue (models, connectors, level, prices) is read once it has
   landed (`catalogueRequested`). The feed is read ONCE per app (`EngineMissionRepository.feed`,
   `shareIn` on the application scope, 5 s of linger): the conversation and the attention watcher

@@ -467,7 +467,7 @@ class EngineMissionRepository(
     fun events(sessionId: String): Flow<EngineStreamEvent> = with(streamClient) { feed.forSession(sessionId) }
 
     /** See [ConnectionReset]: the next request opens a fresh connection, the feeds reconnect. */
-    fun dropConnections() = connections.dropAll()
+    suspend fun dropConnections() = connections.dropAll()
 
     /**
      * Every session's events, each naming its session: what the attention watcher listens to, so a

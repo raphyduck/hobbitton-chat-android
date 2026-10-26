@@ -33,6 +33,8 @@ import io.ktor.client.HttpClient
 import io.ktor.client.engine.HttpClientEngineFactory
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
 import org.koin.android.ext.koin.androidContext
@@ -100,8 +102,10 @@ class LibreChatApplication : Application(), SingletonImageLoader.Factory {
         val connections: ConnectionReset by inject()
         val appScope: CoroutineScope by inject(KoinQualifiers.ApplicationScope)
         appScope.launch {
-            connectivity.networkChanges.collect {
-                Logger.i("Network") { "network changed: dropping every connection" }
+            // A switch arrives as a loss then a gain within a second: one drop for both.
+            connectivity.networkChanges.collectLatest {
+                delay(NETWORK_SETTLE_MS)
+                Logger.i("Network") { "default network changed: dropping every connection" }
                 connections.dropAll()
             }
         }
@@ -164,3 +168,6 @@ class LibreChatApplication : Application(), SingletonImageLoader.Factory {
             .build()
     }
 }
+
+/** How long a network change is given to settle before the connections are dropped. */
+private const val NETWORK_SETTLE_MS = 1_500L

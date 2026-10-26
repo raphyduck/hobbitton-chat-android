@@ -5,6 +5,8 @@ import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.engine.HttpClientEngineFactory
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.engine.okhttp.OkHttpConfig
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import okhttp3.ConnectionPool
 import okhttp3.Dispatcher
 import org.koin.core.module.Module
@@ -77,9 +79,10 @@ internal object OkHttpConnections : ConnectionReset {
         held += dispatcher to pool
     }
 
-    @Synchronized
-    override fun dropAll() {
-        held.forEach { (dispatcher, _) -> dispatcher.cancelAll() }
-        held.forEach { (_, pool) -> pool.evictAll() }
+    /** Sockets close here: on the IO dispatcher, never on the thread that asked. */
+    override suspend fun dropAll() = withContext(Dispatchers.IO) {
+        val snapshot = synchronized(this@OkHttpConnections) { held.toList() }
+        snapshot.forEach { (dispatcher, _) -> dispatcher.cancelAll() }
+        snapshot.forEach { (_, pool) -> pool.evictAll() }
     }
 }

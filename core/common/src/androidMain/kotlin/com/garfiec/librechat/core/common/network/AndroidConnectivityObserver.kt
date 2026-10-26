@@ -52,23 +52,34 @@ class AndroidConnectivityObserver(
         }
     }.distinctUntilChanged()
 
-    /** Every network gained or lost, the current one at registration included: a cheap first drop. */
+    /**
+     * The phone's DEFAULT network changing: another one takes over, or it is lost. The default one
+     * only, and never the one found at registration (26/10/2026, the day's regression: registered
+     * on every network with Internet, this fired for the mobile network too, which comes and goes
+     * every few seconds while Wi-Fi is up, and each time the app dropped its connections and the
+     * transcript being read with them: a conversation stayed on its placeholders two minutes).
+     */
     @SuppressLint("MissingPermission")
     override val networkChanges: Flow<Unit> = callbackFlow {
         val connectivityManager = context.getSystemService(ConnectivityManager::class.java)
+        var current: Network? = null
+        var seenOne = false
         val callback = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
-                trySend(Unit)
+                val changed = seenOne && network != current
+                current = network
+                seenOne = true
+                if (changed) trySend(Unit)
             }
 
             override fun onLost(network: Network) {
-                trySend(Unit)
+                if (network == current) {
+                    current = null
+                    trySend(Unit)
+                }
             }
         }
-        val request = NetworkRequest.Builder()
-            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-            .build()
-        connectivityManager.registerNetworkCallback(request, callback)
+        connectivityManager.registerDefaultNetworkCallback(callback)
         awaitClose { connectivityManager.unregisterNetworkCallback(callback) }
     }
 

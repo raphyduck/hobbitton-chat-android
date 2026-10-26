@@ -14,10 +14,11 @@ package com.garfiec.librechat.core.network.engine
  * themselves), and the retry gets a live connection.
  */
 fun interface ConnectionReset {
-    fun dropAll()
+    /** Suspends until every connection is gone: the caller's retry then opens a fresh one. Off the main thread. */
+    suspend fun dropAll()
 }
 
 /** Where nothing holds connections (tests, previews). */
 object NoConnectionReset : ConnectionReset {
-    override fun dropAll() = Unit
+    override suspend fun dropAll() = Unit
 }
