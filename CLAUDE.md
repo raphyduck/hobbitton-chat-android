@@ -124,17 +124,24 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   `summary` key is an object of diffs on a user message once its turn ended: only a boolean is
   the flag (`SummaryFlagSerializer`; 25/10/2026, read as a boolean it refused every finished
   conversation's history).
-- **Dictation and audio files** (the composer). Since 26/10/2026 (Raphaël: the phone's recognizer
-  cut at pauses and lost passages; « utilise la même technologie que l'application Claude »), the
-  mic records until stop, never cutting at a silence, and the take goes to the scheduler's
-  `POST /transcription` (`SchedulerApi.transcribe` → `SchedulerTranscriber`: Whisper large-v3 then
-  Cohere Transcribe on the platform's GPU), as Claude's app has a server model transcribe it; the
-  recorder is tuned for recognition (`VOICE_RECOGNITION` source, 32 kb/s). Settings → Dictée
-  (« Dictée sur le téléphone », off by default, key `dictation_on_phone`) turns on Android 12's
-  on-device recognizer in French (19/10/2026), its words shown as they come and dropped into the
-  composer one stretch of speech at a time (`PhoneDictation`, `MissionDictation.android.kt`), never
-  the network recognizer, which would send the voice to Google. Audio files go to the scheduler. A dictation lands in the composer and is never
-  sent on its own; an audio file leaves with the message as a quoted transcription.
+- **Dictation and audio files** (the composer). The mic is heard by the phone itself by default
+  (Settings → Dictée, « Dictée sur le téléphone », key `dictation_on_phone`; Raphaël, 26/10/2026:
+  local is the default he wants) and listens **without a break until the tap on stop** (same day:
+  « il faut absolument qu'il écoute sans s'arrêter jusqu'à ce que j'appuie sur STOP »). Android's
+  recognizer stops at a pause and, holding the mic itself, lost the words spoken while it
+  restarted; so the app holds the mic (`DictationMic`, an `AudioRecord`, `VOICE_RECOGNITION`
+  source, 16 kHz) and the on-device recognizer reads it through a pipe (`EXTRA_AUDIO_SOURCE`,
+  Android 13, a segmented session: `onSegmentResults` per stretch of speech, the session ends when
+  the pipe closes at stop). A recognizer that still ends at a pause is started again on a new pipe
+  fed first with what the mic heard since its `onEndOfSpeech` (`DictationTake`, the last 30 s,
+  replayed from 500 ms before): nothing falls in the gap, and silence never ends the dictation
+  (`PhoneDictation`, `MissionDictation.android.kt`). Never the network recognizer, which would send
+  the voice to Google. With the switch off, before Android 13, or while the phone downloads its
+  French, the mic records until stop (MediaRecorder, OGG/Opus 16 kHz 32 kb/s) and the take goes to
+  the scheduler's `POST /transcription` (`SchedulerApi.transcribe` → `SchedulerTranscriber`:
+  Whisper large-v3 then Cohere Transcribe on the platform's GPU), and so do audio files. A
+  dictation lands in the composer and is never sent on its own; an audio file leaves with the
+  message as a quoted transcription.
 - **Questions from the agent** (OpenCode's `question` tool, 03/10/2026): the engine announces one on
   the feed (`question.asked`) and blocks the turn until `POST /question/{id}/reply` or `/reject`.
   The conversation shows it as a form in place of the composer (`MissionQuestionForm`, options,

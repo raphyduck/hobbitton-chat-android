@@ -47,7 +47,7 @@
     <string name="engine_settings_attention_hint">Quand Eva vous pose une question, ou qu’une réponse se termine pendant que vous êtes ailleurs.</string>
     <string name="engine_settings_dictation">Dictée</string>
     <string name="engine_settings_local_dictation">Dictée sur le téléphone</string>
-    <string name="engine_settings_local_dictation_hint">Désactivé (par défaut), le micro enregistre jusqu'à ce que vous appuyiez sur stop, sans couper aux silences, puis tout est transcrit d'un bloc par le serveur, comme dans l'application Claude. Activé, le téléphone affiche les mots en direct mais coupe aux pauses et en perd.</string>
+    <string name="engine_settings_local_dictation_hint">Activé (par défaut), le téléphone vous entend lui-même et affiche les mots à mesure, sans s'arrêter avant que vous appuyiez sur stop (Android 13 ou plus). Désactivé, le micro enregistre jusqu'à stop et le serveur transcrit toute la prise.</string>
     <string name="engine_settings_instructions">Instructions</string>
     <string name="engine_settings_instructions_hint">Envoyées avec chaque conversation et chaque tâche</string>
     <string name="engine_instructions_title">Instructions</string>

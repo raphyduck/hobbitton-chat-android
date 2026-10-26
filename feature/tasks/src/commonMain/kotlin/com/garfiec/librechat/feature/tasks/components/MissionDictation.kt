@@ -22,9 +22,10 @@ class MissionDictation(
  * (D-034: Android only today — same contract as [rememberMissionAttachmentPicker]).
  *
  * First tap starts it, asking for the microphone permission if needed; the second stops it. With
- * [onDevice] (Settings, on by default since 19/10/2026) the phone's own recognition hears it and
- * hands the words to [onHear] one stretch of speech at a time, nothing leaving the device; the
- * platform falls back to the recording where the phone has no recognition of its own. Otherwise
+ * [onDevice] (Settings, on by default) the phone's own recognition hears it, without a break until
+ * the second tap (26/10/2026), and hands the words to [onHear] one stretch of speech at a time,
+ * nothing leaving the device; the platform falls back to the recording where the phone has no
+ * recognition of its own (before Android 13). Otherwise
  * the second tap hands the recording to [onCapture], for the scheduler's transcription.
  *
  * Either way the words land in the **composer** — the dictation contract: the speaker reads what
