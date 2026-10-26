@@ -25,8 +25,12 @@ interface EngineCallbackInbox {
      * Le nettoyage n'est pas une politesse : un lien resté d'une tentative abandonnée porte le
      * `state` de CETTE tentative-là, et serait rejeté au contrôle — en faisant échouer la nouvelle
      * connexion pour une raison qui n'a rien à voir avec elle.
+     *
+     * `state` (26/10/2026) : celui du tour. Un lien qui porte un autre `state` n'est pas relevé,
+     * la boîte reste armée pour le vrai retour : avant, n'importe quelle application pouvait servir
+     * la boîte la première avec un lien forgé et faire échouer la connexion en cours.
      */
-    fun armer()
+    fun armer(state: String? = null)
 
     /** Attend le retour du portail, ou rend [FormPostCallback.Malformed] si le délai passe. */
     suspend fun attendre(timeoutMillis: Long): FormPostCallback
@@ -57,8 +61,13 @@ class EngineCallbackMailbox : EngineCallbackInbox, EngineCallbackDelivery {
 
     private var attente: CompletableDeferred<FormPostCallback>? = null
 
-    override fun armer() {
+    /** Le `state` du tour armé ; null tant qu'aucun tour ne le dit. */
+    @Volatile
+    private var attendu: String? = null
+
+    override fun armer(state: String?) {
         attente = CompletableDeferred()
+        attendu = state
     }
 
     override suspend fun attendre(timeoutMillis: Long): FormPostCallback {
@@ -79,8 +88,14 @@ class EngineCallbackMailbox : EngineCallbackInbox, EngineCallbackDelivery {
             Logger.d("Engine") { "Un retour de portail est arrivé sans que rien ne l'attende" }
             return false
         }
+        val lu = parseCallbackUri(uri)
+        val etat = attendu
+        if (etat != null && lu is FormPostCallback.Success && lu.state != etat) {
+            Logger.w("Engine") { "Un retour de portail porte un état qui n'est pas celui du tour : ignoré" }
+            return false
+        }
         // `complete` rend `false` si la boîte est déjà servie : deux liens pour un tour, dont le
         // second n'a pas à écraser le premier.
-        return boite.complete(parseCallbackUri(uri))
+        return boite.complete(lu)
     }
 }

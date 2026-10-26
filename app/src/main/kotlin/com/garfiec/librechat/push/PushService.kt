@@ -15,6 +15,7 @@ import androidx.core.content.ContextCompat
 import co.touchlab.kermit.Logger
 import com.garfiec.librechat.R
 import com.garfiec.librechat.attention.AndroidAttentionNotifier
+import com.garfiec.librechat.core.common.network.CleartextPolicy
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.engine.AttentionNotifier
 import com.garfiec.librechat.core.data.engine.attentionWatcherRunning
@@ -91,8 +92,10 @@ class PushService : Service() {
                 delay(NO_CHANNEL_RETRY_MS)
                 continue
             }
+            // Without the throwable (26/10/2026): HttpURLConnection names the URL in its message,
+            // topic included, and the journal keeps a URL's path.
             val received = runCatching { follow(channel) }
-                .onFailure { Logger.w(it) { "Push: the stream dropped, reconnecting" } }
+                .onFailure { Logger.w { "Push: the stream dropped (${it::class.simpleName}), reconnecting" } }
                 .getOrDefault(false)
             wait = if (received) FIRST_RETRY_MS else (wait * 2).coerceAtMost(MAX_RETRY_MS)
             delay(wait)
@@ -101,7 +104,15 @@ class PushService : Service() {
 
     /** One connection to the topic's stream, until it drops. True if anything came through. */
     private fun follow(channel: PushChannel): Boolean {
-        val connection = URL(channel.streamUrl(since())).openConnection() as HttpURLConnection
+        val address = channel.streamUrl(since())
+        // Off the Ktor clients and their cleartext guard: the same rule by hand (26/10/2026), and
+        // no redirection followed, which could carry the topic to another host.
+        if (!CleartextPolicy.isPermitted(address)) {
+            Logger.w { "Push: the channel is cleartext to a public host, not followed" }
+            return false
+        }
+        val connection = URL(address).openConnection() as HttpURLConnection
+        connection.instanceFollowRedirects = false
         connection.connectTimeout = CONNECT_TIMEOUT_MS
         // ntfy sends a keepalive every 45 s: a longer silence is a dead connection.
         connection.readTimeout = READ_TIMEOUT_MS

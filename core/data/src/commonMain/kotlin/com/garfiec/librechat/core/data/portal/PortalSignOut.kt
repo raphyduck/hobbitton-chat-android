@@ -24,7 +24,7 @@ class PortalSignOut(
 ) {
 
     suspend fun onSignedOut(serverUrl: String?) {
-        session.forget()
+        session.revokeAndForget()
         val origins = portalOrigins(serverUrl, access())
         cookies.expire(origins)
         Logger.i("Portal") { "Signed out of the portal: tokens dropped, cookies expired on ${origins.size} origin(s)" }

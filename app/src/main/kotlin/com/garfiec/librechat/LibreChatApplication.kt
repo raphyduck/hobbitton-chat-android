@@ -12,7 +12,6 @@ import coil3.disk.directory
 import coil3.memory.MemoryCache
 import coil3.network.ktor3.KtorNetworkFetcherFactory
 import coil3.request.crossfade
-import coil3.svg.SvgDecoder
 import com.garfiec.librechat.attention.attentionModule
 import com.garfiec.librechat.core.common.AppInfo
 import com.garfiec.librechat.core.common.di.KoinQualifiers
@@ -151,7 +150,6 @@ class LibreChatApplication : Application(), SingletonImageLoader.Factory {
         return ImageLoader.Builder(context)
             .components {
                 add(KtorNetworkFetcherFactory(imageClient))
-                add(SvgDecoder.Factory())
             }
             .memoryCache {
                 MemoryCache.Builder()

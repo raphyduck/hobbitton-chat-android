@@ -84,6 +84,23 @@ class EngineTokenClient(
     }
 
     /**
+     * Gives the refresh token back to the portal (RFC 7009), so that a copy of it is worth nothing
+     * once the person signed out (26/10/2026). Nothing when the portal advertises no revocation
+     * endpoint; the portal answers 200 whatever the token's state.
+     */
+    suspend fun revoke(endpoints: EngineOAuthEndpoints, refreshToken: String) {
+        val endpoint = endpoints.revocationEndpoint ?: return
+        client.submitForm(
+            url = endpoint,
+            formParameters = Parameters.build {
+                append("token", refreshToken)
+                append("token_type_hint", "refresh_token")
+                append("client_id", clientId)
+            },
+        )
+    }
+
+    /**
      * Renews the access token without sending the user back through the portal.
      *
      * The response may carry a **new** refresh token; callers must store whichever came back rather

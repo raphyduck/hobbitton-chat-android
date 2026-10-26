@@ -20,4 +20,5 @@
     <string name="attention_question_hint">Eva is waiting for your answer.</string>
     <string name="attention_reply_ready">Reply ready</string>
     <string name="attention_reply_ready_hint">Eva has answered.</string>
+    <string name="attention_decision_waiting">A decision is waiting for you</string>
 </resources>

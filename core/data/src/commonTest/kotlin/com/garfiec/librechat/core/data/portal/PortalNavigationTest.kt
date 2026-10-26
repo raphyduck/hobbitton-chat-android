@@ -41,4 +41,10 @@ class PortalNavigationTest {
         assertTrue(isPortalCallback("at.hobbitton.chat://oauth"))
         assertFalse(isPortalCallback("https://evil.example.net/?next=at.hobbitton.chat://oauth"))
     }
+
+    @Test
+    fun cleartext_loads_towards_a_private_host_only() {
+        assertEquals(PortalNavigation.Load, classifyPortalNavigation("http://192.168.1.20:9091/login"))
+        assertEquals(PortalNavigation.Refused, classifyPortalNavigation("http://auth.example.com/login"))
+    }
 }

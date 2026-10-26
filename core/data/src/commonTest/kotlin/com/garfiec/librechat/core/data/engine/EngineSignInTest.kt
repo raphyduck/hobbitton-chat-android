@@ -55,7 +55,7 @@ class EngineSignInTest {
         var armed = false
         var released = false
         lateinit var stateSeen: () -> String
-        override fun armer() { armed = true }
+        override fun armer(state: String?) { armed = true }
         override suspend fun attendre(timeoutMillis: Long): FormPostCallback = answer(stateSeen())
         override fun liberer() { released = true }
     }

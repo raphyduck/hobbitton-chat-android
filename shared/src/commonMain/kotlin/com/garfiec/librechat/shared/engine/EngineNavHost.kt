@@ -36,6 +36,7 @@ import com.garfiec.librechat.core.data.datastore.ChatFontSize
 import com.garfiec.librechat.core.data.datastore.ThemeMode
 import com.garfiec.librechat.core.data.engine.OpenConversation
 import com.garfiec.librechat.core.ui.components.PlatformBackHandler
+import com.garfiec.librechat.core.ui.markdown.LocalTrustedImageHosts
 import com.garfiec.librechat.core.ui.theme.AppLocale
 import com.garfiec.librechat.core.ui.util.SafeUriHandler
 import com.garfiec.librechat.feature.auth.screen.PortalSignInScreen
@@ -99,11 +100,17 @@ fun EngineNavHost(
                             name = identity?.nom?.takeIf { it.isNotBlank() } ?: identity?.prenom?.takeIf { it.isNotBlank() },
                             host = addresses?.baseUrl?.let(::hostOf),
                         )
+                        val imageHosts = remember(addresses) {
+                            setOfNotNull(addresses?.baseUrl, addresses?.schedulerUrl, addresses?.issuerUrl)
+                                .mapNotNull(::hostOf)
+                                .toSet()
+                        }
                         EngineMainLayout(
                             chats = chats,
                             allChats = allChats,
                             search = search,
                             account = account,
+                            imageHosts = imageHosts,
                             settings = EngineSettingsUiState(
                                 themeMode = themeMode,
                                 addresses = addresses,
@@ -154,6 +161,8 @@ private fun EngineMainLayout(
     allChats: EngineChatsState,
     search: EngineChatsState?,
     account: DrawerAccount,
+    /** The platform's hosts: the only ones whose images a message loads on its own (26/10/2026). */
+    imageHosts: Set<String>,
     settings: EngineSettingsUiState,
     openRequest: OpenConversation?,
     onConsumeOpenRequest: (OpenConversation) -> Unit,
@@ -256,7 +265,8 @@ private fun EngineMainLayout(
             }
         },
     ) {
-        NavDisplay(
+        CompositionLocalProvider(LocalTrustedImageHosts provides imageHosts) {
+            NavDisplay(
             backStack = backStack,
             onBack = { navigator.goBack() },
             modifier = Modifier.fillMaxSize(),
@@ -336,7 +346,8 @@ private fun EngineMainLayout(
                     EngineBudgetScreen(onClose = { navigator.goBack() })
                 }
             },
-        )
+            )
+        }
     }
 }
 
