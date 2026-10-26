@@ -88,6 +88,14 @@ data class MissionChatUiState(
     val localDictation: Boolean = false,
     /** Why the transcript would not load, or null. */
     val historyError: EngineFailureKind? = null,
+    /**
+     * The transcript on screen is the conversation's tail only (26/10/2026, Raphaël: switching
+     * conversations took too long): the last [HISTORY_TAIL] messages were read, and « Messages
+     * précédents » at the top reads the whole transcript on demand.
+     */
+    val historyTruncated: Boolean = false,
+    /** The whole transcript is being read, after a tap on « Messages précédents ». */
+    val loadingEarlier: Boolean = false,
     /** Why the last send did not reach the engine, or null. The text is put back when this is set. */
     val sendError: EngineFailureKind? = null,
     /** The connectors this deployment offers, fetched from the scheduler — never a local copy. */
@@ -287,6 +295,13 @@ class MissionChatViewModel(
         context = ioDispatcher,
     )
 
+    /**
+     * How much of the transcript the screen reads (26/10/2026): the last [HISTORY_TAIL] messages
+     * at opening, the whole of it once « Messages précédents » was tapped, refreshes included.
+     * Declared before `init`, which reads it: a property below the block is null when it runs.
+     */
+    private var historyLimit: Int? = HISTORY_TAIL
+
     init {
         if (sessionId != null) {
             loadHistory()
@@ -467,7 +482,8 @@ class MissionChatViewModel(
         val sessionId = sessionId ?: return
         viewModelScope.launch {
             try {
-                val events = fetchHistory(sessionId)
+                val limit = historyLimit
+                val events = fetchHistory(sessionId, limit)
                 if (events == null) {
                     Logger.w(LOG_TAG) { "History of $sessionId: no answer after $HISTORY_ATTEMPTS attempts" }
                     _uiState.update {
@@ -479,7 +495,9 @@ class MissionChatViewModel(
                     // Fold the past *under* whatever the live feed already delivered, so nothing that
                     // arrived while we were fetching is lost.
                     val seeded = events.fold(current.chat) { state, event -> state.reduce(event) }
-                    current.copy(chat = seeded, loadingHistory = false, refreshing = false)
+                    // As many messages as asked for: there may be more before them.
+                    val truncated = limit != null && events.count { it is EngineStreamEvent.MessageStarted } >= limit
+                    current.copy(chat = seeded, loadingHistory = false, refreshing = false, historyTruncated = truncated)
                 }
                 loadPendingQuestions(sessionId)
             } catch (e: CancellationException) {
@@ -504,9 +522,9 @@ class MissionChatViewModel(
      * rather than waited on, and after the third the screen says so instead of waiting for ever.
      * Null when none came.
      */
-    private suspend fun fetchHistory(sessionId: String): List<EngineStreamEvent>? {
+    private suspend fun fetchHistory(sessionId: String, limit: Int?): List<EngineStreamEvent>? {
         repeat(HISTORY_ATTEMPTS) { attempt ->
-            withTimeoutOrNull(HISTORY_ATTEMPT_MS) { withContext(ioDispatcher) { repository.history(sessionId) } }
+            withTimeoutOrNull(HISTORY_ATTEMPT_MS) { withContext(ioDispatcher) { repository.history(sessionId, limit) } }
                 ?.let { return it }
             Logger.w(LOG_TAG) { "History of $sessionId: attempt ${attempt + 1} hung" }
         }
@@ -912,6 +930,37 @@ class MissionChatViewModel(
         loadHistory()
     }
 
+    /**
+     * The whole transcript, on demand. Folded from nothing, not under the turns on screen: the
+     * reducer appends a message it has not seen, and the older ones would land after the newer.
+     * The live fields (a turn streaming, the questions, the context) stay the screen's, newer than
+     * this read; the last turn's text catches up on the feed's next snapshot.
+     */
+    fun loadEarlierHistory() {
+        val sessionId = sessionId ?: return
+        if (_uiState.value.loadingEarlier || !_uiState.value.historyTruncated) return
+        _uiState.update { it.copy(loadingEarlier = true) }
+        viewModelScope.launch {
+            try {
+                val events = withContext(ioDispatcher) { repository.history(sessionId) }
+                historyLimit = null
+                _uiState.update { current ->
+                    val whole = events.fold(MissionChatState()) { state, event -> state.reduce(event) }
+                    current.copy(
+                        chat = current.chat.copy(turns = whole.turns),
+                        historyTruncated = false,
+                        loadingEarlier = false,
+                    )
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Logger.w(LOG_TAG, e) { "Earlier history of $sessionId failed" }
+                _uiState.update { it.copy(loadingEarlier = false, sendError = e.engineFailureKind()) }
+            }
+        }
+    }
+
     fun dismissSendError() {
         _uiState.update { it.copy(sendError = null) }
     }
@@ -919,6 +968,9 @@ class MissionChatViewModel(
 
 private const val LOG_TAG = "Conversation"
 private const val HISTORY_ATTEMPTS = 3
+
+/** Messages read at opening: a screenful of history, and the model, context and last request. */
+internal const val HISTORY_TAIL = 40
 private const val HISTORY_ATTEMPT_MS = 10_000L
 
 /** A user turn carrying exactly these words: a send made mid-turn that reached the engine. */

@@ -36,6 +36,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -44,6 +45,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
@@ -82,6 +84,7 @@ import com.garfiec.librechat.feature.tasks.resources.chat_greeting_morning_anony
 import com.garfiec.librechat.feature.tasks.resources.chat_new
 import com.garfiec.librechat.feature.tasks.resources.chat_title
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_back
+import com.garfiec.librechat.feature.tasks.resources.tasks_chat_load_earlier
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_scroll_to_end
 import com.garfiec.librechat.feature.tasks.resources.tasks_open_drawer
 import com.garfiec.librechat.feature.tasks.resources.tasks_prompt_calendar
@@ -258,6 +261,7 @@ fun MissionChatScreen(
             onRefresh = viewModel::refresh,
             onPickPrompt = viewModel::onInputChange,
             onRedoStronger = viewModel::redoStronger,
+            onLoadEarlier = viewModel::loadEarlierHistory,
         )
     }
 }
@@ -274,6 +278,7 @@ private fun MissionChatBody(
     onPickPrompt: (String) -> Unit,
     /** « Redo stronger » (25/10/2026), shown under the last answer when a stronger tier exists. */
     onRedoStronger: () -> Unit = {},
+    onLoadEarlier: () -> Unit = {},
 ) {
     // Le geste que Raphaël a cherché le 21/09/2026 avant de contourner par la liste. Il ne masque
     // pas le défaut — le flux reprend toujours à « maintenant », voir MissionChatViewModel.refresh —
@@ -316,6 +321,8 @@ private fun MissionChatBody(
                         fontScale = state.fontScale,
                         historyLoaded = !state.loadingHistory,
                         onRedoStronger = onRedoStronger.takeIf { state.canRedoStronger },
+                        onLoadEarlier = onLoadEarlier.takeIf { state.historyTruncated },
+                        loadingEarlier = state.loadingEarlier,
                     )
                 }
             }
@@ -331,8 +338,13 @@ internal fun MissionTurns(
     historyLoaded: Boolean,
     /** Offered under the last answer when the conversation can redo it on a stronger tier. */
     onRedoStronger: (() -> Unit)? = null,
+    /** Offered at the top while only the conversation's tail was read (26/10/2026). */
+    onLoadEarlier: (() -> Unit)? = null,
+    loadingEarlier: Boolean = false,
 ) {
     val listState = rememberLazyListState()
+    // The « earlier messages » row sits before the turns: the list's indices are shifted by it.
+    val headerCount = if (onLoadEarlier != null) 1 else 0
     // One drawn turn per run of assistant steps: their tool calls fold into one growing line.
     // A compaction's summary is not drawn: its notice, on the turn before, stands for it.
     val turns = remember(chat.turns) {
@@ -361,7 +373,7 @@ internal fun MissionTurns(
         var sizes: List<Int>? = null
         var frames = 0
         while (frames++ < OPENING_FRAMES) {
-            listState.scrollToItem(turns.lastIndex)
+            listState.scrollToItem(turns.lastIndex + headerCount)
             val below = listState.distanceToEnd()
             if (below in 1 until Int.MAX_VALUE) listState.scrollBy(below.toFloat())
             withFrameNanos { }
@@ -407,6 +419,11 @@ internal fun MissionTurns(
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            if (onLoadEarlier != null) {
+                item(key = EARLIER_KEY, contentType = EARLIER_KEY) {
+                    EarlierMessagesRow(loading = loadingEarlier, onClick = onLoadEarlier)
+                }
+            }
             items(
                 count = turns.size,
                 // Keyed by message id: a delta rewrites the last turn on every token, and without a key
@@ -654,3 +671,17 @@ private const val SKELETON_USER_WIDTH = 0.55f
 private val SKELETON_LINE_WIDTHS = listOf(0.9f, 0.75f, 0.5f)
 private val SKELETON_BUBBLE_HEIGHT = 40.dp
 private val SKELETON_LINE_HEIGHT = 14.dp
+
+/** The row above the first turn on screen: the rest of the transcript, read on a tap. */
+@Composable
+private fun EarlierMessagesRow(loading: Boolean, onClick: () -> Unit) {
+    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        if (loading) {
+            CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+        } else {
+            TextButton(onClick = onClick) { Text(stringResource(Res.string.tasks_chat_load_earlier)) }
+        }
+    }
+}
+
+private const val EARLIER_KEY = "earlier"

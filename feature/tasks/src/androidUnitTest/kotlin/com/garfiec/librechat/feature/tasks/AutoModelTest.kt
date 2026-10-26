@@ -114,7 +114,7 @@ class AutoModelTest {
     @Test
     fun `a conversation that already ran keeps its model, the trieur is not asked`() {
         val ran = EngineModelRef("hobbitton-chat", "deepseek-v4-pro")
-        coEvery { repository.history("ses_suivie") } returns listOf(
+        coEvery { repository.history("ses_suivie", any()) } returns listOf(
             EngineStreamEvent.MessageStarted("m1", "user"),
             EngineStreamEvent.MessageStarted("m2", "assistant", ran),
         )
@@ -132,7 +132,7 @@ class AutoModelTest {
     @Test
     fun `redo stronger asks the last request again on the tier above, and stays there`() {
         val ran = EngineModelRef("hobbitton-chat", "deepseek-v4-pro")
-        coEvery { repository.history("ses_suivie") } returns listOf(
+        coEvery { repository.history("ses_suivie", any()) } returns listOf(
             EngineStreamEvent.MessageStarted("m1", "user"),
             EngineStreamEvent.PartDelta("m1", "p1", "text", "Rédige la relance"),
             EngineStreamEvent.MessageStarted("m2", "assistant", ran),
@@ -152,7 +152,7 @@ class AutoModelTest {
 
     @Test
     fun `at the top of the ladder there is nothing stronger to redo on`() {
-        coEvery { repository.history("ses_haute") } returns listOf(
+        coEvery { repository.history("ses_haute", any()) } returns listOf(
             EngineStreamEvent.MessageStarted("m1", "user"),
             EngineStreamEvent.PartDelta("m1", "p1", "text", "Analyse"),
             EngineStreamEvent.MessageStarted("m2", "assistant", opus.ref),

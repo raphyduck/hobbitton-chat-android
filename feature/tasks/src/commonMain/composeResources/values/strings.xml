@@ -208,4 +208,5 @@
     <string name="tasks_model_auto">Auto</string>
     <string name="tasks_model_auto_long">Auto (picked from the first message)</string>
     <string name="tasks_chat_redo_stronger">Redo, stronger</string>
+    <string name="tasks_chat_load_earlier">Earlier messages</string>
 </resources>

@@ -34,7 +34,7 @@ class MissionChatQueuedSendTest {
     private val repository = mockk<EngineMissionRepository>(relaxed = true).also {
         coEvery { it.models() } throws IllegalStateException("pas de catalogue")
         coEvery { it.connectors() } throws IllegalStateException("pas de catalogue")
-        coEvery { it.history(any()) } returns emptyList()
+        coEvery { it.history(any(), any()) } returns emptyList()
         every { it.events(any()) } returns emptyFlow()
         coEvery { it.sendMessage("ses_1", "premier", any(), any()) } coAnswers {
             firstTurn.await()

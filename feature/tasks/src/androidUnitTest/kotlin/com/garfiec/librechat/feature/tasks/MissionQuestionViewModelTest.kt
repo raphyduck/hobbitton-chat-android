@@ -50,7 +50,7 @@ class MissionQuestionViewModelTest {
 
     private val repository = mockk<EngineMissionRepository>(relaxed = true).also {
         coEvery { it.models() } throws IllegalStateException("pas de modèles")
-        coEvery { it.history(any()) } returns emptyList()
+        coEvery { it.history(any(), any()) } returns emptyList()
         coEvery { it.pendingQuestions("ses_1") } returns listOf(question)
         every { it.events(any()) } returns feed
     }

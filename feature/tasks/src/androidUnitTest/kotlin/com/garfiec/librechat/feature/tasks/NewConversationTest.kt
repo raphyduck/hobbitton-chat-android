@@ -101,7 +101,7 @@ class NewConversationTest {
     fun `a reopened conversation sends the model its last turn ran on, not the agent's default`() {
         // Picked on another day, then the app restarted: the pick is gone, the transcript is not.
         val deepseek = EngineModelRef("hobbitton-gateway", "deepseek-v4-pro")
-        coEvery { repository.history("ses_suivie") } returns listOf(
+        coEvery { repository.history("ses_suivie", any()) } returns listOf(
             EngineStreamEvent.MessageStarted("m1", "user"),
             EngineStreamEvent.MessageStarted("m2", "assistant", deepseek),
         )
