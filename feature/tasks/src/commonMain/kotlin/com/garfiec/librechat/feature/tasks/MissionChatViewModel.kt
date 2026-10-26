@@ -282,6 +282,18 @@ class MissionChatViewModel(
 
     private var streamJob: Job? = null
 
+    /** The transcript's read in progress, and where it stands: what the watchdog reports and restarts. */
+    private var historyJob: Job? = null
+    private var openingStage = "not started"
+        set(value) {
+            field = value
+            openingProgress++
+        }
+
+    /** Grows each time the opening moves (a stage, a try): what tells a hang from a slow read. */
+    private var openingProgress = 0
+    private var openingRestarted = false
+
     /**
      * A turn this screen saw start (a message sent from it, or a reply streaming in live) whose
      * end has not come yet. Its `Idle` is the « reply ready » signal; an `Idle` for a turn nobody
@@ -317,6 +329,7 @@ class MissionChatViewModel(
     init {
         if (sessionId != null) {
             loadHistory()
+            watchOpening(sessionId)
             openStream()
             viewModelScope.launch {
                 val remembered = runCatching { withContext(ioDispatcher) { conversationModels?.modelOf(sessionId) } }.getOrNull()
@@ -510,16 +523,47 @@ class MissionChatViewModel(
      * nécessairement le reste »), then the engine's, unless the session has not moved since; a
      * [refresh] reads the engine whatever the device kept.
      */
+    /**
+     * The opening's watchdog (26/10/2026, Raphaël: the placeholders stayed for good, and leaving
+     * then reopening showed the conversation at once; the journal had no line, since only a read
+     * past its limit was logged). A screen still on its placeholders after [OPENING_WATCHDOG_MS]
+     * says at which stage the read stands, then does what the person did by hand: forgets the
+     * read in progress, drops every connection and reads again from the engine. Once; a second
+     * time the read's own limits end on the error, not on the placeholders.
+     */
+    private fun watchOpening(sessionId: String) {
+        viewModelScope.launch {
+            while (_uiState.value.loadingHistory && !openingRestarted) {
+                val seen = openingProgress
+                delay(OPENING_WATCHDOG_MS)
+                if (!_uiState.value.loadingHistory) return@launch
+                // The read's own limits are at work while it moves: only a read that stood still
+                // the whole time is a hang they do not cover.
+                if (openingProgress != seen) continue
+                openingRestarted = true
+                Logger.w(LOG_TAG) {
+                    "History of $sessionId: still on the placeholders after ${OPENING_WATCHDOG_MS / 1000} s, $openingStage; starting over"
+                }
+                historyJob?.cancel()
+                runCatching { repository.dropConnections() }
+                loadHistory(trustCache = false)
+            }
+        }
+    }
+
     private fun loadHistory(trustCache: Boolean = true) {
         val sessionId = sessionId ?: return
-        viewModelScope.launch {
+        historyJob?.cancel()
+        historyJob = viewModelScope.launch {
             try {
                 val limit = historyLimit
+                openingStage = "reading what the device kept"
                 val kept = if (trustCache && limit != null) {
                     withContext(ioDispatcher) { repository.cachedHistory(sessionId) }
                 } else {
                     null
                 }
+                openingStage = "reading the engine"
                 if (trustCache) {
                     Logger.i(LOG_TAG) {
                         val what = kept?.let { "${it.messageCount} messages kept on the device" } ?: "nothing kept on the device"
@@ -534,6 +578,7 @@ class MissionChatViewModel(
                     }
                 }
                 val read = fetchHistory(sessionId, limit, unlessUpdatedAt = kept?.updated)
+                openingStage = "folding the transcript"
                 if (kept != null && read !is HistoryRead.Fresh) {
                     // The engine said the conversation has not moved, or could not be reached: what
                     // the device kept stands, and the catalogue and the questions follow as usual.
@@ -593,6 +638,7 @@ class MissionChatViewModel(
      */
     private suspend fun fetchHistory(sessionId: String, limit: Int?, unlessUpdatedAt: Long? = null): HistoryRead? {
         repeat(HISTORY_ATTEMPTS) { attempt ->
+            openingProgress++
             val started = Clock.System.now().toEpochMilliseconds()
             val read = try {
                 // The first try is short (26/10/2026): the engine answers in milliseconds, and a
@@ -1134,6 +1180,9 @@ private const val RECONCILE_PAUSE_MS = 3_000L
 
 /** The first try's limit (26/10/2026): a dead connection costs this much, then every connection is dropped. */
 private const val HISTORY_FIRST_ATTEMPT_MS = 3_000L
+
+/** How long a screen may stay on its placeholders before the opening is started over (26/10/2026). */
+private const val OPENING_WATCHDOG_MS = 10_000L
 
 /** A user turn carrying exactly these words: a send made mid-turn that reached the engine. */
 private fun MissionChatState.hasUserText(text: String): Boolean = turns.any { turn ->

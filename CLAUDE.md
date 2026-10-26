@@ -248,7 +248,10 @@ sheet for the diagnostic log). The shell and the sign-in resolve the engine grap
   connection on a timeout: the connections PING every 20 s (`PING_INTERVAL_SECONDS`), a transcript
   read that hangs drops them all before its retry (3 s for the first try since 26/10/2026, 8 s
   after: a person who waits four seconds on the placeholders leaves, and went back and reopened
-  to an instant screen; the opening logs at Info what it kept and how long the read took) (`ConnectionReset`, `OkHttpConnections`:
+  to an instant screen; the opening logs at Info what it kept and how long the read took; a screen still on its
+  placeholders after 10 s, whatever the stage, logs it, drops every connection and starts its
+  opening over once, `watchOpening`: Raphaël's placeholders stayed for good with no line in the
+  journal, and leaving then reopening showed the conversation at once) (`ConnectionReset`, `OkHttpConnections`:
   the calls cancelled, the pool emptied; `repository.dropConnections()`), and so does a change of
   the DEFAULT network (`ConnectivityObserver.networkChanges`: `registerDefaultNetworkCallback`, the first
   callback skipped, a loss and a gain within 1,5 s folded into one by `LibreChatApplication`; the
