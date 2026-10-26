@@ -329,6 +329,29 @@ class EngineChatSessionTest {
     }
 
     @Test
+    fun `a run played inside a conversation leaves it its title and its unread mark`() = runTest {
+        // 26/10/2026: a reminder set from a conversation and a relance's decision run IN the
+        // conversation; listed as runs, two decision conversations read as read while their
+        // relances ran, and a chat took its reminder's name.
+        sessionsJson = """[
+            {"id":"ses_chat","title":"Relance Yacine sur brpi","time":{"updated":900}},
+            {"id":"ses_decision","title":"A decider - visite du poele","time":{"updated":800}}
+        ]"""
+        runsJson = """[
+            {"session":"ses_chat","mission":"rappel-yacine","succes":null,"incomplet":false,"a_signaler":null,"conversation":true},
+            {"session":"ses_decision","mission":"creneau-poele","succes":true,"incomplet":false,"a_signaler":false,"conversation":true}
+        ]"""
+        val kinds = InMemorySessionKinds(listOf("ses_chat", "ses_decision").associateWith { EngineSessionKind.CHAT })
+        val reads = InMemoryConversationReads(floorMillis = 100)
+
+        val chats = testMissionRepository(engine(), kinds = kinds, reads = reads).recentChats(scope = ChatScope.ALL)
+
+        assertEquals(listOf("Relance Yacine sur brpi", "A decider - visite du poele"), chats.map { it.title })
+        assertEquals(listOf(true, true), chats.map { it.unread })
+        assertTrue(chats.none { it.scheduled })
+    }
+
+    @Test
     fun `a conversation marked read is no longer unread`() = runTest {
         sessionsJson = """[{"id":"ses_reply","title":"Une réponse arrivée","time":{"updated":600}}]"""
         val kinds = InMemorySessionKinds(mapOf("ses_reply" to EngineSessionKind.CHAT))

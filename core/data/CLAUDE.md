@@ -70,7 +70,11 @@ Since 12/10/2026 chats and tasks are one conversation, as on Claude.ai.
   scheduler's own read marks (`SchedulerApi.serverReads`, its `conversations_lues` tool, 22/10/2026:
   a conversation whose question the unread mission withdrew because a reply made it moot; the
   later mark wins, `ReadSnapshot.withServerReads`) and, for a run, from
-  the scheduler's `runs()` (`runHasNews`: news, failed or stopped short). A discreet mission's
+  the scheduler's `runs()` (`runHasNews`: news, failed or stopped short). A run the scheduler played
+  INSIDE a conversation (a reminder set from it, a relance's decision; `SchedulerRun.inConversation`,
+  the scheduler's `conversation`, 26/10/2026) is not that conversation's kind: the session keeps its
+  title and is unread whenever it moved (before, two decision conversations read as read while
+  their relances ran, and a chat was listed under its reminder's name). A discreet mission's
   runs are left out (`runHidden`, 19/10/2026), failed or not since 20/10 (its failure shows on its row
   under Programmées); a session the
   scheduler lists as a run counts as one even when its title is not recognised. `classifySession` +
