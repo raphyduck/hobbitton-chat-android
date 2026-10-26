@@ -120,7 +120,7 @@ data class EngineSettingsUiState(
     /** A question or a finished reply rings and notifies (03/10/2026). */
     val attentionSound: Boolean = true,
     /** The mic heard by the phone itself rather than the scheduler (19/10/2026). */
-    val localDictation: Boolean = true,
+    val localDictation: Boolean = false,
     /** The conversation's text size (lot 4, 10/10/2026). */
     val chatFontSize: ChatFontSize = ChatFontSize.MEDIUM,
     /** Who is signed in, and where: the drawer's foot, at the head of the settings. */

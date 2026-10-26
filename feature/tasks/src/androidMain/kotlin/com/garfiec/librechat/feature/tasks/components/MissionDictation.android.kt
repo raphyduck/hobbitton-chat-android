@@ -287,7 +287,10 @@ private class DictationRecorder(private val context: Context) {
             MediaRecorder()
         }
         fresh.apply {
-            setAudioSource(MediaRecorder.AudioSource.MIC)
+            // Tuned for a recognizer, not a voice memo (26/10/2026): the source Android gives
+            // speech recognition (no voice-call processing), and an explicit bitrate rather than
+            // the encoder's thin default; the server's Whisper hears the difference.
+            setAudioSource(MediaRecorder.AudioSource.VOICE_RECOGNITION)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 setOutputFormat(MediaRecorder.OutputFormat.OGG)
                 setAudioEncoder(MediaRecorder.AudioEncoder.OPUS)
@@ -296,6 +299,7 @@ private class DictationRecorder(private val context: Context) {
                 setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
             }
             setAudioSamplingRate(SAMPLING_RATE_HZ)
+            setAudioEncodingBitRate(ENCODING_BIT_RATE)
             setAudioChannels(1)
             setOutputFile(file.absolutePath)
             prepare()
@@ -338,6 +342,7 @@ private class DictationRecorder(private val context: Context) {
 }
 
 private const val SAMPLING_RATE_HZ = 16_000
+private const val ENCODING_BIT_RATE = 32_000
 private const val DICTATION_NAME = "dictee"
 
 /** Eva is spoken to in French; the scheduler's transcription, which guesses, is the way out. */
