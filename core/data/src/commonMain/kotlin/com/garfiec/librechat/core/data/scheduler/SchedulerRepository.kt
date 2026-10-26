@@ -12,13 +12,15 @@ import com.garfiec.librechat.core.model.scheduler.ProviderHealth
 import com.garfiec.librechat.core.model.scheduler.PushChannel
 import com.garfiec.librechat.core.model.scheduler.ScheduledMission
 import com.garfiec.librechat.core.network.api.SchedulerApi
+import kotlin.time.Clock
 
 /**
  * The recurring missions, as the Tasks tab needs them.
  *
- * Thin on purpose: the scheduler is the source of truth, nothing is cached locally, and a mission
- * that exists only on a phone is a mission nobody can supervise — the same rule the engine's
- * repository follows.
+ * Thin on purpose: the scheduler is the source of truth, nothing is cached locally but two answers
+ * that do not change while a phone is open (who is signed in, the ladder of tiers; 26/10/2026
+ * evening, each conversation opened asked both again), and a mission that exists only on a phone
+ * is a mission nobody can supervise — the same rule the engine's repository follows.
  *
  * Every method answers null-or-empty when the scheduler has not been configured, rather than
  * throwing. Not having a scheduler is a normal state for a fresh install, not an error to show in
@@ -38,7 +40,17 @@ class SchedulerRepository(
      */
     suspend fun identity(): PortalIdentity? {
         if (!isConfigured()) return null
-        return runCatching { api.identity() }.getOrNull()
+        identityRead?.takeIf { now() - it.first < IDENTITY_TTL_MS }?.let { return it.second }
+        return runCatching { api.identity() }.getOrNull()?.also { identityRead = now() to it }
+    }
+
+    private var identityRead: Pair<Long, PortalIdentity>? = null
+    private var tiersRead: Pair<Long, ModelTiers>? = null
+
+    /** Sign-out: the next person signed in may be another. */
+    fun forget() {
+        identityRead = null
+        tiersRead = null
     }
 
     /**
@@ -57,7 +69,8 @@ class SchedulerRepository(
      */
     suspend fun modelTiers(): ModelTiers? {
         if (!isConfigured()) return null
-        return runCatching { api.modelTiers() }.getOrNull()
+        tiersRead?.takeIf { now() - it.first < TIERS_TTL_MS }?.let { return it.second }
+        return runCatching { api.modelTiers() }.getOrNull()?.also { tiersRead = now() to it }
     }
 
     /**
@@ -145,4 +158,14 @@ class SchedulerRepository(
 
     suspend fun setEnabled(name: String, enabled: Boolean): String =
         if (enabled) api.enable(name) else api.disable(name)
+
+    private fun now(): Long = Clock.System.now().toEpochMilliseconds()
+
+    private companion object {
+        /** An hour: the name on the drawer's foot and in the greeting. */
+        const val IDENTITY_TTL_MS = 60L * 60 * 1000
+
+        /** Ten minutes: the ladder changes when the platform is reconfigured. */
+        const val TIERS_TTL_MS = 10L * 60 * 1000
+    }
 }

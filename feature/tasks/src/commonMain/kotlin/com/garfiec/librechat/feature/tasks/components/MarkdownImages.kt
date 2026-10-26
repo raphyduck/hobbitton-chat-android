@@ -25,12 +25,17 @@ internal object MarkdownImages : ImageTransformer {
 
     @Composable
     override fun transform(link: String): ImageData {
+        // Decoded no larger than [MAX_EDGE_PX] a side (26/10/2026 evening): a photo of 12 Mpx at its
+        // own size is 48 MB of bitmap for a bubble a few hundred pixels wide. The renderer scales
+        // it to the bubble either way.
         val request = ImageRequest.Builder(LocalPlatformContext.current)
             .data(link)
-            .size(coil3.size.Size.ORIGINAL)
+            .size(MAX_EDGE_PX)
             .build()
         return ImageData(painter = rememberAsyncImagePainter(request))
     }
+
+    private const val MAX_EDGE_PX = 1_600
 
     @Composable
     override fun intrinsicSize(painter: Painter): Size {

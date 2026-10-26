@@ -165,7 +165,7 @@ fun MissionChatScreen(
     var dejaRepris by rememberSaveable { mutableStateOf(false) }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         viewModel.onVisible()
-        if (dejaRepris) viewModel.refresh() else dejaRepris = true
+        if (dejaRepris) viewModel.resume() else dejaRepris = true
     }
     // Hors de vue : une question posée ici sonne alors par une notification, pas par un simple son.
     LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) { viewModel.onHidden() }
