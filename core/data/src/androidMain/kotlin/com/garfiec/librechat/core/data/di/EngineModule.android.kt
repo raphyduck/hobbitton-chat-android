@@ -15,8 +15,10 @@ import com.garfiec.librechat.core.data.engine.EngineSettingsStore
 import com.garfiec.librechat.core.data.engine.EngineSignIn
 import com.garfiec.librechat.core.data.engine.EngineSignInCoordinator
 import com.garfiec.librechat.core.data.engine.EngineSignInLauncher
+import com.garfiec.librechat.core.data.engine.FileTranscriptCache
 import com.garfiec.librechat.core.data.engine.RecentMissionsSource
 import com.garfiec.librechat.core.data.engine.SchedulerTranscriber
+import com.garfiec.librechat.core.data.engine.TranscriptCache
 import com.garfiec.librechat.core.data.engine.isoLanguageOrNull
 import com.garfiec.librechat.core.data.portal.AndroidWebCookieJar
 import com.garfiec.librechat.core.data.portal.PortalSession
@@ -51,6 +53,7 @@ import org.koin.core.module.Module
 import org.koin.core.scope.Scope
 import org.koin.dsl.binds
 import org.koin.dsl.module
+import java.io.File
 import java.util.Locale
 
 /**
@@ -70,6 +73,16 @@ val engineModule: Module = module {
         AttentionSignals(notifier = get(), preference = AttentionPreference { settings.attentionSound.first() })
     }
     single { ConversationRequests() }
+
+    // The tails of the conversations this device opened (26/10/2026), gzip files in the app's
+    // cache directory: shown at once on reopening, refreshed only when the session has moved.
+    single<TranscriptCache> {
+        FileTranscriptCache(
+            directory = File(androidContext().cacheDir, "transcripts"),
+            json = get(),
+            ioDispatcher = get(KoinQualifiers.IO),
+        )
+    }
 
     single {
         EngineSettingsStore(dataStore = get()).also { store ->

@@ -9,6 +9,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.awaitCancellation
@@ -31,6 +32,8 @@ class MissionChatHistoryTest {
     private var reads = 0
 
     private val repository = mockk<EngineMissionRepository>(relaxed = true).also {
+        // A relaxed mock would answer a mock tail: no conversation was kept unless a test says so.
+        coEvery { it.cachedHistory(any()) } returns null
         coEvery { it.models() } throws IllegalStateException("pas de catalogue")
         coEvery { it.connectors() } throws IllegalStateException("pas de catalogue")
         every { it.events(any()) } returns emptyFlow()
@@ -73,6 +76,63 @@ class MissionChatHistoryTest {
         assertThat(vm.uiState.value.loadingHistory).isFalse()
         assertThat(vm.uiState.value.historyError).isNull()
         coVerify(exactly = 2) { repository.history("ses_1", any()) }
+        // 26/10/2026 : l'essai suspendu dit que la connexion est morte ; on la jette avant le suivant.
+        verify(exactly = 1) { repository.dropConnections() }
+    }
+
+    @Test
+    fun `a conversation opened before shows its kept tail at once and asks the engine only if it moved`() {
+        // 26/10/2026, Raphaël : « quand tu reviens dans une conversation qu'on a déjà ouverte, il
+        // ne redemande pas nécessairement le reste ».
+        val kept = EngineMissionRepository.CachedHistory(
+            events = listOf(
+                EngineStreamEvent.MessageStarted("m1", "user"),
+                EngineStreamEvent.PartDelta("m1", "p1", "text", "salut"),
+            ),
+            messageCount = 1,
+            limit = HISTORY_TAIL,
+            updated = 1_000L,
+        )
+        coEvery { repository.cachedHistory("ses_1") } returns kept
+        coEvery { repository.historyUnlessUpdatedAt("ses_1", HISTORY_TAIL, 1_000L) } returns null
+        val vm = viewModel()
+
+        assertThat(vm.uiState.value.loadingHistory).isFalse()
+        assertThat(vm.uiState.value.chat.turns.map { it.key }).isEqualTo(listOf("m1"))
+        assertThat(vm.uiState.value.historyTruncated).isFalse()
+        coVerify(exactly = 0) { repository.history(any(), any()) }
+        coVerify(exactly = 1) { repository.models() }
+
+        // The session moved: the engine's tail is folded over the kept one.
+        coEvery { repository.cachedHistory("ses_1") } returns kept
+        coEvery { repository.historyUnlessUpdatedAt("ses_1", HISTORY_TAIL, 1_000L) } returns listOf(
+            EngineStreamEvent.MessageStarted("m2", "assistant"),
+        )
+        val moved = viewModel()
+        assertThat(moved.uiState.value.chat.turns.map { it.key }).isEqualTo(listOf("m1", "m2"))
+
+        // A refresh reads the engine whatever the device kept.
+        coEvery { repository.history("ses_1", any()) } returns emptyList()
+        moved.refresh()
+        coVerify(exactly = 1) { repository.history("ses_1", any()) }
+    }
+
+    @Test
+    fun `the catalogue waits for the transcript`() {
+        // 26/10/2026 : modèles, connecteurs, niveau et tarifs partaient avec la transcription et lui
+        // prenaient sa bande passante ; l'écran, c'est la transcription.
+        coEvery { repository.history("ses_1", any()) } coAnswers {
+            if (reads++ == 0) awaitCancellation() else emptyList()
+        }
+        val vm = viewModel()
+        coVerify(exactly = 0) { repository.models() }
+        coVerify(exactly = 0) { repository.connectors() }
+
+        dispatcher.scheduler.advanceTimeBy(11_000)
+
+        assertThat(vm.uiState.value.loadingHistory).isFalse()
+        coVerify(exactly = 1) { repository.models() }
+        coVerify(exactly = 1) { repository.connectors() }
     }
 
     @Test

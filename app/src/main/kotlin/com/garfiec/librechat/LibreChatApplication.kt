@@ -15,6 +15,8 @@ import coil3.request.crossfade
 import coil3.svg.SvgDecoder
 import com.garfiec.librechat.attention.attentionModule
 import com.garfiec.librechat.core.common.AppInfo
+import com.garfiec.librechat.core.common.di.KoinQualifiers
+import com.garfiec.librechat.core.common.network.ConnectivityObserver
 import com.garfiec.librechat.core.data.di.engineModule
 import com.garfiec.librechat.core.data.legacy.LegacyLibreChatCleanup
 import com.garfiec.librechat.core.logging.PersistentLogWriter
@@ -24,11 +26,14 @@ import com.garfiec.librechat.core.logging.logStartupHeader
 import com.garfiec.librechat.core.logging.redact.LogRedactor
 import com.garfiec.librechat.core.logging.startMainThreadWatchdog
 import com.garfiec.librechat.core.network.client.CleartextGuardPlugin
+import com.garfiec.librechat.core.network.engine.ConnectionReset
 import com.garfiec.librechat.feature.tasks.di.tasksModule
 import com.garfiec.librechat.shared.di.sharedKoinModules
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.HttpClientEngineFactory
 import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
@@ -88,6 +93,18 @@ class LibreChatApplication : Application(), SingletonImageLoader.Factory {
         // background. The engine's preferences and the global profile are not touched.
         val legacyCleanup: LegacyLibreChatCleanup by inject()
         legacyCleanup.launchOnce()
+
+        // A network gained or lost leaves the HTTP/2 connections opened before it dead without a
+        // word (26/10/2026): drop them, the next request opens a live one and the feeds reconnect.
+        val connectivity: ConnectivityObserver by inject()
+        val connections: ConnectionReset by inject()
+        val appScope: CoroutineScope by inject(KoinQualifiers.ApplicationScope)
+        appScope.launch {
+            connectivity.networkChanges.collect {
+                Logger.i("Network") { "network changed: dropping every connection" }
+                connections.dropAll()
+            }
+        }
 
         // Diagnostic logging is wired AFTER Koin so the writer's dependencies are resolvable.
         // Everything here is best-effort: a logging-setup failure must never block app launch.

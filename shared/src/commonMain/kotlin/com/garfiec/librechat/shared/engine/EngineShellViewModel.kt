@@ -17,6 +17,7 @@ import com.garfiec.librechat.core.data.engine.EngineModelChoice
 import com.garfiec.librechat.core.data.engine.EngineSettingsStore
 import com.garfiec.librechat.core.data.engine.OpenConversation
 import com.garfiec.librechat.core.data.engine.SessionKindStore
+import com.garfiec.librechat.core.data.engine.TranscriptCache
 import com.garfiec.librechat.core.data.portal.PortalSignOut
 import com.garfiec.librechat.core.data.portal.isPortalSignedIn
 import com.garfiec.librechat.core.data.scheduler.SchedulerRepository
@@ -79,6 +80,8 @@ class EngineShellViewModel(
     private val scheduler: SchedulerRepository? = null,
     /** The phone's share sheet for the diagnostic log (Settings → Plateforme, 20/10/2026). Null in tests. */
     private val diagnostics: DiagnosticLogShare? = null,
+    /** The tails of the conversations kept on this device: forgotten at sign-out (26/10/2026). */
+    private val transcripts: TranscriptCache? = null,
 ) : ViewModel() {
 
     private val _signedIn = MutableStateFlow<Boolean?>(null)
@@ -362,6 +365,7 @@ class EngineShellViewModel(
                     .onFailure { Logger.w(it) { "Portal sign-out failed" } }
                 runCatching { kinds.clear() }.onFailure { Logger.w(it) { "Could not clear the session kinds" } }
                 runCatching { reads.clear() }.onFailure { Logger.w(it) { "Could not clear the read marks" } }
+                runCatching { transcripts?.clear() }.onFailure { Logger.w(it) { "Could not clear the kept transcripts" } }
             }
             allChatsJob?.cancel()
             stopAttention()

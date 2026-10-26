@@ -52,6 +52,26 @@ class AndroidConnectivityObserver(
         }
     }.distinctUntilChanged()
 
+    /** Every network gained or lost, the current one at registration included: a cheap first drop. */
+    @SuppressLint("MissingPermission")
+    override val networkChanges: Flow<Unit> = callbackFlow {
+        val connectivityManager = context.getSystemService(ConnectivityManager::class.java)
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                trySend(Unit)
+            }
+
+            override fun onLost(network: Network) {
+                trySend(Unit)
+            }
+        }
+        val request = NetworkRequest.Builder()
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .build()
+        connectivityManager.registerNetworkCallback(request, callback)
+        awaitClose { connectivityManager.unregisterNetworkCallback(callback) }
+    }
+
     private fun NetworkCapabilities?.hasInternet(): Boolean {
         return this?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
     }

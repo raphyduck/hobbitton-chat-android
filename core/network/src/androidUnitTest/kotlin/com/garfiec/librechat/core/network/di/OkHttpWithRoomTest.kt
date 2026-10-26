@@ -1,11 +1,14 @@
 package com.garfiec.librechat.core.network.di
 
 import io.ktor.client.HttpClient
+import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import org.junit.Test
 import java.net.ServerSocket
@@ -56,6 +59,41 @@ class OkHttpWithRoomTest {
             client.close()
             server.close()
             acceptor.interrupt()
+        }
+    }
+
+    /**
+     * A request on a connection that never answers is freed by [OkHttpConnections.dropAll] at once,
+     * not by a timeout (26/10/2026: the dead connection left by a sleep held every retry).
+     */
+    @Test
+    fun droppingTheConnectionsFailsAHungRequestAtOnce() = runBlocking {
+        val server = ServerSocket(0)
+        // The server reads the request and then says nothing: the drop, not a timeout, must end it.
+        val requestRead = CountDownLatch(1)
+        val mute = thread(isDaemon = true) {
+            runCatching { server.accept() }.getOrNull()?.let { socket ->
+                val reader = socket.getInputStream().bufferedReader()
+                while (reader.readLine().orEmpty().isNotEmpty()) Unit
+                requestRead.countDown()
+                runCatching { Thread.sleep(60_000) }
+                socket.close()
+            }
+        }
+        val client = HttpClient(OkHttpWithRoom) { install(HttpTimeout) { socketTimeoutMillis = 60_000 } }
+        try {
+            // Off runBlocking's own thread: a blocking wait there would never let the request leave.
+            val request = async(Dispatchers.IO) { runCatching { client.get("http://127.0.0.1:${server.localPort}/hung").bodyAsText() } }
+            assertTrue(withContext(Dispatchers.IO) { requestRead.await(20, TimeUnit.SECONDS) })
+            val dropped = System.nanoTime()
+            OkHttpConnections.dropAll()
+            val outcome = withTimeout(5_000) { request.await() }
+            assertTrue(outcome.isFailure)
+            assertTrue((System.nanoTime() - dropped) / 1_000_000 < 5_000)
+        } finally {
+            client.close()
+            server.close()
+            mute.interrupt()
         }
     }
 }

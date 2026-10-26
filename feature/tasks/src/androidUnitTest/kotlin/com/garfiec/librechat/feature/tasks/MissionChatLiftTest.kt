@@ -33,6 +33,8 @@ class MissionChatLiftTest {
     private val dispatcher = UnconfinedTestDispatcher()
 
     private val repository = mockk<EngineMissionRepository>(relaxed = true).also {
+        // A relaxed mock would answer a mock tail: no conversation was kept unless a test says so.
+        coEvery { it.cachedHistory(any()) } returns null
         coEvery { it.models() } throws IllegalStateException("pas de catalogue")
         // A catalogue with nothing in it: enough for the scope, and its level, to be read.
         coEvery { it.connectors() } returns ConnectorCatalogue()

@@ -306,8 +306,13 @@ class MissionChatViewModel(
         if (sessionId != null) {
             loadHistory()
             openStream()
+        } else {
+            // A new conversation has no transcript to wait for. An existing one loads its catalogue
+            // once its transcript has landed (26/10/2026): the models, the connectors, the session's
+            // level and the prices are five more requests, which used to leave with the transcript
+            // and share its bandwidth on a weak link; the screen is the transcript.
+            loadCatalogue()
         }
-        loadCatalogue()
         // A new conversation greets by name: one small read, and a greeting without a name if it fails.
         if (sessionId == null) {
             viewModelScope.launch(ioDispatcher) {
@@ -341,9 +346,14 @@ class MissionChatViewModel(
      * without both.
      */
     private fun loadCatalogue() {
+        if (catalogueRequested) return
+        catalogueRequested = true
         loadConnectors()
         loadModels()
     }
+
+    /** The catalogue is read once per screen: the transcript's retries must not read it again. */
+    private var catalogueRequested = false
 
     /**
      * The catalogue, and what this session already holds out of it.
@@ -478,17 +488,45 @@ class MissionChatViewModel(
      * otherwise have its first tokens dropped while the transcript is being fetched. Both fold into
      * the same state and the reducer is idempotent, so whichever lands first, the result is the same.
      */
-    private fun loadHistory() {
+    /**
+     * The transcript: first the tail the device kept of it, shown at once (26/10/2026, Raphaël:
+     * « quand tu reviens dans une conversation qu'on a déjà ouverte, il ne redemande pas
+     * nécessairement le reste »), then the engine's, unless the session has not moved since; a
+     * [refresh] reads the engine whatever the device kept.
+     */
+    private fun loadHistory(trustCache: Boolean = true) {
         val sessionId = sessionId ?: return
         viewModelScope.launch {
             try {
                 val limit = historyLimit
-                val events = fetchHistory(sessionId, limit)
+                val kept = if (trustCache && limit != null) {
+                    withContext(ioDispatcher) { repository.cachedHistory(sessionId) }
+                } else {
+                    null
+                }
+                if (kept != null) {
+                    _uiState.update { current ->
+                        val seeded = kept.events.fold(current.chat) { state, event -> state.reduce(event) }
+                        val truncated = kept.limit?.let { kept.messageCount >= it } ?: false
+                        current.copy(chat = seeded, loadingHistory = false, historyTruncated = truncated)
+                    }
+                }
+                val read = fetchHistory(sessionId, limit, unlessUpdatedAt = kept?.updated)
+                if (kept != null && read !is HistoryRead.Fresh) {
+                    // The engine said the conversation has not moved, or could not be reached: what
+                    // the device kept stands, and the catalogue and the questions follow as usual.
+                    _uiState.update { it.copy(loadingHistory = false, refreshing = false) }
+                    loadCatalogue()
+                    loadPendingQuestions(sessionId)
+                    return@launch
+                }
+                val events = (read as? HistoryRead.Fresh)?.events
                 if (events == null) {
                     Logger.w(LOG_TAG) { "History of $sessionId: no answer after $HISTORY_ATTEMPTS attempts" }
                     _uiState.update {
                         it.copy(loadingHistory = false, refreshing = false, historyError = EngineFailureKind.UNREACHABLE)
                     }
+                    loadCatalogue()
                     return@launch
                 }
                 _uiState.update { current ->
@@ -499,6 +537,7 @@ class MissionChatViewModel(
                     val truncated = limit != null && events.count { it is EngineStreamEvent.MessageStarted } >= limit
                     current.copy(chat = seeded, loadingHistory = false, refreshing = false, historyTruncated = truncated)
                 }
+                loadCatalogue()
                 loadPendingQuestions(sessionId)
             } catch (e: CancellationException) {
                 throw e
@@ -511,6 +550,7 @@ class MissionChatViewModel(
                         historyError = e.engineFailureKind(),
                     )
                 }
+                loadCatalogue()
             }
         }
     }
@@ -522,13 +562,38 @@ class MissionChatViewModel(
      * rather than waited on, and after the third the screen says so instead of waiting for ever.
      * Null when none came.
      */
-    private suspend fun fetchHistory(sessionId: String, limit: Int?): List<EngineStreamEvent>? {
+    /**
+     * The transcript, in up to [HISTORY_ATTEMPTS] tries of [HISTORY_ATTEMPT_MS] each. A try that
+     * hangs says the connection it went on is dead (26/10/2026: after a sleep or a change of
+     * network, the HTTP/2 connection everything multiplexes on stays in OkHttp's pool, and every
+     * try queued on it; the screen stayed on its placeholders for 30 s and worked on a later tap):
+     * every connection is dropped before the next try, which opens a live one.
+     */
+    private suspend fun fetchHistory(sessionId: String, limit: Int?, unlessUpdatedAt: Long? = null): HistoryRead? {
         repeat(HISTORY_ATTEMPTS) { attempt ->
-            withTimeoutOrNull(HISTORY_ATTEMPT_MS) { withContext(ioDispatcher) { repository.history(sessionId, limit) } }
-                ?.let { return it }
-            Logger.w(LOG_TAG) { "History of $sessionId: attempt ${attempt + 1} hung" }
+            val read = withTimeoutOrNull(HISTORY_ATTEMPT_MS) {
+                withContext(ioDispatcher) {
+                    if (unlessUpdatedAt != null && limit != null) {
+                        repository.historyUnlessUpdatedAt(sessionId, limit, unlessUpdatedAt)
+                            ?.let { HistoryRead.Fresh(it) } ?: HistoryRead.Unchanged
+                    } else {
+                        HistoryRead.Fresh(repository.history(sessionId, limit))
+                    }
+                }
+            }
+            if (read != null) return read
+            Logger.w(LOG_TAG) { "History of $sessionId: attempt ${attempt + 1} hung, dropping every connection" }
+            repository.dropConnections()
         }
         return null
+    }
+
+    /** What a transcript read came back with; null from [fetchHistory] when every attempt hung. */
+    private sealed interface HistoryRead {
+        data class Fresh(val events: List<EngineStreamEvent>) : HistoryRead
+
+        /** The device's tail is current: nothing to fold. */
+        data object Unchanged : HistoryRead
     }
 
     /**
@@ -565,7 +630,7 @@ class MissionChatViewModel(
     fun refresh() {
         if (sessionId == null) return
         _uiState.update { it.copy(refreshing = true, chat = it.chat.copy(streaming = false)) }
-        loadHistory()
+        loadHistory(trustCache = false)
     }
 
     /**
@@ -927,7 +992,7 @@ class MissionChatViewModel(
     fun retryHistory() {
         if (sessionId == null) return
         _uiState.update { it.copy(loadingHistory = true, historyError = null) }
-        loadHistory()
+        loadHistory(trustCache = false)
     }
 
     /**
@@ -971,7 +1036,9 @@ private const val HISTORY_ATTEMPTS = 3
 
 /** Messages read at opening: a screenful of history, and the model, context and last request. */
 internal const val HISTORY_TAIL = 40
-private const val HISTORY_ATTEMPT_MS = 10_000L
+
+/** A transcript of 40 messages answers in well under this on a live connection; past it, the connection is suspect. */
+private const val HISTORY_ATTEMPT_MS = 8_000L
 
 /** A user turn carrying exactly these words: a send made mid-turn that reached the engine. */
 private fun MissionChatState.hasUserText(text: String): Boolean = turns.any { turn ->

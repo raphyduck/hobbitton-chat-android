@@ -47,6 +47,8 @@ class AutoModelTest {
     )
 
     private val repository = mockk<EngineMissionRepository>(relaxed = true).also {
+        // A relaxed mock would answer a mock tail: no conversation was kept unless a test says so.
+        coEvery { it.cachedHistory(any()) } returns null
         coEvery { it.models() } returns EngineModelChoice(
             models = listOf(deepseek, opus),
             preselected = EngineSelectableModel.AUTO,

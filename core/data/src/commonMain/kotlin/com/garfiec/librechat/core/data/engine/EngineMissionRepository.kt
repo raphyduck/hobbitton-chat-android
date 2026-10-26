@@ -4,6 +4,7 @@ import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.common.di.ioDispatcher
 import com.garfiec.librechat.core.data.datastore.GlobalProfileSource
 import com.garfiec.librechat.core.model.engine.CreateEngineSessionRequest
+import com.garfiec.librechat.core.model.engine.EngineMessage
 import com.garfiec.librechat.core.model.engine.EngineModelRef
 import com.garfiec.librechat.core.model.engine.EnginePromptPart
 import com.garfiec.librechat.core.model.engine.EnginePromptRequest
@@ -17,11 +18,19 @@ import com.garfiec.librechat.core.model.scheduler.ConnectorCatalogue
 import com.garfiec.librechat.core.model.scheduler.SchedulerRun
 import com.garfiec.librechat.core.network.api.AgentEngineApi
 import com.garfiec.librechat.core.network.api.SchedulerApi
+import com.garfiec.librechat.core.network.engine.ConnectionReset
+import com.garfiec.librechat.core.network.engine.EngineEventParser
 import com.garfiec.librechat.core.network.engine.EngineEventTransport
 import com.garfiec.librechat.core.network.engine.EngineHttpException
 import com.garfiec.librechat.core.network.engine.EngineStreamClient
+import com.garfiec.librechat.core.network.engine.NoConnectionReset
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.shareIn
 
 /**
  * One conversation as the lists show it. Since D-082 (12/10/2026) every session opens the same
@@ -132,7 +141,24 @@ class EngineMissionRepository(
     private val reads: ConversationReads? = null,
     /** The person's default model (Settings, 19/10/2026); null leaves the engine's. */
     private val modelPreference: ModelPreference? = null,
+    /** Drops every HTTP connection (26/10/2026): what a request that hung, or a network that changed, calls for. */
+    private val connections: ConnectionReset = NoConnectionReset,
+    /**
+     * Where the engine's feed is shared (26/10/2026): one `GET /event` for the whole app, the
+     * conversation on screen and the attention watcher reading the same frames, where each used
+     * to open its own and the phone downloaded the engine's whole traffic twice. Null keeps one
+     * subscription per collector (tests).
+     */
+    sharingScope: CoroutineScope? = null,
+    /** The tails kept on the device (26/10/2026); null keeps nothing (tests). */
+    private val transcripts: TranscriptCache? = null,
 ) {
+
+    private val feed: Flow<EngineEventParser.Parsed> = streamClient.frames(eventTransport).flowOn(ioDispatcher).let { frames ->
+        sharingScope?.let { scope ->
+            frames.shareIn(scope, SharingStarted.WhileSubscribed(stopTimeoutMillis = FEED_LINGER_MS), replay = 0)
+        } ?: frames
+    }
 
     /**
      * The global profile's instructions, as the engine's `system`, or null when there is nothing
@@ -245,7 +271,10 @@ class EngineMissionRepository(
             var kind = classifySession(session.title, recorded[session.id], messages = null)
             if (kind == null && classified < reads) {
                 classified++
-                val messages = runCatching { api.messages(session.id) }.getOrNull()
+                // The last two messages, not the transcript (26/10/2026: a transcript weighs up to
+                // megabytes, and ten of them were read while the person tapped a conversation):
+                // a user message names the agent, an assistant message the provider.
+                val messages = runCatching { api.messages(session.id, limit = CLASSIFICATION_TAIL) }.getOrNull()
                 kind = classifySession(session.title, null, messages)
                 if (kind != null) learned[session.id] = kind
             }
@@ -382,8 +411,48 @@ class EngineMissionRepository(
      * page — the bug the tab shipped with on 29/08/2026.
      */
     suspend fun history(sessionId: String, limit: Int? = null): List<EngineStreamEvent> {
-        return engineHistoryEvents(api.messages(sessionId, limit))
+        val messages = api.messages(sessionId, limit)
+        if (limit != null) keepTail(sessionId, limit, messages)
+        return engineHistoryEvents(messages)
     }
+
+    /**
+     * The tail the device kept of this conversation, to show at once; null when it kept none.
+     * [CachedHistory.updated] is what [historyUnlessUpdatedAt] compares against.
+     */
+    suspend fun cachedHistory(sessionId: String): CachedHistory? {
+        val cached = runCatching { transcripts?.read(sessionId) }.getOrNull() ?: return null
+        return CachedHistory(engineHistoryEvents(cached.messages), cached.messages.size, cached.limit, cached.updated)
+    }
+
+    /**
+     * The last [limit] messages, unless the session has not moved since [updatedAt] and is idle:
+     * then null, and the tail the device kept is the truth. One small read of the session (and of
+     * the statuses) instead of the transcript; a session that could not be read is read in full.
+     */
+    suspend fun historyUnlessUpdatedAt(sessionId: String, limit: Int, updatedAt: Long?): List<EngineStreamEvent>? {
+        if (updatedAt != null) {
+            val unchanged = runCatching {
+                coroutineScope {
+                    val info = async { api.session(sessionId) }
+                    val busy = async { api.status()[sessionId]?.let { it.type != IDLE_STATUS } ?: false }
+                    info.await().time?.updated == updatedAt && !busy.await()
+                }
+            }.getOrDefault(false)
+            if (unchanged) return null
+        }
+        return history(sessionId, limit)
+    }
+
+    /** Writes the tail down with the session's clock, read alongside; a clock that fails is null (refreshed next time). */
+    private suspend fun keepTail(sessionId: String, limit: Int, messages: List<EngineMessage>) {
+        val cache = transcripts ?: return
+        val updated = runCatching { api.session(sessionId).time?.updated }.getOrNull()
+        runCatching { cache.write(sessionId, CachedTranscript(updated = updated, limit = limit, messages = messages)) }
+    }
+
+    /** What the device kept of a conversation: its events, how many messages, read with which limit, the session's clock then. */
+    data class CachedHistory(val events: List<EngineStreamEvent>, val messageCount: Int, val limit: Int?, val updated: Long?)
 
     /**
      * What is happening in the session right now. The engine's feed is global; the client keeps only
@@ -395,16 +464,17 @@ class EngineMissionRepository(
      * streaming its tools froze the app until it was killed, the conversation on screen left on its
      * placeholders. The collector's own work (a state update, a chime) stays where it collects.
      */
-    fun events(sessionId: String): Flow<EngineStreamEvent> =
-        streamClient.connect(sessionId, eventTransport).flowOn(ioDispatcher)
+    fun events(sessionId: String): Flow<EngineStreamEvent> = with(streamClient) { feed.forSession(sessionId) }
+
+    /** See [ConnectionReset]: the next request opens a fresh connection, the feeds reconnect. */
+    fun dropConnections() = connections.dropAll()
 
     /**
      * Every session's events, each naming its session: what the attention watcher listens to, so a
      * question asked in a conversation nobody has open still reaches the person. Off the main
      * thread like [events]: the watcher collects it from the shell's scope, which is the main one.
      */
-    fun allEvents(): Flow<EngineStreamClient.SessionEvent> =
-        streamClient.connectAll(eventTransport).flowOn(ioDispatcher)
+    fun allEvents(): Flow<EngineStreamClient.SessionEvent> = with(streamClient) { feed.perSession() }
 
     /**
      * The questions this session's agent is waiting on. The feed announces each one once; a screen
@@ -580,6 +650,12 @@ class EngineMissionRepository(
          * verdict is recorded, so a backlog drains over a few openings instead of one slow one.
          */
         const val MAX_CLASSIFICATION_READS = 10
+
+        /** Messages read to tell a session's kind: the last user and assistant turns suffice. */
+        const val CLASSIFICATION_TAIL = 2
+
+        /** How long the shared feed stays open after its last collector left: a conversation switch. */
+        const val FEED_LINGER_MS = 5_000L
 
         /**
          * The same, for a search (21/10/2026): it reaches old sessions this device may never have

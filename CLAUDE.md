@@ -226,6 +226,28 @@ sheet for the diagnostic log). The shell and the sign-in resolve the engine grap
 - Each client's OkHttp dispatcher allows 32 requests in flight per host (`OkHttpWithRoom`,
   `NetworkPlatformModule.android.kt`), not OkHttp's 5: the two event feeds held two places for
   good, and opening a conversation queued its transcript past the screen's 10 s (25/10/2026).
+- **Opening a conversation in a second or two** (26/10/2026, Raphaël: the placeholders stayed 30 s
+  to a minute and a later tap worked; the engine itself answers a 40-message transcript in 3 to
+  25 ms, the time is the phone's). Everything multiplexes on one HTTP/2 connection per host, which
+  a sleep or a change of network leaves dead without a word, and OkHttp never evicts a multiplexed
+  connection on a timeout: the connections PING every 20 s (`PING_INTERVAL_SECONDS`), a transcript
+  read that hangs 8 s drops them all before its retry (`ConnectionReset`, `OkHttpConnections`:
+  the calls cancelled, the pool emptied; `repository.dropConnections()`), and so does every change
+  of network (`ConnectivityObserver.networkChanges`, collected by `LibreChatApplication`). The
+  transcript goes first: the catalogue (models, connectors, level, prices) is read once it has
+  landed (`catalogueRequested`). The feed is read ONCE per app (`EngineMissionRepository.feed`,
+  `shareIn` on the application scope, 5 s of linger): the conversation and the attention watcher
+  used to download the engine's whole traffic twice. The drawer tells a session's kind from its
+  last two messages (`CLASSIFICATION_TAIL`), not its whole transcript (ten of them, megabytes, read
+  while the person tapped). The kit's nginx now gzips the JSON (`hobbitton-proxy.inc`: 361 KB
+  of transcript become a few tens), the SSE untouched. **A conversation opened before shows at
+  once** (same day, Raphaël: « il ne redemande pas nécessairement le reste »): the tail the
+  opening read is kept on the device (`TranscriptCache`, `FileTranscriptCache`: gzip files under
+  the app's cache directory, 40 sessions and 12 MB at most, the oldest out first, a tail over 2 MB
+  not kept, nothing in memory between openings, cleared at sign-out), seeded before anything is
+  asked (`repository.cachedHistory`), and the engine is read again only if the session's
+  `time.updated` changed or the session is busy (`historyUnlessUpdatedAt`: one small read of the
+  session and the statuses). A pull to refresh or a retry reads the engine whatever was kept.
 - The feed is global and heavy (a tool's whole output again on every frame that grows it):
   `EngineMissionRepository.events` / `allEvents` read and parse it on the IO dispatcher whoever
   collects (20/10/2026: parsed on the main thread by the attention watcher, a scheduled run's
