@@ -44,6 +44,9 @@ class PersistentLogWriter internal constructor(
         }
     }
 
+    /** Info and above on disk (26/10/2026): Debug and Verbose belong to Logcat, not to a file kept for days. */
+    override fun isLoggable(tag: String, severity: Severity): Boolean = severity >= Severity.Info
+
     override fun log(severity: Severity, message: String, tag: String, throwable: Throwable?) {
         val line = runCatching { buildLine(severity.name, message, tag, throwable) }.getOrNull()
             ?: runCatching { fallbackLine(severity.name, tag) }.getOrNull()

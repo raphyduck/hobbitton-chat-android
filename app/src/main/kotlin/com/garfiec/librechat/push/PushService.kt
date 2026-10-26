@@ -16,11 +16,13 @@ import co.touchlab.kermit.Logger
 import com.garfiec.librechat.R
 import com.garfiec.librechat.attention.AndroidAttentionNotifier
 import com.garfiec.librechat.core.common.network.CleartextPolicy
+import com.garfiec.librechat.core.common.network.ConnectivityObserver
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.engine.AttentionNotifier
 import com.garfiec.librechat.core.data.engine.attentionWatcherRunning
 import com.garfiec.librechat.core.data.engine.parsePushLine
 import com.garfiec.librechat.core.data.engine.shouldNotifyPush
+import com.garfiec.librechat.core.data.portal.PortalSession
 import com.garfiec.librechat.core.data.scheduler.SchedulerRepository
 import com.garfiec.librechat.core.model.scheduler.PushChannel
 import kotlinx.coroutines.CoroutineScope
@@ -56,9 +58,15 @@ class PushService : Service() {
     private val scheduler: SchedulerRepository by inject()
     private val settings: SettingsDataStore by inject()
     private val notifier: AttentionNotifier by inject()
+    private val connectivity: ConnectivityObserver by inject()
+    private val portal: PortalSession by inject()
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var listening: Job? = null
+
+    /** The stream being read, to cut it from another thread: the read itself cannot be interrupted. */
+    @Volatile
+    private var current: HttpURLConnection? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -68,14 +76,22 @@ class PushService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        goForeground()
-        if (listening?.isActive != true) listening = scope.launch { listen() }
+        // Once: a sticky restart with no intent would otherwise post the notice again after the
+        // person swiped it away (26/10/2026).
+        if (listening?.isActive != true) {
+            goForeground()
+            listening = scope.launch { listen() }
+            // The Settings switch turned off cuts the stream at once, where the loop used to see
+            // it at the next drop only, hours later on a quiet topic.
+            scope.launch { settings.attentionSound.collect { on -> if (!on) current?.disconnect() } }
+        }
         return START_STICKY
     }
 
     override fun onDestroy() {
         running = false
         scope.cancel()
+        current?.disconnect()
         super.onDestroy()
     }
 
@@ -86,9 +102,16 @@ class PushService : Service() {
                 stopSelf()
                 return
             }
+            // No blind retries in a tunnel or in airplane mode (26/10/2026): wait for a network.
+            connectivity.isConnected.first { it }
             val channel = scheduler.pushChannel()
             if (channel == null) {
-                // No scheduler, no route, no ntfy, or no network: look again later.
+                if (!portal.hasTokens()) {
+                    // Signed out: nothing to follow until the next sign-in starts the service again.
+                    stopSelf()
+                    return
+                }
+                // No scheduler, no route, or no ntfy: look again later.
                 delay(NO_CHANNEL_RETRY_MS)
                 continue
             }
@@ -112,6 +135,7 @@ class PushService : Service() {
             return false
         }
         val connection = URL(address).openConnection() as HttpURLConnection
+        current = connection
         connection.instanceFollowRedirects = false
         connection.connectTimeout = CONNECT_TIMEOUT_MS
         // ntfy sends a keepalive every 45 s: a longer silence is a dead connection.
@@ -129,6 +153,7 @@ class PushService : Service() {
                 }
             }
         } finally {
+            current = null
             connection.disconnect()
         }
         return received
@@ -192,15 +217,16 @@ class PushService : Service() {
         private const val READ_TIMEOUT_MS = 120_000
         private const val FIRST_RETRY_MS = 5_000L
         private const val MAX_RETRY_MS = 300_000L
-        private const val NO_CHANNEL_RETRY_MS = 900_000L
+        private const val NO_CHANNEL_RETRY_MS = 120_000L
 
         /** True between the service's creation and its end, in this process. */
         @Volatile
         private var running = false
 
         /**
-         * Starts the service unless it runs already. Called at every launch: a running service is
-         * not asked again, which would post its notice again after it was swiped away.
+         * Starts the service unless it runs already. Called at every sign-in and when the Settings
+         * switch turns on (26/10/2026; before, at every launch, signed in or not): a running service
+         * is not asked again, which would post its notice again after it was swiped away.
          */
         fun start(context: Context) {
             if (running) return

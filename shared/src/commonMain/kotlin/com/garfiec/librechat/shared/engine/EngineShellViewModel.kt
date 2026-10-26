@@ -11,7 +11,7 @@ import com.garfiec.librechat.core.data.engine.ChatScope
 import com.garfiec.librechat.core.data.engine.ConversationModelStore
 import com.garfiec.librechat.core.data.engine.ConversationReads
 import com.garfiec.librechat.core.data.engine.ConversationRequests
-import com.garfiec.librechat.core.data.engine.DeviceCleanup
+import com.garfiec.librechat.core.data.engine.DeviceSession
 import com.garfiec.librechat.core.data.engine.EngineAttentionWatcher
 import com.garfiec.librechat.core.data.engine.EngineChatSummary
 import com.garfiec.librechat.core.data.engine.EngineMissionRepository
@@ -86,8 +86,8 @@ class EngineShellViewModel(
     private val transcripts: TranscriptCache? = null,
     /** The model this device last sent each conversation with: forgotten at sign-out (26/10/2026). */
     private val conversationModels: ConversationModelStore? = null,
-    /** The platform's part of signing out: opened attachments, image cache, diagnostic log (26/10/2026). */
-    private val deviceCleanup: DeviceCleanup? = null,
+    /** The platform's part of signing in and out: the push service, the device's caches (26/10/2026). */
+    private val deviceSession: DeviceSession? = null,
 ) : ViewModel() {
 
     private val _signedIn = MutableStateFlow<Boolean?>(null)
@@ -185,6 +185,7 @@ class EngineShellViewModel(
             if (now && before != true) {
                 refreshChats()
                 readIdentity()
+                deviceSession?.onSignedIn()
             }
             if (now) watchAttention() else stopAttention()
         }
@@ -197,9 +198,13 @@ class EngineShellViewModel(
     }
 
     /**
-     * Listens for questions across the engine while signed in: a task left running asks, and the
-     * person hears it wherever they are in the app, or outside it while the process lives. The
-     * watch outlives the screen, not the activity: as long as this view model does.
+     * Listens for questions across the engine while signed in AND in front of the person: a task
+     * left running asks, and the person hears it wherever they are in the app. Out of sight the
+     * watch pauses ([pauseAttention], the shell's ON_STOP; [recheck] at ON_START resumes it and
+     * the watcher re-reads the pending questions): the push notifications cover that time, and
+     * the engine's global feed is heavy. Until 26/10/2026 the watch ran as long as this view model
+     * did, and the push service keeps the process alive: the phone followed every frame of every
+     * scheduled run all night, PINGs included, to keep a feed nobody was looking at.
      */
     private fun watchAttention() {
         val watcher = attentionWatcher ?: return
@@ -219,6 +224,9 @@ class EngineShellViewModel(
         attentionJob?.cancel()
         attentionJob = null
     }
+
+    /** The app left the foreground: the engine's feed closes behind the last subscriber. */
+    fun pauseAttention() = stopAttention()
 
     /** Settings → Plateforme: the diagnostic log to whatever the person picks to send it with. */
     fun shareDiagnostics() {
@@ -373,7 +381,7 @@ class EngineShellViewModel(
                 runCatching { reads.clear() }.onFailure { Logger.w(it) { "Could not clear the read marks" } }
                 runCatching { transcripts?.clear() }.onFailure { Logger.w(it) { "Could not clear the kept transcripts" } }
                 runCatching { conversationModels?.clear() }.onFailure { Logger.w(it) { "Could not clear the conversations' models" } }
-                runCatching { deviceCleanup?.clear() }.onFailure { Logger.w(it) { "Could not clear the device's caches" } }
+                runCatching { deviceSession?.onSignedOut() }.onFailure { Logger.w(it) { "Could not clear the device's caches" } }
             }
             allChatsJob?.cancel()
             stopAttention()

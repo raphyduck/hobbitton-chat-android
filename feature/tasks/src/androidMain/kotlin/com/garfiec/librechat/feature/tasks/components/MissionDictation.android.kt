@@ -31,6 +31,8 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import com.garfiec.librechat.core.data.engine.TranscriptionFailure
 import com.garfiec.librechat.core.data.engine.TranscriptionOutcome
 import kotlinx.coroutines.Dispatchers
@@ -104,31 +106,39 @@ internal actual fun rememberMissionDictation(
         contract = ActivityResultContracts.RequestPermission(),
     ) { granted -> if (granted) begin() }
 
+    val toggle: () -> Unit = {
+        when {
+            // The last words still come, then the end: the button stays on stop until they have.
+            listening -> phone.stop()
+            recording -> {
+                recording = false
+                scope.launch {
+                    val bytes = withContext(Dispatchers.IO) { recorder.stop() }
+                    bytes?.takeIf { it.isNotEmpty() }
+                        ?.let { onCapture(PickedAudio(it, recorder.mime, recorder.filename)) }
+                }
+            }
+            else -> {
+                val granted = ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.RECORD_AUDIO,
+                ) == PackageManager.PERMISSION_GRANTED
+                if (granted) begin() else permission.launch(Manifest.permission.RECORD_AUDIO)
+            }
+        }
+    }
+    // The app leaves while a take runs (26/10/2026): Android cuts the microphone to an app with no
+    // microphone service, so the take is closed as a tap on stop would, and what was heard lands
+    // in the composer rather than in a silence nobody notices.
+    LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) {
+        if (recording || listening) toggle()
+    }
+
     return MissionDictation(
         recording = recording || listening,
         listening = listening,
         heard = heard,
-        toggle = {
-            when {
-                // The last words still come, then the end: the button stays on stop until they have.
-                listening -> phone.stop()
-                recording -> {
-                    recording = false
-                    scope.launch {
-                        val bytes = withContext(Dispatchers.IO) { recorder.stop() }
-                        bytes?.takeIf { it.isNotEmpty() }
-                            ?.let { onCapture(PickedAudio(it, recorder.mime, recorder.filename)) }
-                    }
-                }
-                else -> {
-                    val granted = ContextCompat.checkSelfPermission(
-                        context,
-                        Manifest.permission.RECORD_AUDIO,
-                    ) == PackageManager.PERMISSION_GRANTED
-                    if (granted) begin() else permission.launch(Manifest.permission.RECORD_AUDIO)
-                }
-            }
-        },
+        toggle = toggle,
     )
 }
 

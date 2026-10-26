@@ -208,9 +208,20 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   public version that only says something waits). An intent's extras name a conversation only by
   a valid engine session id (`isEngineSessionId`). Signing out also revokes the refresh token at
   the portal (`revokeAndForget`, RFC 7009), deletes the opened attachments, the image cache and the
-  diagnostic log (`DeviceCleanup`, `AndroidDeviceCleanup`). The OAuth mailbox is armed with the
+  diagnostic log (`DeviceSession`, `AndroidDeviceSession`). The OAuth mailbox is armed with the
   tour's `state` and ignores a link with another. A copy to the clipboard is marked sensitive. The
-  push stream refuses cleartext to a public host and follows no redirection. Deliberately not done:
+  push stream refuses cleartext to a public host and follows no redirection. **Out of sight, the
+  phone keeps one connection**, the push stream (26/10/2026 evening, lot 2 of the review): the
+  engine's feed closes when the app leaves the foreground (`EngineShellViewModel.pauseAttention`
+  at the shell's ON_STOP, `recheck` at ON_START resumes the watch, which re-reads the pending
+  questions), and so does the main-thread watchdog (`ForegroundWatchdog`, an activity lifecycle
+  counter in `:app`); before, the push service kept the process alive and the phone followed every
+  frame of every scheduled run all night. `PushService` starts at sign-in and stops at sign-out
+  (`DeviceSession`, `AndroidDeviceSession`), cuts its stream the moment the Settings switch turns
+  off, waits for a network instead of retrying blind, posts its notice once, and gives up by
+  itself on a signed-out phone. A dictation is closed as a tap on stop when the app leaves
+  (ON_PAUSE), and the activity handles its own configuration changes so a rotation keeps the take.
+  The persistent journal keeps Info and above. Deliberately not done:
   `FLAG_SECURE` (screen recordings are how Raphaël reports), and encrypting the transcript cache
   (plain gzip under the cache directory, cleared at sign-out).
 - **LibreChat's leftovers** on a device that ran an earlier build (its Room database, tokens,
