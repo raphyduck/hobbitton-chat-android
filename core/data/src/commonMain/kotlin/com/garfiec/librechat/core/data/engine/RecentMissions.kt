@@ -1,12 +1,13 @@
 package com.garfiec.librechat.core.data.engine
 
 import co.touchlab.kermit.Logger
-import com.garfiec.librechat.core.common.result.onApiDispatcher
+import com.garfiec.librechat.core.common.di.ioDispatcher
 import com.garfiec.librechat.core.data.scheduler.SchedulerRepository
 import com.garfiec.librechat.core.model.engine.EngineSession
 import com.garfiec.librechat.core.model.engine.EngineSessionStatus
 import com.garfiec.librechat.core.model.scheduler.ScheduledMission
 import com.garfiec.librechat.core.network.api.AgentEngineApi
+import kotlinx.coroutines.withContext
 
 /**
  * What a mission row in the drawer's recents says about itself, beyond its title.
@@ -161,7 +162,7 @@ class EngineRecentMissionsSource(
         // Off the caller's dispatcher: this is called from the drawer's viewModelScope, and decoding
         // a few hundred sessions there would run on the UI thread (this module's rule, CLAUDE.md).
         return runCatching {
-            onApiDispatcher {
+            withContext(ioDispatcher) {
                 // The scheduler is optional: without it, scheduled runs simply never qualify.
                 val scheduled = runCatching { scheduler.missions() }.getOrDefault(emptyList())
                 selectRecentMissions(api.sessions(), api.status(), scheduled)

@@ -4,6 +4,9 @@ package com.garfiec.librechat.core.common.result
  * Exception thrown when the server returns a non-2xx HTTP response.
  * The [message] field contains a user-friendly error extracted from the response body.
  *
+ * One reader left (26/10/2026): the portal's token client, which tells a refusal from a hiccup
+ * by [statusCode]. The `Result` / `safeApiCall` layer it came with went with LibreChat.
+ *
  * [body] is the raw response body text when available. The HTTP client reads it
  * to extract [message]; it's retained here so callers that need a typed error
  * payload (e.g. a 409 conflict carrying the authoritative resource, or a 400

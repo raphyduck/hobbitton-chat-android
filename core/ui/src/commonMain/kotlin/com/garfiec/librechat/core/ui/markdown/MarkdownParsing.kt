@@ -9,13 +9,8 @@ sealed interface MarkdownSegment {
     data class InlineLatexText(val segments: List<InlineSegment>) : MarkdownSegment
     data class Table(
         val headers: List<String>,
-        val alignments: List<TableCellAlignment>,
         val rows: List<List<String>>,
     ) : MarkdownSegment
-}
-
-enum class TableCellAlignment {
-    LEFT, CENTER, RIGHT,
 }
 
 sealed interface InlineSegment {
@@ -27,7 +22,6 @@ sealed interface InlineSegment {
 private val CODE_BLOCK_REGEX = Regex("```(\\w*)[^\\S\\n]*\\n([\\s\\S]*?)```")
 private val BLOCK_LATEX_REGEX = Regex("\\$\\$([\\s\\S]+?)\\$\\$|\\\\\\[([\\s\\S]+?)\\\\\\]")
 private val INLINE_LATEX_REGEX = Regex("(?<!\\$)\\$(?!\\$)(.+?)(?<!\\$)\\$(?!\\$)|\\\\\\((.+?)\\\\\\)")
-val CITATION_DETECT_REGEX = Regex("""\[\d+]|\u3010\d+\u2020""")
 private val TABLE_SEPARATOR_REGEX = Regex("^\\|?\\s*:?-{1,}:?\\s*(\\|\\s*:?-{1,}:?\\s*)*\\|?$")
 
 private val HTML_BLOCK_TAG_NAMES = setOf(
@@ -295,7 +289,6 @@ private fun extractTables(text: String): List<MarkdownSegment> {
             }
 
             val headerCells = parseTableRow(lines[i])
-            val alignments = parseAlignments(lines[i + 1], headerCells.size)
             val dataRows = mutableListOf<List<String>>()
             var j = i + 2
 
@@ -309,7 +302,7 @@ private fun extractTables(text: String): List<MarkdownSegment> {
             }
 
             if (dataRows.isNotEmpty()) {
-                result.add(MarkdownSegment.Table(headerCells, alignments, dataRows))
+                result.add(MarkdownSegment.Table(headerCells, dataRows))
                 i = j
             } else {
                 buffer.add(lines[i])
@@ -343,16 +336,4 @@ private fun isTableSeparator(line: String): Boolean = TABLE_SEPARATOR_REGEX.matc
 fun parseTableRow(line: String): List<String> {
     val inner = line.trim().removePrefix("|").removeSuffix("|")
     return inner.split('|').map { it.trim() }
-}
-
-fun parseAlignments(separatorLine: String, columnCount: Int): List<TableCellAlignment> {
-    val cells = parseTableRow(separatorLine)
-    return List(columnCount) { col ->
-        val cell = cells.getOrElse(col) { "---" }.trim()
-        when {
-            cell.startsWith(':') && cell.endsWith(':') -> TableCellAlignment.CENTER
-            cell.endsWith(':') -> TableCellAlignment.RIGHT
-            else -> TableCellAlignment.LEFT
-        }
-    }
 }

@@ -2,35 +2,25 @@ package com.garfiec.librechat.core.ui.markdown
 
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.StartOffset
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.Placeholder
 import androidx.compose.ui.text.PlaceholderVerticalAlign
@@ -38,15 +28,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.util.lerp
-import com.garfiec.librechat.core.ui.resources.Res
-import com.garfiec.librechat.core.ui.resources.cd_generating_response
 import com.mikepenz.markdown.model.MarkdownAnnotator
 import com.mikepenz.markdown.model.MarkdownInlineContent
 import com.mikepenz.markdown.model.markdownAnnotator
 import com.mikepenz.markdown.model.markdownInlineContent
 import org.intellij.markdown.ast.ASTNode
-import org.jetbrains.compose.resources.stringResource
 
 /*
  * The live insertion point of a streaming reply, and the "nothing has arrived yet" state that
@@ -78,14 +64,6 @@ private const val CURSOR_MIN_ALPHA = 0.25f
 private const val CURSOR_HEIGHT_FRACTION = 0.86f
 private val CURSOR_BAR_WIDTH = 2.5.dp
 
-private const val WAIT_DOT_COUNT = 3
-private const val WAIT_DOT_PERIOD_MS = 560
-private const val WAIT_DOT_STAGGER_MS = 150
-private const val WAIT_DOT_MIN_SCALE = 0.6f
-private const val WAIT_DOT_MIN_ALPHA = 0.3f
-private val WAIT_DOT_SIZE = 6.dp
-private val WAIT_DOT_GAP = 5.dp
-
 private val FALLBACK_TEXT_SIZE = 16.sp
 
 private val CursorPulseEasing = CubicBezierEasing(0.45f, 0f, 0.55f, 1f)
@@ -112,9 +90,7 @@ fun withStreamingCursor(text: String): String =
  */
 fun canHostInlineCursor(segment: MarkdownSegment): Boolean = when (segment) {
     is MarkdownSegment.TextBlock ->
-        segment.text.isNotBlank() &&
-            !segment.text.contains(CITATION_DETECT_REGEX) &&
-            !hasUnclosedCodeFence(segment.text)
+        segment.text.isNotBlank() && !hasUnclosedCodeFence(segment.text)
     is MarkdownSegment.InlineLatexText ->
         (segment.segments.lastOrNull() as? InlineSegment.Text)?.text?.isNotBlank() == true
     is MarkdownSegment.CodeBlock,
@@ -241,50 +217,4 @@ fun StandaloneStreamingCursor(
             .width(CURSOR_BAR_WIDTH)
             .height(lineHeight),
     )
-}
-
-/**
- * Shown while a run has produced no text yet — a cursor is an insertion point, and before the first
- * delta there is nothing for it to be positioned after.
- */
-@Composable
-fun StreamingWaitIndicator(modifier: Modifier = Modifier) {
-    val transition = rememberInfiniteTransition(label = "streaming_wait")
-    val color = MaterialTheme.colorScheme.primary
-    val generatingCd = stringResource(Res.string.cd_generating_response)
-
-    Row(
-        modifier = modifier
-            .padding(vertical = 4.dp)
-            .semantics { contentDescription = generatingCd },
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        repeat(WAIT_DOT_COUNT) { index ->
-            if (index > 0) Spacer(modifier = Modifier.width(WAIT_DOT_GAP))
-            val progress by transition.animateFloat(
-                initialValue = 0f,
-                targetValue = 1f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(
-                        durationMillis = WAIT_DOT_PERIOD_MS,
-                        easing = CursorPulseEasing,
-                    ),
-                    repeatMode = RepeatMode.Reverse,
-                    initialStartOffset = StartOffset(index * WAIT_DOT_STAGGER_MS),
-                ),
-                label = "wait_dot_$index",
-            )
-            Spacer(
-                modifier = Modifier
-                    .size(WAIT_DOT_SIZE)
-                    .graphicsLayer {
-                        val scale = lerp(WAIT_DOT_MIN_SCALE, 1f, progress)
-                        scaleX = scale
-                        scaleY = scale
-                        this.alpha = lerp(WAIT_DOT_MIN_ALPHA, 1f, progress)
-                    }
-                    .background(color = color, shape = CircleShape),
-            )
-        }
-    }
 }

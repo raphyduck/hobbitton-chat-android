@@ -23,7 +23,7 @@ only target.
 app/                  → MainActivity + LibreChatApplication (Koin start, image loader, diagnostics)
 shared/               → the engine shell: EngineNavHost, drawer, settings, global instructions
 build-logic/          → convention plugins
-core/common/          → Result / safeApiCall, dispatchers and scopes, connectivity, cleartext policy
+core/common/          → dispatchers and scopes, connectivity, cleartext policy, batched flows
 core/logging/         → persistent redacted diagnostic log, startup header, main-thread watchdog
 core/model/           → @Serializable models of the engine and the scheduler, GlobalProfile
 core/network/         → engine and scheduler APIs, portal clients (OAuth/PKCE), event stream

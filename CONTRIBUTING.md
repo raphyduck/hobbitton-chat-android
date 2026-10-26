@@ -40,7 +40,7 @@ platform code in `androidMain`.
 ```
 app/            -> MainActivity, LibreChatApplication
 shared/         -> the engine shell (EngineNavHost), shared Koin module list
-core/common/    -> Result / safeApiCall, dispatchers, connectivity
+core/common/    -> dispatchers, connectivity, cleartext policy
 core/logging/   -> persistent redacted diagnostic log
 core/model/     -> @Serializable models of the engine and the scheduler
 core/network/   -> engine and scheduler APIs, portal clients, event stream
