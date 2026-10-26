@@ -121,13 +121,15 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   `summary` key is an object of diffs on a user message once its turn ended: only a boolean is
   the flag (`SummaryFlagSerializer`; 25/10/2026, read as a boolean it refused every finished
   conversation's history).
-- **Dictation and audio files** (the composer). The mic is heard by the phone itself (19/10/2026,
-  Settings → Dictée, on by default): Android 12's on-device recognizer in French, its words shown
-  as they come and dropped into the composer one stretch of speech at a time (`PhoneDictation`,
-  `MissionDictation.android.kt`), never the network recognizer, which would send the voice to
-  Google. Without one on the phone, with the switch off, or while the phone downloads its French,
-  the take is recorded and goes to the scheduler's `POST /transcription` (`SchedulerApi.transcribe`
-  → `SchedulerTranscriber`), and so do audio files. A dictation lands in the composer and is never
+- **Dictation and audio files** (the composer). Since 26/10/2026 (Raphaël: « utilise la même
+  technologie que l'application Claude »), the take is recorded and goes to the scheduler's
+  `POST /transcription` (`SchedulerApi.transcribe` → `SchedulerTranscriber`: Whisper large-v3 then
+  Cohere Transcribe on the platform's GPU), as Claude's app has a server model transcribe it; the
+  recorder is tuned for recognition (`VOICE_RECOGNITION` source, 32 kb/s). Settings → Dictée
+  (« Dictée sur le téléphone », off by default, key `dictation_on_phone`) turns on Android 12's
+  on-device recognizer in French (19/10/2026), its words shown as they come and dropped into the
+  composer one stretch of speech at a time (`PhoneDictation`, `MissionDictation.android.kt`), never
+  the network recognizer, which would send the voice to Google. Audio files go to the scheduler. A dictation lands in the composer and is never
   sent on its own; an audio file leaves with the message as a quoted transcription.
 - **Questions from the agent** (OpenCode's `question` tool, 03/10/2026): the engine announces one on
   the feed (`question.asked`) and blocks the turn until `POST /question/{id}/reply` or `/reject`.

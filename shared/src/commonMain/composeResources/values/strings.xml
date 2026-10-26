@@ -47,7 +47,7 @@
     <string name="engine_settings_attention_hint">When Eva asks you a question, or a reply finishes while you are elsewhere.</string>
     <string name="engine_settings_dictation">Dictation</string>
     <string name="engine_settings_local_dictation">Dictation on the phone</string>
-    <string name="engine_settings_local_dictation_hint">The mic is heard by the phone itself, nothing sent. Off, dictation is transcribed by the server. Audio files always go to the server.</string>
+    <string name="engine_settings_local_dictation_hint">Off (default), dictation is recorded and transcribed by the platform's server, as in the Claude app: more accurate, and the voice stays with you. On, the phone hears it itself and shows the words live, less faithfully.</string>
     <string name="engine_settings_instructions">Instructions</string>
     <string name="engine_settings_instructions_hint">Sent with every chat and every task</string>
     <string name="engine_instructions_title">Instructions</string>

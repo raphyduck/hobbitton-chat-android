@@ -96,12 +96,16 @@ class SettingsDataStore(
     }
 
     /**
-     * The composer's mic heard by the phone's own speech recognition (19/10/2026), on unless
-     * switched off in Settings: the words come as they are spoken, and nothing leaves the device.
-     * Off, the dictation is recorded and sent to the scheduler's transcription, as before. Audio
-     * files go to the scheduler either way.
+     * The composer's mic heard by the phone's own speech recognition (19/10/2026), OFF by default
+     * since 26/10/2026 (Raphaël: « le petit micro marche beaucoup moins que dans l'application
+     * Claude ; utilise la même technologie »). Claude's app records the take and has a server
+     * model transcribe it; so does Eva now by default, on the platform's own GPU (the scheduler's
+     * `POST /transcription`: Whisper large-v3, then Cohere Transcribe; the voice never leaves the
+     * platform). On, the phone's on-device French recognizer shows the words as they come, less
+     * accurately. A new key, so that the switch every device held from 19/10 (on) does not keep
+     * the weaker path; audio files go to the scheduler either way.
      */
-    val localDictation: Flow<Boolean> = dataStore.data.map { prefs -> prefs[KEY_LOCAL_DICTATION] ?: true }
+    val localDictation: Flow<Boolean> = dataStore.data.map { prefs -> prefs[KEY_LOCAL_DICTATION] ?: false }
 
     suspend fun setLocalDictation(enabled: Boolean) {
         dataStore.edit { it[KEY_LOCAL_DICTATION] = enabled }
@@ -131,7 +135,7 @@ class SettingsDataStore(
         private val KEY_SELECTED_LANGUAGE = stringPreferencesKey("selected_language")
         private val KEY_CHAT_FONT_SIZE = stringPreferencesKey("chat_font_size")
         private val KEY_ATTENTION_SOUND = booleanPreferencesKey("attention_sound")
-        private val KEY_LOCAL_DICTATION = booleanPreferencesKey("local_dictation")
+        private val KEY_LOCAL_DICTATION = booleanPreferencesKey("dictation_on_phone")
         private val KEY_DEFAULT_CHAT_MODEL = stringPreferencesKey("default_chat_model")
     }
 }

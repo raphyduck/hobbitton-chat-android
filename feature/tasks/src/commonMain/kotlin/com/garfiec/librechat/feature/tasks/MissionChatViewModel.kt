@@ -85,7 +85,7 @@ data class MissionChatUiState(
      */
     val transcriptionError: TranscriptionOutcome.Failed? = null,
     /** The mic heard by the phone itself (Settings, on by default) rather than recorded for the scheduler. */
-    val localDictation: Boolean = true,
+    val localDictation: Boolean = false,
     /** Why the transcript would not load, or null. */
     val historyError: EngineFailureKind? = null,
     /** Why the last send did not reach the engine, or null. The text is put back when this is set. */
