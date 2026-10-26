@@ -90,6 +90,25 @@ class MissionChatHistoryTest {
     }
 
     @Test
+    fun `a screen still on its placeholders after ten seconds starts its opening over`() {
+        // 26/10/2026: the placeholders stayed for good, with no line in the journal; leaving and
+        // reopening showed the conversation at once. Here the device's own cache never answers.
+        coEvery { repository.cachedHistory("ses_1") } coAnswers { awaitCancellation() }
+        coEvery { repository.history("ses_1", any()) } returns listOf(EngineStreamEvent.MessageStarted("m1", "user"))
+        val vm = viewModel()
+
+        dispatcher.scheduler.advanceTimeBy(9_000)
+        assertThat(vm.uiState.value.loadingHistory).isTrue()
+
+        dispatcher.scheduler.advanceTimeBy(2_000)
+
+        assertThat(vm.uiState.value.loadingHistory).isFalse()
+        assertThat(vm.uiState.value.chat.turns.map { it.key }).isEqualTo(listOf("m1"))
+        coVerify(exactly = 1) { repository.dropConnections() }
+        coVerify(exactly = 1) { repository.history("ses_1", any()) }
+    }
+
+    @Test
     fun `a read that hangs is asked again`() {
         coEvery { repository.history("ses_1", any()) } coAnswers {
             if (reads++ == 0) awaitCancellation() else emptyList()
