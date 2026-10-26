@@ -240,7 +240,14 @@ sheet for the diagnostic log). The shell and the sign-in resolve the engine grap
   used to download the engine's whole traffic twice. The drawer tells a session's kind from its
   last two messages (`CLASSIFICATION_TAIL`), not its whole transcript (ten of them, megabytes, read
   while the person tapped). The kit's nginx now gzips the JSON (`hobbitton-proxy.inc`: 361 KB
-  of transcript become a few tens), the SSE untouched.
+  of transcript become a few tens), the SSE untouched. **A conversation opened before shows at
+  once** (same day, Raphaël: « il ne redemande pas nécessairement le reste »): the tail the
+  opening read is kept on the device (`TranscriptCache`, `FileTranscriptCache`: gzip files under
+  the app's cache directory, 40 sessions and 12 MB at most, the oldest out first, a tail over 2 MB
+  not kept, nothing in memory between openings, cleared at sign-out), seeded before anything is
+  asked (`repository.cachedHistory`), and the engine is read again only if the session's
+  `time.updated` changed or the session is busy (`historyUnlessUpdatedAt`: one small read of the
+  session and the statuses). A pull to refresh or a retry reads the engine whatever was kept.
 - The feed is global and heavy (a tool's whole output again on every frame that grows it):
   `EngineMissionRepository.events` / `allEvents` read and parse it on the IO dispatcher whoever
   collects (20/10/2026: parsed on the main thread by the attention watcher, a scheduled run's

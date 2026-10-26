@@ -35,6 +35,7 @@ internal fun testMissionRepository(
     modelPreference: ModelPreference? = null,
     eventTransport: EngineEventTransport = SilentEventTransport,
     sharingScope: CoroutineScope? = null,
+    transcripts: TranscriptCache? = null,
 ): EngineMissionRepository = EngineMissionRepository(
     api = AgentEngineApi(engineTestClient(engine)),
     scheduler = SchedulerApi(engineTestClient(engine), librechatJson),
@@ -45,6 +46,7 @@ internal fun testMissionRepository(
     reads = reads,
     modelPreference = modelPreference,
     sharingScope = sharingScope,
+    transcripts = transcripts,
 )
 
 /**

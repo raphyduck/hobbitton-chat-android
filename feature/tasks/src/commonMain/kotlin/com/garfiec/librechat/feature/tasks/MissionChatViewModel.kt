@@ -488,12 +488,39 @@ class MissionChatViewModel(
      * otherwise have its first tokens dropped while the transcript is being fetched. Both fold into
      * the same state and the reducer is idempotent, so whichever lands first, the result is the same.
      */
-    private fun loadHistory() {
+    /**
+     * The transcript: first the tail the device kept of it, shown at once (26/10/2026, Raphaël:
+     * « quand tu reviens dans une conversation qu'on a déjà ouverte, il ne redemande pas
+     * nécessairement le reste »), then the engine's, unless the session has not moved since; a
+     * [refresh] reads the engine whatever the device kept.
+     */
+    private fun loadHistory(trustCache: Boolean = true) {
         val sessionId = sessionId ?: return
         viewModelScope.launch {
             try {
                 val limit = historyLimit
-                val events = fetchHistory(sessionId, limit)
+                val kept = if (trustCache && limit != null) {
+                    withContext(ioDispatcher) { repository.cachedHistory(sessionId) }
+                } else {
+                    null
+                }
+                if (kept != null) {
+                    _uiState.update { current ->
+                        val seeded = kept.events.fold(current.chat) { state, event -> state.reduce(event) }
+                        val truncated = kept.limit?.let { kept.messageCount >= it } ?: false
+                        current.copy(chat = seeded, loadingHistory = false, historyTruncated = truncated)
+                    }
+                }
+                val read = fetchHistory(sessionId, limit, unlessUpdatedAt = kept?.updated)
+                if (kept != null && read !is HistoryRead.Fresh) {
+                    // The engine said the conversation has not moved, or could not be reached: what
+                    // the device kept stands, and the catalogue and the questions follow as usual.
+                    _uiState.update { it.copy(loadingHistory = false, refreshing = false) }
+                    loadCatalogue()
+                    loadPendingQuestions(sessionId)
+                    return@launch
+                }
+                val events = (read as? HistoryRead.Fresh)?.events
                 if (events == null) {
                     Logger.w(LOG_TAG) { "History of $sessionId: no answer after $HISTORY_ATTEMPTS attempts" }
                     _uiState.update {
@@ -542,14 +569,31 @@ class MissionChatViewModel(
      * try queued on it; the screen stayed on its placeholders for 30 s and worked on a later tap):
      * every connection is dropped before the next try, which opens a live one.
      */
-    private suspend fun fetchHistory(sessionId: String, limit: Int?): List<EngineStreamEvent>? {
+    private suspend fun fetchHistory(sessionId: String, limit: Int?, unlessUpdatedAt: Long? = null): HistoryRead? {
         repeat(HISTORY_ATTEMPTS) { attempt ->
-            withTimeoutOrNull(HISTORY_ATTEMPT_MS) { withContext(ioDispatcher) { repository.history(sessionId, limit) } }
-                ?.let { return it }
+            val read = withTimeoutOrNull(HISTORY_ATTEMPT_MS) {
+                withContext(ioDispatcher) {
+                    if (unlessUpdatedAt != null && limit != null) {
+                        repository.historyUnlessUpdatedAt(sessionId, limit, unlessUpdatedAt)
+                            ?.let { HistoryRead.Fresh(it) } ?: HistoryRead.Unchanged
+                    } else {
+                        HistoryRead.Fresh(repository.history(sessionId, limit))
+                    }
+                }
+            }
+            if (read != null) return read
             Logger.w(LOG_TAG) { "History of $sessionId: attempt ${attempt + 1} hung, dropping every connection" }
             repository.dropConnections()
         }
         return null
+    }
+
+    /** What a transcript read came back with; null from [fetchHistory] when every attempt hung. */
+    private sealed interface HistoryRead {
+        data class Fresh(val events: List<EngineStreamEvent>) : HistoryRead
+
+        /** The device's tail is current: nothing to fold. */
+        data object Unchanged : HistoryRead
     }
 
     /**
@@ -586,7 +630,7 @@ class MissionChatViewModel(
     fun refresh() {
         if (sessionId == null) return
         _uiState.update { it.copy(refreshing = true, chat = it.chat.copy(streaming = false)) }
-        loadHistory()
+        loadHistory(trustCache = false)
     }
 
     /**
@@ -948,7 +992,7 @@ class MissionChatViewModel(
     fun retryHistory() {
         if (sessionId == null) return
         _uiState.update { it.copy(loadingHistory = true, historyError = null) }
-        loadHistory()
+        loadHistory(trustCache = false)
     }
 
     /**

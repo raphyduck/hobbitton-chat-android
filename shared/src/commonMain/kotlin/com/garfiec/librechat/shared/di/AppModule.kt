@@ -4,6 +4,7 @@ import com.garfiec.librechat.core.data.engine.ConversationRequests
 import com.garfiec.librechat.core.data.engine.EngineAttentionWatcher
 import com.garfiec.librechat.core.data.engine.EngineMissionRepository
 import com.garfiec.librechat.core.data.engine.EngineSettingsStore
+import com.garfiec.librechat.core.data.engine.TranscriptCache
 import com.garfiec.librechat.core.data.portal.PortalSignOut
 import com.garfiec.librechat.core.data.scheduler.ChatBudgetSource
 import com.garfiec.librechat.core.data.scheduler.SchedulerRepository
@@ -35,6 +36,7 @@ val sharedAppModule = module {
             conversationRequests = getOrNull<ConversationRequests>(),
             scheduler = getOrNull<SchedulerRepository>(),
             diagnostics = getOrNull<DiagnosticLogShare>(),
+            transcripts = getOrNull<TranscriptCache>(),
         )
     }
 

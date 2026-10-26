@@ -4,6 +4,7 @@ import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.common.di.ioDispatcher
 import com.garfiec.librechat.core.data.datastore.GlobalProfileSource
 import com.garfiec.librechat.core.model.engine.CreateEngineSessionRequest
+import com.garfiec.librechat.core.model.engine.EngineMessage
 import com.garfiec.librechat.core.model.engine.EngineModelRef
 import com.garfiec.librechat.core.model.engine.EnginePromptPart
 import com.garfiec.librechat.core.model.engine.EnginePromptRequest
@@ -24,6 +25,8 @@ import com.garfiec.librechat.core.network.engine.EngineHttpException
 import com.garfiec.librechat.core.network.engine.EngineStreamClient
 import com.garfiec.librechat.core.network.engine.NoConnectionReset
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.flowOn
@@ -147,6 +150,8 @@ class EngineMissionRepository(
      * subscription per collector (tests).
      */
     sharingScope: CoroutineScope? = null,
+    /** The tails kept on the device (26/10/2026); null keeps nothing (tests). */
+    private val transcripts: TranscriptCache? = null,
 ) {
 
     private val feed: Flow<EngineEventParser.Parsed> = streamClient.frames(eventTransport).flowOn(ioDispatcher).let { frames ->
@@ -406,8 +411,48 @@ class EngineMissionRepository(
      * page — the bug the tab shipped with on 29/08/2026.
      */
     suspend fun history(sessionId: String, limit: Int? = null): List<EngineStreamEvent> {
-        return engineHistoryEvents(api.messages(sessionId, limit))
+        val messages = api.messages(sessionId, limit)
+        if (limit != null) keepTail(sessionId, limit, messages)
+        return engineHistoryEvents(messages)
     }
+
+    /**
+     * The tail the device kept of this conversation, to show at once; null when it kept none.
+     * [CachedHistory.updated] is what [historyUnlessUpdatedAt] compares against.
+     */
+    suspend fun cachedHistory(sessionId: String): CachedHistory? {
+        val cached = runCatching { transcripts?.read(sessionId) }.getOrNull() ?: return null
+        return CachedHistory(engineHistoryEvents(cached.messages), cached.messages.size, cached.limit, cached.updated)
+    }
+
+    /**
+     * The last [limit] messages, unless the session has not moved since [updatedAt] and is idle:
+     * then null, and the tail the device kept is the truth. One small read of the session (and of
+     * the statuses) instead of the transcript; a session that could not be read is read in full.
+     */
+    suspend fun historyUnlessUpdatedAt(sessionId: String, limit: Int, updatedAt: Long?): List<EngineStreamEvent>? {
+        if (updatedAt != null) {
+            val unchanged = runCatching {
+                coroutineScope {
+                    val info = async { api.session(sessionId) }
+                    val busy = async { api.status()[sessionId]?.let { it.type != IDLE_STATUS } ?: false }
+                    info.await().time?.updated == updatedAt && !busy.await()
+                }
+            }.getOrDefault(false)
+            if (unchanged) return null
+        }
+        return history(sessionId, limit)
+    }
+
+    /** Writes the tail down with the session's clock, read alongside; a clock that fails is null (refreshed next time). */
+    private suspend fun keepTail(sessionId: String, limit: Int, messages: List<EngineMessage>) {
+        val cache = transcripts ?: return
+        val updated = runCatching { api.session(sessionId).time?.updated }.getOrNull()
+        runCatching { cache.write(sessionId, CachedTranscript(updated = updated, limit = limit, messages = messages)) }
+    }
+
+    /** What the device kept of a conversation: its events, how many messages, read with which limit, the session's clock then. */
+    data class CachedHistory(val events: List<EngineStreamEvent>, val messageCount: Int, val limit: Int?, val updated: Long?)
 
     /**
      * What is happening in the session right now. The engine's feed is global; the client keeps only

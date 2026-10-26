@@ -34,6 +34,8 @@ class MissionChatTranscriptionTest {
     private val audio = byteArrayOf(1, 2, 3)
 
     private val repository = mockk<EngineMissionRepository>(relaxed = true).also {
+        // A relaxed mock would answer a mock tail: no conversation was kept unless a test says so.
+        coEvery { it.cachedHistory(any()) } returns null
         // No catalogue: the composer's pills are not what these tests are about.
         coEvery { it.models() } throws IllegalStateException("pas de catalogue")
         coEvery { it.connectors() } throws IllegalStateException("pas de catalogue")

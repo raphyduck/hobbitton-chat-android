@@ -87,6 +87,13 @@ Since 12/10/2026 chats and tasks are one conversation, as on Claude.ai.
   `POST /transcription`. Answers `TranscriptionOutcome` (the words, or a `TranscriptionFailure` plus
   the server's `erreur`), never throws past `:core:data`. The language hint is the device's when it
   is a bare ISO 639-1 code (`isoLanguageOrNull`), nothing otherwise. Bound in `engineModule`.
+- **`TranscriptCache`** (26/10/2026): the tail of each conversation the device opened
+  (`CachedTranscript`: the engine's messages, the read's `limit`, the session's `time.updated`),
+  written by `history(sessionId, limit)` when a limit is given, read back by `cachedHistory`;
+  `historyUnlessUpdatedAt` answers null when the session has not moved and is idle. The whole
+  transcript is never kept. `FileTranscriptCache` (androidMain, bound in `engineModule`): gzip files
+  under the app's cache directory, 40 entries and 12 MB at most, the oldest out first, an entry over
+  2 MB dropped; cleared at sign-out by the shell.
 - **`events(sessionId)` / `allEvents()`** are the live feed, read and parsed on `ioDispatcher`
   whatever scope collects them (20/10/2026): the watcher collects from the shell's main scope, and
   the global feed repeats each tool's whole output on every frame that grows it; parsed on the main
