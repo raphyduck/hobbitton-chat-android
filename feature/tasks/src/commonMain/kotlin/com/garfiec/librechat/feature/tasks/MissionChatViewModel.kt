@@ -3,6 +3,7 @@ package com.garfiec.librechat.feature.tasks
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
+import com.garfiec.librechat.core.common.flow.batched
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.engine.AttentionSignals
 import com.garfiec.librechat.core.data.engine.AudioTranscriber
@@ -518,7 +519,7 @@ class MissionChatViewModel(
      * loaded everything and was not collecting it (see [MissionChatScreen]). The reads' own
      * limits are all the opening needs.
      */
-    private fun loadHistory(trustCache: Boolean = true) {
+    private fun loadHistory(trustCache: Boolean = true, seedFromCache: Boolean = trustCache) {
         val sessionId = sessionId ?: return
         historyJob?.cancel()
         historyJob = viewModelScope.launch {
@@ -535,7 +536,7 @@ class MissionChatViewModel(
                         "History of $sessionId: $what"
                     }
                 }
-                if (kept != null) {
+                if (kept != null && seedFromCache) {
                     _uiState.update { current ->
                         val seeded = kept.events.fold(current.chat) { state, event -> state.reduce(event) }
                         val truncated = kept.limit?.let { kept.messageCount >= it } ?: false
@@ -685,6 +686,14 @@ class MissionChatViewModel(
      * and `engineHistoryEvents` replays full `PartUpdated` parts, never deltas, so nothing is
      * appended twice.
      */
+    /**
+     * Back in front after a pause (26/10/2026 evening): the session is asked whether it moved or
+     * works since the tail the device kept, and the transcript read only then, folded under what
+     * is on screen; the screen itself is left as it is meanwhile. Before, every return read the
+     * whole tail again and showed the refresh indicator.
+     */
+    fun resume() = loadHistory(trustCache = true, seedFromCache = false)
+
     fun refresh() {
         if (sessionId == null) return
         _uiState.update { it.copy(refreshing = true, chat = it.chat.copy(streaming = false)) }
@@ -699,12 +708,15 @@ class MissionChatViewModel(
         val sessionId = sessionId ?: return
         streamJob?.cancel()
         streamJob = viewModelScope.launch {
+            // A delta per character and a redraw per delta (26/10/2026 evening): the deltas of a
+            // frame or so go into the state together, every other event at once, in order.
             repository.events(sessionId)
                 .flowOn(ioDispatcher)
-                .collect { event ->
-                    if (event.isOrphanDelta()) reconcileHistory()
-                    _uiState.update { it.copy(chat = it.chat.reduce(event)) }
-                    watchForReply(sessionId, event)
+                .batched(DELTA_BATCH_MS) { it is EngineStreamEvent.PartDelta }
+                .collect { events ->
+                    if (events.any { it.isOrphanDelta() }) reconcileHistory()
+                    _uiState.update { state -> state.copy(chat = events.fold(state.chat) { chat, event -> chat.reduce(event) }) }
+                    events.forEach { watchForReply(sessionId, it) }
                 }
         }
     }
@@ -1141,6 +1153,9 @@ private const val HISTORY_ATTEMPT_MS = 8_000L
 
 /** Before a read cut by the network is asked again: the time a fresh connection takes to come up. */
 private const val HISTORY_RETRY_PAUSE_MS = 500L
+
+/** How long the deltas of a streaming answer are gathered before one state update draws them. */
+private const val DELTA_BATCH_MS = 80L
 
 /** How often at most a delta on an unknown part has the transcript read again. */
 private const val RECONCILE_PAUSE_MS = 3_000L

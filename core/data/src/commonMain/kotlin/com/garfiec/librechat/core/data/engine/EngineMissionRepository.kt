@@ -8,9 +8,12 @@ import com.garfiec.librechat.core.model.engine.EngineMessage
 import com.garfiec.librechat.core.model.engine.EngineModelRef
 import com.garfiec.librechat.core.model.engine.EnginePromptPart
 import com.garfiec.librechat.core.model.engine.EnginePromptRequest
+import com.garfiec.librechat.core.model.engine.EngineProviderCatalogue
 import com.garfiec.librechat.core.model.engine.EngineProviderModel
 import com.garfiec.librechat.core.model.engine.EngineQuestionRequest
 import com.garfiec.librechat.core.model.engine.EngineSelectableModel
+import com.garfiec.librechat.core.model.engine.EngineSession
+import com.garfiec.librechat.core.model.engine.EngineSessionStatus
 import com.garfiec.librechat.core.model.engine.EngineStreamEvent
 import com.garfiec.librechat.core.model.engine.engineHistoryEvents
 import com.garfiec.librechat.core.model.engine.isAuto
@@ -26,12 +29,15 @@ import com.garfiec.librechat.core.network.engine.EngineStreamClient
 import com.garfiec.librechat.core.network.engine.NoConnectionReset
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlin.time.Clock
 
 /**
  * One conversation as the lists show it. Since D-082 (12/10/2026) every session opens the same
@@ -196,7 +202,7 @@ class EngineMissionRepository(
      * openings is a picker that gets misread.
      */
     suspend fun models(): EngineModelChoice {
-        val catalogue = api.providers()
+        val catalogue = providerCatalogue()
         val declared = catalogue.providers.filter { it.source == DECLARED_PROVIDER && it.id == CHAT_PROVIDER }
 
         fun selectable(providerId: String, key: String, model: EngineProviderModel?) =
@@ -240,7 +246,10 @@ class EngineMissionRepository(
      * Unread ([EngineChatSummary.unread]) costs three reads per refresh, whatever the number of
      * rows: this device's read marks, the scheduler's (a conversation whose question it withdrew,
      * 22/10/2026), and, for [ChatScope.ALL], the scheduler's latest runs, which say whether each
-     * had something to say ([runHasNews]). Without this device's marks, rows read as read.
+     * had something to say ([runHasNews]). Without this device's marks, rows read as read. Those
+     * reads and the sessions go together ([ListSnapshot]), off the main thread, the unknown
+     * sessions' tails together too (26/10/2026 evening: five reads then up to ten in a row, each
+     * parsed on the main thread, while the drawer opened).
      */
     suspend fun recentChats(
         scope: ChatScope = ChatScope.MANUAL,
@@ -248,62 +257,133 @@ class EngineMissionRepository(
         // The session search (21/10/2026): over EVERY session the engine lists, not over the rows
         // already drawn, accents folded ([matchesSearch]). Blank lists as before.
         query: String = "",
-    ): List<EngineChatSummary> {
-        val statuses = runCatching { api.status() }.getOrDefault(emptyMap())
+        // The next page and the search (26/10/2026 evening) reuse the reads of the last [maxAgeMillis]:
+        // zero, and everything is read again.
+        maxAgeMillis: Long = 0,
+    ): List<EngineChatSummary> = withContext(ioDispatcher) {
+        val snapshot = listSnapshot(scope, maxAgeMillis)
+        val statuses = snapshot.statuses
+        val read = snapshot.reads
+        val runs = snapshot.runs
+        val sessions = snapshot.sessions
         val recorded = recordedKinds()
-        val read = reads?.let { store -> runCatching { store.snapshot() }.getOrNull() }
-            ?.withServerReads(serverReads())
-        val runs = if (scope == ChatScope.ALL) latestRuns() else emptyMap()
         val discreetMissions = runs.values.filter { it.discreet }.mapNotNull { it.mission }.toSet()
-        val sessions = api.sessions()
-            .sortedByDescending { it.time?.updated ?: it.time?.created ?: Long.MIN_VALUE }
-        val learned = mutableMapOf<String, EngineSessionKind>()
-        var classified = 0
-        val chats = mutableListOf<EngineChatSummary>()
         val searching = query.isNotBlank()
-        val reads = if (searching) MAX_SEARCH_CLASSIFICATION_READS else MAX_CLASSIFICATION_READS
-        for (session in sessions) {
-            if (chats.size >= limit) break
-            // A run the scheduler played INSIDE a conversation (a reminder set from it, a relance's
-            // decision; 26/10/2026) is not that conversation's kind: the session keeps its title and
-            // is unread whenever it moved. Before that flag, such a conversation was listed under
-            // the mission's name, read while the run lasted or when it had « rien à signaler ».
-            val run = runs[session.id]?.takeUnless { it.inConversation }
-            val mission = session.title?.let(::scheduledMissionName) ?: run?.mission
-            val title = mission?.let(::missionDisplayName) ?: session.title.orEmpty().ifBlank { session.id }
-            // Before any transcript is read: a run never costs the drawer one, nor does a session
-            // the search does not name.
-            val left = (mission != null && scope == ChatScope.MANUAL) ||
-                runHidden(mission, discreetMissions) ||
-                (searching && !title.matchesSearch(query))
-            if (left) continue
-            var kind = classifySession(session.title, recorded[session.id], messages = null)
-            if (kind == null && classified < reads) {
-                classified++
-                // The last two messages, not the transcript (26/10/2026: a transcript weighs up to
-                // megabytes, and ten of them were read while the person tapped a conversation):
-                // a user message names the agent, an assistant message the provider.
-                val messages = runCatching { api.messages(session.id, limit = CLASSIFICATION_TAIL) }.getOrNull()
-                kind = classifySession(session.title, null, messages)
-                if (kind != null) learned[session.id] = kind
+        val readBudget = if (searching) MAX_SEARCH_CLASSIFICATION_READS else MAX_CLASSIFICATION_READS
+        var classified = 0
+        val learned = mutableMapOf<String, EngineSessionKind>()
+        val chats = mutableListOf<EngineChatSummary>()
+        var index = 0
+        while (chats.size < limit && index < sessions.size) {
+            // A page of rows without a transcript read, the unknown ones to be named by one, as many
+            // as the budget allows; then their tails read together (26/10/2026 evening: ten reads in
+            // a row while the drawer opened); then the rows that have a kind, in order, up to the
+            // page. The loop walks on if the reads left the page short.
+            val rows = mutableListOf<ChatRow>()
+            while (rows.size < limit - chats.size && index < sessions.size) {
+                val session = sessions[index++]
+                // A run the scheduler played INSIDE a conversation (a reminder set from it, a relance's
+                // decision; 26/10/2026) is not that conversation's kind: the session keeps its title and
+                // is unread whenever it moved. Before that flag, such a conversation was listed under
+                // the mission's name, read while the run lasted or when it had « rien à signaler ».
+                val run = runs[session.id]?.takeUnless { it.inConversation }
+                val mission = session.title?.let(::scheduledMissionName) ?: run?.mission
+                val title = mission?.let(::missionDisplayName) ?: session.title.orEmpty().ifBlank { session.id }
+                // Before any transcript is read: a run never costs the drawer one, nor does a session
+                // the search does not name.
+                val left = (mission != null && scope == ChatScope.MANUAL) ||
+                    runHidden(mission, discreetMissions) ||
+                    (searching && !title.matchesSearch(query))
+                if (left) continue
+                val kind = classifySession(session.title, recorded[session.id], messages = null)
+                if (kind == null) {
+                    if (classified >= readBudget) continue
+                    classified++
+                }
+                rows += ChatRow(session, title, mission, run, kind)
             }
-            if (kind != null) {
+            val unknown = rows.filter { it.kind == null }
+            coroutineScope {
+                unknown.map { row ->
+                    async {
+                        // The last two messages, not the transcript (26/10/2026: a transcript weighs up
+                        // to megabytes): a user message names the agent, an assistant message the provider.
+                        val messages = runCatching { api.messages(row.session.id, limit = CLASSIFICATION_TAIL) }.getOrNull()
+                        row.kind = classifySession(row.session.title, null, messages)
+                    }
+                }.awaitAll()
+            }
+            unknown.forEach { row -> row.kind?.let { learned[row.session.id] = it } }
+            for (row in rows) {
+                if (chats.size >= limit) break
+                val kind = row.kind ?: continue
+                val session = row.session
                 val active = statuses[session.id]
                 val lastActivity = session.time?.updated ?: session.time?.created
                 val moved = read?.isUnread(session.id, lastActivity) == true
                 chats += EngineChatSummary(
                     sessionId = session.id,
-                    title = title,
+                    title = row.title,
                     lastActivityMillis = lastActivity,
                     running = active != null && active.type != IDLE_STATUS,
                     kind = kind,
-                    scheduled = mission != null,
-                    unread = moved && runUnread(mission, run),
+                    scheduled = row.mission != null,
+                    unread = moved && runUnread(row.mission, row.run),
                 )
             }
         }
         remember(learned)
-        return if (scope == ChatScope.ALL) inboxOrder(chats) else chats
+        if (scope == ChatScope.ALL) inboxOrder(chats) else chats
+    }
+
+    /** A session the lists may show, its kind still to be named by a read when null. */
+    private class ChatRow(
+        val session: EngineSession,
+        val title: String,
+        val mission: String?,
+        val run: SchedulerRun?,
+        var kind: EngineSessionKind?,
+    )
+
+    /**
+     * What a list read costs besides the transcripts, read together: the statuses, this device's
+     * and the scheduler's read marks, the scheduler's runs (for [ChatScope.ALL]), the sessions.
+     * Kept for the next page and the search ([recentChats]'s `maxAgeMillis`; 26/10/2026 evening:
+     * each keystroke of a search and each « Plus anciennes » read the five again).
+     */
+    private class ListSnapshot(
+        val at: Long,
+        val withRuns: Boolean,
+        val statuses: Map<String, EngineSessionStatus>,
+        val reads: ReadSnapshot?,
+        val runs: Map<String, SchedulerRun>,
+        val sessions: List<EngineSession>,
+    )
+
+    private var listSnapshot: ListSnapshot? = null
+
+    private suspend fun listSnapshot(scope: ChatScope, maxAgeMillis: Long): ListSnapshot {
+        val now = Clock.System.now().toEpochMilliseconds()
+        listSnapshot
+            ?.takeIf { maxAgeMillis > 0 && now - it.at <= maxAgeMillis && (it.withRuns || scope != ChatScope.ALL) }
+            ?.let { return it }
+        return coroutineScope {
+            val statuses = async { runCatching { api.status() }.getOrDefault(emptyMap()) }
+            val local = async { reads?.let { store -> runCatching { store.snapshot() }.getOrNull() } }
+            val server = async { if (reads != null) serverReads() else emptyMap() }
+            val runs = async { if (scope == ChatScope.ALL) latestRuns() else emptyMap() }
+            val sessions = async {
+                api.sessions().sortedByDescending { it.time?.updated ?: it.time?.created ?: Long.MIN_VALUE }
+            }
+            ListSnapshot(
+                at = now,
+                withRuns = scope == ChatScope.ALL,
+                statuses = statuses.await(),
+                reads = local.await()?.withServerReads(server.await()),
+                runs = runs.await(),
+                sessions = sessions.await(),
+            )
+        }.also { listSnapshot = it }
     }
 
     /** The conversation was on screen at [atMillis]: it reads as read up to then. */
@@ -400,6 +480,26 @@ class EngineMissionRepository(
                 models().let { choice -> choice.preselected?.takeUnless { it.isAuto } ?: choice.engineDefault }?.ref
             }.getOrNull()
 
+    /**
+     * The engine's providers, kept [CATALOGUE_TTL_MS] (26/10/2026 evening): every send asked the
+     * engine for them again to name the model ([chatModel]), and so did every picker. The
+     * deployment's models change when the platform is reconfigured, not while a phone is open.
+     */
+    private suspend fun providerCatalogue(): EngineProviderCatalogue {
+        val now = Clock.System.now().toEpochMilliseconds()
+        providers?.takeIf { now - it.first < CATALOGUE_TTL_MS }?.let { return it.second }
+        return api.providers().also { providers = now to it }
+    }
+
+    private var providers: Pair<Long, EngineProviderCatalogue>? = null
+
+    /** Sign-out: what the process kept of this deployment is forgotten before the next sign-in. */
+    fun forgetCaches() {
+        providers = null
+        cachedConnectors = null
+        listSnapshot = null
+    }
+
     private suspend fun recordedKinds(): Map<String, EngineSessionKind> =
         runCatching { kinds.all() }.getOrDefault(emptyMap())
 
@@ -419,14 +519,17 @@ class EngineMissionRepository(
      * tailing [events] afterwards is what makes the chat open on a conversation instead of a blank
      * page — the bug the tab shipped with on 29/08/2026.
      */
-    suspend fun history(sessionId: String, limit: Int? = null): List<EngineStreamEvent> {
+    suspend fun history(sessionId: String, limit: Int? = null): List<EngineStreamEvent> = history(sessionId, limit, clock = null)
+
+    /** [clock]: the session's `time.updated` when the caller has just read it; null has [keepTail] read it. */
+    private suspend fun history(sessionId: String, limit: Int?, clock: Long?): List<EngineStreamEvent> {
         val messages = api.messages(sessionId, limit)
         // Kept off the opening's path (26/10/2026): writing the tail reads the session's clock,
         // one more round trip, then gzips it; the screen used to wait for both before drawing.
         // Without an application scope (tests), it is written before returning.
         if (limit != null) {
             val scope = keepScope
-            if (scope != null) scope.launch { keepTail(sessionId, limit, messages) } else keepTail(sessionId, limit, messages)
+            if (scope != null) scope.launch { keepTail(sessionId, limit, messages, clock) } else keepTail(sessionId, limit, messages, clock)
         }
         return engineHistoryEvents(messages)
     }
@@ -446,23 +549,28 @@ class EngineMissionRepository(
      * the statuses) instead of the transcript; a session that could not be read is read in full.
      */
     suspend fun historyUnlessUpdatedAt(sessionId: String, limit: Int, updatedAt: Long?): List<EngineStreamEvent>? {
+        var clock: Long? = null
         if (updatedAt != null) {
             val unchanged = runCatching {
                 coroutineScope {
                     val info = async { api.session(sessionId) }
                     val busy = async { api.status()[sessionId]?.let { it.type != IDLE_STATUS } ?: false }
-                    info.await().time?.updated == updatedAt && !busy.await()
+                    clock = info.await().time?.updated
+                    clock == updatedAt && !busy.await()
                 }
             }.getOrDefault(false)
             if (unchanged) return null
         }
-        return history(sessionId, limit)
+        // The clock just read goes with the tail (26/10/2026 evening): keeping it used to read the
+        // session once more. Read before the messages, so a session that moves in between is read
+        // again next time, never shown stale.
+        return history(sessionId, limit, clock)
     }
 
-    /** Writes the tail down with the session's clock, read alongside; a clock that fails is null (refreshed next time). */
-    private suspend fun keepTail(sessionId: String, limit: Int, messages: List<EngineMessage>) {
+    /** Writes the tail down with the session's clock, [clock] or read here; a clock that fails is null (refreshed next time). */
+    private suspend fun keepTail(sessionId: String, limit: Int, messages: List<EngineMessage>, clock: Long?) {
         val cache = transcripts ?: return
-        val updated = runCatching { api.session(sessionId).time?.updated }.getOrNull()
+        val updated = clock ?: runCatching { api.session(sessionId).time?.updated }.getOrNull()
         runCatching { cache.write(sessionId, CachedTranscript(updated = updated, limit = limit, messages = messages)) }
     }
 
@@ -684,5 +792,11 @@ class EngineMissionRepository(
          * `hobbitton-gateway` reports `config`, OpenCode's own bundled endpoint reports `custom`.
          */
         const val DECLARED_PROVIDER = "config"
+
+        /** How long the engine's providers are kept: a reconfiguration shows within ten minutes. */
+        const val CATALOGUE_TTL_MS = 10L * 60 * 1000
     }
 }
+
+/** How long the lists' reads serve the next page and the search before they are read again. */
+const val RECENT_LIST_REUSE_MS = 30_000L

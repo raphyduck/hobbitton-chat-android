@@ -301,7 +301,18 @@ sheet for the diagnostic log). The shell and the sign-in resolve the engine grap
   not kept, nothing in memory between openings, cleared at sign-out), seeded before anything is
   asked (`repository.cachedHistory`), and the engine is read again only if the session's
   `time.updated` changed or the session is busy (`historyUnlessUpdatedAt`: one small read of the
-  session and the statuses). A pull to refresh or a retry reads the engine whatever was kept.
+  session and the statuses). A pull to refresh or a retry reads the engine whatever was kept;
+  a return to the foreground makes that small check only (`resume`, 26/10/2026 evening; before,
+  the whole tail again). **Fewer round trips, off the main thread** (same evening, lot 3 of the
+  review): the lists' five reads go together on IO and are kept 30 s for « Plus anciennes » and
+  the search (`ListSnapshot`, `RECENT_LIST_REUSE_MS`), the unknown sessions' tails are read
+  together; the engine's providers are kept ten minutes (`providerCatalogue`: every send asked
+  them again to name the model), the scheduler's identity an hour and its ladder ten minutes,
+  all forgotten at sign-out; the kept tail takes the clock the check just read instead of reading
+  the session again; the deltas of a frame or so go into the state together (`batched`,
+  `:core:common`, 80 ms), where each character redrew the conversation; a conversation left and
+  the app left in the same instant mark it read once; a markdown image is decoded at 1 600 px a
+  side at most and the image cache holds 64 MB.
 - The feed is global and heavy (a tool's whole output again on every frame that grows it):
   `EngineMissionRepository.events` / `allEvents` read and parse it on the IO dispatcher whoever
   collects (20/10/2026: parsed on the main thread by the attention watcher, a scheduled run's

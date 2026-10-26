@@ -62,7 +62,7 @@ Since 12/10/2026 chats and tasks are one conversation, as on Claude.ai.
   become the session's rules (`permissionsFor`); null ticks open every direct connector but the
   shell. The session's kind is recorded locally before anything can fail. `setConnectors` re-grants
   a live session the same way, and `sessionScope` reads back its connectors and recorded level.
-- **`recentChats(scope)`**: `ChatScope.MANUAL` (the drawer) leaves the scheduler's runs out
+- **`recentChats(scope, limit, query, maxAgeMillis)`**: `ChatScope.MANUAL` (the drawer) leaves the scheduler's runs out
   before any transcript is read; `ChatScope.ALL` (the Conversations page) keeps them, named after
   their mission (`scheduledMissionName`) and marked `scheduled`, sorted unread first (`inboxOrder`).
   `unread` comes from `ConversationReads` (`EngineConversationReads`: when each session was last
@@ -82,7 +82,10 @@ Since 12/10/2026 chats and tasks are one conversation, as on Claude.ai.
   ten unknown sessions are read per refresh, their last two messages only (`CLASSIFICATION_TAIL`,
   26/10/2026: a transcript weighs up to megabytes), and each verdict recorded (forty for a search).
   `query` (21/10/2026) keeps only the sessions whose title matches, over every session the engine
-  lists, accents folded (`foldForSearch` / `matchesSearch`, `SearchFold.kt`); `limit` is the page. Cleared at sign-out.
+  lists, accents folded (`foldForSearch` / `matchesSearch`, `SearchFold.kt`); `limit` is the page;
+  `maxAgeMillis` reuses the last read of the statuses, read marks, runs and sessions (`ListSnapshot`,
+  read together on IO; `RECENT_LIST_REUSE_MS` for the next page and the search, 26/10/2026 evening).
+  Cleared at sign-out.
 - **`models()`**: the conversations' provider only; `preselected` is the person's default
   (`ModelPreference`, Settings' `SettingsDataStore.defaultChatModel`) while the list still has it,
   the engine's otherwise (`engineDefault`, kept for Settings to name). A turn sent without a model

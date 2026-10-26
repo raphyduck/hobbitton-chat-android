@@ -162,7 +162,8 @@ class LibreChatApplication : Application(), SingletonImageLoader.Factory {
             .diskCache {
                 DiskCache.Builder()
                     .directory(cacheDir.resolve("image_cache"))
-                    .maxSizeBytes(250L * 1024 * 1024) // 250 MB
+                    // A few dozen images a week: 64 MB (26/10/2026 evening; 250 before).
+                    .maxSizeBytes(64L * 1024 * 1024)
                     .build()
             }
             .crossfade(true)

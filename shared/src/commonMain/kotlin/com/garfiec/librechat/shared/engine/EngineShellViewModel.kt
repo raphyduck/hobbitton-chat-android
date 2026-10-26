@@ -18,6 +18,7 @@ import com.garfiec.librechat.core.data.engine.EngineMissionRepository
 import com.garfiec.librechat.core.data.engine.EngineModelChoice
 import com.garfiec.librechat.core.data.engine.EngineSettingsStore
 import com.garfiec.librechat.core.data.engine.OpenConversation
+import com.garfiec.librechat.core.data.engine.RECENT_LIST_REUSE_MS
 import com.garfiec.librechat.core.data.engine.SessionKindStore
 import com.garfiec.librechat.core.data.engine.TranscriptCache
 import com.garfiec.librechat.core.data.portal.PortalSignOut
@@ -296,14 +297,14 @@ class EngineShellViewModel(
      * the drawer asks on every opening, and a second read racing the first would only land the
      * same list twice.
      */
-    fun refreshAllChats() {
+    fun refreshAllChats(reuseMillis: Long = 0) {
         val source = repository ?: return
         if (allChatsJob?.isActive == true) return
         allChatsJob = viewModelScope.launch {
             _allChats.update { it.copy(loading = true) }
             try {
                 val limit = shown
-                val chats = source.recentChats(scope = ChatScope.ALL, limit = limit)
+                val chats = source.recentChats(scope = ChatScope.ALL, limit = limit, maxAgeMillis = reuseMillis)
                 _allChats.value = EngineChatsState(chats = chats, more = chats.size >= limit)
             } catch (e: CancellationException) {
                 throw e
@@ -318,7 +319,7 @@ class EngineShellViewModel(
     fun loadOlder() {
         shown += PAGE
         allChatsJob?.cancel()
-        refreshAllChats()
+        refreshAllChats(reuseMillis = RECENT_LIST_REUSE_MS)
     }
 
     /**
@@ -336,7 +337,7 @@ class EngineShellViewModel(
             delay(SEARCH_PAUSE_MS)
             _search.update { (it ?: EngineChatsState()).copy(loading = true) }
             try {
-                val found = source.recentChats(scope = ChatScope.ALL, limit = PAGE, query = query)
+                val found = source.recentChats(scope = ChatScope.ALL, limit = PAGE, query = query, maxAgeMillis = RECENT_LIST_REUSE_MS)
                 _search.value = EngineChatsState(
                     chats = found.sortedByDescending { it.lastActivityMillis ?: Long.MIN_VALUE },
                 )
@@ -357,8 +358,15 @@ class EngineShellViewModel(
     fun markRead(sessionId: String) {
         val source = repository ?: return
         _allChats.update { state -> state.copy(chats = state.chats.map { if (it.sessionId == sessionId) it.copy(unread = false) else it }) }
-        viewModelScope.launch { source.markRead(sessionId, Clock.System.now().toEpochMilliseconds()) }
+        // Leaving a conversation and leaving the app mark it in the same instant (26/10/2026
+        // evening): one write of the preferences, not two.
+        val now = Clock.System.now().toEpochMilliseconds()
+        if (now - (lastMarked[sessionId] ?: 0L) < MARK_READ_ONCE_MS) return
+        lastMarked[sessionId] = now
+        viewModelScope.launch { source.markRead(sessionId, now) }
     }
+
+    private val lastMarked = mutableMapOf<String, Long>()
 
     fun setThemeMode(mode: ThemeMode) {
         viewModelScope.launch { themeDataStore.setThemeMode(mode) }
@@ -382,6 +390,8 @@ class EngineShellViewModel(
                 runCatching { transcripts?.clear() }.onFailure { Logger.w(it) { "Could not clear the kept transcripts" } }
                 runCatching { conversationModels?.clear() }.onFailure { Logger.w(it) { "Could not clear the conversations' models" } }
                 runCatching { deviceSession?.onSignedOut() }.onFailure { Logger.w(it) { "Could not clear the device's caches" } }
+                repository?.forgetCaches()
+                scheduler?.forget()
             }
             allChatsJob?.cancel()
             stopAttention()
@@ -402,5 +412,8 @@ class EngineShellViewModel(
 
         /** The typing pause before a search reads the engine. */
         const val SEARCH_PAUSE_MS = 300L
+
+        /** A second mark of the same conversation within this is the same gesture. */
+        const val MARK_READ_ONCE_MS = 1_000L
     }
 }
