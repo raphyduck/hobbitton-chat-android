@@ -538,6 +538,17 @@ class EngineMissionRepository(
         api.setPermissions(sessionId, permissionsFor(catalogue, catalogue.directPerimeter(connectors)))
     }
 
+    /**
+     * Records the titulaire's level for a live session WITHOUT touching its rules (26/10/2026): the
+     * lift a send does when the screen could not read which connectors the session holds. The
+     * whole-ruleset rewrite of [setConnectors] with an unknown list wrote an empty one, and the
+     * session lost every direct tool but the questions and the to-do list (Raphaël, 26/10/2026:
+     * « mes outils ne sont plus disponibles depuis ton dernier message »).
+     */
+    suspend fun liftToTitular(sessionId: String) {
+        scheduler.setScope(sessionId, shellTick(false), level = TITULAR_LEVEL)
+    }
+
     /** What the titulaire's level is asked for on top of what it reaches: the shell, or nothing. */
     private fun shellTick(shell: Boolean): List<String> = if (shell) listOf(SHELL_CONNECTOR) else emptyList()
 

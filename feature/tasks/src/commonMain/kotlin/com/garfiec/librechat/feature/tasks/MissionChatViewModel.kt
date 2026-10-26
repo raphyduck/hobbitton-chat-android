@@ -348,12 +348,20 @@ class MissionChatViewModel(
                     // A conversation not started yet holds nothing: it starts from what the scheduler
                     // ticks by default (since D-082 everything but the shell), and the person
                     // adjusts before sending.
-                    val scope = if (sessionId == null) {
+                    val scopeRead = if (sessionId == null) {
                         null
                     } else {
                         runCatching {
                             withContext(ioDispatcher) { repository.sessionScope(sessionId) }
-                        }.getOrNull()
+                        }
+                    }
+                    val scope = scopeRead?.getOrNull()
+                    // The session's grant could not be read: say so on the chip, with its retry,
+                    // rather than draw no chip at all (26/10/2026: the composer showed the model
+                    // alone and nothing to tick connectors with).
+                    scopeRead?.exceptionOrNull()?.let { failure ->
+                        _uiState.update { it.copy(connectorsError = failure.engineFailureKind()) }
+                        return@launch
                     }
                     val granted = if (sessionId == null) {
                         fetched.value.offered().filter { it.tickedByDefault }.map { it.name }.toSet()
@@ -737,8 +745,14 @@ class MissionChatViewModel(
                 // session not recorded at the titulaire's level) is lifted there first, once, so
                 // the annuaire serves what the titulaire reaches (D-083; 24/10/2026, « Go ssh »
                 // refused in a run that still stood at the mission's level).
+                // Its rules are rewritten only from connectors the screen actually read: an unknown
+                // list (the scope read failed) lifts the level alone, and the session keeps the
+                // tools it has (26/10/2026: an empty list had stripped every one of them).
                 if (staged.sessionLevel != TITULAR_LEVEL) {
-                    withContext(ioDispatcher) { repository.setConnectors(sessionId, staged.enabledConnectors.orEmpty().toList()) }
+                    val known = staged.enabledConnectors
+                    withContext(ioDispatcher) {
+                        if (known != null) repository.setConnectors(sessionId, known.toList()) else repository.liftToTitular(sessionId)
+                    }
                     _uiState.update { it.copy(sessionLevel = TITULAR_LEVEL) }
                 }
                 // The answer streams in over the feed while this call is in flight; what it returns is

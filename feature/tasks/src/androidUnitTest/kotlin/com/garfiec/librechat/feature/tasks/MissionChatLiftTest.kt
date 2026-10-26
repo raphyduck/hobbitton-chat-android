@@ -11,6 +11,7 @@ import io.mockk.coVerify
 import io.mockk.coVerifyOrder
 import io.mockk.every
 import io.mockk.mockk
+import com.google.common.truth.Truth.assertThat
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
@@ -100,5 +101,30 @@ class MissionChatLiftTest {
         vm.send()
 
         coVerify(exactly = 1) { repository.setConnectors("ses_run", any()) }
+    }
+
+    @Test
+    fun `connectors that could not be read lift the level alone and never strip the session`() {
+        // 26/10/2026 : la lecture du périmètre avait échoué, l'envoi a réécrit les règles avec une
+        // liste vide et la session a perdu tous ses outils directs.
+        coEvery { repository.sessionScope("ses_run") } throws IllegalStateException("planificateur injoignable")
+        val vm = MissionChatViewModel(
+            sessionId = "ses_run",
+            repository = repository,
+            modelPrices = mockk(relaxed = true),
+            settings = settings,
+            transcriber = { _, _, _ -> TranscriptionOutcome.Heard("") },
+            attention = mockk(relaxed = true),
+            ioDispatcher = dispatcher,
+        )
+        assertThat(vm.uiState.value.connectorsError).isNotNull()
+        assertThat(vm.uiState.value.enabledConnectors).isNull()
+
+        vm.onInputChange("reprends les annonces")
+        vm.send()
+
+        coVerify(exactly = 0) { repository.setConnectors(any(), any()) }
+        coVerify(exactly = 1) { repository.liftToTitular("ses_run") }
+        coVerify { repository.sendMessage("ses_run", "reprends les annonces", any(), any()) }
     }
 }
