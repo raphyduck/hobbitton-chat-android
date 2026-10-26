@@ -6,6 +6,8 @@ import com.garfiec.librechat.core.data.engine.TranscriptionOutcome
 import com.garfiec.librechat.core.model.engine.EngineFailureKind
 import com.garfiec.librechat.core.model.engine.EngineStreamEvent
 import com.garfiec.librechat.core.network.engine.EngineHttpException
+import com.garfiec.librechat.feature.tasks.util.ChatPart
+import com.garfiec.librechat.feature.tasks.util.ChatTurn
 import com.google.common.truth.Truth.assertThat
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -15,6 +17,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
@@ -64,6 +67,27 @@ class MissionChatHistoryTest {
         attention = mockk(relaxed = true),
         ioDispatcher = dispatcher,
     )
+
+    @Test
+    fun `a delta on a part the screen was never told of has the transcript read again`() {
+        // 26/10/2026: a conversation opened while its session thought. The feed's deltas named a
+        // reasoning part announced before the screen joined; drawn as prose, it filled the screen
+        // and folded away at the step's end. The screen now asks the transcript, which names it.
+        coEvery { repository.history("ses_1", any()) } returns emptyList()
+        every { repository.events(any()) } returns flowOf(
+            EngineStreamEvent.PartDelta("msg_live", "prt_reasoning", "text", "Je vais "),
+            EngineStreamEvent.PartDelta("msg_live", "prt_reasoning", "text", "naviguer."),
+        )
+
+        val vm = viewModel()
+
+        // Taken for reasoning, folded, until the read names it: never drawn as an answer.
+        val parts = vm.uiState.value.chat.turns.flatMap { (it as ChatTurn.Assistant).parts }
+        assertThat(parts).isEqualTo(listOf(ChatPart.Reasoning("prt_reasoning", "Je vais naviguer.")))
+        assertThat(vm.uiState.value.chat.streaming).isTrue()
+        // The opening read, then one more for the two deltas: the second comes within the pause.
+        coVerify(exactly = 2) { repository.history("ses_1", any()) }
+    }
 
     @Test
     fun `a read that hangs is asked again`() {
@@ -178,19 +202,19 @@ class MissionChatHistoryTest {
         // 26/10/2026, Raphaël : changer de conversation prenait trop de temps ; la plus grosse pesait
         // 2,7 Mo entière, 23 Ko pour ses trois derniers messages.
         fun message(i: Int) = listOf(
-            EngineStreamEvent.MessageStarted("m$i", if (i % 2 == 1) "user" else "assistant"),
-            EngineStreamEvent.PartDelta("m$i", "p$i", "text", "message $i"),
+            EngineStreamEvent.MessageStarted("m${i.toString().padStart(2, '0')}", if (i % 2 == 1) "user" else "assistant"),
+            EngineStreamEvent.PartDelta("m${i.toString().padStart(2, '0')}", "p$i", "text", "message $i"),
         )
         coEvery { repository.history("ses_1", HISTORY_TAIL) } returns (11..50).flatMap(::message)
         coEvery { repository.history("ses_1", null) } returns (1..50).flatMap(::message)
         val vm = viewModel()
 
-        assertThat(vm.uiState.value.chat.turns.map { it.key }).isEqualTo((11..50).map { "m$it" })
+        assertThat(vm.uiState.value.chat.turns.map { it.key }).isEqualTo((11..50).map { "m${it.toString().padStart(2, '0')}" })
         assertThat(vm.uiState.value.historyTruncated).isTrue()
 
         vm.loadEarlierHistory()
 
-        assertThat(vm.uiState.value.chat.turns.map { it.key }).isEqualTo((1..50).map { "m$it" })
+        assertThat(vm.uiState.value.chat.turns.map { it.key }).isEqualTo((1..50).map { "m${it.toString().padStart(2, '0')}" })
         assertThat(vm.uiState.value.historyTruncated).isFalse()
         assertThat(vm.uiState.value.loadingEarlier).isFalse()
         coVerify(exactly = 1) { repository.history("ses_1", null) }

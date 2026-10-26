@@ -31,10 +31,10 @@ class MissionChatTest {
     fun `une reponse refusee par le moteur montre sa raison au lieu d'un blanc`() {
         val live = missionChatFrom(
             listOf(
-                started("msg_u", "user"),
-                part("msg_u", "p0", EnginePartSnapshot(type = "text", text = "Mon agenda ?")),
-                started("msg_a", "assistant"),
-                EngineStreamEvent.MessageStarted("msg_a", "assistant", error = "ExceededBudget"),
+                started("msg_1u", "user"),
+                part("msg_1u", "p0", EnginePartSnapshot(type = "text", text = "Mon agenda ?")),
+                started("msg_2a", "assistant"),
+                EngineStreamEvent.MessageStarted("msg_2a", "assistant", error = "ExceededBudget"),
                 EngineStreamEvent.Idle,
             ),
         )
@@ -47,7 +47,7 @@ class MissionChatTest {
                 listOf(
                     EngineMessage(
                         info = EngineMessageInfo(
-                            id = "msg_a",
+                            id = "msg_2a",
                             role = "assistant",
                             error = EngineError(name = "APIError", data = EngineErrorData("""{"error":{"message":"Key over budget"}}""")),
                         ),
@@ -63,14 +63,14 @@ class MissionChatTest {
     fun aTurnStreamsInByDeltasAndIsClosedByItsSnapshot() {
         val state = missionChatFrom(
             listOf(
-                started("msg_u", "user"),
-                part("msg_u", "p0", EnginePartSnapshot(type = "text", text = "Compte jusqu'à trois")),
-                started("msg_a", "assistant"),
-                part("msg_a", "p1", EnginePartSnapshot(type = "text", text = "")),
-                delta("msg_a", "p1", "Un, "),
-                delta("msg_a", "p1", "deux, "),
-                delta("msg_a", "p1", "trois"),
-                part("msg_a", "p1", EnginePartSnapshot(type = "text", text = "Un, deux, trois")),
+                started("msg_1u", "user"),
+                part("msg_1u", "p0", EnginePartSnapshot(type = "text", text = "Compte jusqu'à trois")),
+                started("msg_2a", "assistant"),
+                part("msg_2a", "p1", EnginePartSnapshot(type = "text", text = "")),
+                delta("msg_2a", "p1", "Un, "),
+                delta("msg_2a", "p1", "deux, "),
+                delta("msg_2a", "p1", "trois"),
+                part("msg_2a", "p1", EnginePartSnapshot(type = "text", text = "Un, deux, trois")),
                 EngineStreamEvent.Idle,
             ),
         )
@@ -87,16 +87,69 @@ class MissionChatTest {
         // the snapshot wins, because it is the one the transcript will also show.
         val state = missionChatFrom(
             listOf(
-                delta("msg_a", "p1", "Bonj"),
-                part("msg_a", "p1", EnginePartSnapshot(type = "text", text = "Bonjour")),
+                delta("msg_2a", "p1", "Bonj"),
+                part("msg_2a", "p1", EnginePartSnapshot(type = "text", text = "Bonjour")),
             ),
         )
         assertEquals("Bonjour", state.turns.single().text())
     }
 
     @Test
-    fun aDeltaBeforeItsPartStillLandsRatherThanBeingDropped() {
-        val state = missionChatFrom(listOf(delta("msg_a", "p1", "déjà là")))
+    fun aDeltaOnAPartNeverAnnouncedIsTakenForReasoningUntilItsSnapshot() {
+        // 26/10/2026: such a part may be reasoning, and drawn as prose it filled the screen, then
+        // folded away when its snapshot came. The view model reads the transcript instead.
+        val state = missionChatFrom(listOf(delta("msg_2a", "p1", "déjà là")))
+        val turn = state.turns.single() as ChatTurn.Assistant
+        assertEquals(listOf<ChatPart>(ChatPart.Reasoning("p1", "déjà là")), turn.parts)
+        assertEquals("", turn.text())
+        assertTrue(state.streaming)
+        assertTrue(state.knowsPart("msg_2a", "p1"))
+        // The person's own words can only be prose.
+        val user = missionChatFrom(listOf(started("msg_1u", "user"), delta("msg_1u", "p0", "Bonjour")))
+        assertEquals("Bonjour", user.turns.single().text())
+    }
+
+    @Test
+    fun reasoningStreamsInsideItsFoldNeverAsProse() {
+        val state = missionChatFrom(
+            listOf(
+                started("msg_2a", "assistant"),
+                part("msg_2a", "r1", EnginePartSnapshot(type = "reasoning", text = "")),
+                delta("msg_2a", "r1", "Je vais "),
+                delta("msg_2a", "r1", "naviguer."),
+            ),
+        )
+        val parts = (state.turns.single() as ChatTurn.Assistant).parts
+        assertEquals(listOf<ChatPart>(ChatPart.Reasoning("r1", "Je vais naviguer.")), parts)
+        assertTrue(parts.asBlocks().single() is ChatBlock.Activity)
+        assertTrue(state.knowsPart("msg_2a", "r1"))
+    }
+
+    @Test
+    fun aMessageSeenLateTakesItsPlaceInTheOrderOfTheIds() {
+        // The live feed names the running turn first; the transcript read brings the older ones
+        // after it. Folded in arrival order they used to land after the live turn.
+        val state = missionChatFrom(
+            listOf(
+                part("msg_0003", "p3", EnginePartSnapshot(type = "reasoning", text = "")),
+                started("msg_0001", "user"),
+                part("msg_0001", "p1", EnginePartSnapshot(type = "text", text = "Question")),
+                started("msg_0002", "assistant"),
+                part("msg_0002", "p2", EnginePartSnapshot(type = "text", text = "Réponse")),
+                started("msg_0004", "assistant"),
+            ),
+        )
+        assertEquals(listOf("msg_0001", "msg_0002", "msg_0003", "msg_0004"), state.turns.map { it.key })
+    }
+
+    @Test
+    fun aDeltaBeforeItsPartIsCaughtUpByTheSnapshot() {
+        val state = missionChatFrom(
+            listOf(
+                delta("msg_2a", "p1", "déjà "),
+                part("msg_2a", "p1", EnginePartSnapshot(type = "text", text = "déjà là")),
+            ),
+        )
         assertEquals("déjà là", state.turns.single().text())
     }
 
@@ -105,8 +158,8 @@ class MissionChatTest {
         // Seeding from the transcript and then tailing the feed shows the same ids twice; the seam
         // must not become a second bubble.
         val events = listOf(
-            started("msg_a", "assistant"),
-            part("msg_a", "p1", EnginePartSnapshot(type = "text", text = "un")),
+            started("msg_2a", "assistant"),
+            part("msg_2a", "p1", EnginePartSnapshot(type = "text", text = "un")),
         )
         val state = missionChatFrom(events + events)
         assertEquals(1, state.turns.size)
@@ -117,9 +170,9 @@ class MissionChatTest {
     fun toolStatusDecidesTheCardAndAnAbsentStatusIsNotASuccess() {
         val state = missionChatFrom(
             listOf(
-                part("msg_a", "t1", EnginePartSnapshot(type = "tool", tool = "qonto_list", status = "completed")),
-                part("msg_a", "t2", EnginePartSnapshot(type = "tool", tool = "shell", status = "error")),
-                part("msg_a", "t3", EnginePartSnapshot(type = "tool", tool = "read", status = null)),
+                part("msg_2a", "t1", EnginePartSnapshot(type = "tool", tool = "qonto_list", status = "completed")),
+                part("msg_2a", "t2", EnginePartSnapshot(type = "tool", tool = "shell", status = "error")),
+                part("msg_2a", "t3", EnginePartSnapshot(type = "tool", tool = "read", status = null)),
             ),
         )
         val tools = (state.turns.single() as ChatTurn.Assistant).parts.filterIsInstance<ChatPart.Tool>()
@@ -130,9 +183,9 @@ class MissionChatTest {
     fun bookkeepingPartsAreNotRendered() {
         val state = missionChatFrom(
             listOf(
-                started("msg_a", "assistant"),
-                part("msg_a", "s1", EnginePartSnapshot(type = "step-start")),
-                part("msg_a", "s2", EnginePartSnapshot(type = "step-finish")),
+                started("msg_2a", "assistant"),
+                part("msg_2a", "s1", EnginePartSnapshot(type = "step-start")),
+                part("msg_2a", "s2", EnginePartSnapshot(type = "step-finish")),
             ),
         )
         assertTrue((state.turns.single() as ChatTurn.Assistant).parts.isEmpty())
@@ -143,8 +196,8 @@ class MissionChatTest {
         // The engine also deltas tool input; those must not print themselves into the answer.
         val state = missionChatFrom(
             listOf(
-                part("msg_a", "p1", EnginePartSnapshot(type = "text", text = "réponse")),
-                EngineStreamEvent.PartDelta("msg_a", "p1", "input", "{\"chemin\":"),
+                part("msg_2a", "p1", EnginePartSnapshot(type = "text", text = "réponse")),
+                EngineStreamEvent.PartDelta("msg_2a", "p1", "input", "{\"chemin\":"),
             ),
         )
         assertEquals("réponse", state.turns.single().text())
@@ -152,9 +205,9 @@ class MissionChatTest {
 
     @Test
     fun idleEndsTheSpinnerAndADeltaStartsItAgain() {
-        val idle = missionChatFrom(listOf(started("msg_a", "assistant"), EngineStreamEvent.Idle))
+        val idle = missionChatFrom(listOf(started("msg_2a", "assistant"), EngineStreamEvent.Idle))
         assertFalse(idle.streaming)
-        assertTrue(idle.reduce(delta("msg_a", "p1", "encore")).streaming)
+        assertTrue(idle.reduce(delta("msg_2a", "p1", "encore")).streaming)
     }
 
     @Test
@@ -217,10 +270,10 @@ class MissionChatTest {
         val claude = EngineModelRef(providerId = "hobbitton-gateway", modelId = "claude-x")
         val state = missionChatFrom(
             listOf(
-                started("msg_u", "user"),
-                EngineStreamEvent.MessageStarted("msg_a", "assistant", kimi),
-                started("msg_u2", "user"),
-                EngineStreamEvent.MessageStarted("msg_a2", "assistant", claude),
+                started("msg_1u", "user"),
+                EngineStreamEvent.MessageStarted("msg_2a", "assistant", kimi),
+                started("msg_3u", "user"),
+                EngineStreamEvent.MessageStarted("msg_4a", "assistant", claude),
             ),
         )
 
@@ -234,10 +287,10 @@ class MissionChatTest {
         val kimi = EngineModelRef(providerId = "hobbitton-gateway", modelId = "kimi-k3")
         val state = missionChatFrom(
             listOf(
-                EngineStreamEvent.MessageStarted("msg_a", "assistant", kimi),
+                EngineStreamEvent.MessageStarted("msg_2a", "assistant", kimi),
                 // A user turn carries no model, and re-announcing a known message must not blank it.
-                started("msg_u", "user"),
-                started("msg_a", "assistant"),
+                started("msg_1u", "user"),
+                started("msg_2a", "assistant"),
             ),
         )
 
@@ -248,9 +301,9 @@ class MissionChatTest {
     fun aToolCarriesItsArgumentsAndItsOutput() {
         val state = missionChatFrom(
             listOf(
-                started("msg_a", "assistant"),
+                started("msg_2a", "assistant"),
                 part(
-                    "msg_a",
+                    "msg_2a",
                     "p1",
                     EnginePartSnapshot(
                         type = "tool",
@@ -283,9 +336,9 @@ class MissionChatTest {
     fun aDirectoryCallShowsTheRealToolAndItsOwnArguments() {
         val state = missionChatFrom(
             listOf(
-                started("msg_a", "assistant"),
+                started("msg_2a", "assistant"),
                 part(
-                    "msg_a",
+                    "msg_2a",
                     "p1",
                     EnginePartSnapshot(
                         type = "tool",
@@ -310,9 +363,9 @@ class MissionChatTest {
     fun aDirectoryCallWithoutAToolNameKeepsTheDirectoryName() {
         val state = missionChatFrom(
             listOf(
-                started("msg_a", "assistant"),
+                started("msg_2a", "assistant"),
                 part(
-                    "msg_a",
+                    "msg_2a",
                     "p1",
                     EnginePartSnapshot(type = "tool", tool = "planificateur_annuaire_appeler", status = "error"),
                 ),
@@ -328,8 +381,8 @@ class MissionChatTest {
     fun aToolWithAnEmptyOutputReportsNoneRatherThanAnEmptyDrawer() {
         val state = missionChatFrom(
             listOf(
-                started("msg_a", "assistant"),
-                part("msg_a", "p1", EnginePartSnapshot(type = "tool", tool = "t", status = "completed", output = "")),
+                started("msg_2a", "assistant"),
+                part("msg_2a", "p1", EnginePartSnapshot(type = "tool", tool = "t", status = "completed", output = "")),
             ),
         )
 
@@ -391,24 +444,24 @@ class MissionChatTest {
     fun `le contexte est celui du dernier appel du modele, pas la somme des tours`() {
         val tokens = { input: Long -> EngineTokens(input = input, output = 100) }
         var state = MissionChatState()
-            .reduce(started("u1", "user"))
-            .reduce(EngineStreamEvent.MessageStarted("a1", "assistant", tokens = tokens(10_000)))
-            .reduce(started("u2", "user"))
+            .reduce(started("m1u", "user"))
+            .reduce(EngineStreamEvent.MessageStarted("m2a", "assistant", tokens = tokens(10_000)))
+            .reduce(started("m3u", "user"))
         assertEquals(10_100L, state.contextTokens)
         // Le tour suivant s'annonce d'abord à zéro (son premier appel tourne) : le contexte reste.
-        state = state.reduce(EngineStreamEvent.MessageStarted("a2", "assistant", tokens = EngineTokens()))
+        state = state.reduce(EngineStreamEvent.MessageStarted("m4a", "assistant", tokens = EngineTokens()))
         assertEquals(10_100L, state.contextTokens)
         // Puis le moteur réécrit les jetons du message à chaque étape.
-        state = state.reduce(EngineStreamEvent.MessageStarted("a2", "assistant", tokens = tokens(25_000)))
+        state = state.reduce(EngineStreamEvent.MessageStarted("m4a", "assistant", tokens = tokens(25_000)))
         assertEquals(25_100L, state.contextTokens)
     }
 
     @Test
     fun `un historique rejoue donne le contexte de son dernier message`() {
         val messages = listOf(
-            EngineMessage(EngineMessageInfo(id = "a1", role = "assistant", tokens = EngineTokens(input = 5_000))),
-            EngineMessage(EngineMessageInfo(id = "u2", role = "user")),
-            EngineMessage(EngineMessageInfo(id = "a2", role = "assistant", tokens = EngineTokens(input = 9_000))),
+            EngineMessage(EngineMessageInfo(id = "m2a", role = "assistant", tokens = EngineTokens(input = 5_000))),
+            EngineMessage(EngineMessageInfo(id = "m3u", role = "user")),
+            EngineMessage(EngineMessageInfo(id = "m4a", role = "assistant", tokens = EngineTokens(input = 9_000))),
         )
         val state = engineHistoryEvents(messages).fold(MissionChatState()) { s, e -> s.reduce(e) }
         assertEquals(9_000L, state.contextTokens)
@@ -417,13 +470,13 @@ class MissionChatTest {
     @Test
     fun `un compactage rejoue montre sa ligne, cache le resume et dit ce qu'il a economise`() {
         val messages = listOf(
-            EngineMessage(EngineMessageInfo(id = "a1", role = "assistant", tokens = EngineTokens(input = 900_000, output = 2_000))),
+            EngineMessage(EngineMessageInfo(id = "m2a", role = "assistant", tokens = EngineTokens(input = 900_000, output = 2_000))),
             EngineMessage(
-                EngineMessageInfo(id = "u2", role = "user"),
+                EngineMessageInfo(id = "m3u", role = "user"),
                 parts = listOf(EnginePart(id = "c1", type = "compaction")),
             ),
             EngineMessage(
-                EngineMessageInfo(id = "a2", role = "assistant", summary = true, tokens = EngineTokens(input = 902_000, output = 8_000)),
+                EngineMessageInfo(id = "m4a", role = "assistant", summary = true, tokens = EngineTokens(input = 902_000, output = 8_000)),
                 parts = listOf(EnginePart(id = "s1", type = "text", text = "Résumé de la conversation…")),
             ),
         )
@@ -442,17 +495,17 @@ class MissionChatTest {
     @Test
     fun `un compactage en direct garde la session occupee sans afficher le resume`() {
         var state = MissionChatState()
-            .reduce(EngineStreamEvent.MessageStarted("a1", "assistant", tokens = EngineTokens(input = 500_000)))
-            .reduce(started("u2", "user"))
-            .reduce(part("u2", "c1", EnginePartSnapshot(type = "compaction")))
-            .reduce(EngineStreamEvent.MessageStarted("a2", "assistant", tokens = EngineTokens(), summary = true))
-            .reduce(delta("a2", "s1", "Résumé"))
+            .reduce(EngineStreamEvent.MessageStarted("m2a", "assistant", tokens = EngineTokens(input = 500_000)))
+            .reduce(started("m3u", "user"))
+            .reduce(part("m3u", "c1", EnginePartSnapshot(type = "compaction")))
+            .reduce(EngineStreamEvent.MessageStarted("m4a", "assistant", tokens = EngineTokens(), summary = true))
+            .reduce(delta("m4a", "s1", "Résumé"))
         assertTrue(state.streaming)
         assertTrue((state.turns.last() as ChatTurn.Assistant).parts.isEmpty())
         val pending = (state.turns[1] as ChatTurn.User).parts.single() as ChatPart.Compaction
         assertEquals(500_000L, pending.contextBefore)
         assertEquals(null, pending.savedTokens)
-        state = state.reduce(EngineStreamEvent.MessageStarted("a2", "assistant", tokens = EngineTokens(input = 500_000, output = 6_000), summary = true))
+        state = state.reduce(EngineStreamEvent.MessageStarted("m4a", "assistant", tokens = EngineTokens(input = 500_000, output = 6_000), summary = true))
         assertEquals(494_000L, ((state.turns[1] as ChatTurn.User).parts.single() as ChatPart.Compaction).savedTokens)
     }
 }
@@ -580,7 +633,7 @@ class ChatBlockTest {
         // C'est du contenu, pas du processus : la plier avec les outils la cacherait par défaut.
         val blocks = listOf(
             ChatPart.Tool("t1", "memoire_lire", ToolState.OK),
-            ChatPart.Attachment("a1", "image/jpeg", "data:image/jpeg;base64,AAAA", null),
+            ChatPart.Attachment("m2a", "image/jpeg", "data:image/jpeg;base64,AAAA", null),
             ChatPart.Text("x1", "voila"),
         ).asBlocks()
 
@@ -594,15 +647,15 @@ class ChatBlockTest {
     fun consecutiveAssistantStepsAreDrawnAsOneTurnWithOneGrowingActivityLine() {
         // One engine message per step: seven lines for one piece of work until 02/10/2026.
         val turns = listOf(
-            ChatTurn.User("u1", listOf(text("q", "Ajoute le film"))),
-            ChatTurn.Assistant("a1", listOf(thinking("r1"), tool("t1"))),
-            ChatTurn.Assistant("a2", listOf(tool("t2"), tool("t3"))),
-            ChatTurn.Assistant("a3", listOf(tool("t4", ToolState.FAILED))),
-            ChatTurn.User("u2", listOf(text("q2", "Non, celui de 2017"))),
-            ChatTurn.Assistant("a4", listOf(text("p1", "Compris."), tool("t5"))),
+            ChatTurn.User("m1u", listOf(text("q", "Ajoute le film"))),
+            ChatTurn.Assistant("m2a", listOf(thinking("r1"), tool("t1"))),
+            ChatTurn.Assistant("m4a", listOf(tool("t2"), tool("t3"))),
+            ChatTurn.Assistant("m5a", listOf(tool("t4", ToolState.FAILED))),
+            ChatTurn.User("m3u", listOf(text("q2", "Non, celui de 2017"))),
+            ChatTurn.Assistant("m6a", listOf(text("p1", "Compris."), tool("t5"))),
         ).mergedAssistantRuns()
 
-        assertEquals(listOf("u1", "a1", "u2", "a4"), turns.map { it.key })
+        assertEquals(listOf("m1u", "m2a", "m3u", "m6a"), turns.map { it.key })
         val blocks = (turns[1] as ChatTurn.Assistant).parts.asBlocks()
         val activity = assertIs<ChatBlock.Activity>(blocks.single())
         assertEquals(4, activity.toolCount())

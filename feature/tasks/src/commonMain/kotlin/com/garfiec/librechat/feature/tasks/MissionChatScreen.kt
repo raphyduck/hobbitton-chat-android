@@ -512,8 +512,10 @@ private fun LazyListState.isNearTail(slackPx: Float): Boolean = distanceToEnd() 
 private suspend fun LazyListState.scrollToEnd(lastIndex: Int) {
     if (lastIndex < 0) return
     if ((layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1) < lastIndex) {
+        // `scrollToItem` remeasures before it returns: the layout below is the new one, and no
+        // frame shows the item's top on the way (26/10/2026: it did, a flash of the start of a
+        // long turn on every token).
         scrollToItem(lastIndex)
-        withFrameNanos { }
     }
     val remaining = distanceToEnd()
     if (remaining in 1 until Int.MAX_VALUE) scrollBy(remaining.toFloat())
@@ -642,7 +644,14 @@ private fun tailLength(chat: MissionChatState): Int {
         is ChatTurn.User -> last.parts
         is ChatTurn.Assistant -> last.parts
     }
-    return parts.sumOf { part -> if (part is ChatPart.Text) part.text.length else 1 }
+    return parts.sumOf { part ->
+        when (part) {
+            is ChatPart.Text -> part.text.length
+            // Inside its fold, but a fold the reader opened grows with it (26/10/2026).
+            is ChatPart.Reasoning -> part.text.length
+            else -> 1
+        }
+    }
 }
 
 /** At most this many frames for the opening layout to settle (half a second). */
