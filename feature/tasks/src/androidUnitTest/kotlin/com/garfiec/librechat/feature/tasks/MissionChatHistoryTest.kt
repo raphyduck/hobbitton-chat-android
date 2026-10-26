@@ -3,13 +3,14 @@ package com.garfiec.librechat.feature.tasks
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.engine.EngineMissionRepository
 import com.garfiec.librechat.core.data.engine.TranscriptionOutcome
+import com.garfiec.librechat.core.model.engine.EngineFailureKind
 import com.garfiec.librechat.core.model.engine.EngineStreamEvent
+import com.garfiec.librechat.core.network.engine.EngineHttpException
 import com.google.common.truth.Truth.assertThat
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.awaitCancellation
@@ -20,6 +21,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
+import java.io.IOException
 
 /**
  * Une conversation restait parfois sur ses lignes grises jusqu'à ce qu'on la quitte et la
@@ -77,7 +79,7 @@ class MissionChatHistoryTest {
         assertThat(vm.uiState.value.historyError).isNull()
         coVerify(exactly = 2) { repository.history("ses_1", any()) }
         // 26/10/2026 : l'essai suspendu dit que la connexion est morte ; on la jette avant le suivant.
-        verify(exactly = 1) { repository.dropConnections() }
+        coVerify(exactly = 1) { repository.dropConnections() }
     }
 
     @Test
@@ -115,6 +117,30 @@ class MissionChatHistoryTest {
         coEvery { repository.history("ses_1", any()) } returns emptyList()
         moved.refresh()
         coVerify(exactly = 1) { repository.history("ses_1", any()) }
+    }
+
+    @Test
+    fun `a read cut by the network is asked again, a refusal is not`() {
+        // 26/10/2026 : les connexions jetées à un changement de réseau coupaient la lecture en
+        // cours, qui finissait en erreur au lieu de repartir.
+        coEvery { repository.history("ses_1", any()) } coAnswers {
+            if (reads++ == 0) throw IOException("Canceled") else emptyList()
+        }
+        val vm = viewModel()
+        dispatcher.scheduler.advanceTimeBy(1_000)
+
+        assertThat(vm.uiState.value.loadingHistory).isFalse()
+        assertThat(vm.uiState.value.historyError).isNull()
+        coVerify(exactly = 2) { repository.history("ses_1", any()) }
+
+        reads = 0
+        coEvery { repository.history("ses_1", any()) } throws EngineHttpException(404, "GET", "/session/ses_1/message")
+        val refused = viewModel()
+        dispatcher.scheduler.advanceTimeBy(1_000)
+
+        assertThat(refused.uiState.value.historyError).isEqualTo(EngineFailureKind.NOT_FOUND)
+        // Two reads for the first conversation, one for the refused one: no retry on a refusal.
+        coVerify(exactly = 3) { repository.history("ses_1", any()) }
     }
 
     @Test
