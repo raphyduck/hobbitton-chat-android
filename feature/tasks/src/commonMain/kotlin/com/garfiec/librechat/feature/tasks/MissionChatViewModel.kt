@@ -39,6 +39,7 @@ import com.garfiec.librechat.feature.tasks.util.withPendingQuestions
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -571,15 +572,28 @@ class MissionChatViewModel(
      */
     private suspend fun fetchHistory(sessionId: String, limit: Int?, unlessUpdatedAt: Long? = null): HistoryRead? {
         repeat(HISTORY_ATTEMPTS) { attempt ->
-            val read = withTimeoutOrNull(HISTORY_ATTEMPT_MS) {
-                withContext(ioDispatcher) {
-                    if (unlessUpdatedAt != null && limit != null) {
-                        repository.historyUnlessUpdatedAt(sessionId, limit, unlessUpdatedAt)
-                            ?.let { HistoryRead.Fresh(it) } ?: HistoryRead.Unchanged
-                    } else {
-                        HistoryRead.Fresh(repository.history(sessionId, limit))
+            val read = try {
+                withTimeoutOrNull(HISTORY_ATTEMPT_MS) {
+                    withContext(ioDispatcher) {
+                        if (unlessUpdatedAt != null && limit != null) {
+                            repository.historyUnlessUpdatedAt(sessionId, limit, unlessUpdatedAt)
+                                ?.let { HistoryRead.Fresh(it) } ?: HistoryRead.Unchanged
+                        } else {
+                            HistoryRead.Fresh(repository.history(sessionId, limit))
+                        }
                     }
                 }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // A read cut by the network (the connections dropped on a change of network, a
+                // host the phone could not resolve for a second) is asked again, not shown as an
+                // error (26/10/2026); anything else (a refusal, a missing session) is.
+                val last = attempt == HISTORY_ATTEMPTS - 1
+                if (last || e.engineFailureKind() != EngineFailureKind.UNREACHABLE) throw e
+                Logger.w(LOG_TAG, e) { "History of $sessionId: attempt ${attempt + 1} cut, asking again" }
+                delay(HISTORY_RETRY_PAUSE_MS)
+                return@repeat
             }
             if (read != null) return read
             Logger.w(LOG_TAG) { "History of $sessionId: attempt ${attempt + 1} hung, dropping every connection" }
@@ -1039,6 +1053,9 @@ internal const val HISTORY_TAIL = 40
 
 /** A transcript of 40 messages answers in well under this on a live connection; past it, the connection is suspect. */
 private const val HISTORY_ATTEMPT_MS = 8_000L
+
+/** Before a read cut by the network is asked again: the time a fresh connection takes to come up. */
+private const val HISTORY_RETRY_PAUSE_MS = 500L
 
 /** A user turn carrying exactly these words: a send made mid-turn that reached the engine. */
 private fun MissionChatState.hasUserText(text: String): Boolean = turns.any { turn ->
