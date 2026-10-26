@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="cd_generating_response">Generating response</string>
     <!-- Price shown beside a model's name in every model picker (chat and
          tasks alike). "price unknown" is never rendered as a zero: the
          gateway's price table ignores some models, and a « 0.00 $ » beside a

@@ -19,9 +19,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -35,14 +32,11 @@ import com.garfiec.librechat.feature.tasks.components.PortalSignInDialog
 import com.garfiec.librechat.feature.tasks.resources.Res
 import com.garfiec.librechat.feature.tasks.resources.tasks_empty
 import com.garfiec.librechat.feature.tasks.resources.tasks_empty_hint
-import com.garfiec.librechat.feature.tasks.resources.tasks_not_configured
-import com.garfiec.librechat.feature.tasks.resources.tasks_not_configured_hint
 import com.garfiec.librechat.feature.tasks.resources.tasks_open_drawer
 import com.garfiec.librechat.feature.tasks.resources.tasks_retry
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_intro
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_once_header
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_recurring_header
-import com.garfiec.librechat.feature.tasks.resources.tasks_settings_open
 import com.garfiec.librechat.feature.tasks.resources.tasks_sign_in
 import com.garfiec.librechat.feature.tasks.resources.tasks_title
 import com.garfiec.librechat.feature.tasks.util.hint
@@ -73,7 +67,6 @@ fun TasksScreen(
     viewModel: TasksViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    var configuring by remember { mutableStateOf(false) }
     // Read once into a local: `state` is a delegated property, so the branch below cannot smart-cast
     // through it.
     val failure = state.error
@@ -102,14 +95,6 @@ fun TasksScreen(
             modifier = Modifier.fillMaxSize().padding(padding),
         ) {
             when {
-                // « Not set up » is not « broken ». Offering a retry here would send someone to check
-                // their network over a settings form they have never filled in.
-                !state.engineConfigured -> Explanation(
-                    title = stringResource(Res.string.tasks_not_configured),
-                    hint = stringResource(Res.string.tasks_not_configured_hint),
-                    action = stringResource(Res.string.tasks_settings_open) to { configuring = true },
-                )
-
                 state.loading && nothingToShow ->
                     Column(
                         modifier = Modifier.fillMaxSize(),
@@ -125,22 +110,16 @@ fun TasksScreen(
                         ?: failure.hint()?.let { stringResource(it) },
                     // The offer follows the cause. « Retry » in front of an expired session is a button
                     // that cannot work, and it is the one someone will press five times before
-                    // suspecting their settings.
+                    // suspecting their settings. The address sheet this screen used to open went
+                    // with the review (26/10/2026): the addresses are the sign-in's since D-077.
                     action = when (failure) {
                         // Going through the portal is the remedy, and it was missing entirely until
                         // 24 August: the tab offered the settings form, so the only thing anyone could
                         // do about a missing token was retype a password that had nothing to do with it.
                         EngineFailureKind.AUTHENTICATION ->
                             stringResource(Res.string.tasks_sign_in) to viewModel::signIn
-                        EngineFailureKind.NOT_FOUND ->
-                            stringResource(Res.string.tasks_settings_open) to { configuring = true }
                         EngineFailureKind.PERMISSION -> null
                         else -> stringResource(Res.string.tasks_retry) to viewModel::refresh
-                    },
-                    secondary = if (failure == EngineFailureKind.AUTHENTICATION) {
-                        stringResource(Res.string.tasks_settings_open) to { configuring = true }
-                    } else {
-                        null
                     },
                     busy = state.signingIn,
                 )
@@ -163,19 +142,6 @@ fun TasksScreen(
                 )
             }
         }
-    }
-
-    if (configuring) {
-        EngineSettingsSheet(
-            onDismiss = { configuring = false },
-            onSave = {
-                configuring = false
-                // The screen decided « not configured » from a store that has just changed; without
-                // this it keeps that verdict until the screen is left and re-entered, which reads
-                // as the form having done nothing.
-                viewModel.refresh()
-            },
-        )
     }
 
     // The portal, in the login's web view rather than the browser (D-076): its session cookie is

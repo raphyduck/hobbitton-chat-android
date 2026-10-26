@@ -5,7 +5,6 @@ import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.engine.EngineAttentionWatcher
 import com.garfiec.librechat.core.data.engine.EngineMissionRepository
 import com.garfiec.librechat.core.data.engine.ModelPreference
-import com.garfiec.librechat.feature.tasks.EngineSettingsViewModel
 import com.garfiec.librechat.feature.tasks.MissionChatArgs
 import com.garfiec.librechat.feature.tasks.MissionChatViewModel
 import com.garfiec.librechat.feature.tasks.TasksViewModel
@@ -40,7 +39,6 @@ val tasksModule = module {
     // while signed in.
     single { EngineAttentionWatcher(repository = get(), signals = get()) }
     viewModelOf(::TasksViewModel)
-    viewModelOf(::EngineSettingsViewModel)
     viewModelOf(::UsageViewModel)
     // The session arrives from the navigation layer via parametersOf, as one MissionChatArgs, so the lambda-form viewModel is the only DSL that can read them (viewModelOf
     // wires every arg via get()).

@@ -43,7 +43,7 @@ class EngineStreamClientRetryTest {
         // là, définitivement et sans un mot.
         val transport = TransportEnPanne { IOException("réseau coupé") }
 
-        val collecte = backgroundScope.launch { client.connect("s-1", transport).collect { } }
+        val collecte = backgroundScope.launch { with(client) { frames(transport).forSession("s-1") }.collect { } }
         advanceTimeBy(FENETRE_LONGUE_MS)
         val apresUneLonguePanne = transport.tentatives
         collecte.cancel()
@@ -63,7 +63,7 @@ class EngineStreamClientRetryTest {
         // marteler la route ne ferait que brûler de la batterie sur un échec certain.
         val transport = TransportEnPanne { SseHttpStatusException(401) }
 
-        val collecte = backgroundScope.launch { client.connect("s-1", transport).collect { } }
+        val collecte = backgroundScope.launch { with(client) { frames(transport).forSession("s-1") }.collect { } }
         advanceTimeBy(FENETRE_LONGUE_MS)
         collecte.cancel()
 

@@ -54,8 +54,9 @@ longer per-request timeout; every refusal raises `TranscriptionRefused(status, r
 routes (`GET /question`, all sessions; `POST /question/{id}/reply` with one list of labels per
 question; `POST /question/{id}/reject`, no body). `EngineEventParser` maps `question.asked` to
 `QuestionAsked` (the whole request) and `question.replied` / `question.rejected` to
-`QuestionClosed`. `EngineStreamClient.connectAll` is the same feed unfiltered, each event with its
-session: the attention watcher's.
+`QuestionClosed`. `EngineStreamClient.frames(transport).perSession()` is the same feed unfiltered,
+each event with its session: the attention watcher's (the repository shares one `frames` between the
+conversation and the watcher; the `connect` / `connectAll` shortcuts went on 26/10/2026).
 
 `AgentEngineApi.sendMessage` takes an optional `agent`, but a turn without one runs on the engine's
 default agent (`build`), with none of the session's rules — not on the session's own agent. Every

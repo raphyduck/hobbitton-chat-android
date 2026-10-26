@@ -502,13 +502,6 @@ class MissionChatViewModel(
     }
 
     /**
-     * Seed the conversation from the transcript.
-     *
-     * The stream is opened alongside rather than after: a mission that is running right now would
-     * otherwise have its first tokens dropped while the transcript is being fetched. Both fold into
-     * the same state and the reducer is idempotent, so whichever lands first, the result is the same.
-     */
-    /**
      * The transcript: first the tail the device kept of it, shown at once (26/10/2026, Raphaël:
      * « quand tu reviens dans une conversation qu'on a déjà ouverte, il ne redemande pas
      * nécessairement le reste »), then the engine's, unless the session has not moved since; a
@@ -588,13 +581,6 @@ class MissionChatViewModel(
     }
 
     /**
-     * The transcript, asked again when an attempt hangs (23/10/2026). The engine answers in a
-     * hundredth of a second, yet a conversation sometimes stayed on its placeholders until it was
-     * left and reopened, when a new read came at once: a read that hangs is dropped and re-asked
-     * rather than waited on, and after the third the screen says so instead of waiting for ever.
-     * Null when none came.
-     */
-    /**
      * The transcript, in up to [HISTORY_ATTEMPTS] tries of [HISTORY_ATTEMPT_MS] each. A try that
      * hangs says the connection it went on is dead (26/10/2026: after a sleep or a change of
      * network, the HTTP/2 connection everything multiplexes on stays in OkHttp's pool, and every
@@ -668,6 +654,14 @@ class MissionChatViewModel(
     }
 
     /**
+     * Back in front after a pause (26/10/2026 evening): the session is asked whether it moved or
+     * works since the tail the device kept, and the transcript read only then, folded under what
+     * is on screen; the screen itself is left as it is meanwhile. Before, every return read the
+     * whole tail again and showed the refresh indicator.
+     */
+    fun resume() = loadHistory(trustCache = true, seedFromCache = false)
+
+    /**
      * Re-read the transcript on an open screen.
      *
      * WHY THIS HAS TO EXIST. The screen fills from two places that only meet once: [loadHistory] at
@@ -686,14 +680,6 @@ class MissionChatViewModel(
      * and `engineHistoryEvents` replays full `PartUpdated` parts, never deltas, so nothing is
      * appended twice.
      */
-    /**
-     * Back in front after a pause (26/10/2026 evening): the session is asked whether it moved or
-     * works since the tail the device kept, and the transcript read only then, folded under what
-     * is on screen; the screen itself is left as it is meanwhile. Before, every return read the
-     * whole tail again and showed the refresh indicator.
-     */
-    fun resume() = loadHistory(trustCache = true, seedFromCache = false)
-
     fun refresh() {
         if (sessionId == null) return
         _uiState.update { it.copy(refreshing = true, chat = it.chat.copy(streaming = false)) }

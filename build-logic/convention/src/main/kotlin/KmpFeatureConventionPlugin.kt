@@ -19,7 +19,6 @@ class KmpFeatureConventionPlugin : Plugin<Project> {
                     implementation(project(":core:common"))
                     implementation(libs.findLibrary("koin-compose").get())
                     implementation(libs.findLibrary("koin-compose-viewmodel").get())
-                    implementation(libs.findLibrary("koin-compose-viewmodel-navigation").get())
                     implementation(libs.findLibrary("navigation3-ui-kmp").get())
                     implementation(libs.findLibrary("lifecycle-runtime-compose-kmp").get())
                     implementation(libs.findLibrary("lifecycle-viewmodel-compose-kmp").get())

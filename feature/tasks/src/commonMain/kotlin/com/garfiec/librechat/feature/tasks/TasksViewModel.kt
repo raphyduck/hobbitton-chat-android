@@ -3,7 +3,6 @@ package com.garfiec.librechat.feature.tasks
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
-import com.garfiec.librechat.core.data.engine.EngineSettingsStore
 import com.garfiec.librechat.core.data.engine.EngineSignInProgress
 import com.garfiec.librechat.core.data.engine.EngineSignInResult
 import com.garfiec.librechat.core.data.engine.engineFailureKind
@@ -17,16 +16,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/**
- * What Programmées shows: the scheduler's entries (D-082), and why they could not be read.
- *
- * [engineConfigured] is separate from [error] on purpose: « you have not set the engine up » and
- * « the engine did not answer » are different problems with different remedies, and collapsing them
- * into one red banner sends the person to check their network when they should be filling in a
- * settings form.
- */
+/** What Programmées shows: the scheduler's entries (D-082), and why they could not be read. */
 data class TasksUiState(
-    val engineConfigured: Boolean = true,
     val loading: Boolean = false,
     /**
      * The recurring missions, from the scheduler — a different service from the engine, and the
@@ -86,7 +77,6 @@ enum class EngineSignInProblem {
 
 class TasksViewModel(
     private val scheduler: SchedulerRepository,
-    private val settings: EngineSettingsStore,
     private val portal: PortalTasksSignIn,
 ) : ViewModel() {
 
@@ -162,13 +152,8 @@ class TasksViewModel(
      */
     fun refresh() {
         viewModelScope.launch {
-            if (settings.access() == null) {
-                // Not an error: nothing is broken, the platform simply has not been configured. The
-                // screen offers the settings form rather than a retry button that cannot help.
-                _state.update { it.copy(engineConfigured = false, loading = false, error = null) }
-                return@launch
-            }
-            _state.update { it.copy(engineConfigured = true, loading = true, error = null) }
+            // Signed in means the addresses are set (D-077): no « not configured » state any more.
+            _state.update { it.copy(loading = true, error = null) }
             runCatching { scheduler.isConfigured() to scheduler.missions() }
                 .onSuccess { (configured, missions) ->
                     _state.update {

@@ -35,18 +35,12 @@ class EngineStreamClient(
 ) {
     private val lineParser = SseLineParser()
 
-    fun connect(sessionId: String, transport: EngineEventTransport): Flow<EngineStreamEvent> =
-        frames(transport).forSession(sessionId)
-
     /**
-     * Every session's events, each with the session it names: what a watcher over the whole engine
-     * needs (a question asked in a task nobody has open). Frames that name no session are dropped:
-     * nothing could be done with them here. Same retries, same lifetime as [connect].
+     * One session's events out of the feed's frames: the feed carries every session, keep only the
+     * one on screen. The repository shares one [frames] between the conversation and the watcher
+     * ([perSession]: every session's events, each naming its session; frames that name none are
+     * dropped), so the client offers no shortcut that would open a feed of its own (26/10/2026).
      */
-    fun connectAll(transport: EngineEventTransport): Flow<SessionEvent> =
-        frames(transport).perSession()
-
-    /** One session's events out of the feed's frames: the feed carries every session, keep only the one on screen. */
     fun Flow<EngineEventParser.Parsed>.forSession(sessionId: String): Flow<EngineStreamEvent> =
         filter { it.sessionId == null || it.sessionId == sessionId }.mapNotNull { it.event }
 

@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="cd_generating_response">Antwort wird generiert</string>
     <string name="model_price_per_million">(%1$s / %2$s $/M)</string>
     <string name="model_price_unknown">(Preis unbekannt)</string>
     <string name="model_price_legend">Preis pro Million Tokens: Eingabe / Ausgabe</string>

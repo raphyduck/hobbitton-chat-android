@@ -15,7 +15,6 @@ val commonModule = module {
     // Dispatchers
     single<CoroutineDispatcher>(KoinQualifiers.IO) { ioDispatcher }
     single<CoroutineDispatcher>(KoinQualifiers.Default) { Dispatchers.Default }
-    single<CoroutineDispatcher>(KoinQualifiers.Main) { Dispatchers.Main }
 
     // Note: This scope lives for the entire app process lifetime.
     // Coroutines launched here persist across logout/login cycles.

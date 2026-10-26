@@ -46,7 +46,6 @@ class AndroidComposeConventionPlugin : Plugin<Project> {
                 val bom = libs.findLibrary("compose-bom").get()
                 add("implementation", platform(bom))
                 add("implementation", libs.findBundle("compose").get())
-                add("debugImplementation", libs.findLibrary("compose-ui-tooling").get())
                 add("androidTestImplementation", platform(bom))
                 add("androidTestImplementation", libs.findLibrary("compose-ui-test").get())
                 add("lintChecks", libs.findLibrary("compose-lint-checks").get())

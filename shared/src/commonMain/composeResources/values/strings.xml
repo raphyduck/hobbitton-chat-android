@@ -85,7 +85,6 @@
     <string name="engine_settings_sign_out_hint">Ends the portal session on this device and forgets its chat caches. Your chats and tasks stay on the platform.</string>
     <string name="engine_settings_sign_out_confirm">Sign out</string>
     <string name="engine_settings_cancel">Cancel</string>
-    <string name="engine_drawer_chat">Chat</string>
     <string name="engine_drawer_today">Today</string>
     <string name="engine_drawer_yesterday">Yesterday</string>
     <string name="engine_drawer_previous_week">Previous 7 days</string>
