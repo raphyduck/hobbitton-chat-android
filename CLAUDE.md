@@ -121,8 +121,9 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   `summary` key is an object of diffs on a user message once its turn ended: only a boolean is
   the flag (`SummaryFlagSerializer`; 25/10/2026, read as a boolean it refused every finished
   conversation's history).
-- **Dictation and audio files** (the composer). Since 26/10/2026 (Raphaël: « utilise la même
-  technologie que l'application Claude »), the take is recorded and goes to the scheduler's
+- **Dictation and audio files** (the composer). Since 26/10/2026 (Raphaël: the phone's recognizer
+  cut at pauses and lost passages; « utilise la même technologie que l'application Claude »), the
+  mic records until stop, never cutting at a silence, and the take goes to the scheduler's
   `POST /transcription` (`SchedulerApi.transcribe` → `SchedulerTranscriber`: Whisper large-v3 then
   Cohere Transcribe on the platform's GPU), as Claude's app has a server model transcribe it; the
   recorder is tuned for recognition (`VOICE_RECOGNITION` source, 32 kb/s). Settings → Dictée

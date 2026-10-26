@@ -97,12 +97,12 @@ class SettingsDataStore(
 
     /**
      * The composer's mic heard by the phone's own speech recognition (19/10/2026), OFF by default
-     * since 26/10/2026 (Raphaël: « le petit micro marche beaucoup moins que dans l'application
-     * Claude ; utilise la même technologie »). Claude's app records the take and has a server
-     * model transcribe it; so does Eva now by default, on the platform's own GPU (the scheduler's
-     * `POST /transcription`: Whisper large-v3, then Cohere Transcribe; the voice never leaves the
-     * platform). On, the phone's on-device French recognizer shows the words as they come, less
-     * accurately. A new key, so that the switch every device held from 19/10 (on) does not keep
+     * since 26/10/2026 (Raphaël: « la transcription est trop mauvaise, elle détecte mal quand ça
+     * s'arrête et loupe des passages » ; what matters is the behaviour, not where the audio goes).
+     * The phone's recognizer listens in stretches that end at a pause and restarts between them,
+     * dropping words. Claude's app records until the person taps stop and has a server model
+     * transcribe the whole take; so does Eva now by default (the scheduler's `POST /transcription`:
+     * Whisper large-v3, then Cohere Transcribe). On, the phone's recognizer shows the words live. A new key, so that the switch every device held from 19/10 (on) does not keep
      * the weaker path; audio files go to the scheduler either way.
      */
     val localDictation: Flow<Boolean> = dataStore.data.map { prefs -> prefs[KEY_LOCAL_DICTATION] ?: false }
