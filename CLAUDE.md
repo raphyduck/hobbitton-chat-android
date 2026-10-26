@@ -246,7 +246,9 @@ sheet for the diagnostic log). The shell and the sign-in resolve the engine grap
   25 ms, the time is the phone's). Everything multiplexes on one HTTP/2 connection per host, which
   a sleep or a change of network leaves dead without a word, and OkHttp never evicts a multiplexed
   connection on a timeout: the connections PING every 20 s (`PING_INTERVAL_SECONDS`), a transcript
-  read that hangs 8 s drops them all before its retry (`ConnectionReset`, `OkHttpConnections`:
+  read that hangs drops them all before its retry (3 s for the first try since 26/10/2026, 8 s
+  after: a person who waits four seconds on the placeholders leaves, and went back and reopened
+  to an instant screen; the opening logs at Info what it kept and how long the read took) (`ConnectionReset`, `OkHttpConnections`:
   the calls cancelled, the pool emptied; `repository.dropConnections()`), and so does a change of
   the DEFAULT network (`ConnectivityObserver.networkChanges`: `registerDefaultNetworkCallback`, the first
   callback skipped, a loss and a gain within 1,5 s folded into one by `LibreChatApplication`; the
