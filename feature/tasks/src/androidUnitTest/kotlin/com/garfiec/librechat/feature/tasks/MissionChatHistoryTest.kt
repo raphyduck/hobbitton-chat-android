@@ -16,6 +16,7 @@ import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -90,22 +91,26 @@ class MissionChatHistoryTest {
     }
 
     @Test
-    fun `a screen still on its placeholders after ten seconds starts its opening over`() {
-        // 26/10/2026: the placeholders stayed for good, with no line in the journal; leaving and
-        // reopening showed the conversation at once. Here the device's own cache never answers.
-        coEvery { repository.cachedHistory("ses_1") } coAnswers { awaitCancellation() }
-        coEvery { repository.history("ses_1", any()) } returns listOf(EngineStreamEvent.MessageStarted("m1", "user"))
+    fun `a delta during the opening read leaves that read alone`() {
+        // 26/10/2026 evening: a conversation opened while its session wrote. Each orphan delta
+        // had the transcript read again, which cancelled the read in progress; on a link where a
+        // read takes a few seconds, none ever landed. The read on its way names the part.
+        coEvery { repository.history("ses_1", any()) } coAnswers {
+            delay(5_000)
+            listOf(EngineStreamEvent.MessageStarted("m1", "user"))
+        }
+        every { repository.events(any()) } returns flowOf(
+            EngineStreamEvent.PartDelta("msg_live", "prt_live", "text", "Je "),
+        )
         val vm = viewModel()
-
-        dispatcher.scheduler.advanceTimeBy(9_000)
         assertThat(vm.uiState.value.loadingHistory).isTrue()
 
-        dispatcher.scheduler.advanceTimeBy(2_000)
+        dispatcher.scheduler.advanceTimeBy(6_000)
 
         assertThat(vm.uiState.value.loadingHistory).isFalse()
-        assertThat(vm.uiState.value.chat.turns.map { it.key }).isEqualTo(listOf("m1"))
-        coVerify(exactly = 1) { repository.dropConnections() }
+        assertThat(vm.uiState.value.chat.turns.map { it.key }).containsExactly("m1", "msg_live").inOrder()
         coVerify(exactly = 1) { repository.history("ses_1", any()) }
+        coVerify(exactly = 0) { repository.dropConnections() }
     }
 
     @Test

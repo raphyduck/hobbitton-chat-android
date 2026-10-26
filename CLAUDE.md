@@ -246,19 +246,26 @@ sheet for the diagnostic log). The shell and the sign-in resolve the engine grap
   25 ms, the time is the phone's). Everything multiplexes on one HTTP/2 connection per host, which
   a sleep or a change of network leaves dead without a word, and OkHttp never evicts a multiplexed
   connection on a timeout: the connections PING every 20 s (`PING_INTERVAL_SECONDS`), a transcript
-  read that hangs drops them all before its retry (3 s for the first try since 26/10/2026, 8 s
-  after: a person who waits four seconds on the placeholders leaves, and went back and reopened
-  to an instant screen; the opening logs at Info what it kept and how long the read took; a screen still on its
-  placeholders after 10 s, whatever the stage, logs it, drops every connection and starts its
-  opening over once, `watchOpening`: Raphaël's placeholders stayed for good with no line in the
-  journal, and leaving then reopening showed the conversation at once) (`ConnectionReset`, `OkHttpConnections`:
+  read that hangs drops them all before its retry (8 s per try; the 3 s first try and the 10 s
+  opening watchdog of v2026.10.47 and .48 are gone, 26/10/2026 evening: the journal showed 2 to
+  5 s reads cut as « hung » and the watchdog watched the wrong thing; the opening logs at Info
+  what it kept and how long the read took) (`ConnectionReset`, `OkHttpConnections`:
   the calls cancelled, the pool emptied; `repository.dropConnections()`), and so does a change of
   the DEFAULT network (`ConnectivityObserver.networkChanges`: `registerDefaultNetworkCallback`, the first
   callback skipped, a loss and a gain within 1,5 s folded into one by `LibreChatApplication`; the
   v2026.10.43 regression listened to every network, and the mobile one comes and goes every few
   seconds under Wi-Fi: each time the transcript being read was killed, two minutes of placeholders). The
   transcript goes first: the catalogue (models, connectors, level, prices) is read once it has
-  landed (`catalogueRequested`). The feed is read ONCE per app (`EngineMissionRepository.feed`,
+  landed (`catalogueRequested`). **The conversation screen collects its state with
+  `collectAsState`, never with the lifecycle-bound collector** (26/10/2026 evening, Raphaël's
+  recording and journal: the transcript had landed 1,4 s after the tap, the placeholders stayed
+  11 s, and the screen's first ON_RESUME came only when the app was left and brought back).
+  Navigation 3 gives each entry a lifecycle of its own, capped below RESUMED until it counts the
+  entry as shown; a `collectAsStateWithLifecycle` on it then keeps the initial state whatever the
+  ViewModel loaded. The screen logs at Warn an entry still not RESUMED 2 s after composition
+  (`ENTRY_RESUME_GRACE_MS`): the next journal names the state. A reconciliation
+  (`reconcileHistory`) never cancels a read in progress: while a session writes, the deltas come
+  faster than a slow read lands. The feed is read ONCE per app (`EngineMissionRepository.feed`,
   `shareIn` on the application scope, 5 s of linger): the conversation and the attention watcher
   used to download the engine's whole traffic twice. The drawer tells a session's kind from its
   last two messages (`CLASSIFICATION_TAIL`), not its whole transcript (ten of them, megabytes, read
