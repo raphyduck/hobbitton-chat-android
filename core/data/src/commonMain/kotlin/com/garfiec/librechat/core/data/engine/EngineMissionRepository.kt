@@ -260,7 +260,12 @@ class EngineMissionRepository(
         val reads = if (searching) MAX_SEARCH_CLASSIFICATION_READS else MAX_CLASSIFICATION_READS
         for (session in sessions) {
             if (chats.size >= limit) break
-            val mission = session.title?.let(::scheduledMissionName) ?: runs[session.id]?.mission
+            // A run the scheduler played INSIDE a conversation (a reminder set from it, a relance's
+            // decision; 26/10/2026) is not that conversation's kind: the session keeps its title and
+            // is unread whenever it moved. Before that flag, such a conversation was listed under
+            // the mission's name, read while the run lasted or when it had « rien à signaler ».
+            val run = runs[session.id]?.takeUnless { it.inConversation }
+            val mission = session.title?.let(::scheduledMissionName) ?: run?.mission
             val title = mission?.let(::missionDisplayName) ?: session.title.orEmpty().ifBlank { session.id }
             // Before any transcript is read: a run never costs the drawer one, nor does a session
             // the search does not name.
@@ -289,7 +294,7 @@ class EngineMissionRepository(
                     running = active != null && active.type != IDLE_STATUS,
                     kind = kind,
                     scheduled = mission != null,
-                    unread = moved && runUnread(mission, runs[session.id]),
+                    unread = moved && runUnread(mission, run),
                 )
             }
         }

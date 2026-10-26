@@ -81,7 +81,9 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   marked it read (22/10/2026: its unread mission withdrew a question a reply had made moot,
   `retirer_question`, read back through `conversations_lues`); for a run, also « had
   something to say »: the scheduler's `historique(json_brut=True)` carries `a_signaler`, false when
-  the run answered « RIEN À SIGNALER » (`runHasNews`).
+  the run answered « RIEN À SIGNALER » (`runHasNews`). A run played inside a conversation (a
+  reminder, a relance's decision; the scheduler's `conversation` flag, 26/10/2026) never makes that
+  conversation a run: it keeps its title and is unread whenever it moved.
   A **discreet** mission (Raphaël's rule, 19/10/2026: the guet's lots crowded both lists) keeps its
   runs out of both, failed or not (`runHidden`, the scheduler's `discrete` on each run; Raphaël,
   20/10/2026: the failing runs filled the drawer; a failure shows on its row under Programmées); its history stays under Programmées, whose actions sheet hides or shows it

@@ -14,6 +14,11 @@ import kotlinx.serialization.Serializable
  *
  * [discreet] (19/10/2026): its mission keeps its runs out of the conversation lists (a background
  * mission, which speaks through a report or a decision conversation); only a failed run shows.
+ *
+ * [inConversation] (26/10/2026): the run was played inside a conversation of the app, a reminder
+ * set from it (19/10/2026) or a relance posing its decision in its own conversation (kit #147),
+ * not in a session of its own. Such a run says nothing about the conversation's kind, title or
+ * unread state: the conversation keeps its own, and is unread whenever it moved.
  */
 @Serializable
 data class SchedulerRun(
@@ -24,4 +29,5 @@ data class SchedulerRun(
     @SerialName("incomplet") val incomplete: Boolean = false,
     @SerialName("a_signaler") val hasNews: Boolean? = null,
     @SerialName("discrete") val discreet: Boolean = false,
+    @SerialName("conversation") val inConversation: Boolean = false,
 )
