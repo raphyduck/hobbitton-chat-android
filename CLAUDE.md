@@ -96,7 +96,10 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   (Raphaël, 23/10/2026: the position saved per conversation from 31/08 kept reopening at the wrong
   place, then the start of the last message left a long one opening higher), once the history
   call has ended, not at the feed's first turn (`MissionTurns`); a history read that hangs is
-  dropped after 10 s and asked again, three times, then the screen says so (23/10/2026). A message typed while the session
+  dropped after 10 s and asked again, three times, then the screen says so (23/10/2026). It reads
+  the last 40 messages only (`HISTORY_TAIL`, the engine's `limit`; 26/10/2026, Raphaël: switching
+  conversations took too long, the heaviest weighed 2.7 MB), « Messages précédents » at the top
+  reading the whole transcript (`loadEarlierHistory`, folded from nothing to keep the order). A message typed while the session
   works goes out at once (23/10/2026): the engine records it and the running turn reads it at its
   next step, never interrupted; send shows over stop as long as something is staged. An image a
   message names in markdown, `![description](https://…)`, is drawn in the message (23/10/2026,
@@ -121,8 +124,9 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   `summary` key is an object of diffs on a user message once its turn ended: only a boolean is
   the flag (`SummaryFlagSerializer`; 25/10/2026, read as a boolean it refused every finished
   conversation's history).
-- **Dictation and audio files** (the composer). Since 26/10/2026 (Raphaël: « utilise la même
-  technologie que l'application Claude »), the take is recorded and goes to the scheduler's
+- **Dictation and audio files** (the composer). Since 26/10/2026 (Raphaël: the phone's recognizer
+  cut at pauses and lost passages; « utilise la même technologie que l'application Claude »), the
+  mic records until stop, never cutting at a silence, and the take goes to the scheduler's
   `POST /transcription` (`SchedulerApi.transcribe` → `SchedulerTranscriber`: Whisper large-v3 then
   Cohere Transcribe on the platform's GPU), as Claude's app has a server model transcribe it; the
   recorder is tuned for recognition (`VOICE_RECOGNITION` source, 32 kb/s). Settings → Dictée

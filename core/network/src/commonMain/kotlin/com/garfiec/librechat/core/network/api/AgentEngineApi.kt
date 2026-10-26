@@ -187,9 +187,17 @@ class AgentEngineApi(
     suspend fun status(): Map<String, EngineSessionStatus> =
         client.get { url { path("session/status") } }.decoded()
 
-    suspend fun messages(sessionId: String): List<EngineMessage> =
+    /**
+     * The session's messages, oldest first; with [limit], only the LAST [limit] of them (26/10/2026:
+     * the engine's `limit` keeps the tail, its `before` answers 400 whatever it is given). The
+     * heaviest conversation weighed 2.7 MB whole and 23 KB for its last three messages.
+     */
+    suspend fun messages(sessionId: String, limit: Int? = null): List<EngineMessage> =
         client.get {
-            url { path("session/${sessionId.encodeURLPathPart()}/message") }
+            url {
+                path("session/${sessionId.encodeURLPathPart()}/message")
+                if (limit != null) parameters.append("limit", limit.toString())
+            }
         }.decoded()
 
     /**

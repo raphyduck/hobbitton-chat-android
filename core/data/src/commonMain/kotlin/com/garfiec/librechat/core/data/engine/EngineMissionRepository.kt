@@ -381,8 +381,8 @@ class EngineMissionRepository(
      * tailing [events] afterwards is what makes the chat open on a conversation instead of a blank
      * page — the bug the tab shipped with on 29/08/2026.
      */
-    suspend fun history(sessionId: String): List<EngineStreamEvent> {
-        return engineHistoryEvents(api.messages(sessionId))
+    suspend fun history(sessionId: String, limit: Int? = null): List<EngineStreamEvent> {
+        return engineHistoryEvents(api.messages(sessionId, limit))
     }
 
     /**

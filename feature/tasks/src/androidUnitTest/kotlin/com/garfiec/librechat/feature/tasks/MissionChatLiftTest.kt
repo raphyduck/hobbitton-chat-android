@@ -36,7 +36,7 @@ class MissionChatLiftTest {
         coEvery { it.models() } throws IllegalStateException("pas de catalogue")
         // A catalogue with nothing in it: enough for the scope, and its level, to be read.
         coEvery { it.connectors() } returns ConnectorCatalogue()
-        coEvery { it.history(any()) } returns emptyList()
+        coEvery { it.history(any(), any()) } returns emptyList()
         every { it.events(any()) } returns emptyFlow()
         coEvery { it.sendMessage(any(), any(), any(), any()) } returns emptyList()
     }

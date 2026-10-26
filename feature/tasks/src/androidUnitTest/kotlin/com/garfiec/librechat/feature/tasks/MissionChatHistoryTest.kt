@@ -3,6 +3,7 @@ package com.garfiec.librechat.feature.tasks
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.engine.EngineMissionRepository
 import com.garfiec.librechat.core.data.engine.TranscriptionOutcome
+import com.garfiec.librechat.core.model.engine.EngineStreamEvent
 import com.google.common.truth.Truth.assertThat
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -61,7 +62,7 @@ class MissionChatHistoryTest {
 
     @Test
     fun `a read that hangs is asked again`() {
-        coEvery { repository.history("ses_1") } coAnswers {
+        coEvery { repository.history("ses_1", any()) } coAnswers {
             if (reads++ == 0) awaitCancellation() else emptyList()
         }
         val vm = viewModel()
@@ -71,18 +72,51 @@ class MissionChatHistoryTest {
 
         assertThat(vm.uiState.value.loadingHistory).isFalse()
         assertThat(vm.uiState.value.historyError).isNull()
-        coVerify(exactly = 2) { repository.history("ses_1") }
+        coVerify(exactly = 2) { repository.history("ses_1", any()) }
     }
 
     @Test
     fun `reads that keep hanging end on an error, not on the placeholders`() {
-        coEvery { repository.history("ses_1") } coAnswers { awaitCancellation() }
+        coEvery { repository.history("ses_1", any()) } coAnswers { awaitCancellation() }
         val vm = viewModel()
 
         dispatcher.scheduler.advanceTimeBy(31_000)
 
         assertThat(vm.uiState.value.loadingHistory).isFalse()
         assertThat(vm.uiState.value.historyError).isNotNull()
-        coVerify(exactly = 3) { repository.history("ses_1") }
+        coVerify(exactly = 3) { repository.history("ses_1", any()) }
+    }
+
+    @Test
+    fun `a conversation opens on its last messages, the rest on demand`() {
+        // 26/10/2026, Raphaël : changer de conversation prenait trop de temps ; la plus grosse pesait
+        // 2,7 Mo entière, 23 Ko pour ses trois derniers messages.
+        fun message(i: Int) = listOf(
+            EngineStreamEvent.MessageStarted("m$i", if (i % 2 == 1) "user" else "assistant"),
+            EngineStreamEvent.PartDelta("m$i", "p$i", "text", "message $i"),
+        )
+        coEvery { repository.history("ses_1", HISTORY_TAIL) } returns (11..50).flatMap(::message)
+        coEvery { repository.history("ses_1", null) } returns (1..50).flatMap(::message)
+        val vm = viewModel()
+
+        assertThat(vm.uiState.value.chat.turns.map { it.key }).isEqualTo((11..50).map { "m$it" })
+        assertThat(vm.uiState.value.historyTruncated).isTrue()
+
+        vm.loadEarlierHistory()
+
+        assertThat(vm.uiState.value.chat.turns.map { it.key }).isEqualTo((1..50).map { "m$it" })
+        assertThat(vm.uiState.value.historyTruncated).isFalse()
+        assertThat(vm.uiState.value.loadingEarlier).isFalse()
+        coVerify(exactly = 1) { repository.history("ses_1", null) }
+    }
+
+    @Test
+    fun `fewer messages than asked for means the whole conversation is already on screen`() {
+        coEvery { repository.history("ses_1", HISTORY_TAIL) } returns listOf(EngineStreamEvent.MessageStarted("m1", "user"))
+        val vm = viewModel()
+
+        assertThat(vm.uiState.value.historyTruncated).isFalse()
+        vm.loadEarlierHistory()
+        coVerify(exactly = 0) { repository.history("ses_1", null) }
     }
 }
