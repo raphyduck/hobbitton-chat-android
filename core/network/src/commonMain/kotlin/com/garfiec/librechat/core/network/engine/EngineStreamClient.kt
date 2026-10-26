@@ -36,10 +36,7 @@ class EngineStreamClient(
     private val lineParser = SseLineParser()
 
     fun connect(sessionId: String, transport: EngineEventTransport): Flow<EngineStreamEvent> =
-        frames(transport)
-            // The feed carries every session; keep only the one on screen.
-            .filter { it.sessionId == null || it.sessionId == sessionId }
-            .mapNotNull { it.event }
+        frames(transport).forSession(sessionId)
 
     /**
      * Every session's events, each with the session it names: what a watcher over the whole engine
@@ -47,7 +44,15 @@ class EngineStreamClient(
      * nothing could be done with them here. Same retries, same lifetime as [connect].
      */
     fun connectAll(transport: EngineEventTransport): Flow<SessionEvent> =
-        frames(transport).mapNotNull { parsed ->
+        frames(transport).perSession()
+
+    /** One session's events out of the feed's frames: the feed carries every session, keep only the one on screen. */
+    fun Flow<EngineEventParser.Parsed>.forSession(sessionId: String): Flow<EngineStreamEvent> =
+        filter { it.sessionId == null || it.sessionId == sessionId }.mapNotNull { it.event }
+
+    /** Every session's events, each with its session, out of the feed's frames. */
+    fun Flow<EngineEventParser.Parsed>.perSession(): Flow<SessionEvent> =
+        mapNotNull { parsed ->
             val sessionId = parsed.sessionId ?: return@mapNotNull null
             parsed.event?.let { SessionEvent(sessionId, it) }
         }
@@ -55,7 +60,13 @@ class EngineStreamClient(
     /** One event of the global feed and the session it belongs to. */
     data class SessionEvent(val sessionId: String, val event: EngineStreamEvent)
 
-    private fun frames(transport: EngineEventTransport): Flow<EngineEventParser.Parsed> = flow {
+    /**
+     * The feed's parsed frames, kept open across drops. One subscription is one `GET /event` on the
+     * engine, which sends every session's traffic: a phone shares a single one between the
+     * conversation on screen and the attention watcher (26/10/2026, the repository's `shareIn`),
+     * where it used to download the feed twice.
+     */
+    fun frames(transport: EngineEventTransport): Flow<EngineEventParser.Parsed> = flow {
         var attempt = 0
 
         while (true) {

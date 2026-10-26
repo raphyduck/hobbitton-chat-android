@@ -17,7 +17,10 @@ HTTP layer of the engine, the scheduler and the portal. Ktor Client on OkHttp.
 - **`sse/`** — `SseLineParser` (the custom event-stream parser over the raw byte stream — not
   Ktor's SSE plugin), `SseEvent`, `SseStreamException`, `SseHttpStatusException`.
 - **`di/`** — `networkModule`: the app's `Json` (`librechatJson`) and, per platform, the HTTP
-  engine factory (OkHttp). The clients themselves are built in `:core:data`'s `engineModule`.
+  engine factory (OkHttp: `OkHttpWithRoom`, 32 requests per host, its own pool and dispatcher per
+  client, HTTP/2 PINGs every 20 s) and `ConnectionReset` (`OkHttpConnections.dropAll`: every call
+  cancelled, every pool emptied; what a hung request or a change of network calls for, 26/10/2026).
+  The clients themselves are built in `:core:data`'s `engineModule`.
 
 ## The portal's bearer: the only credential for the engine and the scheduler (D-076)
 

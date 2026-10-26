@@ -15,6 +15,7 @@ import io.ktor.client.plugins.defaultRequest
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 
@@ -32,15 +33,18 @@ internal fun testMissionRepository(
     kinds: SessionKindStore = InMemorySessionKinds(),
     reads: ConversationReads? = null,
     modelPreference: ModelPreference? = null,
+    eventTransport: EngineEventTransport = SilentEventTransport,
+    sharingScope: CoroutineScope? = null,
 ): EngineMissionRepository = EngineMissionRepository(
     api = AgentEngineApi(engineTestClient(engine)),
     scheduler = SchedulerApi(engineTestClient(engine), librechatJson),
     streamClient = EngineStreamClient(EngineEventParser(librechatJson)),
-    eventTransport = SilentEventTransport,
+    eventTransport = eventTransport,
     globalProfile = globalProfile,
     kinds = kinds,
     reads = reads,
     modelPreference = modelPreference,
+    sharingScope = sharingScope,
 )
 
 /**

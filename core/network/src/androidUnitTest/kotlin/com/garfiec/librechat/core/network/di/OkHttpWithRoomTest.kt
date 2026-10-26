@@ -1,10 +1,12 @@
 package com.garfiec.librechat.core.network.di
 
 import io.ktor.client.HttpClient
+import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.Test
@@ -56,6 +58,35 @@ class OkHttpWithRoomTest {
             client.close()
             server.close()
             acceptor.interrupt()
+        }
+    }
+
+    /**
+     * A request on a connection that never answers is freed by [OkHttpConnections.dropAll] at once,
+     * not by a timeout (26/10/2026: the dead connection left by a sleep held every retry).
+     */
+    @Test
+    fun droppingTheConnectionsFailsAHungRequestAtOnce() = runBlocking {
+        val server = ServerSocket(0)
+        val mute = thread(isDaemon = true) {
+            runCatching { server.accept() }.getOrNull()?.let { socket ->
+                runCatching { Thread.sleep(60_000) }
+                socket.close()
+            }
+        }
+        val client = HttpClient(OkHttpWithRoom) { install(HttpTimeout) { socketTimeoutMillis = 60_000 } }
+        try {
+            val started = System.nanoTime()
+            val request = async { runCatching { client.get("http://127.0.0.1:${server.localPort}/hung").bodyAsText() } }
+            delay(500)
+            OkHttpConnections.dropAll()
+            val outcome = withTimeout(5_000) { request.await() }
+            assertTrue(outcome.isFailure)
+            assertTrue((System.nanoTime() - started) / 1_000_000 < 5_000)
+        } finally {
+            client.close()
+            server.close()
+            mute.interrupt()
         }
     }
 }

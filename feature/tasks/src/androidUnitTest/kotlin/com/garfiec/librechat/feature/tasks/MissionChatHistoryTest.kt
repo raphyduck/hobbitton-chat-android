@@ -9,6 +9,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.awaitCancellation
@@ -73,6 +74,26 @@ class MissionChatHistoryTest {
         assertThat(vm.uiState.value.loadingHistory).isFalse()
         assertThat(vm.uiState.value.historyError).isNull()
         coVerify(exactly = 2) { repository.history("ses_1", any()) }
+        // 26/10/2026 : l'essai suspendu dit que la connexion est morte ; on la jette avant le suivant.
+        verify(exactly = 1) { repository.dropConnections() }
+    }
+
+    @Test
+    fun `the catalogue waits for the transcript`() {
+        // 26/10/2026 : modèles, connecteurs, niveau et tarifs partaient avec la transcription et lui
+        // prenaient sa bande passante ; l'écran, c'est la transcription.
+        coEvery { repository.history("ses_1", any()) } coAnswers {
+            if (reads++ == 0) awaitCancellation() else emptyList()
+        }
+        val vm = viewModel()
+        coVerify(exactly = 0) { repository.models() }
+        coVerify(exactly = 0) { repository.connectors() }
+
+        dispatcher.scheduler.advanceTimeBy(11_000)
+
+        assertThat(vm.uiState.value.loadingHistory).isFalse()
+        coVerify(exactly = 1) { repository.models() }
+        coVerify(exactly = 1) { repository.connectors() }
     }
 
     @Test

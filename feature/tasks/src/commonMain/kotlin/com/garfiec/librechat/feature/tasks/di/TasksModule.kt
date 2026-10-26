@@ -31,6 +31,8 @@ val tasksModule = module {
             kinds = get(),
             reads = get(),
             modelPreference = ModelPreference { settings.defaultChatModel.first() },
+            connections = get(),
+            sharingScope = get(KoinQualifiers.ApplicationScope),
         )
     }
     // Questions asked anywhere on the engine, rung through the attention signals: the shell runs it
