@@ -125,10 +125,22 @@ data class ToolArgument(val name: String, val value: String)
 
 enum class ToolState { RUNNING, OK, FAILED }
 
+/** Whether the screen has seen [partId] of [messageId] announced (a snapshot, live or replayed). */
+fun MissionChatState.knowsPart(messageId: String, partId: String): Boolean =
+    turns.any { turn ->
+        turn.key == messageId && when (turn) {
+            is ChatTurn.User -> turn.parts
+            is ChatTurn.Assistant -> turn.parts
+        }.any { it.id == partId }
+    }
+
 /**
  * Apply one event. Idempotent under replay: a message or part seen twice is updated in place rather
  * than duplicated, which is what lets the screen seed from history and then tail the feed without the
- * seam showing.
+ * seam showing. A message not seen before takes its place in the ORDER of the ids (26/10/2026), not
+ * at the end: the engine's ids grow with time, and the transcript is folded from three sources that
+ * overlap (the tail the device kept, the engine's read, the live feed), so a message older than the
+ * live turn used to land after it, its steps drawn under the ones that followed them.
  */
 fun MissionChatState.reduce(event: EngineStreamEvent): MissionChatState = when (event) {
     is EngineStreamEvent.MessageStarted -> {
@@ -155,7 +167,7 @@ fun MissionChatState.reduce(event: EngineStreamEvent): MissionChatState = when (
                 },
             )
             event.role == ROLE_USER ->
-                copy(turns = turns + ChatTurn.User(event.messageId))
+                copy(turns = turns.withNewTurn(ChatTurn.User(event.messageId)))
             // Ne marque PAS le tour comme en cours. Un transcript rejoué émet un
             // `MessageStarted` par message d'assistant, sans `Idle` derrière : le faire
             // ici laissait le bouton Stop allumé en permanence sur une session terminée
@@ -163,13 +175,13 @@ fun MissionChatState.reduce(event: EngineStreamEvent): MissionChatState = when (
             // parle maintenant — et seul le flux vivant en émet.
             event.summary ->
                 copy(
-                    turns = (turns + ChatTurn.Assistant(event.messageId, error = event.error, summary = true))
+                    turns = turns.withNewTurn(ChatTurn.Assistant(event.messageId, error = event.error, summary = true))
                         .withSummarySize(event.summarySize()),
                     contextTokens = event.summarySize() ?: contextTokens,
                 )
             else ->
                 copy(
-                    turns = turns + ChatTurn.Assistant(event.messageId, error = event.error),
+                    turns = turns.withNewTurn(ChatTurn.Assistant(event.messageId, error = event.error)),
                     model = event.model ?: model,
                     contextTokens = event.contextOr(contextTokens),
                 )
@@ -217,7 +229,7 @@ private fun List<ChatTurn>.withCompaction(messageId: String, partId: String, con
     val known = flatMap { turn -> if (turn is ChatTurn.User) turn.parts else emptyList() }
         .filterIsInstance<ChatPart.Compaction>().firstOrNull { it.id == partId }
     val part = known ?: ChatPart.Compaction(partId, contextBefore = context)
-    val base = if (any { it.key == messageId }) this else this + ChatTurn.User(messageId)
+    val base = if (any { it.key == messageId }) this else withNewTurn(ChatTurn.User(messageId))
     return base.map { turn ->
         if (turn.key != messageId || turn !is ChatTurn.User) return@map turn
         turn.copy(parts = turn.parts.filterNot { it.id == partId } + part)
@@ -318,9 +330,18 @@ private fun JsonElement?.asToolArguments(): List<ToolArgument> {
     }
 }
 
+/**
+ * A message the screen has not seen, at its place: the engine's ids grow with time, so the order of
+ * the keys is the order of the conversation. Appended when it is the newest, the common case.
+ */
+private fun List<ChatTurn>.withNewTurn(turn: ChatTurn): List<ChatTurn> {
+    val index = indexOfFirst { it.key > turn.key }
+    return if (index < 0) this + turn else take(index) + turn + drop(index)
+}
+
 /** Upsert a part into its message, creating the message if the feed named it before announcing it. */
 private fun List<ChatTurn>.withPart(messageId: String, part: ChatPart): List<ChatTurn> {
-    val base = if (any { it.key == messageId }) this else this + ChatTurn.Assistant(messageId)
+    val base = if (any { it.key == messageId }) this else withNewTurn(ChatTurn.Assistant(messageId))
     return base.map { turn ->
         if (turn.key != messageId) return@map turn
         turn.mapParts { parts ->
@@ -333,15 +354,34 @@ private fun List<ChatTurn>.withPart(messageId: String, part: ChatPart): List<Cha
     }
 }
 
+/**
+ * A delta on a part the screen knows grows it: prose in its bubble, reasoning inside its fold (so
+ * a fold the reader opened follows the thinking).
+ *
+ * A delta on a part the screen was never told of (26/10/2026: the feed was joined after the part
+ * began) is of unknown kind. The person's own words can only be prose; the assistant's are taken
+ * for REASONING until a snapshot says otherwise, and the view model asks the transcript again,
+ * which names the part within the second. Taken for prose, as before, a model's thinking streamed
+ * as a full-width markdown answer and folded away when its snapshot came, several screens at a
+ * time: the conversation jumped on every step. An answer taken for reasoning merely unfolds when
+ * it is named.
+ */
 private fun List<ChatTurn>.appendingText(messageId: String, partId: String, delta: String): List<ChatTurn> {
-    val base = if (any { it.key == messageId }) this else this + ChatTurn.Assistant(messageId)
+    val base = if (any { it.key == messageId }) this else withNewTurn(ChatTurn.Assistant(messageId))
     return base.map { turn ->
         if (turn.key != messageId) return@map turn
         turn.mapParts { parts ->
-            if (parts.any { it.id == partId }) {
-                parts.map { if (it is ChatPart.Text && it.id == partId) it.copy(text = it.text + delta) else it }
+            if (parts.none { it.id == partId }) {
+                parts + if (turn is ChatTurn.User) ChatPart.Text(partId, delta) else ChatPart.Reasoning(partId, delta)
             } else {
-                parts + ChatPart.Text(partId, delta)
+                parts.map { part ->
+                    when {
+                        part.id != partId -> part
+                        part is ChatPart.Text -> part.copy(text = part.text + delta)
+                        part is ChatPart.Reasoning -> part.copy(text = part.text + delta)
+                        else -> part
+                    }
+                }
             }
         }
     }

@@ -101,7 +101,13 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   dropped after 10 s and asked again, three times, then the screen says so (23/10/2026). It reads
   the last 40 messages only (`HISTORY_TAIL`, the engine's `limit`; 26/10/2026, Raphaël: switching
   conversations took too long, the heaviest weighed 2.7 MB), « Messages précédents » at the top
-  reading the whole transcript (`loadEarlierHistory`, folded from nothing to keep the order). A message typed while the session
+  reading the whole transcript (`loadEarlierHistory`, folded under what is on screen: since 26/10/2026 the reducer puts a message it
+  has not seen at its place in the order of the ids, which grow with time, instead of appending it). A
+  text delta on a part the screen was never told of (opened while the session thought, a feed that
+  reconnected) draws nothing and has the transcript read again (`reconcileHistory`, 3 s apart at
+  most): its kind is unknown, and drawn as prose a model's reasoning filled the screen then folded
+  away at the step's end, the conversation jumping on every step (26/10/2026, Raphaël's recording).
+  Reasoning deltas grow their part inside its fold. A message typed while the session
   works goes out at once (23/10/2026): the engine records it and the running turn reads it at its
   next step, never interrupted; send shows over stop as long as something is staged. An image a
   message names in markdown, `![description](https://…)`, is drawn in the message (23/10/2026,

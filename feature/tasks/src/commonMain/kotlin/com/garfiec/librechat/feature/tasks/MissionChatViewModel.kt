@@ -33,6 +33,7 @@ import com.garfiec.librechat.feature.tasks.util.MissionChatState
 import com.garfiec.librechat.feature.tasks.util.QuestionDraft
 import com.garfiec.librechat.feature.tasks.util.StagedAttachment
 import com.garfiec.librechat.feature.tasks.util.asPromptPart
+import com.garfiec.librechat.feature.tasks.util.knowsPart
 import com.garfiec.librechat.feature.tasks.util.outgoingMessageText
 import com.garfiec.librechat.feature.tasks.util.reduce
 import com.garfiec.librechat.feature.tasks.util.withPendingQuestions
@@ -48,6 +49,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.time.Clock
 
 /**
  * One mission session, as a conversation you can talk to.
@@ -658,11 +660,33 @@ class MissionChatViewModel(
             repository.events(sessionId)
                 .flowOn(ioDispatcher)
                 .collect { event ->
+                    if (event.isOrphanDelta()) reconcileHistory()
                     _uiState.update { it.copy(chat = it.chat.reduce(event)) }
                     watchForReply(sessionId, event)
                 }
         }
     }
+
+    /** A text delta on a part this screen was never told of: the feed was joined after the part began. */
+    private fun EngineStreamEvent.isOrphanDelta(): Boolean =
+        this is EngineStreamEvent.PartDelta && field == "text" && !_uiState.value.chat.knowsPart(messageId, partId)
+
+    /**
+     * The transcript, asked again because the feed named a part the screen does not know
+     * (26/10/2026): the screen joined the feed after the part was announced (a conversation opened
+     * while its session worked, a feed that reconnected). The reducer draws nothing for such a
+     * part, since it cannot tell an answer from a model's reasoning: the read names it, and the
+     * deltas that follow land in the right place. Once every [RECONCILE_PAUSE_MS] at most, since the
+     * deltas keep coming while the read is on its way.
+     */
+    private fun reconcileHistory() {
+        val now = Clock.System.now().toEpochMilliseconds()
+        if (now - lastReconcileMillis < RECONCILE_PAUSE_MS) return
+        lastReconcileMillis = now
+        loadHistory(trustCache = false)
+    }
+
+    private var lastReconcileMillis = 0L
 
     /**
      * « Reply ready », for a turn this screen saw start and that ended while the person was not
@@ -1010,10 +1034,9 @@ class MissionChatViewModel(
     }
 
     /**
-     * The whole transcript, on demand. Folded from nothing, not under the turns on screen: the
-     * reducer appends a message it has not seen, and the older ones would land after the newer.
-     * The live fields (a turn streaming, the questions, the context) stay the screen's, newer than
-     * this read; the last turn's text catches up on the feed's next snapshot.
+     * The whole transcript, on demand, folded under the turns on screen: since 26/10/2026 the
+     * reducer puts a message it has not seen at its place in the order of the ids, so the older
+     * messages land before the live turn, whose streaming text is kept.
      */
     fun loadEarlierHistory() {
         val sessionId = sessionId ?: return
@@ -1024,9 +1047,8 @@ class MissionChatViewModel(
                 val events = withContext(ioDispatcher) { repository.history(sessionId) }
                 historyLimit = null
                 _uiState.update { current ->
-                    val whole = events.fold(MissionChatState()) { state, event -> state.reduce(event) }
                     current.copy(
-                        chat = current.chat.copy(turns = whole.turns),
+                        chat = events.fold(current.chat) { state, event -> state.reduce(event) },
                         historyTruncated = false,
                         loadingEarlier = false,
                     )
@@ -1056,6 +1078,9 @@ private const val HISTORY_ATTEMPT_MS = 8_000L
 
 /** Before a read cut by the network is asked again: the time a fresh connection takes to come up. */
 private const val HISTORY_RETRY_PAUSE_MS = 500L
+
+/** How often at most a delta on an unknown part has the transcript read again. */
+private const val RECONCILE_PAUSE_MS = 3_000L
 
 /** A user turn carrying exactly these words: a send made mid-turn that reached the engine. */
 private fun MissionChatState.hasUserText(text: String): Boolean = turns.any { turn ->
