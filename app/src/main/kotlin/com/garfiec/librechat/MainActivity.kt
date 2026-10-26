@@ -86,9 +86,9 @@ class MainActivity : ComponentActivity() {
         // Only process the launch intent on a genuinely fresh start: on recreation it is still sticky,
         // and the portal's callback it may carry has already been delivered.
         if (savedInstanceState == null) handleIntent(intent)
-        // The server's push notifications, followed by the app itself (19/10/2026). The service
-        // stops by itself when the Settings switch is off.
-        PushService.start(this)
+        // The server's push notifications are followed by the app itself (19/10/2026); the service
+        // starts at sign-in (`AndroidDeviceSession`, 26/10/2026) and stops at sign-out or when the
+        // Settings switch is off.
 
         // Sound and notifications are on by default (03/10/2026); a question asked while the app is
         // out of sight is only heard through a notification. Asked once, on a fresh start: the

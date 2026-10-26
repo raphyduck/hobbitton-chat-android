@@ -141,9 +141,12 @@ class LibreChatApplication : Application(), SingletonImageLoader.Factory {
         logStartupHeader(appInfo = appInfo, platformInfo = platformInfo)
 
         // The watchdog owns its own supervised scope; we just hand it the diagnostic exception
-        // handler so any escaped failure is funneled into the crash-record path.
+        // handler so any escaped failure is funneled into the crash-record path. It runs while an
+        // activity is in front only (26/10/2026): the push service keeps the process alive, and a
+        // tick every second, day and night, to watch a main thread nobody is looking at was the
+        // app's own wake-up call.
         val exceptionHandler: CoroutineExceptionHandler by inject()
-        startMainThreadWatchdog(exceptionHandler)
+        registerActivityLifecycleCallbacks(ForegroundWatchdog { startMainThreadWatchdog(exceptionHandler) })
     }
 
     override fun newImageLoader(context: coil3.PlatformContext): ImageLoader {

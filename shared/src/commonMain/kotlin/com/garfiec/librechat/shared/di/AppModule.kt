@@ -2,7 +2,7 @@ package com.garfiec.librechat.shared.di
 
 import com.garfiec.librechat.core.data.engine.ConversationModelStore
 import com.garfiec.librechat.core.data.engine.ConversationRequests
-import com.garfiec.librechat.core.data.engine.DeviceCleanup
+import com.garfiec.librechat.core.data.engine.DeviceSession
 import com.garfiec.librechat.core.data.engine.EngineAttentionWatcher
 import com.garfiec.librechat.core.data.engine.EngineMissionRepository
 import com.garfiec.librechat.core.data.engine.EngineSettingsStore
@@ -40,7 +40,7 @@ val sharedAppModule = module {
             diagnostics = getOrNull<DiagnosticLogShare>(),
             transcripts = getOrNull<TranscriptCache>(),
             conversationModels = getOrNull<ConversationModelStore>(),
-            deviceCleanup = getOrNull<DeviceCleanup>(),
+            deviceSession = getOrNull<DeviceSession>(),
         )
     }
 

@@ -83,6 +83,8 @@ fun EngineNavHost(
     // Back in the foreground: a renewal refused while away has emptied the token store, and the
     // shell must go back to the sign-in rather than fail every request of the chat.
     LifecycleEventEffect(Lifecycle.Event.ON_START) { viewModel.recheck() }
+    // Out of sight, the engine's feed closes (26/10/2026): the push notifications take over.
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.pauseAttention() }
 
     // The one link gate (review C5): message links and mission notes open http(s) and mailto only.
     val platformUriHandler = LocalUriHandler.current

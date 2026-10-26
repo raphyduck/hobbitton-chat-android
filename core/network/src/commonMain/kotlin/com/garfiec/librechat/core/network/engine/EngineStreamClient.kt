@@ -68,6 +68,8 @@ class EngineStreamClient(
      */
     fun frames(transport: EngineEventTransport): Flow<EngineEventParser.Parsed> = flow {
         var attempt = 0
+        // One line per outage (26/10/2026): a phone offline for a night wrote one every minute.
+        var cooldownReported = false
 
         while (true) {
             try {
@@ -77,6 +79,7 @@ class EngineStreamClient(
                         try {
                             transport.stream().collect { bytes ->
                                 attempt = 0
+                                cooldownReported = false
                                 byteChannel.writeFully(bytes)
                             }
                             byteChannel.flushAndClose()
@@ -134,8 +137,11 @@ class EngineStreamClient(
             // passent. On repart donc à zéro après une pause franche, aussi longtemps que l'écran
             // est ouvert. C'est l'annulation du collecteur, et elle seule, qui arrête ce flux.
             if (attempt > MAX_RETRIES) {
-                Diag.w("EngineSSE", origin = LogOrigin.NETWORK, attrs = mapOf("attempt" to attempt.toString())) {
-                    "engine event feed exhausted its fast retries, pausing before a fresh attempt"
+                if (!cooldownReported) {
+                    cooldownReported = true
+                    Diag.w("EngineSSE", origin = LogOrigin.NETWORK, attrs = mapOf("attempt" to attempt.toString())) {
+                        "engine event feed exhausted its fast retries, pausing before fresh attempts"
+                    }
                 }
                 delay(COOLDOWN_MS)
                 attempt = 0
