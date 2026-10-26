@@ -50,6 +50,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -70,7 +71,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.ui.input.ChatInputDefaults
 import com.garfiec.librechat.feature.tasks.components.ContextRing
 import com.garfiec.librechat.feature.tasks.components.ContextSheet
@@ -99,6 +101,7 @@ import com.garfiec.librechat.feature.tasks.util.currentHourOfDay
 import com.garfiec.librechat.feature.tasks.util.hint
 import com.garfiec.librechat.feature.tasks.util.mergedAssistantRuns
 import com.garfiec.librechat.feature.tasks.util.title
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
@@ -126,7 +129,28 @@ fun MissionChatScreen(
     onNewChat: (() -> Unit)? = null,
     viewModel: MissionChatViewModel = koinViewModel { parametersOf(MissionChatArgs(sessionId)) },
 ) {
-    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    // Collected whatever the entry's lifecycle says (26/10/2026, Raphaël's recording and the
+    // journal: the transcript landed 1,4 s after the tap, the placeholders stayed 11 s, and the
+    // screen's first ON_RESUME came only when the app was left and brought back). Navigation 3
+    // gives each entry a lifecycle of its own, capped below RESUMED until it counts the entry as
+    // shown; a lifecycle-bound collector then keeps the initial state, the placeholders, however
+    // much the ViewModel has loaded. The state is a StateFlow: collecting it costs nothing when
+    // the screen is not in front.
+    val state by viewModel.uiState.collectAsState()
+
+    // What the entry's lifecycle actually did, for the journal: the cap above is Navigation 3's,
+    // and the next journal names the state it left the screen in instead of a guess.
+    val entryLifecycle = LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(entryLifecycle) {
+        delay(ENTRY_RESUME_GRACE_MS)
+        val reached = entryLifecycle.currentState
+        if (!reached.isAtLeast(Lifecycle.State.RESUMED)) {
+            Logger.w(SCREEN_LOG_TAG) {
+                "Conversation ${sessionId ?: "new"}: the entry's lifecycle is still $reached " +
+                    "${ENTRY_RESUME_GRACE_MS / 1000} s after it was composed"
+            }
+        }
+    }
 
     val currentOnChatStart by rememberUpdatedState(onChatStart)
     LaunchedEffect(state.started) {
@@ -656,6 +680,10 @@ private fun tailLength(chat: MissionChatState): Int {
 
 /** At most this many frames for the opening layout to settle (half a second). */
 private const val OPENING_FRAMES = 30
+
+/** How long an entry may take to be RESUMED after composition before the journal says it was not. */
+private const val ENTRY_RESUME_GRACE_MS = 2_000L
+private const val SCREEN_LOG_TAG = "Conversation"
 
 /** How close to the end still counts as « at the end »: a line or two of text. */
 private val TAIL_SLACK = 48.dp
