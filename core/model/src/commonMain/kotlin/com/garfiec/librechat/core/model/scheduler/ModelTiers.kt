@@ -22,6 +22,9 @@ data class ModelTiers(
     /** The tiers that have a model, lowest first. */
     val ladder: List<String> get() = TIER_ORDER.filter { it in models }
 
+    /** The `provider/model` of the lowest tier, the cheapest the ladder offers; null when empty. */
+    val lowest: String? get() = ladder.firstOrNull()?.let(models::getValue)
+
     /**
      * The tier above the one [modelId] belongs to, with its `provider/model`; null at the top of the
      * ladder, or for a model on no tier. Matched on the bare model id, whatever the provider: the

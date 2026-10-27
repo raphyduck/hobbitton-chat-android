@@ -1132,11 +1132,19 @@ class MissionChatViewModel(
         if (!effective.isAuto) return effective.ref
         // « Auto » (25/10/2026, Raphaël's rule: the model necessary and sufficient). A conversation
         // that already ran keeps its model: the provider's cache is built on it, and changing
-        // mid-way throws it away. A new one is read once by the scheduler's trieur; no scheduler,
-        // or no answer, and the repository runs it on the engine's default.
+        // mid-way throws it away. A new one is read once by the scheduler's trieur. A trieur that
+        // does not answer leaves it on the ladder's lowest tier, the cheapest (27/10/2026): sent
+        // without a model it ran on the engine's default, Sonnet, which Auto never picks and
+        // Raphaël never chose. No ladder either, and only then the engine's default.
         _uiState.value.chat.model?.let { return it }
         val choice = withContext(ioDispatcher) { scheduler?.triage(text, hasImages) }
-        val ref = choice?.model?.asModelRef() ?: return null
+        val qualified = choice?.model
+            ?: ModelTiers(choice?.models.orEmpty()).lowest
+            ?: _uiState.value.tiers.lowest
+        if (choice?.model == null) {
+            Logger.w(LOG_TAG) { "Auto: no answer from the trieur, starting on ${qualified ?: "the engine's default"}" }
+        }
+        val ref = qualified?.asModelRef() ?: return null
         val picked = _uiState.value.models.firstOrNull { it.modelId == ref.modelId }
             ?: EngineSelectableModel(providerId = ref.providerId, modelId = ref.modelId, label = ref.modelId)
         // On the chip from now on: the person sees what Auto chose, and the next messages follow it.

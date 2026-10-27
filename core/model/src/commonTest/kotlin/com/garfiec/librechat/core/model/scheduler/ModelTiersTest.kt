@@ -41,4 +41,11 @@ class ModelTiersTest {
         assertNull("deepseek-v4-pro".asModelRef())
         assertNull("hobbitton-chat/".asModelRef())
     }
+
+    @Test
+    fun lowestIsTheCheapestTierOrNothing() {
+        val tiers = ModelTiers(mapOf("haut" to "hobbitton-chat/claude-opus-5-5", "moyen" to "hobbitton-chat/deepseek-v4-pro"))
+        assertEquals("hobbitton-chat/deepseek-v4-pro", tiers.lowest)
+        assertNull(ModelTiers.NONE.lowest)
+    }
 }

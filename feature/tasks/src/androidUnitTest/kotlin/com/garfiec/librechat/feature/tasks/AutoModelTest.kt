@@ -103,8 +103,33 @@ class AutoModelTest {
     }
 
     @Test
-    fun `without an answer from the trieur the conversation starts on the default, never on Auto`() {
+    fun `without an answer from the trieur the conversation starts on the lowest tier, never on the engine's default`() {
+        // 27/10/2026 : sent without a model, it ran on the engine's default (Sonnet), which Auto
+        // never picks: the photo of a parcel did.
         coEvery { scheduler.triage(any(), any()) } returns null
+        val vm = viewModel()
+
+        vm.onInputChange("Bonjour")
+        vm.send()
+
+        coVerify { repository.startChat(text = "Bonjour", connectors = any(), model = deepseek.ref, files = any()) }
+    }
+
+    @Test
+    fun `a trieur that names no tier leaves the conversation on the lowest of the ladder it sent`() {
+        coEvery { scheduler.triage(any(), any()) } returns ModelTierChoice(models = tiers.models)
+        val vm = viewModel()
+
+        vm.onInputChange("Bonjour")
+        vm.send()
+
+        coVerify { repository.startChat(text = "Bonjour", connectors = any(), model = deepseek.ref, files = any()) }
+    }
+
+    @Test
+    fun `with no trieur and no ladder the engine's default is the last resort`() {
+        coEvery { scheduler.triage(any(), any()) } returns null
+        coEvery { scheduler.modelTiers() } returns ModelTiers.NONE
         val vm = viewModel()
 
         vm.onInputChange("Bonjour")
