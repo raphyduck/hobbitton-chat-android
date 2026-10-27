@@ -25,6 +25,9 @@ import kotlinx.serialization.modules.subclass
 /** Every conversation, the scheduler's runs included, unread first (16/10/2026). */
 @Serializable data object EngineConversations : NavKey
 
+/** The voice mode (27/10/2026): a room with the voice agent, opened from the drawer. */
+@Serializable data object EngineVoice : NavKey
+
 /**
  * Every route the engine shell can hold (the conversation, Conversations, Programmées and the settings), and
  * nothing of LibreChat's. A route missing from here deserializes to nothing and a restored stack loses it.
@@ -36,6 +39,7 @@ val engineShellSavedStateConfig = SavedStateConfiguration {
             subclass(EngineInstructions::class)
             subclass(EngineBudget::class)
             subclass(EngineConversations::class)
+            subclass(EngineVoice::class)
         }
     }
 }
@@ -97,6 +101,11 @@ class EngineNavigator(val backStack: NavBackStack<NavKey>) {
 
     fun openSettings() {
         if (currentRoute != EngineAppSettings) backStack.add(EngineAppSettings)
+    }
+
+    /** The voice mode, pushed over whatever is shown. */
+    fun openVoice() {
+        if (currentRoute != EngineVoice) backStack.add(EngineVoice)
     }
 
     /** The instructions' editor, pushed over the settings. */

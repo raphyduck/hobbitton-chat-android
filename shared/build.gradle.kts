@@ -38,6 +38,11 @@ kotlin {
             implementation(libs.koin.compose.viewmodel)
         }
 
+        androidMain.dependencies {
+            // The voice mode asks for the microphone through the activity result API (27/10/2026).
+            implementation(libs.activity.compose)
+        }
+
         androidUnitTest.dependencies {
             implementation(libs.robolectric)
             implementation(libs.roborazzi)

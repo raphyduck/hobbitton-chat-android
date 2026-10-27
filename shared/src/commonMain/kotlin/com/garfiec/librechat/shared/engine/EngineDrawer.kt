@@ -22,6 +22,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Chat
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
@@ -79,6 +80,7 @@ import com.garfiec.librechat.shared.resources.engine_drawer_searching
 import com.garfiec.librechat.shared.resources.engine_drawer_settings
 import com.garfiec.librechat.shared.resources.engine_drawer_tasks
 import com.garfiec.librechat.shared.resources.engine_drawer_today
+import com.garfiec.librechat.shared.resources.engine_drawer_voice
 import com.garfiec.librechat.shared.resources.engine_drawer_yesterday
 import org.jetbrains.compose.resources.stringResource
 import kotlin.time.Clock
@@ -119,6 +121,7 @@ internal fun EngineDrawerContent(
     onOpenSettings: () -> Unit,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
+    onOpenVoice: () -> Unit = {},
     account: DrawerAccount? = null,
     search: EngineChatsState? = null,
     onSearch: (String) -> Unit = {},
@@ -139,6 +142,12 @@ internal fun EngineDrawerContent(
             label = stringResource(Res.string.engine_drawer_new_chat),
             onClick = onNewChat,
             modifier = Modifier.testTag("drawer_new_chat"),
+        )
+        DrawerEntry(
+            icon = Icons.Outlined.GraphicEq,
+            label = stringResource(Res.string.engine_drawer_voice),
+            onClick = onOpenVoice,
+            modifier = Modifier.testTag("drawer_voice"),
         )
         DrawerEntry(
             icon = Icons.AutoMirrored.Outlined.Chat,

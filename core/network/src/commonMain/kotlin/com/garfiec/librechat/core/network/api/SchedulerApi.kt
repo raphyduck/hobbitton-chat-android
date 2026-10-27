@@ -12,6 +12,7 @@ import com.garfiec.librechat.core.model.scheduler.PushChannel
 import com.garfiec.librechat.core.model.scheduler.SchedulerRun
 import com.garfiec.librechat.core.model.scheduler.SchedulerState
 import com.garfiec.librechat.core.model.scheduler.SessionScope
+import com.garfiec.librechat.core.model.scheduler.VoiceRoom
 import com.garfiec.librechat.core.network.engine.EngineHttpException
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.timeout
@@ -347,6 +348,22 @@ class SchedulerApi(
             throw EngineHttpException(response.status.value, response.request.method.value, response.request.url.encodedPath)
         }
         return json.decodeFromString(PortalIdentity.serializer(), response.bodyAsText())
+    }
+
+    /**
+     * A room for the voice mode (27/10/2026): `POST /vocal`, a plain HTTP route like [identity].
+     * Raised as [EngineHttpException] when the server refuses: 503 means the scheduler has no
+     * LiveKit settings, 404 a scheduler from before the route.
+     */
+    suspend fun voiceRoom(): VoiceRoom {
+        val response = client.post {
+            url { path("vocal") }
+            accept(ContentType.Application.Json)
+        }
+        if (!response.status.isSuccess()) {
+            throw EngineHttpException(response.status.value, response.request.method.value, response.request.url.encodedPath)
+        }
+        return json.decodeFromString(VoiceRoom.serializer(), response.bodyAsText())
     }
 
     /**

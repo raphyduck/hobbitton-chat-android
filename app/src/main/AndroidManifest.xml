@@ -1,9 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- The voice mode's LiveKit library declares these; Eva never uses a camera nor captures the screen (27/10/2026). -->
+    <uses-permission android:name="android.permission.CAMERA" tools:node="remove" tools:ignore="PermissionImpliesUnsupportedChromeOsHardware" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" tools:node="remove" />
     <!-- Une question qui attend une réponse, une réponse prête : notifiées hors de l'écran. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Les notifications poussées du serveur (19/10/2026), suivies par l'app elle-même. -->
