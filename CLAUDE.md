@@ -139,6 +139,19 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   `summary` key is an object of diffs on a user message once its turn ended: only a boolean is
   the flag (`SummaryFlagSerializer`; 25/10/2026, read as a boolean it refused every finished
   conversation's history).
+- **Voice mode** (27/10/2026, Raphaël's voice mode, step 3; a drawer entry, `EngineVoice`,
+  `EngineVoiceScreen` in `shared/.../engine/voice/`): the phone joins a LiveKit room with the
+  platform's voice agent, over data, no phone call and no code to read. The scheduler's `POST /vocal`
+  (`SchedulerApi.voiceRoom`, behind the portal) signs the room's token and records the room at the
+  titulaire's level; the agent, dispatched to every new room, asks the scheduler and finds the
+  titulaire there. The screen shows the agent's state (`lk.agent.state`), what it understood and
+  its last sentence (the `lk.transcription` text streams), and a red button hangs up; it joins as
+  it opens (microphone asked first, `rememberMicrophoneGate`) and leaves as it closes. The room is
+  LiveKit's Android SDK in `:app` (`LiveKitVoiceLink`, a media audio type so the speaker plays,
+  behind the shell's `VoiceLink`); a scheduler without LiveKit settings answers 503 and the screen
+  says so. What the agent can do is the server's affair (step 2's tools, Raphaël's rule of sober
+  code: the agent reads the conversations and does the rest itself). Not yet: keeping the room
+  alive when the app leaves the foreground (no foreground service: the microphone falls silent).
 - **Dictation and audio files** (the composer). The mic is heard by the phone itself by default
   (Settings → Dictée, « Dictée sur le téléphone », key `dictation_on_phone`; Raphaël, 26/10/2026:
   local is the default he wants) and listens **without a break until the tap on stop** (same day:

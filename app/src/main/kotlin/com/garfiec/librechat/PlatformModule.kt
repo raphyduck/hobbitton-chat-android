@@ -3,8 +3,14 @@ package com.garfiec.librechat
 import com.garfiec.librechat.core.data.engine.DeviceSession
 import com.garfiec.librechat.core.data.engine.PlatformDefaults
 import com.garfiec.librechat.core.logging.DiagnosticLogShare
+import com.garfiec.librechat.core.network.api.SchedulerApi
 import com.garfiec.librechat.diagnostics.AndroidDiagnosticLogShare
+import com.garfiec.librechat.shared.engine.voice.EngineVoiceViewModel
+import com.garfiec.librechat.shared.engine.voice.VoiceLink
+import com.garfiec.librechat.shared.engine.voice.VoiceRooms
+import com.garfiec.librechat.voice.LiveKitVoiceLink
 import org.koin.android.ext.koin.androidContext
+import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 
 /**
@@ -16,6 +22,10 @@ import org.koin.dsl.module
 val platformModule = module {
     single<DiagnosticLogShare> { AndroidDiagnosticLogShare(androidContext(), get()) }
     single<DeviceSession> { AndroidDeviceSession(androidContext(), get()) }
+    // The voice mode (27/10/2026): the room comes from the scheduler, the line is LiveKit's.
+    single<VoiceLink> { LiveKitVoiceLink(androidContext()) }
+    single<VoiceRooms> { VoiceRooms { get<SchedulerApi>().voiceRoom() } }
+    viewModel { EngineVoiceViewModel(rooms = getOrNull(), link = getOrNull()) }
     single {
         PlatformDefaults(
             baseUrl = BuildConfig.PLATFORM_ENGINE_URL,

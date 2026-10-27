@@ -94,4 +94,17 @@
     <string name="engine_age_days">%1$d j</string>
     <string name="engine_drawer_scheduled_run">Exécution programmée</string>
     <string name="engine_open_drawer">Ouvrir le menu</string>
+    <!-- The voice mode (27/10/2026) -->
+    <string name="engine_drawer_voice">Mode vocal</string>
+    <string name="engine_voice_title">Mode vocal</string>
+    <string name="engine_voice_opening">Connexion…</string>
+    <string name="engine_voice_listening">Je t'écoute</string>
+    <string name="engine_voice_thinking">Eva réfléchit…</string>
+    <string name="engine_voice_speaking">Eva parle</string>
+    <string name="engine_voice_hang_up">Raccrocher</string>
+    <string name="engine_voice_unconfigured">Le mode vocal n'est pas réglé sur le serveur (LiveKit).</string>
+    <string name="engine_voice_failed">Le mode vocal n'a pas pu démarrer : %1$s</string>
+    <string name="engine_voice_retry">Réessayer</string>
+    <string name="engine_voice_mic_denied">Le mode vocal a besoin du micro.</string>
+    <string name="engine_voice_ended">Terminé.</string>
 </resources>

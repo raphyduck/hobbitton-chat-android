@@ -36,13 +36,13 @@ import com.garfiec.librechat.core.data.datastore.ChatFontSize
 import com.garfiec.librechat.core.data.datastore.ThemeMode
 import com.garfiec.librechat.core.data.engine.OpenConversation
 import com.garfiec.librechat.core.ui.components.PlatformBackHandler
-import com.garfiec.librechat.core.ui.markdown.LocalTrustedImageHosts
 import com.garfiec.librechat.core.ui.theme.AppLocale
 import com.garfiec.librechat.core.ui.util.SafeUriHandler
 import com.garfiec.librechat.feature.auth.screen.PortalSignInScreen
 import com.garfiec.librechat.feature.tasks.navigation.EngineChat
 import com.garfiec.librechat.feature.tasks.navigation.engineChatEntries
 import com.garfiec.librechat.feature.tasks.navigation.tasksEntries
+import com.garfiec.librechat.shared.engine.voice.EngineVoiceScreen
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
@@ -102,17 +102,11 @@ fun EngineNavHost(
                             name = identity?.nom?.takeIf { it.isNotBlank() } ?: identity?.prenom?.takeIf { it.isNotBlank() },
                             host = addresses?.baseUrl?.let(::hostOf),
                         )
-                        val imageHosts = remember(addresses) {
-                            setOfNotNull(addresses?.baseUrl, addresses?.schedulerUrl, addresses?.issuerUrl)
-                                .mapNotNull(::hostOf)
-                                .toSet()
-                        }
                         EngineMainLayout(
                             chats = chats,
                             allChats = allChats,
                             search = search,
                             account = account,
-                            imageHosts = imageHosts,
                             settings = EngineSettingsUiState(
                                 themeMode = themeMode,
                                 addresses = addresses,
@@ -163,8 +157,6 @@ private fun EngineMainLayout(
     allChats: EngineChatsState,
     search: EngineChatsState?,
     account: DrawerAccount,
-    /** The platform's hosts: the only ones whose images a message loads on its own (26/10/2026). */
-    imageHosts: Set<String>,
     settings: EngineSettingsUiState,
     openRequest: OpenConversation?,
     onConsumeOpenRequest: (OpenConversation) -> Unit,
@@ -254,6 +246,10 @@ private fun EngineMainLayout(
                         closeDrawer()
                         navigator.openTasks()
                     },
+                    onOpenVoice = {
+                        closeDrawer()
+                        navigator.openVoice()
+                    },
                     onOpenSettings = {
                         closeDrawer()
                         navigator.openSettings()
@@ -267,89 +263,90 @@ private fun EngineMainLayout(
             }
         },
     ) {
-        CompositionLocalProvider(LocalTrustedImageHosts provides imageHosts) {
-            NavDisplay(
-            backStack = backStack,
-            onBack = { navigator.goBack() },
-            modifier = Modifier.fillMaxSize(),
-            // Pushed screens (Programmées, the settings) slide in from the edge over a short fade
-            // and slide back out; a predictive back shrinks the leaving screen under the finger.
-            // Between two chats the entry's own metadata asks for a cross-fade instead.
-            transitionSpec = {
-                (slideInHorizontally(tween(PUSH_MS)) { it / PUSH_FRACTION } + fadeIn(tween(PUSH_MS)))
-                    .togetherWith(fadeOut(tween(PUSH_MS)))
-            },
-            popTransitionSpec = {
-                fadeIn(tween(PUSH_MS))
-                    .togetherWith(slideOutHorizontally(tween(PUSH_MS)) { it / PUSH_FRACTION } + fadeOut(tween(PUSH_MS)))
-            },
-            predictivePopTransitionSpec = { _ ->
-                fadeIn(tween(PUSH_MS))
-                    .togetherWith(scaleOut(tween(PUSH_MS), targetScale = PREDICTIVE_SCALE) + fadeOut(tween(PUSH_MS)))
-            },
-            entryDecorators = listOf(
-                rememberSaveableStateHolderNavEntryDecorator(),
-                rememberViewModelStoreNavEntryDecorator(),
-            ),
-            entryProvider = entryProvider {
-                engineChatEntries(
-                    onOpenDrawer = openDrawer,
-                    onChatStart = { sessionId, title ->
-                        navigator.chatStarted(sessionId, title)
-                        refreshChats()
-                    },
-                    onNewChat = { navigator.newChat() },
-                    onBack = { navigator.goBack() },
-                )
-                tasksEntries(
-                    onBack = { navigator.goBack() },
-                    onOpenDrawer = openDrawer,
-                )
-                entry<EngineAppSettings> {
-                    // Read on every arrival: the deployment's models may have moved since.
-                    LaunchedEffect(Unit) { loadModels() }
-                    EngineSettingsScreen(
-                        state = settings,
-                        onBack = { navigator.goBack() },
-                        onOpenInstructions = { navigator.openInstructions() },
-                        onOpenUsage = { navigator.openUsage() },
-                        onOpenBudget = { navigator.openBudget() },
-                        onThemeMode = onThemeMode,
-                        onChatFontSize = onChatFontSize,
-                        onAttentionSound = onAttentionSound,
-                        onLocalDictation = onLocalDictation,
-                        onDefaultModel = onDefaultModel,
-                        onLanguage = onLanguage,
-                        onShareDiagnostics = onShareDiagnostics,
-                        onSignOut = {
-                            // The stack first: its conversations close with their entries — their
-                            // view models, their live feeds — before the portal's tokens go.
-                            navigator.newChat()
-                            onSignOut()
-                        },
-                    )
-                }
-                entry<EngineConversations> {
-                    // Read on every arrival: a run that finished while the page was shut moves up.
-                    LaunchedEffect(Unit) { refreshAllChats() }
-                    EngineConversationsScreen(
-                        state = allChats,
-                        onBack = if (navigator.conversationsAtFloor) null else ({ navigator.goBack() }),
-                        onOpenDrawer = openDrawer,
-                        onOpenChat = { chat -> navigator.openChat(chat.sessionId, chat.title) },
-                        onRefresh = onRefreshAllChats,
-                        onLoadOlder = onLoadOlder,
-                    )
-                }
-                entry<EngineInstructions> {
-                    EngineInstructionsScreen(onClose = { navigator.goBack() })
-                }
-                entry<EngineBudget> {
-                    EngineBudgetScreen(onClose = { navigator.goBack() })
-                }
-            },
+        NavDisplay(
+        backStack = backStack,
+        onBack = { navigator.goBack() },
+        modifier = Modifier.fillMaxSize(),
+        // Pushed screens (Programmées, the settings) slide in from the edge over a short fade
+        // and slide back out; a predictive back shrinks the leaving screen under the finger.
+        // Between two chats the entry's own metadata asks for a cross-fade instead.
+        transitionSpec = {
+            (slideInHorizontally(tween(PUSH_MS)) { it / PUSH_FRACTION } + fadeIn(tween(PUSH_MS)))
+                .togetherWith(fadeOut(tween(PUSH_MS)))
+        },
+        popTransitionSpec = {
+            fadeIn(tween(PUSH_MS))
+                .togetherWith(slideOutHorizontally(tween(PUSH_MS)) { it / PUSH_FRACTION } + fadeOut(tween(PUSH_MS)))
+        },
+        predictivePopTransitionSpec = { _ ->
+            fadeIn(tween(PUSH_MS))
+                .togetherWith(scaleOut(tween(PUSH_MS), targetScale = PREDICTIVE_SCALE) + fadeOut(tween(PUSH_MS)))
+        },
+        entryDecorators = listOf(
+            rememberSaveableStateHolderNavEntryDecorator(),
+            rememberViewModelStoreNavEntryDecorator(),
+        ),
+        entryProvider = entryProvider {
+            engineChatEntries(
+                onOpenDrawer = openDrawer,
+                onChatStart = { sessionId, title ->
+                    navigator.chatStarted(sessionId, title)
+                    refreshChats()
+                },
+                onNewChat = { navigator.newChat() },
+                onBack = { navigator.goBack() },
             )
-        }
+            tasksEntries(
+                onBack = { navigator.goBack() },
+                onOpenDrawer = openDrawer,
+            )
+            entry<EngineAppSettings> {
+                // Read on every arrival: the deployment's models may have moved since.
+                LaunchedEffect(Unit) { loadModels() }
+                EngineSettingsScreen(
+                    state = settings,
+                    onBack = { navigator.goBack() },
+                    onOpenInstructions = { navigator.openInstructions() },
+                    onOpenUsage = { navigator.openUsage() },
+                    onOpenBudget = { navigator.openBudget() },
+                    onThemeMode = onThemeMode,
+                    onChatFontSize = onChatFontSize,
+                    onAttentionSound = onAttentionSound,
+                    onLocalDictation = onLocalDictation,
+                    onDefaultModel = onDefaultModel,
+                    onLanguage = onLanguage,
+                    onShareDiagnostics = onShareDiagnostics,
+                    onSignOut = {
+                        // The stack first: its conversations close with their entries — their
+                        // view models, their live feeds — before the portal's tokens go.
+                        navigator.newChat()
+                        onSignOut()
+                    },
+                )
+            }
+            entry<EngineConversations> {
+                // Read on every arrival: a run that finished while the page was shut moves up.
+                LaunchedEffect(Unit) { refreshAllChats() }
+                EngineConversationsScreen(
+                    state = allChats,
+                    onBack = if (navigator.conversationsAtFloor) null else ({ navigator.goBack() }),
+                    onOpenDrawer = openDrawer,
+                    onOpenChat = { chat -> navigator.openChat(chat.sessionId, chat.title) },
+                    onRefresh = onRefreshAllChats,
+                    onLoadOlder = onLoadOlder,
+                )
+            }
+            entry<EngineInstructions> {
+                EngineInstructionsScreen(onClose = { navigator.goBack() })
+            }
+            entry<EngineBudget> {
+                EngineBudgetScreen(onClose = { navigator.goBack() })
+            }
+            entry<EngineVoice> {
+                EngineVoiceScreen(onClose = { navigator.goBack() })
+            }
+        },
+        )
     }
 }
 
