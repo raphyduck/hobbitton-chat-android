@@ -167,7 +167,7 @@ data class MissionChatUiState(
      * yet, so a new one names the model it is about to use.
      */
     val defaultModel: EngineSelectableModel? = null,
-    /** The engine's own default: what « Auto » runs on when the scheduler names no model. */
+    /** The engine's own default: what a turn sent without a model runs on. */
     val engineDefault: EngineSelectableModel? = null,
     /**
      * The tiers of model the scheduler offers a conversation (25/10/2026), lowest first, for
@@ -200,6 +200,22 @@ data class MissionChatUiState(
         questionDraft?.takeIf { it.requestId == request.id } ?: QuestionDraft.blank(request)
 
     /**
+     * The model the session's last turn ran on, unless nobody chose it (27/10/2026, Raphaël: « le
+     * modèle affiché devrait être celui qui est déjà choisi pour cette session ; je n'ai jamais
+     * choisi Sonnet »). A turn sent without a model runs on the engine's own default; when that is
+     * not the person's default either, nobody picked it (a trieur that did not answer, a decision
+     * the scheduler opened without a tier), and the conversation is not held to it: the chip and
+     * the next message follow the person's default instead. A model picked on this device is
+     * [rememberedModel] and comes first anyway.
+     */
+    val chosenRunModel: EngineModelRef?
+        get() = chat.model?.takeUnless { ran ->
+            val fallback = engineDefault ?: return@takeUnless false
+            val preferred = defaultModel ?: return@takeUnless false
+            ran == fallback.ref && preferred != fallback
+        }
+
+    /**
      * What the model chip says, and what the picker shows as current.
      *
      * The user's pick for the next message wins; failing that, the model this device last sent the
@@ -208,7 +224,7 @@ data class MissionChatUiState(
      * unfamiliar model is worth showing, and « Session model » in its place says less than nothing.
      */
     val effectiveModel: EngineSelectableModel?
-        get() = model ?: (rememberedModel ?: chat.model)?.let { ref ->
+        get() = model ?: (rememberedModel ?: chosenRunModel)?.let { ref ->
             models.firstOrNull { it.ref == ref }
                 ?: EngineSelectableModel(
                     providerId = ref.providerId,
@@ -1136,7 +1152,7 @@ class MissionChatViewModel(
         // does not answer leaves it on the ladder's lowest tier, the cheapest (27/10/2026): sent
         // without a model it ran on the engine's default, Sonnet, which Auto never picks and
         // Raphaël never chose. No ladder either, and only then the engine's default.
-        _uiState.value.chat.model?.let { return it }
+        _uiState.value.chosenRunModel?.let { return it }
         val choice = withContext(ioDispatcher) { scheduler?.triage(text, hasImages) }
         val qualified = choice?.model
             ?: ModelTiers(choice?.models.orEmpty()).lowest

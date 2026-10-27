@@ -198,7 +198,10 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   sent it with** (26/10/2026, Raphaël: « le choix du modèle change en cours de route »):
   `ConversationModelStore` (`EngineConversationModels`, device preferences, cleared at sign-out),
   recorded at every send and read ahead of the model the last turn ran on
-  (`MissionChatUiState.rememberedModel`, `effectiveModel`). The engine keeps no model per session,
+  (`MissionChatUiState.rememberedModel`, `effectiveModel`), and a last turn that ran on the engine's
+  own default nobody chose (not the person's default either) does not hold the conversation: the chip
+  and the next message follow the person's default (`chosenRunModel`, 27/10/2026, Raphaël: « je n'ai
+  jamais choisi Sonnet »). The engine keeps no model per session,
   and the last turn's model is whoever wrote it: a reminder played back by the scheduler, a relance
   posing its decision in its own conversation, ran on their own model (the palier's Sonnet until
   kit #149), and the chip and the next message followed them. Under the last answer, « Refaire plus fort »

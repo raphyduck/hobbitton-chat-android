@@ -157,6 +157,52 @@ class AutoModelTest {
     }
 
     @Test
+    fun `a conversation that ran on the engine's fallback nobody chose follows the person's default`() {
+        // 27/10/2026, Raphaël: « je n'ai jamais choisi Sonnet ». The parcel's conversation had run on
+        // the engine's default because the trieur did not answer; the chip said Sonnet and the next
+        // message stayed there.
+        val sonnet = EngineSelectableModel("hobbitton-chat", "claude-sonnet-5-5", "Claude Sonnet 5.5")
+        coEvery { repository.models() } returns EngineModelChoice(
+            models = listOf(deepseek, opus, sonnet),
+            preselected = EngineSelectableModel.AUTO,
+            engineDefault = sonnet,
+        )
+        coEvery { repository.history("ses_colis", any()) } returns listOf(
+            EngineStreamEvent.MessageStarted("m1", "user"),
+            EngineStreamEvent.MessageStarted("m2", "assistant", sonnet.ref),
+            EngineStreamEvent.Idle,
+        )
+        every { repository.events("ses_colis") } returns flowOf()
+        val vm = viewModel(sessionId = "ses_colis")
+
+        assertThat(vm.uiState.value.effectiveModel).isEqualTo(EngineSelectableModel.AUTO)
+        vm.onInputChange("Et le point relais ?")
+        vm.send()
+
+        coVerify { scheduler.triage("Et le point relais ?", false) }
+        coVerify { repository.sendMessage("ses_colis", "Et le point relais ?", deepseek.ref, any()) }
+    }
+
+    @Test
+    fun `the engine's default stays when it is also the person's default`() {
+        val sonnet = EngineSelectableModel("hobbitton-chat", "claude-sonnet-5-5", "Claude Sonnet 5.5")
+        coEvery { repository.models() } returns EngineModelChoice(
+            models = listOf(deepseek, opus, sonnet),
+            preselected = sonnet,
+            engineDefault = sonnet,
+        )
+        coEvery { repository.history("ses_s", any()) } returns listOf(
+            EngineStreamEvent.MessageStarted("m1", "user"),
+            EngineStreamEvent.MessageStarted("m2", "assistant", sonnet.ref),
+            EngineStreamEvent.Idle,
+        )
+        every { repository.events("ses_s") } returns flowOf()
+        val vm = viewModel(sessionId = "ses_s")
+
+        assertThat(vm.uiState.value.effectiveModel).isEqualTo(sonnet)
+    }
+
+    @Test
     fun `redo stronger asks the last request again on the tier above, and stays there`() {
         val ran = EngineModelRef("hobbitton-chat", "deepseek-v4-pro")
         coEvery { repository.history("ses_suivie", any()) } returns listOf(
