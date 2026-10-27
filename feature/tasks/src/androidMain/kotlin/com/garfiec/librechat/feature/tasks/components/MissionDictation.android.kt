@@ -33,13 +33,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import com.garfiec.librechat.core.common.di.AppThreads
 import com.garfiec.librechat.core.data.engine.TranscriptionFailure
 import com.garfiec.librechat.core.data.engine.TranscriptionOutcome
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Two ways behind one two-state button: the phone's own speech recognition ([PhoneDictation]),
@@ -98,7 +98,7 @@ internal actual fun rememberMissionDictation(
             listening = phone.start()
         } else {
             scope.launch {
-                recording = withContext(Dispatchers.IO) { recorder.begin() }
+                recording = withContext(AppThreads.io) { recorder.begin() }
             }
         }
     }
@@ -113,7 +113,7 @@ internal actual fun rememberMissionDictation(
             recording -> {
                 recording = false
                 scope.launch {
-                    val bytes = withContext(Dispatchers.IO) { recorder.stop() }
+                    val bytes = withContext(AppThreads.io) { recorder.stop() }
                     bytes?.takeIf { it.isNotEmpty() }
                         ?.let { onCapture(PickedAudio(it, recorder.mime, recorder.filename)) }
                 }

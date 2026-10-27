@@ -3,6 +3,7 @@ package com.garfiec.librechat.feature.tasks
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
+import com.garfiec.librechat.core.common.diagnostics.threadReport
 import com.garfiec.librechat.core.common.flow.batched
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.engine.AttentionSignals
@@ -318,9 +319,20 @@ class MissionChatViewModel(
      */
     private var historyLimit: Int? = HISTORY_TAIL
 
+    /**
+     * Where the opening stands, for the guard and the journal; [openingSteps] moves at each step.
+     * Declared before `init` too: the opening's first step runs from it.
+     */
+    private var openingStage = "starting"
+    private var openingSteps = 0
+
     init {
         if (sessionId != null) {
+            // Written before anything is asked of another thread (27/10/2026): an opening that
+            // stalls says so in the journal, where the 27/10 one left no line at all.
+            Logger.i(LOG_TAG) { "History of $sessionId: opening" }
             loadHistory()
+            watchOpening(sessionId)
             openStream()
             viewModelScope.launch {
                 val remembered = runCatching { withContext(ioDispatcher) { conversationModels?.modelOf(sessionId) } }.getOrNull()
@@ -518,12 +530,26 @@ class MissionChatViewModel(
         historyJob = viewModelScope.launch {
             try {
                 val limit = historyLimit
+                var cacheLate = false
                 val kept = if (trustCache && limit != null) {
-                    withContext(ioDispatcher) { repository.cachedHistory(sessionId) }
+                    advanceOpening("reading what the device kept")
+                    // Bounded (27/10/2026): a file of a few hundred kilobytes, read in a few
+                    // milliseconds when the threads answer. When they do not, the engine is asked
+                    // without it rather than the screen waiting on a copy.
+                    val read = withTimeoutOrNull(CACHE_READ_MS) {
+                        KeptRead(withContext(ioDispatcher) { repository.cachedHistory(sessionId) })
+                    }
+                    cacheLate = read == null
+                    read?.history
                 } else {
                     null
                 }
-                if (trustCache) {
+                if (cacheLate) {
+                    Logger.w(LOG_TAG) {
+                        "History of $sessionId: what the device kept did not answer in $CACHE_READ_MS ms, " +
+                            "reading the engine; ${threadReport()}"
+                    }
+                } else if (trustCache) {
                     Logger.i(LOG_TAG) {
                         val what = kept?.let { "${it.messageCount} messages kept on the device" } ?: "nothing kept on the device"
                         "History of $sessionId: $what"
@@ -537,6 +563,7 @@ class MissionChatViewModel(
                     }
                 }
                 val read = fetchHistory(sessionId, limit, unlessUpdatedAt = kept?.updated)
+                advanceOpening("folding the transcript")
                 if (kept != null && read !is HistoryRead.Fresh) {
                     // The engine said the conversation has not moved, or could not be reached: what
                     // the device kept stands, and the catalogue and the questions follow as usual.
@@ -589,6 +616,7 @@ class MissionChatViewModel(
      */
     private suspend fun fetchHistory(sessionId: String, limit: Int?, unlessUpdatedAt: Long? = null): HistoryRead? {
         repeat(HISTORY_ATTEMPTS) { attempt ->
+            advanceOpening("reading the engine, attempt ${attempt + 1}")
             val started = Clock.System.now().toEpochMilliseconds()
             val read = try {
                 // Every try gets the same limit (26/10/2026 evening): a first try cut at 3 s took
@@ -628,7 +656,8 @@ class MissionChatViewModel(
                 return read
             }
             Logger.w(LOG_TAG) { "History of $sessionId: attempt ${attempt + 1} hung, dropping every connection" }
-            repository.dropConnections()
+            advanceOpening("dropping every connection after attempt ${attempt + 1}")
+            dropConnections()
         }
         return null
     }
@@ -639,6 +668,64 @@ class MissionChatViewModel(
 
         /** The device's tail is current: nothing to fold. */
         data object Unchanged : HistoryRead
+    }
+
+    /** What the device's copy answered, so that « nothing kept » and « no answer » stay apart. */
+    private class KeptRead(val history: EngineMissionRepository.CachedHistory?)
+
+    /**
+     * Every connection dropped, within [DROP_CONNECTIONS_MS] (27/10/2026): closing a dead link is
+     * itself I/O, and an opening must not wait on it. What is left closes in the background.
+     */
+    private suspend fun dropConnections() {
+        try {
+            withTimeoutOrNull(DROP_CONNECTIONS_MS) { repository.dropConnections() }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Logger.w(LOG_TAG, e) { "Dropping the connections failed" }
+        }
+    }
+
+    private fun advanceOpening(stage: String) {
+        openingStage = stage
+        openingSteps++
+    }
+
+    /**
+     * The opening's guard (27/10/2026). Every step of the opening is bounded (the device's copy
+     * [CACHE_READ_MS], each read of the engine [HISTORY_ATTEMPT_MS]), so a step that has not moved
+     * for [OPENING_GUARD_MS] is waiting on something no bound covers: the journal gets the step and
+     * the process's threads, every connection is dropped and the engine is read again, as the person
+     * did by leaving and coming back. At most [OPENING_RESCUES] times; a screen past its
+     * placeholders, or an opening that ended in an error, is left alone.
+     *
+     * Not v2026.10.48's guard, removed the next evening: that one watched this ViewModel while the
+     * screen of the day was not collecting it. The screen collects whatever its entry's lifecycle
+     * says since v2026.10.49, so what it shows is this state.
+     */
+    private fun watchOpening(sessionId: String) {
+        viewModelScope.launch {
+            var seen = openingSteps
+            var rescues = 0
+            while (rescues < OPENING_RESCUES) {
+                delay(OPENING_GUARD_MS)
+                val state = _uiState.value
+                if (!state.loadingHistory || state.chat.turns.isNotEmpty() || state.historyError != null) return@launch
+                if (openingSteps != seen) {
+                    seen = openingSteps
+                    continue
+                }
+                rescues++
+                Logger.w(LOG_TAG) {
+                    "History of $sessionId: still on the placeholders, « $openingStage » for ${OPENING_GUARD_MS / 1000} s; " +
+                        "dropping every connection and reading again; ${threadReport()}"
+                }
+                dropConnections()
+                loadHistory(trustCache = false)
+                seen = openingSteps
+            }
+        }
     }
 
     /**
@@ -1130,6 +1217,18 @@ class MissionChatViewModel(
 
 private const val LOG_TAG = "Conversation"
 private const val HISTORY_ATTEMPTS = 3
+
+/** The device's copy of a tail, a small file: past this, the engine is read without it (27/10/2026). */
+private const val CACHE_READ_MS = 2_000L
+
+/** An opening whose step has not moved for this long is rescued ([MissionChatViewModel.watchOpening]). */
+private const val OPENING_GUARD_MS = 10_000L
+
+/** How long an opening waits on the connections being dropped before it reads again anyway. */
+private const val DROP_CONNECTIONS_MS = 2_000L
+
+/** Rescues per opening: past them, the reads' own errors take over. */
+private const val OPENING_RESCUES = 2
 
 /** Messages read at opening: a screenful of history, and the model, context and last request. */
 internal const val HISTORY_TAIL = 40

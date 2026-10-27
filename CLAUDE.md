@@ -313,6 +313,20 @@ sheet for the diagnostic log). The shell and the sign-in resolve the engine grap
   `:core:common`, 80 ms), where each character redrew the conversation; a conversation left and
   the app left in the same instant mark it read once; a markdown image is decoded at 1 600 px a
   side at most and the image cache holds 64 MB.
+- **The app's own threads** (27/10/2026, Raphaël: a conversation stayed grey for good, and the
+  journal had not one line for it, not even the device-cache look that opens every opening). The
+  app's blocking work never queues on the shared `Dispatchers.IO` any more: `ioDispatcher` and
+  `KoinQualifiers.IO` are `AppThreads.io` (`:core:common`), an elastic pool (`eva-io-N`, a thread
+  per task in flight); Ktor's engines run on `AppThreads.net` (`eva-net-N`), where their blocking
+  body reads (the feed's, for good) cost a thread and never another request. Every OkHttp socket is
+  tracked (`TrackedSockets`): `dropAll` closes them for real, which ends the reads and writes a dead
+  link holds, and its caller waits 1,5 s at most. The feed's socket timeout is 150 s (the engine
+  beats every ~10 s; infinite, it took the write timeout off the connection every request shared).
+  The opening logs « opening » before any hop, bounds the device's copy at 2 s, and its guard
+  (`watchOpening`) reads again, connections dropped, when no step has moved for 10 s (twice at
+  most), writing the step and `threadReport()` to the journal. In front, `startThreadHealthWatch`
+  (`:app`) probes `Dispatchers.IO` every 15 s and reports a pool past 32 threads, with the same
+  report: the next journal names what held the threads.
 - The feed is global and heavy (a tool's whole output again on every frame that grows it):
   `EngineMissionRepository.events` / `allEvents` read and parse it on the IO dispatcher whoever
   collects (20/10/2026: parsed on the main thread by the attention watcher, a scheduled run's

@@ -10,10 +10,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.FileProvider
 import co.touchlab.kermit.Logger
+import com.garfiec.librechat.core.common.di.AppThreads
 import com.garfiec.librechat.feature.tasks.util.ChatPart
 import java.io.File
 import kotlin.io.encoding.Base64
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -28,7 +28,7 @@ internal actual fun rememberAttachmentOpener(): ((ChatPart.Attachment) -> Unit)?
     val scope = rememberCoroutineScope()
     return { attachment ->
         scope.launch {
-            val file = withContext(Dispatchers.IO) { runCatching { cached(context, attachment) }.getOrNull() }
+            val file = withContext(AppThreads.io) { runCatching { cached(context, attachment) }.getOrNull() }
             if (file == null) {
                 Toast.makeText(context, attachment.filename ?: attachment.mime, Toast.LENGTH_SHORT).show()
                 return@launch

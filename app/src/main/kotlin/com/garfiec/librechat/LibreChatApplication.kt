@@ -26,12 +26,14 @@ import com.garfiec.librechat.core.logging.redact.LogRedactor
 import com.garfiec.librechat.core.logging.startMainThreadWatchdog
 import com.garfiec.librechat.core.network.client.CleartextGuardPlugin
 import com.garfiec.librechat.core.network.engine.ConnectionReset
+import com.garfiec.librechat.diagnostics.startThreadHealthWatch
 import com.garfiec.librechat.feature.tasks.di.tasksModule
 import com.garfiec.librechat.shared.di.sharedKoinModules
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.HttpClientEngineFactory
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -146,7 +148,15 @@ class LibreChatApplication : Application(), SingletonImageLoader.Factory {
         // tick every second, day and night, to watch a main thread nobody is looking at was the
         // app's own wake-up call.
         val exceptionHandler: CoroutineExceptionHandler by inject()
-        registerActivityLifecycleCallbacks(ForegroundWatchdog { startMainThreadWatchdog(exceptionHandler) })
+        // With it, the threads' health (27/10/2026): the shared IO threads answering, the app's own
+        // pools not swelling. The two stop together when the app leaves the screen.
+        registerActivityLifecycleCallbacks(
+            ForegroundWatchdog {
+                val main = startMainThreadWatchdog(exceptionHandler)
+                val threads = startThreadHealthWatch()
+                Job().apply { invokeOnCompletion { main.cancel(); threads.cancel() } }
+            },
+        )
     }
 
     override fun newImageLoader(context: coil3.PlatformContext): ImageLoader {
