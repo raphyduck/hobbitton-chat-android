@@ -11,11 +11,11 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
+import com.garfiec.librechat.core.common.di.AppThreads
 import com.garfiec.librechat.feature.tasks.util.StagedAttachment
 import java.io.ByteArrayOutputStream
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -38,7 +38,7 @@ internal actual fun rememberMissionAttachmentPicker(
     ) { uris ->
         if (uris.isEmpty()) return@rememberLauncherForActivityResult
         scope.launch {
-            val staged = withContext(Dispatchers.IO) {
+            val staged = withContext(AppThreads.io) {
                 uris.mapNotNull { uri -> context.stage(uri) }
             }
             if (staged.isNotEmpty()) onPick(staged)
@@ -64,7 +64,7 @@ internal actual fun rememberMissionFilePicker(
     ) { uris ->
         if (uris.isEmpty()) return@rememberLauncherForActivityResult
         scope.launch {
-            val staged = withContext(Dispatchers.IO) {
+            val staged = withContext(AppThreads.io) {
                 uris.mapNotNull { uri -> context.stage(uri) }
             }
             if (staged.isNotEmpty()) onPick(staged)

@@ -96,4 +96,55 @@ class OkHttpWithRoomTest {
             mute.interrupt()
         }
     }
+
+    /**
+     * A body that stalls after its headers (27/10/2026): Ktor reads it with a blocking read, on the
+     * app's own HTTP threads and never on the shared `Dispatchers.IO`, and the drop closes its socket,
+     * which ends the read at once.
+     */
+    @Test
+    fun aStalledBodyHoldsOneOfTheAppsThreadsUntilTheDrop() = runBlocking {
+        val server = ServerSocket(0)
+        val headersSent = CountDownLatch(1)
+        val stalling = thread(isDaemon = true) {
+            runCatching { server.accept() }.getOrNull()?.let { socket ->
+                val reader = socket.getInputStream().bufferedReader()
+                while (reader.readLine().orEmpty().isNotEmpty()) Unit
+                socket.getOutputStream().apply {
+                    write("HTTP/1.1 200 OK\r\nContent-Length: 1000\r\n\r\nabc".toByteArray())
+                    flush()
+                }
+                headersSent.countDown()
+                runCatching { Thread.sleep(60_000) }
+                socket.close()
+            }
+        }
+        val client = HttpClient(OkHttpWithRoom) { install(HttpTimeout) { socketTimeoutMillis = 60_000 } }
+        try {
+            val request = async(Dispatchers.IO) { runCatching { client.get("http://127.0.0.1:${server.localPort}/stall").bodyAsText() } }
+            assertTrue(withContext(Dispatchers.IO) { headersSent.await(20, TimeUnit.SECONDS) })
+            // The read waits in the socket, on a thread of the app's HTTP pool.
+            val readers = withTimeout(5_000) {
+                var found = emptyList<String>()
+                while (found.isEmpty()) {
+                    found = Thread.getAllStackTraces().filter { (t, frames) ->
+                        frames.any { it.methodName.contains("read", ignoreCase = true) && it.className.contains("Socket") } &&
+                            t.name.startsWith("eva-net")
+                    }.keys.map { it.name }
+                    if (found.isEmpty()) kotlinx.coroutines.delay(50)
+                }
+                found
+            }
+            assertTrue(readers.isNotEmpty())
+            val dropped = System.nanoTime()
+            OkHttpConnections.dropAll()
+            val outcome = withTimeout(5_000) { request.await() }
+            assertTrue(outcome.isFailure)
+            assertTrue((System.nanoTime() - dropped) / 1_000_000 < 5_000)
+        } finally {
+            client.close()
+            server.close()
+            stalling.interrupt()
+        }
+    }
 }

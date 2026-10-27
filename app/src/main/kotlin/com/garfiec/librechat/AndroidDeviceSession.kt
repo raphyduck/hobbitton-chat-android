@@ -4,10 +4,10 @@ import android.content.Context
 import android.content.Intent
 import co.touchlab.kermit.Logger
 import coil3.SingletonImageLoader
+import com.garfiec.librechat.core.common.di.AppThreads
 import com.garfiec.librechat.core.data.engine.DeviceSession
 import com.garfiec.librechat.core.logging.DiagnosticLogRepository
 import com.garfiec.librechat.push.PushService
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 
@@ -25,7 +25,7 @@ class AndroidDeviceSession(
 
     override fun onSignedIn() = PushService.start(context)
 
-    override suspend fun onSignedOut() = withContext(Dispatchers.IO) {
+    override suspend fun onSignedOut() = withContext(AppThreads.io) {
         runCatching { context.stopService(Intent(context, PushService::class.java)) }
             .onFailure { Logger.w(it) { "Sign-out: the push service could not be stopped" } }
         runCatching { File(context.cacheDir, ATTACHMENTS_DIR).deleteRecursively() }

@@ -3,9 +3,9 @@ package com.garfiec.librechat.diagnostics
 import android.content.Context
 import android.content.Intent
 import androidx.core.content.FileProvider
+import com.garfiec.librechat.core.common.di.AppThreads
 import com.garfiec.librechat.core.logging.DiagnosticLogRepository
 import com.garfiec.librechat.core.logging.DiagnosticLogShare
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 
@@ -21,7 +21,7 @@ class AndroidDiagnosticLogShare(
 ) : DiagnosticLogShare {
 
     override suspend fun share() {
-        val file = withContext(Dispatchers.IO) {
+        val file = withContext(AppThreads.io) {
             val directory = File(context.cacheDir, ATTACHMENTS_DIR).apply { mkdirs() }
             File(directory, FILE_NAME).apply { writeText(repository.exportText()) }
         }

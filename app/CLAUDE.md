@@ -39,7 +39,9 @@ Single Activity. `MainActivity` is the sole entry point; `LibreChatApplication` 
   channels' ids keep their `butler_` prefix: renamed, Android would drop the settings set on them.
 - Starts `LegacyLibreChatCleanup` once: removes what LibreChat left on an upgraded device.
 - Diagnostics after Koin: the persistent log writer, the crash record, the startup header, the
-  main-thread watchdog. Best-effort — a failure there never blocks launch.
+  main-thread watchdog and, with it while the app is in front, `diagnostics/ThreadHealth`
+  (27/10/2026: `Dispatchers.IO` probed every 15 s, the app's pools reported past 32 threads, each
+  time with `threadReport()`). Best-effort — a failure there never blocks launch.
 - Coil's singleton image loader, on its own bare Ktor client (cleartext guard only, no identity).
 
 ## Tests

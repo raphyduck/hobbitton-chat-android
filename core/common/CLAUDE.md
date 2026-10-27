@@ -15,6 +15,10 @@ dependency.
   whole block off the caller's thread: Ktor resumes in the caller's context, so body decode and the
   token renewal a request drives would otherwise run wherever the call was launched from, the UI
   thread for anything on `viewModelScope`.
+- **`AppThreads`** (androidMain, 27/10/2026): the app's own elastic pools, `io` (bound to
+  `ioDispatcher` and `KoinQualifiers.IO`) and `net` (Ktor's engines), apart from the shared
+  `Dispatchers.IO`; never write `Dispatchers.IO` in the app. **`threadReport()`**
+  (`diagnostics/`): the process's threads by pool, state and place, for the journal.
 - **`Flow.batched`** (`flow/`): the items of a kind gathered for a few milliseconds and emitted as
   one list, the others at once, in order (the conversation's deltas, 26/10/2026).
 - **ConnectivityObserver**: wraps Android's `ConnectivityManager.NetworkCallback`; drives the

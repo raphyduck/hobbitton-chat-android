@@ -15,6 +15,7 @@ import androidx.core.content.ContextCompat
 import co.touchlab.kermit.Logger
 import com.garfiec.librechat.R
 import com.garfiec.librechat.attention.AndroidAttentionNotifier
+import com.garfiec.librechat.core.common.di.AppThreads
 import com.garfiec.librechat.core.common.network.CleartextPolicy
 import com.garfiec.librechat.core.common.network.ConnectivityObserver
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
@@ -26,7 +27,6 @@ import com.garfiec.librechat.core.data.portal.PortalSession
 import com.garfiec.librechat.core.data.scheduler.SchedulerRepository
 import com.garfiec.librechat.core.model.scheduler.PushChannel
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -61,7 +61,7 @@ class PushService : Service() {
     private val connectivity: ConnectivityObserver by inject()
     private val portal: PortalSession by inject()
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val scope = CoroutineScope(SupervisorJob() + AppThreads.io)
     private var listening: Job? = null
 
     /** The stream being read, to cut it from another thread: the read itself cannot be interrupted. */

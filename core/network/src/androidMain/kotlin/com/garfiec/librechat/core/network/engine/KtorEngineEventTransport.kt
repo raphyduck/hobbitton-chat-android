@@ -34,7 +34,7 @@ class KtorEngineEventTransport(
             accept(ContentType.Text.EventStream)
             timeout {
                 requestTimeoutMillis = Long.MAX_VALUE
-                socketTimeoutMillis = Long.MAX_VALUE
+                socketTimeoutMillis = FEED_SOCKET_TIMEOUT_MS
             }
         }.execute { response ->
             if (!response.status.isSuccess()) {
@@ -55,5 +55,14 @@ class KtorEngineEventTransport(
 
     private companion object {
         const val BUFFER_SIZE = 8192
+
+        /**
+         * The socket's own bound on the feed (27/10/2026), past the parser's line-read timeout
+         * ([com.garfiec.librechat.core.network.sse.SseLineParser.DEFAULT_LINE_READ_TIMEOUT_MS]):
+         * the engine sends a heartbeat every ten seconds or so, so a feed this long silent is dead.
+         * Infinite until then, which also took the write timeout off the connection the feed
+         * opened, the one every request of the engine's client then shared.
+         */
+        const val FEED_SOCKET_TIMEOUT_MS = 150_000L
     }
 }

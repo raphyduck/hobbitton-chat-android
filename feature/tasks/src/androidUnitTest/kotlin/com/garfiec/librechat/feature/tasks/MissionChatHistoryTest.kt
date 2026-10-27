@@ -26,6 +26,7 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import java.io.IOException
+import kotlin.coroutines.suspendCoroutine
 
 /**
  * Une conversation restait parfois sur ses lignes grises jusqu'à ce qu'on la quitte et la
@@ -207,6 +208,54 @@ class MissionChatHistoryTest {
         assertThat(vm.uiState.value.loadingHistory).isFalse()
         coVerify(exactly = 1) { repository.models() }
         coVerify(exactly = 1) { repository.connectors() }
+    }
+
+    @Test
+    fun `a copy on the device that does not answer does not hold the opening`() {
+        // 27/10/2026 : une conversation restée sur ses lignes grises sans une ligne au journal, pas
+        // même « nothing kept on the device » ; le regard sur la copie de l'appareil n'était pas borné.
+        coEvery { repository.cachedHistory("ses_1") } coAnswers { awaitCancellation() }
+        coEvery { repository.history("ses_1", any()) } returns listOf(EngineStreamEvent.MessageStarted("m1", "user"))
+        val vm = viewModel()
+        assertThat(vm.uiState.value.loadingHistory).isTrue()
+
+        dispatcher.scheduler.advanceTimeBy(2_500)
+
+        assertThat(vm.uiState.value.loadingHistory).isFalse()
+        assertThat(vm.uiState.value.chat.turns.map { it.key }).containsExactly("m1")
+        coVerify(exactly = 1) { repository.history("ses_1", any()) }
+    }
+
+    @Test
+    fun `an opening stuck where no bound reaches is read again`() {
+        // 27/10/2026 : ce que Raphaël faisait à la main, revenir en arrière et rouvrir. Une lecture
+        // qui ne rend jamais la main, même à son délai (un fil bloqué), est relancée par la garde.
+        coEvery { repository.history("ses_1", any()) } coAnswers {
+            if (reads++ == 0) suspendCoroutine<Nothing> { } else listOf(EngineStreamEvent.MessageStarted("m1", "user"))
+        }
+        val vm = viewModel()
+
+        dispatcher.scheduler.advanceTimeBy(9_000)
+        assertThat(vm.uiState.value.loadingHistory).isTrue()
+
+        dispatcher.scheduler.advanceTimeBy(2_000)
+
+        assertThat(vm.uiState.value.loadingHistory).isFalse()
+        assertThat(vm.uiState.value.chat.turns.map { it.key }).containsExactly("m1")
+        coVerify(exactly = 2) { repository.history("ses_1", any()) }
+        coVerify(exactly = 1) { repository.dropConnections() }
+    }
+
+    @Test
+    fun `an opening that moves is left alone`() {
+        // Trois essais de 8 s avancent chacun : la garde ne relance rien, l'erreur arrive à son heure.
+        coEvery { repository.history("ses_1", any()) } coAnswers { awaitCancellation() }
+        val vm = viewModel()
+
+        dispatcher.scheduler.advanceTimeBy(60_000)
+
+        assertThat(vm.uiState.value.historyError).isNotNull()
+        coVerify(exactly = 3) { repository.history("ses_1", any()) }
     }
 
     @Test
