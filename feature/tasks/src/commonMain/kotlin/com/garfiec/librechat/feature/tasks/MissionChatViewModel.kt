@@ -891,7 +891,13 @@ class MissionChatViewModel(
         val request = state.pendingQuestion ?: return
         val draft = state.questionDraftFor(request)
         if (state.answeringQuestion || !draft.isComplete()) return
-        settleQuestion(request.id) { repository.answerQuestion(request.id, draft.answers()) }
+        settleQuestion(request.id) {
+            // An answer is the person speaking too (27/10/2026, the kit's review): a conversation
+            // the scheduler opened stands at the mission's level until the titulaire says a word
+            // (D-083), and the decision it asks for may need what only that level leaves out.
+            sessionId?.let { liftToTitularIfNeeded(it, state) }
+            repository.answerQuestion(request.id, draft.answers())
+        }
     }
 
     /** Dismisses the pending question: the agent goes on without the answer. */
@@ -918,6 +924,24 @@ class MissionChatViewModel(
                 _uiState.update { it.copy(answeringQuestion = false) }
             }
         }
+    }
+
+    /**
+     * The person is now the one speaking to this session: a scheduled run, or a conversation the
+     * scheduler opened, or any session not recorded at the titulaire's level, is lifted there
+     * first, once, so the annuaire serves what the titulaire reaches (D-083; 24/10/2026, « Go ssh »
+     * refused in a run that still stood at the mission's level). Its rules are rewritten only from
+     * connectors the screen actually read: an unknown list (the scope read failed) lifts the level
+     * alone, and the session keeps the tools it has (26/10/2026: an empty list had stripped every
+     * one of them). Called by a send and by an answer to a question.
+     */
+    private suspend fun liftToTitularIfNeeded(sessionId: String, state: MissionChatUiState) {
+        if (state.sessionLevel == TITULAR_LEVEL) return
+        val known = state.enabledConnectors
+        withContext(ioDispatcher) {
+            if (known != null) repository.setConnectors(sessionId, known.toList()) else repository.liftToTitular(sessionId)
+        }
+        _uiState.update { it.copy(sessionLevel = TITULAR_LEVEL) }
     }
 
     private fun closeQuestion(requestId: String) {
@@ -993,20 +1017,7 @@ class MissionChatViewModel(
         awaitingReply = true
         viewModelScope.launch {
             try {
-                // The person is now the one speaking to this session: a scheduled run (or any
-                // session not recorded at the titulaire's level) is lifted there first, once, so
-                // the annuaire serves what the titulaire reaches (D-083; 24/10/2026, « Go ssh »
-                // refused in a run that still stood at the mission's level).
-                // Its rules are rewritten only from connectors the screen actually read: an unknown
-                // list (the scope read failed) lifts the level alone, and the session keeps the
-                // tools it has (26/10/2026: an empty list had stripped every one of them).
-                if (staged.sessionLevel != TITULAR_LEVEL) {
-                    val known = staged.enabledConnectors
-                    withContext(ioDispatcher) {
-                        if (known != null) repository.setConnectors(sessionId, known.toList()) else repository.liftToTitular(sessionId)
-                    }
-                    _uiState.update { it.copy(sessionLevel = TITULAR_LEVEL) }
-                }
+                liftToTitularIfNeeded(sessionId, staged)
                 // The answer streams in over the feed while this call is in flight; what it returns is
                 // the finished turn, folded in to reconcile anything the feed missed.
                 val model = resolveModel(text, attachments.any { it.mime.startsWith("image/") })
