@@ -386,11 +386,22 @@ class EngineMissionRepository(
         }.also { listSnapshot = it }
     }
 
-    /** The conversation was on screen at [atMillis]: it reads as read up to then. */
+    /**
+     * The conversation was on screen at [atMillis]: it reads as read up to then, here and at the
+     * scheduler (27/10/2026): the voice reading (`lire_conversation`) starts at the first message
+     * after the shared mark, so what the screen showed is never read aloud again. The server is
+     * told off the caller's way when the app has a scope for it; a server that does not answer
+     * costs nothing but a later voice reading starting earlier.
+     */
     suspend fun markRead(sessionId: String, atMillis: Long) {
         val store = reads ?: return
         runCatching { store.markRead(sessionId, atMillis) }
             .onFailure { Logger.w(it) { "Could not record that $sessionId was read" } }
+        val tell: suspend () -> Unit = {
+            runCatching { scheduler.markRead(sessionId, atMillis) }
+                .onFailure { Logger.w(it) { "Could not tell the scheduler that $sessionId was read" } }
+        }
+        keepScope?.launch { tell() } ?: tell()
     }
 
     /**

@@ -66,6 +66,7 @@ class EngineChatSessionTest {
                     "\"perimetre\"" in text -> toolFrame("""{"session":"ses_chat","connecteurs":[],"enregistre":true}""")
                     "\"historique\"" in text -> toolFrame(runsJson)
                     "\"conversations_lues\"" in text -> toolFrame(serverReadsJson)
+                    "\"marquer_lue\"" in text -> toolFrame("""{"session":"ses_reply","lue_jusqu_a":600}""")
                     else -> catalogueFrame()
                 }
             }
@@ -361,6 +362,11 @@ class EngineChatSessionTest {
         assertTrue(repository.recentChats().single().unread)
         repository.markRead("ses_reply", atMillis = 600)
         assertTrue(!repository.recentChats().single().unread)
+        // The scheduler is told the same mark (27/10/2026): the voice reading resumes after it.
+        val told = sent.filter { it.url.encodedPath == "/mcp" && "\"marquer_lue\"" in (it.body as TextContent).text }
+        assertEquals(1, told.size)
+        assertTrue(""""conversation":"ses_reply"""" in (told.single().body as TextContent).text)
+        assertTrue(""""jusqu_a_ms":600""" in (told.single().body as TextContent).text)
     }
 
     @Test
