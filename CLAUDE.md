@@ -191,12 +191,17 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   id `auto`, never sent to the engine). The first message of a new conversation goes to the
   scheduler's trieur (`POST /palier`, `SchedulerRepository.triage`), which names the tier and its
   model on the chat's provider; the conversation starts on it and keeps it (`resolveModel`), the chip
-  showing what Auto chose; no scheduler or no answer, and it runs on the engine's default. A
+  showing what Auto chose; a trieur that does not answer leaves it on the ladder's lowest tier
+  (`ModelTiers.lowest`, 27/10/2026: sent without a model it ran on the engine's default, Sonnet, which
+  Auto never picks), and only with no ladder either on the engine's default. A
   conversation that already ran keeps its model. **A conversation's model is what this device last
   sent it with** (26/10/2026, Raphaël: « le choix du modèle change en cours de route »):
   `ConversationModelStore` (`EngineConversationModels`, device preferences, cleared at sign-out),
   recorded at every send and read ahead of the model the last turn ran on
-  (`MissionChatUiState.rememberedModel`, `effectiveModel`). The engine keeps no model per session,
+  (`MissionChatUiState.rememberedModel`, `effectiveModel`), and a last turn that ran on the engine's
+  own default nobody chose (not the person's default either) does not hold the conversation: the chip
+  and the next message follow the person's default (`chosenRunModel`, 27/10/2026, Raphaël: « je n'ai
+  jamais choisi Sonnet »). The engine keeps no model per session,
   and the last turn's model is whoever wrote it: a reminder played back by the scheduler, a relance
   posing its decision in its own conversation, ran on their own model (the palier's Sonnet until
   kit #149), and the chip and the next message followed them. Under the last answer, « Refaire plus fort »

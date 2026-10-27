@@ -103,8 +103,33 @@ class AutoModelTest {
     }
 
     @Test
-    fun `without an answer from the trieur the conversation starts on the default, never on Auto`() {
+    fun `without an answer from the trieur the conversation starts on the lowest tier, never on the engine's default`() {
+        // 27/10/2026 : sent without a model, it ran on the engine's default (Sonnet), which Auto
+        // never picks: the photo of a parcel did.
         coEvery { scheduler.triage(any(), any()) } returns null
+        val vm = viewModel()
+
+        vm.onInputChange("Bonjour")
+        vm.send()
+
+        coVerify { repository.startChat(text = "Bonjour", connectors = any(), model = deepseek.ref, files = any()) }
+    }
+
+    @Test
+    fun `a trieur that names no tier leaves the conversation on the lowest of the ladder it sent`() {
+        coEvery { scheduler.triage(any(), any()) } returns ModelTierChoice(models = tiers.models)
+        val vm = viewModel()
+
+        vm.onInputChange("Bonjour")
+        vm.send()
+
+        coVerify { repository.startChat(text = "Bonjour", connectors = any(), model = deepseek.ref, files = any()) }
+    }
+
+    @Test
+    fun `with no trieur and no ladder the engine's default is the last resort`() {
+        coEvery { scheduler.triage(any(), any()) } returns null
+        coEvery { scheduler.modelTiers() } returns ModelTiers.NONE
         val vm = viewModel()
 
         vm.onInputChange("Bonjour")
@@ -129,6 +154,52 @@ class AutoModelTest {
 
         coVerify(exactly = 0) { scheduler.triage(any(), any()) }
         coVerify { repository.sendMessage("ses_suivie", "Et ensuite ?", ran, any()) }
+    }
+
+    @Test
+    fun `a conversation that ran on the engine's fallback nobody chose follows the person's default`() {
+        // 27/10/2026, Raphaël: « je n'ai jamais choisi Sonnet ». The parcel's conversation had run on
+        // the engine's default because the trieur did not answer; the chip said Sonnet and the next
+        // message stayed there.
+        val sonnet = EngineSelectableModel("hobbitton-chat", "claude-sonnet-5-5", "Claude Sonnet 5.5")
+        coEvery { repository.models() } returns EngineModelChoice(
+            models = listOf(deepseek, opus, sonnet),
+            preselected = EngineSelectableModel.AUTO,
+            engineDefault = sonnet,
+        )
+        coEvery { repository.history("ses_colis", any()) } returns listOf(
+            EngineStreamEvent.MessageStarted("m1", "user"),
+            EngineStreamEvent.MessageStarted("m2", "assistant", sonnet.ref),
+            EngineStreamEvent.Idle,
+        )
+        every { repository.events("ses_colis") } returns flowOf()
+        val vm = viewModel(sessionId = "ses_colis")
+
+        assertThat(vm.uiState.value.effectiveModel).isEqualTo(EngineSelectableModel.AUTO)
+        vm.onInputChange("Et le point relais ?")
+        vm.send()
+
+        coVerify { scheduler.triage("Et le point relais ?", false) }
+        coVerify { repository.sendMessage("ses_colis", "Et le point relais ?", deepseek.ref, any()) }
+    }
+
+    @Test
+    fun `the engine's default stays when it is also the person's default`() {
+        val sonnet = EngineSelectableModel("hobbitton-chat", "claude-sonnet-5-5", "Claude Sonnet 5.5")
+        coEvery { repository.models() } returns EngineModelChoice(
+            models = listOf(deepseek, opus, sonnet),
+            preselected = sonnet,
+            engineDefault = sonnet,
+        )
+        coEvery { repository.history("ses_s", any()) } returns listOf(
+            EngineStreamEvent.MessageStarted("m1", "user"),
+            EngineStreamEvent.MessageStarted("m2", "assistant", sonnet.ref),
+            EngineStreamEvent.Idle,
+        )
+        every { repository.events("ses_s") } returns flowOf()
+        val vm = viewModel(sessionId = "ses_s")
+
+        assertThat(vm.uiState.value.effectiveModel).isEqualTo(sonnet)
     }
 
     @Test
