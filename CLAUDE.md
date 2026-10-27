@@ -82,7 +82,11 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   (21/10/2026).
   Unread = moved since this device last showed it (`ConversationReads`), or since the scheduler
   marked it read (22/10/2026: its unread mission withdrew a question a reply had made moot,
-  `retirer_question`, read back through `conversations_lues`); for a run, also « had
+  `retirer_question`, read back through `conversations_lues`; since 27/10/2026 evening also a
+  conversation read aloud by phone, and the device tells the scheduler its own mark at every
+  `markRead`, `SchedulerApi.markRead` → `marquer_lue`, so the voice reading starts at the first
+  message the screen never showed: Raphaël's rule, « uniquement les messages non lus, message
+  par message »); for a run, also « had
   something to say »: the scheduler's `historique(json_brut=True)` carries `a_signaler`, false when
   the run answered « RIEN À SIGNALER » (`runHasNews`). A run played inside a conversation (a
   reminder, a relance's decision; the scheduler's `conversation` flag, 26/10/2026) never makes that

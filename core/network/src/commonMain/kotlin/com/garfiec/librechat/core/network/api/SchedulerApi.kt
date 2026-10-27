@@ -155,6 +155,15 @@ class SchedulerApi(
     }
 
     /**
+     * Tells the scheduler that [sessionId] was shown here until [atMillis] (27/10/2026): its read
+     * mark, the one [serverReads] gives back and the one the voice reading resumes after, is the
+     * later of what the screen and the voice saw. A failure is raised like [runs]'.
+     */
+    suspend fun markRead(sessionId: String, atMillis: Long) {
+        callTool("marquer_lue", buildJsonObject { put("conversation", sessionId); put("jusqu_a_ms", atMillis) })
+    }
+
+    /**
      * Which providers answer right now.
      *
      * **This performs a real call to every model in the catalogue.** Measured server-side on
