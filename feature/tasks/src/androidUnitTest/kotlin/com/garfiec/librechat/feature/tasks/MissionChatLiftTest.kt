@@ -5,6 +5,9 @@ import com.garfiec.librechat.core.data.engine.EngineMissionRepository
 import com.garfiec.librechat.core.data.engine.SessionScopeRead
 import com.garfiec.librechat.core.data.engine.TITULAR_LEVEL
 import com.garfiec.librechat.core.data.engine.TranscriptionOutcome
+import com.garfiec.librechat.core.model.engine.EngineQuestionInfo
+import com.garfiec.librechat.core.model.engine.EngineQuestionOption
+import com.garfiec.librechat.core.model.engine.EngineQuestionRequest
 import com.garfiec.librechat.core.model.scheduler.ConnectorCatalogue
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -84,6 +87,34 @@ class MissionChatLiftTest {
             repository.sendMessage("ses_run", "et ensuite", any(), any())
         }
         coVerify(exactly = 1) { repository.setConnectors("ses_run", any()) }
+    }
+
+    @Test
+    fun `an answer to a question lifts the session first, as a message does`() {
+        // 27/10/2026 (revue du kit) : une conversation que le planificateur ouvre reste au niveau
+        // mission jusqu'à ce que le titulaire parle ; répondre à sa question, c'est parler.
+        coEvery { repository.pendingQuestions("ses_run") } returns listOf(
+            EngineQuestionRequest(
+                id = "que_1",
+                sessionId = "ses_run",
+                questions = listOf(
+                    EngineQuestionInfo(
+                        question = "Je réponds ?",
+                        header = "Réponse",
+                        options = listOf(EngineQuestionOption("Oui", ""), EngineQuestionOption("Non", "")),
+                    ),
+                ),
+            ),
+        )
+        val vm = viewModel(level = "mission")
+        vm.pickQuestionOption(0, "Oui")
+        vm.answerQuestion()
+
+        coVerifyOrder {
+            repository.setConnectors("ses_run", any())
+            repository.answerQuestion("que_1", listOf(listOf("Oui")))
+        }
+        assertThat(vm.uiState.value.sessionLevel).isEqualTo(TITULAR_LEVEL)
     }
 
     @Test

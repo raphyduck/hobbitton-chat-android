@@ -63,7 +63,10 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   earlier version, a scheduled run, whose follow-ups run on `chat` too. A session the scheduler
   recorded at another level (a run stands at `mission`, where `ssh-distant` is forbidden) is
   lifted to the titulaire's level before the person's first message in it (24/10/2026, Raphaël's
-  « Go ssh » in a run was refused by the annuaire; `sessionScope` reads the level, `send` lifts). The
+  « Go ssh » in a run was refused by the annuaire; `sessionScope` reads the level, `send` lifts, and
+  so does an answer to a question since 27/10/2026: a conversation the scheduler opens itself, a
+  decision or a reply to follow, stands at the mission's level until the titulaire says a word,
+  the kit's review; `liftToTitularIfNeeded`). The
   lift rewrites the rules only from connectors the screen read; unread, it records the level alone
   (`liftToTitular`) and the chip offers a retry (26/10/2026: an empty list stripped every tool).
 - **Programmées** (ex Tasks tab): the scheduler's entries only, recurring then one-shot, each row
