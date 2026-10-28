@@ -13,9 +13,13 @@ import androidx.compose.ui.test.onRoot
 import com.garfiec.librechat.core.data.engine.EngineChatSummary
 import com.garfiec.librechat.core.data.engine.EngineSessionKind
 import com.garfiec.librechat.core.data.engine.inboxOrder
+import com.garfiec.librechat.core.data.lock.LockState
 import com.garfiec.librechat.core.model.scheduler.ChatBudget
 import com.garfiec.librechat.core.network.engine.EngineAccess
 import com.garfiec.librechat.core.ui.theme.LibreChatTheme
+import com.garfiec.librechat.shared.engine.lock.AppLockUiState
+import com.garfiec.librechat.shared.engine.lock.CodeEntry
+import com.garfiec.librechat.shared.engine.lock.LockSurface
 import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.Rule
 import org.junit.Test
@@ -62,7 +66,15 @@ class CaptureShellTest {
         Budget(day = "50", problem = BudgetProblem.DAY_OVER_WEEK)
     }
 
-    private fun capture(name: String, dark: Boolean, content: @Composable () -> Unit) {
+    @Test
+    fun lockLight() = capture("lock-light", dark = false) { Lock(error = null) }
+
+    @Test
+    fun lockDarkWrongCode() = capture("lock-dark-wrong", dark = true) {
+        Lock(error = "Code erroné. Encore 3 essais avant la déconnexion.")
+    }
+
+        private fun capture(name: String, dark: Boolean, content: @Composable () -> Unit) {
         rule.setContent {
             LibreChatTheme(darkTheme = dark) {
                 Surface(Modifier.fillMaxSize()) { content() }
@@ -100,6 +112,15 @@ private fun Settings() {
         onOpenUsage = {},
         onThemeMode = {},
         onSignOut = {},
+        lockSection = {
+            LockSectionContent(
+                state = AppLockUiState(lock = LockState.UNLOCKED, biometrics = true),
+                fingerprintAvailable = true,
+                onChangeCode = {},
+                onFingerprint = {},
+                onDelay = {},
+            )
+        },
     )
 }
 
@@ -155,3 +176,16 @@ private val CHATS = listOf(
     EngineChatSummary("c3", "Devis assurance Matmut", NOW - 3 * 24 * HOUR, running = false),
     EngineChatSummary("c4", "Idées cadeau pour Lucie", NOW - 12 * 24 * HOUR, running = false),
 )
+
+@Composable
+private fun Lock(error: String?) {
+    LockSurface {
+        CodeEntry(
+            title = "Eva est verrouillée",
+            hint = "Entrez votre code",
+            error = error,
+            onFingerprint = {},
+            onComplete = {},
+        )
+    }
+}

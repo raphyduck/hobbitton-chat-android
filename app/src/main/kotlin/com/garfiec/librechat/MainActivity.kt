@@ -5,7 +5,6 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -40,6 +39,7 @@ import androidx.core.content.edit
 import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
+import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import co.touchlab.kermit.Logger
@@ -60,7 +60,10 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
 
-class MainActivity : ComponentActivity() {
+/**
+ * A [FragmentActivity] since 28/10/2026: the lock's fingerprint prompt (`BiometricPrompt`) needs one.
+ */
+class MainActivity : FragmentActivity() {
 
     private val connectivityObserver: ConnectivityObserver by inject()
     private val themeDataStore: ThemeDataStore by inject()
@@ -82,6 +85,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         splash.setKeepOnScreenCondition { !(themeDataStore.isReady.value && settingsDataStore.isReady.value) }
         enableEdgeToEdge()
+        // The lock (28/10/2026): the recent apps show no picture of a conversation. Not FLAG_SECURE,
+        // which would also black out the screen recordings Raphaël reports with.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) setRecentsScreenshotEnabled(false)
 
         // Only process the launch intent on a genuinely fresh start: on recreation it is still sticky,
         // and the portal's callback it may carry has already been delivered.

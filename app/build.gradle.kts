@@ -54,6 +54,8 @@ dependencies {
     implementation(libs.activity.compose)
     implementation(libs.livekit.android)
     implementation(libs.core.splashscreen)
+    // The lock's fingerprint prompt needs a FragmentActivity (28/10/2026).
+    implementation(libs.biometric)
     implementation(libs.navigation3.ui.kmp)
     implementation(libs.bundles.lifecycle)
     implementation(libs.coil3.compose)

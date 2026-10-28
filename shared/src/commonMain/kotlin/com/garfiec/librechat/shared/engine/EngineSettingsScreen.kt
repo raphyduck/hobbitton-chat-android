@@ -26,6 +26,8 @@ import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.Fingerprint
+import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.QueryStats
@@ -45,8 +47,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -60,15 +64,23 @@ import androidx.compose.ui.unit.dp
 import com.garfiec.librechat.core.data.datastore.ChatFontSize
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.datastore.ThemeMode
+import com.garfiec.librechat.core.data.lock.AppLock
 import com.garfiec.librechat.core.model.engine.EngineSelectableModel
 import com.garfiec.librechat.core.network.engine.EngineAccess
 import com.garfiec.librechat.core.ui.components.SectionDivider
 import com.garfiec.librechat.core.ui.components.SectionGroup
 import com.garfiec.librechat.core.ui.components.SectionLabel
+import com.garfiec.librechat.shared.engine.lock.AppLockUiState
+import com.garfiec.librechat.shared.engine.lock.AppLockViewModel
+import com.garfiec.librechat.shared.engine.lock.BiometricOutcome
+import com.garfiec.librechat.shared.engine.lock.ChangeCodeDialog
+import com.garfiec.librechat.shared.engine.lock.rememberBiometrics
 import com.garfiec.librechat.shared.resources.Res
 import com.garfiec.librechat.shared.resources.engine_language_english
 import com.garfiec.librechat.shared.resources.engine_language_french
 import com.garfiec.librechat.shared.resources.engine_language_system
+import com.garfiec.librechat.shared.resources.engine_lock_cancel
+import com.garfiec.librechat.shared.resources.engine_lock_fingerprint_title
 import com.garfiec.librechat.shared.resources.engine_settings_appearance
 import com.garfiec.librechat.shared.resources.engine_settings_assistant
 import com.garfiec.librechat.shared.resources.engine_settings_attention
@@ -92,6 +104,14 @@ import com.garfiec.librechat.shared.resources.engine_settings_instructions_hint
 import com.garfiec.librechat.shared.resources.engine_settings_language
 import com.garfiec.librechat.shared.resources.engine_settings_local_dictation
 import com.garfiec.librechat.shared.resources.engine_settings_local_dictation_hint
+import com.garfiec.librechat.shared.resources.engine_settings_lock
+import com.garfiec.librechat.shared.resources.engine_settings_lock_change
+import com.garfiec.librechat.shared.resources.engine_settings_lock_change_hint
+import com.garfiec.librechat.shared.resources.engine_settings_lock_delay
+import com.garfiec.librechat.shared.resources.engine_settings_lock_delay_minutes
+import com.garfiec.librechat.shared.resources.engine_settings_lock_delay_now
+import com.garfiec.librechat.shared.resources.engine_settings_lock_fingerprint
+import com.garfiec.librechat.shared.resources.engine_settings_lock_fingerprint_hint
 import com.garfiec.librechat.shared.resources.engine_settings_notifications
 import com.garfiec.librechat.shared.resources.engine_settings_platform
 import com.garfiec.librechat.shared.resources.engine_settings_platform_hint
@@ -112,6 +132,7 @@ import com.garfiec.librechat.shared.resources.engine_theme_light
 import com.garfiec.librechat.shared.resources.engine_theme_system
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.viewmodel.koinViewModel
 
 /** What the settings screen shows. */
 data class EngineSettingsUiState(
@@ -164,6 +185,8 @@ internal fun EngineSettingsScreen(
     onDefaultModel: (String?) -> Unit = {},
     onLanguage: (AppLanguage) -> Unit = {},
     onShareDiagnostics: () -> Unit = {},
+    /** The lock's section (28/10/2026); the screen captures pass its stateless content. */
+    lockSection: @Composable () -> Unit = { LockSection() },
 ) {
     var confirmSignOut by rememberSaveable { mutableStateOf(false) }
     var pickModel by rememberSaveable { mutableStateOf(false) }
@@ -198,6 +221,7 @@ internal fun EngineSettingsScreen(
             onPickModel = { pickModel = true },
             onShareDiagnostics = onShareDiagnostics,
             onSignOut = { confirmSignOut = true },
+            lockSection = lockSection,
         )
         if (pickModel) {
             DefaultModelDialog(
@@ -330,6 +354,7 @@ private fun SettingsBody(
     onPickModel: () -> Unit,
     onShareDiagnostics: () -> Unit,
     onSignOut: () -> Unit,
+    lockSection: @Composable () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -383,6 +408,9 @@ private fun SettingsBody(
                 modifier = Modifier.testTag("settings_attention_sound"),
             )
         }
+        Spacer(Modifier.height(GROUP_GAP))
+
+        lockSection()
         Spacer(Modifier.height(GROUP_GAP))
 
         SectionLabel(stringResource(Res.string.engine_settings_dictation))
@@ -526,6 +554,93 @@ private fun AccountHeader(account: DrawerAccount) {
             }
         }
     }
+}
+
+@Composable
+private fun LockSection(viewModel: AppLockViewModel = koinViewModel()) {
+    val state by viewModel.state.collectAsState()
+    val biometrics = rememberBiometrics()
+    var changing by remember { mutableStateOf(false) }
+    val title = stringResource(Res.string.engine_lock_fingerprint_title)
+    val cancel = stringResource(Res.string.engine_lock_cancel)
+
+    LockSectionContent(
+        state = state,
+        fingerprintAvailable = biometrics?.available == true,
+        onChangeCode = { changing = true },
+        onFingerprint = { on ->
+            if (biometrics == null) return@LockSectionContent
+            if (!on) {
+                biometrics.forget()
+                viewModel.setBiometrics(false)
+            } else if (biometrics.enroll()) {
+                // Turned on only once the finger was read: the key needs it to exist at all.
+                biometrics.authenticate(title, cancel) { outcome ->
+                    val confirmed = outcome == BiometricOutcome.SUCCESS
+                    if (!confirmed) biometrics.forget()
+                    viewModel.setBiometrics(confirmed)
+                }
+            }
+        },
+        onDelay = viewModel::setDelay,
+    )
+    if (changing) {
+        ChangeCodeDialog(
+            onCheck = viewModel::check,
+            onChange = viewModel::changeCode,
+            onDismiss = { changing = false },
+        )
+    }
+}
+
+/**
+ * The lock (28/10/2026): change the code, the fingerprint, how long the app may stay in the
+ * background before it asks again. There is no switch to turn it off: Eva reaches the mail, the
+ * bank and the servers.
+ */
+@Composable
+internal fun LockSectionContent(
+    state: AppLockUiState,
+    fingerprintAvailable: Boolean,
+    onChangeCode: () -> Unit,
+    onFingerprint: (Boolean) -> Unit,
+    onDelay: (Long) -> Unit,
+) {
+    SectionLabel(stringResource(Res.string.engine_settings_lock))
+    SectionGroup {
+        NavigationRow(
+            icon = Icons.Outlined.Lock,
+            headline = stringResource(Res.string.engine_settings_lock_change),
+            supporting = stringResource(Res.string.engine_settings_lock_change_hint),
+            onClick = onChangeCode,
+            modifier = Modifier.testTag("settings_lock_change"),
+        )
+        if (fingerprintAvailable) {
+            SectionDivider()
+            ToggleRow(
+                icon = Icons.Outlined.Fingerprint,
+                headline = stringResource(Res.string.engine_settings_lock_fingerprint),
+                supporting = stringResource(Res.string.engine_settings_lock_fingerprint_hint),
+                checked = state.biometrics,
+                onCheckedChange = onFingerprint,
+                modifier = Modifier.testTag("settings_lock_fingerprint"),
+            )
+        }
+        SectionDivider()
+        ChoiceRow(
+            label = stringResource(Res.string.engine_settings_lock_delay),
+            options = AppLock.DELAYS_MILLIS,
+            selected = state.delayMillis,
+            optionLabel = { lockDelayLabel(it) },
+            onPick = onDelay,
+        )
+    }
+}
+
+@Composable
+private fun lockDelayLabel(millis: Long): String = when (millis) {
+    0L -> stringResource(Res.string.engine_settings_lock_delay_now)
+    else -> stringResource(Res.string.engine_settings_lock_delay_minutes, millis / 60_000L)
 }
 
 /** A setting with a few values, picked on a segmented control under its name. */

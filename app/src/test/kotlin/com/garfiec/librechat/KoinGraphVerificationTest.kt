@@ -11,6 +11,7 @@ import com.garfiec.librechat.core.data.engine.EngineAttentionWatcher
 import com.garfiec.librechat.core.data.engine.EngineMissionRepository
 import com.garfiec.librechat.core.data.engine.EngineSettingsStore
 import com.garfiec.librechat.core.data.engine.SessionKindStore
+import com.garfiec.librechat.core.data.lock.AppLock
 import com.garfiec.librechat.core.data.portal.PortalSignOut
 import com.garfiec.librechat.core.data.portal.PortalTasksSignIn
 import com.garfiec.librechat.core.data.pricing.ModelPriceSource
@@ -68,6 +69,8 @@ class KoinGraphVerificationTest {
             ConversationRequests::class,
             // The spending ceilings' source, the scheduler's (12/10/2026).
             ChatBudgetSource::class,
+            // The app's lock (28/10/2026), bound by `engineModule`.
+            AppLock::class,
         )
 
         // Types whose libraries aren't on the app test classpath (transitive

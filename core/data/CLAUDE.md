@@ -17,6 +17,10 @@ The engine's and the portal's data layer, and the app's preferences.
 - **`datastore/`** — `ThemeDataStore`, `SettingsDataStore` (language, read-only; the text size, the attention and dictation switches and the default model, written from Settings),
   `GlobalProfileStore`. One DataStore file (`librechat_settings`, name
   kept so an upgrade keeps its preferences).
+- **`lock/`** (28/10/2026): `AppLock`, the app's lock (`LockState`, `UnlockResult`: six digits,
+  five tries, a delay on a monotonic clock, `isTooSimple`) over `AppLockStore`;
+  `AndroidAppLockStore` (androidMain) keeps a salted PBKDF2 hash in its own encrypted file
+  (`eva_lock`). Both bound in `engineModule`.
 - **`legacy/`** — `LegacyLibreChatCleanup`: removes, once, what LibreChat left on an upgraded
   device (below).
 - **`di/`** — `dataModule` (+ `dataPlatformModule`, `hobbittonDataModule`) and `engineModule`

@@ -7,6 +7,7 @@ import com.garfiec.librechat.core.data.engine.EngineAttentionWatcher
 import com.garfiec.librechat.core.data.engine.EngineMissionRepository
 import com.garfiec.librechat.core.data.engine.EngineSettingsStore
 import com.garfiec.librechat.core.data.engine.TranscriptCache
+import com.garfiec.librechat.core.data.lock.AppLock
 import com.garfiec.librechat.core.data.portal.PortalSignOut
 import com.garfiec.librechat.core.data.scheduler.ChatBudgetSource
 import com.garfiec.librechat.core.data.scheduler.SchedulerRepository
@@ -15,6 +16,7 @@ import com.garfiec.librechat.core.network.engine.EngineTokenStore
 import com.garfiec.librechat.shared.engine.EngineBudgetViewModel
 import com.garfiec.librechat.shared.engine.EngineInstructionsViewModel
 import com.garfiec.librechat.shared.engine.EngineShellViewModel
+import com.garfiec.librechat.shared.engine.lock.AppLockViewModel
 import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
@@ -41,8 +43,13 @@ val sharedAppModule = module {
             transcripts = getOrNull<TranscriptCache>(),
             conversationModels = getOrNull<ConversationModelStore>(),
             deviceSession = getOrNull<DeviceSession>(),
+            appLock = getOrNull<AppLock>(),
         )
     }
+
+    // The app's lock (28/10/2026): the gate over the signed-in app and the Settings section.
+    @Suppress("DeprecatedKoinApi")
+    viewModel { AppLockViewModel(lock = getOrNull<AppLock>()) }
 
     // The global instructions' editor (D-077). Local storage only — `GlobalProfileEditor` is bound
     // by :core:data — so a plain constructor definition.
