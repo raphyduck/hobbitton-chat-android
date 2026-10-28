@@ -265,6 +265,26 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   The persistent journal keeps Info and above. Deliberately not done:
   `FLAG_SECURE` (screen recordings are how Raphaël reports), and encrypting the transcript cache
   (plain gzip under the cache directory, cleared at sign-out).
+- **The app's lock** (28/10/2026, Raphaël: « au vu de l'accès que donne l'application Eva, il
+  faudrait sécuriser par un mot de passe et optionnellement de la biométrie, comme une application
+  bancaire »). A six-digit code, created right after the sign-in (an installed app asks for one at
+  its next start), drawn on the app's own keypad (no system keyboard learns it), asked at every
+  start and on every return after the delay of Settings → Verrouillage (at once, 1, 5 or 15
+  minutes; 1 by default); no switch turns it off. The code is never kept, only a PBKDF2 hash with
+  its salt in its own encrypted file (`AppLock`, `AppLockStore`, `:core:data`;
+  `AndroidAppLockStore`), the delay measured on the device's uptime. Too simple a code is refused
+  (`isTooSimple`: one digit six times, a run up or down). Five wrong codes in a row sign out (the
+  count survives a restart; the app stays locked until the sign-out ends, then the portal, its
+  password and its second factor are the way back). The fingerprint is optional, offered after the
+  code and in Settings: a strong biometric only, through `BiometricPrompt` over a keystore key
+  that needs it at each use and that Android voids when a fingerprint is added
+  (`Biometrics`, `Biometrics.android.kt`): the code is then asked and the fingerprint turned off.
+  `AppLockGate` (`:shared`, `engine/lock/`) stands over the signed-in shell: the app below is
+  composed once opened, then kept under the lock (and hidden from accessibility services) so a
+  return finds it as it was; a notification's conversation opens once unlocked. `MainActivity` is a
+  `FragmentActivity` (the prompt needs one) and keeps conversations out of the recent apps'
+  pictures (`setRecentsScreenshotEnabled(false)`, Android 13+; not `FLAG_SECURE`). Signing out
+  forgets the lock.
 - **LibreChat's leftovers** on a device that ran an earlier build (its Room database, tokens,
   WorkManager job, caches and preferences) are removed once at start by `LegacyLibreChatCleanup`;
   a LibreChat account's global profile is moved under the device keys first.

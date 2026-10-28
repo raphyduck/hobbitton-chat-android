@@ -21,6 +21,7 @@ import com.garfiec.librechat.core.data.engine.OpenConversation
 import com.garfiec.librechat.core.data.engine.RECENT_LIST_REUSE_MS
 import com.garfiec.librechat.core.data.engine.SessionKindStore
 import com.garfiec.librechat.core.data.engine.TranscriptCache
+import com.garfiec.librechat.core.data.lock.AppLock
 import com.garfiec.librechat.core.data.portal.PortalSignOut
 import com.garfiec.librechat.core.data.portal.isPortalSignedIn
 import com.garfiec.librechat.core.data.scheduler.SchedulerRepository
@@ -89,6 +90,8 @@ class EngineShellViewModel(
     private val conversationModels: ConversationModelStore? = null,
     /** The platform's part of signing in and out: the push service, the device's caches (26/10/2026). */
     private val deviceSession: DeviceSession? = null,
+    /** The app's lock (28/10/2026): forgotten at sign-out, the next person sets their own code. */
+    private val appLock: AppLock? = null,
 ) : ViewModel() {
 
     private val _signedIn = MutableStateFlow<Boolean?>(null)
@@ -390,6 +393,7 @@ class EngineShellViewModel(
                 runCatching { transcripts?.clear() }.onFailure { Logger.w(it) { "Could not clear the kept transcripts" } }
                 runCatching { conversationModels?.clear() }.onFailure { Logger.w(it) { "Could not clear the conversations' models" } }
                 runCatching { deviceSession?.onSignedOut() }.onFailure { Logger.w(it) { "Could not clear the device's caches" } }
+                runCatching { appLock?.forget() }.onFailure { Logger.w(it) { "Could not forget the lock" } }
                 repository?.forgetCaches()
                 scheduler?.forget()
             }

@@ -41,6 +41,8 @@ kotlin {
         androidMain.dependencies {
             // The voice mode asks for the microphone through the activity result API (27/10/2026).
             implementation(libs.activity.compose)
+            // The app's lock (28/10/2026): the fingerprint, a strong biometric bound to a keystore key.
+            implementation(libs.biometric)
         }
 
         androidUnitTest.dependencies {

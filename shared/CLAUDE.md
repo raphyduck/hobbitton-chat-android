@@ -59,6 +59,12 @@ The engine shell, and the Koin module list the application starts from. KMP libr
   dollars, over `ChatBudgetSource` (the scheduler's `/plafonds`). Enregistrer / Annuler; the
   amounts are checked on the phone first (positive, day ≤ week ≤ 30 days), the scheduler's own
   refusal is shown in its words; a scheduler without the route reads « pas encore ».
+- `lock/` (28/10/2026): the app's lock. `AppLockGate` over the signed-in shell (create the code,
+  unlock with the code or the fingerprint, sign out after the last wrong code), `CodeEntry` (six
+  dots, the app's own keypad), `ChangeCodeDialog`, `AppLockViewModel` over `AppLock` (`:core:data`),
+  `Biometrics` (`expect`; Android: `BiometricPrompt` with a crypto object, a strong biometric,
+  a key voided when fingerprints change). Settings → Verrouillage (`LockSection`,
+  `LockSectionContent` for the captures): change the code, the fingerprint, the delay.
 
 ## `di/`
 

@@ -41,6 +41,7 @@ import com.garfiec.librechat.feature.auth.screen.PortalSignInScreen
 import com.garfiec.librechat.feature.tasks.navigation.EngineChat
 import com.garfiec.librechat.feature.tasks.navigation.engineChatEntries
 import com.garfiec.librechat.feature.tasks.navigation.tasksEntries
+import com.garfiec.librechat.shared.engine.lock.AppLockGate
 import com.garfiec.librechat.shared.engine.voice.EngineVoiceScreen
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.launch
@@ -96,7 +97,8 @@ fun EngineNavHost(
                     // Still reading the store: the background only, never a flash of the wrong screen.
                     null -> Unit
                     false -> PortalSignInScreen(onSignedIn = viewModel::onSignedIn)
-                    true -> {
+                    // The app's lock (28/10/2026) over everything signed in.
+                    true -> AppLockGate(onSignOut = viewModel::signOut) {
                         val account = DrawerAccount(
                             name = identity?.nom?.takeIf { it.isNotBlank() } ?: identity?.prenom?.takeIf { it.isNotBlank() },
                             host = addresses?.baseUrl?.let(::hostOf),

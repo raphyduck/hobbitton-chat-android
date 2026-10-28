@@ -107,4 +107,35 @@
     <string name="engine_voice_retry">Retry</string>
     <string name="engine_voice_mic_denied">The microphone is needed for the voice mode.</string>
     <string name="engine_voice_ended">Ended.</string>
+
+    <!-- The app's lock (28/10/2026) -->
+    <string name="engine_lock_locked_title">Eva is locked</string>
+    <string name="engine_lock_enter_code">Enter your code</string>
+    <string name="engine_lock_wrong_code">Wrong code. %1$d attempts left before you are signed out.</string>
+    <string name="engine_lock_fingerprint">Fingerprint</string>
+    <string name="engine_lock_fingerprint_title">Unlock Eva</string>
+    <string name="engine_lock_use_code">Use the code</string>
+    <string name="engine_lock_fingerprint_changed">The phone’s fingerprints changed: enter your code. The fingerprint can be turned back on in Settings.</string>
+    <string name="engine_lock_create_title">Choose a code</string>
+    <string name="engine_lock_create_hint">Six digits, asked each time Eva opens.</string>
+    <string name="engine_lock_confirm_title">Confirm the code</string>
+    <string name="engine_lock_mismatch">The two codes differ. Start again.</string>
+    <string name="engine_lock_too_simple">Too easy to guess. Choose another.</string>
+    <string name="engine_lock_offer_title">Unlock with your fingerprint?</string>
+    <string name="engine_lock_offer_hint">The code still works, and is asked again if the phone’s fingerprints change.</string>
+    <string name="engine_lock_offer_yes">Turn on</string>
+    <string name="engine_lock_offer_later">Not now</string>
+    <string name="engine_lock_delete">Delete</string>
+    <string name="engine_lock_cancel">Cancel</string>
+    <string name="engine_lock_current_title">Current code</string>
+    <string name="engine_lock_new_title">New code</string>
+    <string name="engine_lock_wrong_current">Wrong code.</string>
+    <string name="engine_settings_lock">Lock</string>
+    <string name="engine_settings_lock_change">Change the code</string>
+    <string name="engine_settings_lock_change_hint">Six digits, asked each time Eva opens</string>
+    <string name="engine_settings_lock_fingerprint">Unlock with fingerprint</string>
+    <string name="engine_settings_lock_fingerprint_hint">A strong biometric of this phone</string>
+    <string name="engine_settings_lock_delay">Lock after</string>
+    <string name="engine_settings_lock_delay_now">At once</string>
+    <string name="engine_settings_lock_delay_minutes">%1$d min</string>
 </resources>

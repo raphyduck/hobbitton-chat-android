@@ -1,5 +1,6 @@
 package com.garfiec.librechat.core.data.di
 
+import android.os.SystemClock
 import com.garfiec.librechat.core.common.di.KoinQualifiers
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.engine.AttentionPreference
@@ -20,6 +21,9 @@ import com.garfiec.librechat.core.data.engine.RecentMissionsSource
 import com.garfiec.librechat.core.data.engine.SchedulerTranscriber
 import com.garfiec.librechat.core.data.engine.TranscriptCache
 import com.garfiec.librechat.core.data.engine.isoLanguageOrNull
+import com.garfiec.librechat.core.data.lock.AndroidAppLockStore
+import com.garfiec.librechat.core.data.lock.AppLock
+import com.garfiec.librechat.core.data.lock.AppLockStore
 import com.garfiec.librechat.core.data.portal.AndroidWebCookieJar
 import com.garfiec.librechat.core.data.portal.PortalSession
 import com.garfiec.librechat.core.data.portal.PortalSignOut
@@ -63,6 +67,10 @@ import java.util.Locale
 val engineModule: Module = module {
 
     single { EngineSecureStore(androidContext(), get(KoinQualifiers.IO)) }
+    // The app's own lock (28/10/2026): its code's hash in its own encrypted file, the device's
+    // uptime as its clock.
+    single<AppLockStore> { AndroidAppLockStore(androidContext()) }
+    single { AppLock(store = get(), clock = SystemClock::elapsedRealtime, io = get(KoinQualifiers.IO)) }
     single<EngineTokenStore> { get<EngineSecureStore>().tokens }
 
     // When a conversation needs the person (a question, a reply ready): the decision, common and

@@ -20,6 +20,8 @@ Single Activity. `MainActivity` is the sole entry point; `LibreChatApplication` 
 - A tapped notification carries its conversation in extras (`AndroidAttentionNotifier.conversationOf`),
   handed to `ConversationRequests`. Asks for `POST_NOTIFICATIONS` once on a fresh start (Android 13+,
   switch on), and again when the Settings switch is turned on.
+- A `FragmentActivity` since 28/10/2026 (the lock's `BiometricPrompt` needs one); no picture of
+  a conversation in the recent apps (`setRecentsScreenshotEnabled(false)`, Android 13+).
 - Clears the dynamic home-screen shortcuts earlier builds published (they deep-linked into
   LibreChat's chat).
 

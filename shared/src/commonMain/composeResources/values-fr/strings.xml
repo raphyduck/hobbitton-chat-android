@@ -107,4 +107,35 @@
     <string name="engine_voice_retry">Réessayer</string>
     <string name="engine_voice_mic_denied">Le mode vocal a besoin du micro.</string>
     <string name="engine_voice_ended">Terminé.</string>
+
+    <!-- The app's lock (28/10/2026) -->
+    <string name="engine_lock_locked_title">Eva est verrouillée</string>
+    <string name="engine_lock_enter_code">Entrez votre code</string>
+    <string name="engine_lock_wrong_code">Code erroné. Encore %1$d essais avant la déconnexion.</string>
+    <string name="engine_lock_fingerprint">Empreinte</string>
+    <string name="engine_lock_fingerprint_title">Déverrouiller Eva</string>
+    <string name="engine_lock_use_code">Utiliser le code</string>
+    <string name="engine_lock_fingerprint_changed">Les empreintes du téléphone ont changé : entrez votre code. L’empreinte se réactive dans les réglages.</string>
+    <string name="engine_lock_create_title">Choisissez un code</string>
+    <string name="engine_lock_create_hint">Six chiffres, demandés à chaque ouverture d’Eva.</string>
+    <string name="engine_lock_confirm_title">Confirmez le code</string>
+    <string name="engine_lock_mismatch">Les deux codes diffèrent. Recommencez.</string>
+    <string name="engine_lock_too_simple">Trop facile à deviner. Choisissez-en un autre.</string>
+    <string name="engine_lock_offer_title">Déverrouiller avec l’empreinte ?</string>
+    <string name="engine_lock_offer_hint">Le code reste valable, et sera redemandé si les empreintes du téléphone changent.</string>
+    <string name="engine_lock_offer_yes">Activer</string>
+    <string name="engine_lock_offer_later">Plus tard</string>
+    <string name="engine_lock_delete">Effacer</string>
+    <string name="engine_lock_cancel">Annuler</string>
+    <string name="engine_lock_current_title">Code actuel</string>
+    <string name="engine_lock_new_title">Nouveau code</string>
+    <string name="engine_lock_wrong_current">Code erroné.</string>
+    <string name="engine_settings_lock">Verrouillage</string>
+    <string name="engine_settings_lock_change">Changer le code</string>
+    <string name="engine_settings_lock_change_hint">Six chiffres, demandés à chaque ouverture d’Eva</string>
+    <string name="engine_settings_lock_fingerprint">Déverrouiller avec l’empreinte</string>
+    <string name="engine_settings_lock_fingerprint_hint">Une biométrie forte du téléphone</string>
+    <string name="engine_settings_lock_delay">Verrouiller après</string>
+    <string name="engine_settings_lock_delay_now">Aussitôt</string>
+    <string name="engine_settings_lock_delay_minutes">%1$d min</string>
 </resources>
