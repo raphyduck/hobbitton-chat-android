@@ -14,6 +14,8 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_REMOTE_MESSAGING" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Le mode vocal en arrière-plan (28/10/2026) : le micro reste ouvert pendant la conversation. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
 
     <!--
         allowBackup="false" covers cloud backup on every Android version; dataExtractionRules
@@ -111,6 +113,12 @@
             android:name=".push.PushService"
             android:exported="false"
             android:foregroundServiceType="remoteMessaging" />
+
+        <!-- Le mode vocal, téléphone verrouillé ou app quittée (VoiceCallService, 28/10/2026). -->
+        <service
+            android:name=".voice.VoiceCallService"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
 
         <receiver
             android:name=".push.PushBootReceiver"

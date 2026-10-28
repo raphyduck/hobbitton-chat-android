@@ -150,8 +150,12 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   LiveKit's Android SDK in `:app` (`LiveKitVoiceLink`, a media audio type so the speaker plays,
   behind the shell's `VoiceLink`); a scheduler without LiveKit settings answers 503 and the screen
   says so. What the agent can do is the server's affair (step 2's tools, Raphaël's rule of sober
-  code: the agent reads the conversations and does the rest itself). Not yet: keeping the room
-  alive when the app leaves the foreground (no foreground service: the microphone falls silent).
+  code: the agent reads the conversations and does the rest itself). Since 28/10/2026 the room
+  lives on when the app leaves the foreground or the phone locks (Raphaël: « implémente le mode
+  arrière-plan pour le mode vocal »): `VoiceCallService` (`:app`), a foreground service of type
+  `microphone` that `LiveKitVoiceLink` starts as it joins (from the screen, as Android 14 requires)
+  and stops as it leaves; its notification opens the app and hangs up, and swiping the app away
+  hangs up too. Leaving the voice screen inside the app still hangs up.
 - **Hands-free** (28/10/2026, voice mode step 4: the phone's ears and mouth, the server's brain; a
   button in the conversation's top bar, `handsFree`, shown when the dictation is the phone's). The
   phone's dictation sends each sentence it hears as a message (`sendSpoken`), the reply that lands is

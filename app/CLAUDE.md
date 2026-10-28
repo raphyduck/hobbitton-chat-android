@@ -42,6 +42,10 @@ Single Activity. `MainActivity` is the sole entry point; `LibreChatApplication` 
   main-thread watchdog and, with it while the app is in front, `diagnostics/ThreadHealth`
   (27/10/2026: `Dispatchers.IO` probed every 15 s, the app's pools reported past 32 threads, each
   time with `threadReport()`). Best-effort — a failure there never blocks launch.
+- `voice/`: `LiveKitVoiceLink` (the voice mode's room) and `VoiceCallService` (28/10/2026), the
+  foreground service of type `microphone` that keeps the room heard and heard from while the app is
+  in the background; channel `eva_voice`, a « Raccrocher » action, hung up when the app is swiped
+  away from the recent apps.
 - Coil's singleton image loader, on its own bare Ktor client (cleartext guard only, no identity).
 
 ## Tests
