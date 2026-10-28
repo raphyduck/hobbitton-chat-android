@@ -23,7 +23,8 @@ import kotlinx.coroutines.launch
 /**
  * The voice mode's room on LiveKit (27/10/2026): the microphone published, the agent's voice played
  * on the speaker (a media stream, not a call: no earpiece), the agent's state and transcriptions
- * read off the room. One room at a time; [disconnect] releases it.
+ * read off the room. One room at a time; [disconnect] releases it. While joined, [VoiceCallService]
+ * keeps the microphone open when the app leaves the foreground (28/10/2026).
  */
 class LiveKitVoiceLink(private val context: Context) : VoiceLink {
 
@@ -36,6 +37,9 @@ class LiveKitVoiceLink(private val context: Context) : VoiceLink {
     override suspend fun connect(url: String, token: String) {
         disconnect()
         _state.value = VoiceLinkState.Connecting
+        // Before the room, while the screen is in front: Android 14 starts a microphone service
+        // from the foreground only.
+        VoiceCallService.start(context)
         val opened = LiveKit.create(
             appContext = context,
             overrides = LiveKitOverrides(audioOptions = AudioOptions(audioOutputType = AudioType.MediaAudioType())),
@@ -58,7 +62,10 @@ class LiveKitVoiceLink(private val context: Context) : VoiceLink {
         watching = scope.launch {
             opened.events.collect { event ->
                 when (event) {
-                    is RoomEvent.Disconnected -> _state.value = VoiceLinkState.Ended(event.reason.name.lowercase())
+                    is RoomEvent.Disconnected -> {
+                        _state.value = VoiceLinkState.Ended(event.reason.name.lowercase())
+                        VoiceCallService.stop(context)
+                    }
                     is RoomEvent.ParticipantAttributesChanged ->
                         event.changedAttributes[AGENT_STATE]?.let { word -> live { copy(agentState = word) } }
                     is RoomEvent.ParticipantConnected ->
@@ -67,8 +74,14 @@ class LiveKitVoiceLink(private val context: Context) : VoiceLink {
                 }
             }
         }
-        opened.connect(url, token)
-        opened.localParticipant.setMicrophoneEnabled(true)
+        try {
+            opened.connect(url, token)
+            opened.localParticipant.setMicrophoneEnabled(true)
+        } catch (e: Exception) {
+            // The room refused: nothing joined, so neither the room nor the service stay behind.
+            disconnect()
+            throw e
+        }
         val agentState = opened.remoteParticipants.values.firstNotNullOfOrNull { it.attributes[AGENT_STATE] }.orEmpty()
         _state.value = VoiceLinkState.Live(agentState = agentState)
     }
@@ -82,6 +95,7 @@ class LiveKitVoiceLink(private val context: Context) : VoiceLink {
             opened.release()
         }
         room = null
+        VoiceCallService.stop(context)
         if (_state.value !is VoiceLinkState.Ended) _state.value = VoiceLinkState.Idle
     }
 

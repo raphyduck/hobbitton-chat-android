@@ -19,4 +19,9 @@
     <string name="attention_reply_ready">Réponse prête</string>
     <string name="attention_reply_ready_hint">Eva a répondu.</string>
     <string name="attention_decision_waiting">Une décision vous attend</string>
+    <string name="voice_channel">Mode vocal</string>
+    <string name="voice_channel_hint">Garde le micro ouvert pendant que vous parlez avec Eva.</string>
+    <string name="voice_ongoing">Eva vous écoute</string>
+    <string name="voice_ongoing_hint">Le mode vocal est en cours. Touchez pour y revenir.</string>
+    <string name="voice_hang_up">Raccrocher</string>
 </resources>
