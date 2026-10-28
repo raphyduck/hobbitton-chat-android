@@ -196,4 +196,9 @@
     <string name="tasks_model_auto_long">Auto (picked from the first message)</string>
     <string name="tasks_chat_redo_stronger">Redo, stronger</string>
     <string name="tasks_chat_load_earlier">Earlier messages</string>
+    <string name="tasks_hands_free">Hands-free</string>
+    <string name="tasks_hands_free_stop">Leave hands-free</string>
+    <string name="tasks_hands_free_listening">Hands-free: speak, each sentence goes out on its own.</string>
+    <string name="tasks_speaking">Eva reads the answer…</string>
+    <string name="tasks_hands_free_needs_phone">Hands-free needs the phone’s own dictation and voice (Settings → Dictation).</string>
 </resources>

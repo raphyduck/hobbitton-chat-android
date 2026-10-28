@@ -35,7 +35,9 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.RecordVoiceOver
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -88,6 +90,8 @@ import com.garfiec.librechat.feature.tasks.resources.chat_title
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_back
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_load_earlier
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_scroll_to_end
+import com.garfiec.librechat.feature.tasks.resources.tasks_hands_free
+import com.garfiec.librechat.feature.tasks.resources.tasks_hands_free_stop
 import com.garfiec.librechat.feature.tasks.resources.tasks_open_drawer
 import com.garfiec.librechat.feature.tasks.resources.tasks_prompt_calendar
 import com.garfiec.librechat.feature.tasks.resources.tasks_prompt_document
@@ -168,7 +172,11 @@ fun MissionChatScreen(
         if (dejaRepris) viewModel.resume() else dejaRepris = true
     }
     // Hors de vue : une question posée ici sonne alors par une notification, pas par un simple son.
-    LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) { viewModel.onHidden() }
+    // Hands-free ends with the screen: no voice, no open mic, once the person is not in front of it.
+    LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) {
+        viewModel.onHidden()
+        viewModel.setHandsFree(false)
+    }
 
     // A short click under the thumb on send and on stop: the two gestures that commit something.
     val haptics = LocalHapticFeedback.current
@@ -231,6 +239,24 @@ fun MissionChatScreen(
                             )
                         }
                     }
+                    // Hands-free (28/10/2026): the phone's dictation sends each sentence and its
+                    // voice reads the reply. Needs the phone's own dictation (Settings).
+                    if (state.localDictation && state.pendingQuestion == null) {
+                        IconButton(onClick = { viewModel.setHandsFree(!state.handsFree) }) {
+                            if (state.handsFree) {
+                                Icon(
+                                    imageVector = Icons.Filled.RecordVoiceOver,
+                                    contentDescription = stringResource(Res.string.tasks_hands_free_stop),
+                                    tint = MaterialTheme.colorScheme.primary,
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Outlined.RecordVoiceOver,
+                                    contentDescription = stringResource(Res.string.tasks_hands_free),
+                                )
+                            }
+                        }
+                    }
                     if (onNewChat != null) {
                         IconButton(onClick = onNewChat) {
                             Icon(
@@ -274,6 +300,9 @@ fun MissionChatScreen(
                     onAttachAudio = viewModel::attachAudio,
                     onRemoveAudioNote = viewModel::removeAudioNote,
                     onDismissTranscriptionError = viewModel::dismissTranscriptionError,
+                    onSendSentence = viewModel::sendSpoken,
+                    onSpeechEnd = viewModel::spoken,
+                    onHandsFreeOff = { viewModel.setHandsFree(false) },
                 )
             }
         },

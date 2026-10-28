@@ -196,4 +196,9 @@
     <string name="tasks_model_auto_long">Auto (choisi d\'après le premier message)</string>
     <string name="tasks_chat_redo_stronger">Refaire plus fort</string>
     <string name="tasks_chat_load_earlier">Messages précédents</string>
+    <string name="tasks_hands_free">Mains libres</string>
+    <string name="tasks_hands_free_stop">Quitter le mode mains libres</string>
+    <string name="tasks_hands_free_listening">Mains libres : parlez, chaque phrase part d’elle-même.</string>
+    <string name="tasks_speaking">Eva lit la réponse…</string>
+    <string name="tasks_hands_free_needs_phone">Le mode mains libres a besoin de la dictée et de la voix du téléphone (Réglages → Dictée).</string>
 </resources>

@@ -37,8 +37,10 @@ import com.garfiec.librechat.feature.tasks.util.QuestionDraft
 import com.garfiec.librechat.feature.tasks.util.StagedAttachment
 import com.garfiec.librechat.feature.tasks.util.asPromptPart
 import com.garfiec.librechat.feature.tasks.util.knowsPart
+import com.garfiec.librechat.feature.tasks.util.lastAnswerSpeech
 import com.garfiec.librechat.feature.tasks.util.outgoingMessageText
 import com.garfiec.librechat.feature.tasks.util.reduce
+import com.garfiec.librechat.feature.tasks.util.speechText
 import com.garfiec.librechat.feature.tasks.util.withPendingQuestions
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
@@ -92,6 +94,15 @@ data class MissionChatUiState(
     val transcriptionError: TranscriptionOutcome.Failed? = null,
     /** The mic heard by the phone itself (Settings, on by default) rather than recorded for the scheduler. */
     val localDictation: Boolean = true,
+    /**
+     * Hands-free (28/10/2026, voice mode step 4: the phone's ears and mouth, the server's brain).
+     * Each sentence the phone's dictation hears goes out as a message, and the reply is read aloud
+     * by the phone's own speech synthesis before the mic listens again. Off when the screen leaves
+     * the front.
+     */
+    val handsFree: Boolean = false,
+    /** The reply hands-free reads aloud, as prose ([speechText]); null once said, or when nothing is to be. */
+    val toSpeak: String? = null,
     /** Why the transcript would not load, or null. */
     val historyError: EngineFailureKind? = null,
     /**
@@ -844,6 +855,10 @@ class MissionChatViewModel(
             is EngineStreamEvent.PartDelta -> awaitingReply = true
             EngineStreamEvent.Idle -> if (awaitingReply) {
                 awaitingReply = false
+                // Hands-free reads what the turn said, once it has said it all.
+                _uiState.update { current ->
+                    if (current.handsFree) current.copy(toSpeak = current.chat.lastAnswerSpeech()) else current
+                }
                 viewModelScope.launch {
                     attention.replyReady(sessionId) {
                         OpenConversation(
@@ -982,6 +997,23 @@ class MissionChatViewModel(
 
     /** Words the phone itself heard, into the composer like a transcribed dictation. */
     fun dictated(text: String) = staging.dictated(text)
+
+    /** Hands-free on or off; off also forgets a reply not read yet. */
+    fun setHandsFree(on: Boolean) {
+        _uiState.update { it.copy(handsFree = on, toSpeak = it.toSpeak?.takeIf { on }) }
+    }
+
+    /** The reply has been read aloud, or could not be. */
+    fun spoken() {
+        _uiState.update { it.copy(toSpeak = null) }
+    }
+
+    /** A sentence heard hands-free: into the box and out at once, the one dictation that sends. */
+    fun sendSpoken(text: String) {
+        if (text.isBlank()) return
+        staging.dictated(text)
+        send()
+    }
 
     /** The phone's own recognition gave up: said like a transcription's failure. */
     fun dictationFailed(failure: TranscriptionOutcome.Failed) = staging.dictationFailed(failure)
