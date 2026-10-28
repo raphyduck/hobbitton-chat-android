@@ -517,3 +517,10 @@ internal fun String.withoutSanitisedPlaceholder(): String =
     if ("[System:" in this) replace(SANITISED_PLACEHOLDER, "").trim() else this
 
 private val SANITISED_PLACEHOLDER = Regex("""\[System: [^\]\n]*saniti[sz]ed[^\]\n]*]""")
+
+/** What the last answer says, for a voice (28/10/2026): its prose, or its error, without markdown. */
+internal fun MissionChatState.lastAnswerSpeech(): String? {
+    val answer = turns.lastOrNull { it is ChatTurn.Assistant && !it.summary } as? ChatTurn.Assistant ?: return null
+    val prose = answer.parts.filterIsInstance<ChatPart.Text>().joinToString("\n\n") { it.text }
+    return speechText(prose.ifBlank { answer.error.orEmpty() }).takeIf { it.isNotBlank() }
+}

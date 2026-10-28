@@ -152,6 +152,17 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   says so. What the agent can do is the server's affair (step 2's tools, Raphaël's rule of sober
   code: the agent reads the conversations and does the rest itself). Not yet: keeping the room
   alive when the app leaves the foreground (no foreground service: the microphone falls silent).
+- **Hands-free** (28/10/2026, voice mode step 4: the phone's ears and mouth, the server's brain; a
+  button in the conversation's top bar, `handsFree`, shown when the dictation is the phone's). The
+  phone's dictation sends each sentence it hears as a message (`sendSpoken`), the reply that lands is
+  read aloud by Android's own speech synthesis (`TextToSpeech`, the phone's engine and language,
+  `MissionSpeaker.android.kt`), then the mic listens again (`HandsFreeLoop` in the composer: the mic
+  is open whenever nobody is talking, closed while Eva answers or reads; a dictation the person
+  started is left alone). What is read is the answer's prose without markdown (`speechText`: code
+  dropped, an image its description, a link its text, a table cell by cell; `lastAnswerSpeech`,
+  `MissionChatUiState.toSpeak`). It ends with the screen (ON_PAUSE) and is refused when the phone
+  can only record for the scheduler (no recognition of its own). No wake word: Android gives an
+  app none without a third-party model listening all day.
 - **Dictation and audio files** (the composer). The mic is heard by the phone itself by default
   (Settings → Dictée, « Dictée sur le téléphone », key `dictation_on_phone`; Raphaël, 26/10/2026:
   local is the default he wants) and listens **without a break until the tap on stop** (same day:

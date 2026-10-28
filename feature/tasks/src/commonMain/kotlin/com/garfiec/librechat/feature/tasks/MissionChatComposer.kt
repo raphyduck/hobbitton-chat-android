@@ -34,9 +34,11 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,11 +61,13 @@ import com.garfiec.librechat.core.ui.input.ChatInputPill
 import com.garfiec.librechat.core.ui.input.ComposerSendButton
 import com.garfiec.librechat.feature.tasks.components.ConnectorPickerSheet
 import com.garfiec.librechat.feature.tasks.components.MissionDictation
+import com.garfiec.librechat.feature.tasks.components.MissionSpeaker
 import com.garfiec.librechat.feature.tasks.components.ModelPickerSheet
 import com.garfiec.librechat.feature.tasks.components.rememberMissionAttachmentPicker
 import com.garfiec.librechat.feature.tasks.components.rememberMissionAudioPicker
 import com.garfiec.librechat.feature.tasks.components.rememberMissionDictation
 import com.garfiec.librechat.feature.tasks.components.rememberMissionFilePicker
+import com.garfiec.librechat.feature.tasks.components.rememberMissionSpeaker
 import com.garfiec.librechat.feature.tasks.resources.Res
 import com.garfiec.librechat.feature.tasks.resources.chat_hint
 import com.garfiec.librechat.feature.tasks.resources.tasks_attach_audio
@@ -78,10 +82,13 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_chat_send
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_shell_on
 import com.garfiec.librechat.feature.tasks.resources.tasks_dictate
 import com.garfiec.librechat.feature.tasks.resources.tasks_dictate_stop
+import com.garfiec.librechat.feature.tasks.resources.tasks_hands_free_listening
+import com.garfiec.librechat.feature.tasks.resources.tasks_hands_free_needs_phone
 import com.garfiec.librechat.feature.tasks.resources.tasks_listening
 import com.garfiec.librechat.feature.tasks.resources.tasks_model_auto
 import com.garfiec.librechat.feature.tasks.resources.tasks_model_default_short
 import com.garfiec.librechat.feature.tasks.resources.tasks_recording
+import com.garfiec.librechat.feature.tasks.resources.tasks_speaking
 import com.garfiec.librechat.feature.tasks.resources.tasks_stop
 import com.garfiec.librechat.feature.tasks.resources.tasks_transcribing
 import com.garfiec.librechat.feature.tasks.util.StagedAttachment
@@ -126,6 +133,9 @@ internal fun MissionChatInput(
     onAttachAudio: (bytes: ByteArray, mime: String, filename: String) -> Unit,
     onRemoveAudioNote: (String) -> Unit,
     onDismissTranscriptionError: () -> Unit,
+    onSendSentence: (String) -> Unit,
+    onSpeechEnd: () -> Unit,
+    onHandsFreeOff: () -> Unit,
 ) {
     var picker by remember { mutableStateOf(Picker.NONE) }
     // Null where the platform has nothing to offer (iOS today) — then no menu entry, rather than an
@@ -138,11 +148,26 @@ internal fun MissionChatInput(
     // The mic DICTATES: tap to record, tap to stop, and the words land in the box — where the
     // speaker reads what was heard before it becomes an instruction (asked for on 31/08/2026).
     // Nothing is sent on its own. Heard by the phone itself unless Settings says otherwise.
+    // Hands-free (28/10/2026) is the one exception: a sentence heard goes out on its own, and the
+    // reply comes back through the phone's voice before the mic listens again.
+    val handsFree by rememberUpdatedState(state.handsFree)
     val dictation = rememberMissionDictation(
         onDevice = state.localDictation,
         onCapture = { onTranscribeAudio(it.bytes, it.mime, it.filename) },
-        onHear = onDictate,
+        onHear = { if (handsFree) onSendSentence(it) else onDictate(it) },
         onError = onDictationError,
+    )
+    val speaker = rememberMissionSpeaker(onDone = onSpeechEnd)
+    var handsFreeRefused by remember { mutableStateOf(false) }
+    HandsFreeLoop(
+        state = state,
+        dictation = dictation,
+        speaker = speaker,
+        onSpeechEnd = onSpeechEnd,
+        onRefuse = {
+            handsFreeRefused = true
+            onHandsFreeOff()
+        },
     )
 
     // The keyboard, then the navigation bar — whichever is taller, never both stacked.
@@ -156,10 +181,17 @@ internal fun MissionChatInput(
             val text = listOfNotNull(stringResource(failed.failure.message()), failed.reason).joinToString(" — ")
             ComposerNotice(text, onDismissTranscriptionError)
         }
+        if (handsFreeRefused) {
+            ComposerNotice(stringResource(Res.string.tasks_hands_free_needs_phone), onDismiss = { handsFreeRefused = false })
+        }
         when {
+            speaker?.speaking == true -> ComposerStatus(stringResource(Res.string.tasks_speaking))
             // The phone's recognition shows the words as they come; a recording has none to show yet.
-            dictation?.listening == true ->
-                ComposerStatus(dictation.heard.ifBlank { stringResource(Res.string.tasks_listening) })
+            dictation?.listening == true -> ComposerStatus(
+                dictation.heard.ifBlank {
+                    stringResource(if (state.handsFree) Res.string.tasks_hands_free_listening else Res.string.tasks_listening)
+                },
+            )
             dictation?.recording == true -> ComposerStatus(stringResource(Res.string.tasks_recording))
             state.transcribing -> ComposerStatus(stringResource(Res.string.tasks_transcribing))
         }
@@ -304,6 +336,57 @@ private fun DictationButton(dictation: MissionDictation, transcribing: Boolean) 
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Hands-free's turn-taking (28/10/2026): the mic listens whenever nobody is talking, and stops
+ * while Eva answers or reads; a reply that lands is read aloud, then the mic listens again. Off,
+ * a reading is cut and the mic hands-free had opened is closed; a dictation the person started
+ * themselves is left alone. The recording for the scheduler cannot take turns (it ends at a tap,
+ * not at a pause): hands-free is refused when that is all the phone has.
+ */
+@Composable
+private fun HandsFreeLoop(
+    state: MissionChatUiState,
+    dictation: MissionDictation?,
+    speaker: MissionSpeaker?,
+    onSpeechEnd: () -> Unit,
+    onRefuse: () -> Unit,
+) {
+    val handsFree = state.handsFree
+    val speechEnd by rememberUpdatedState(onSpeechEnd)
+    val refuse by rememberUpdatedState(onRefuse)
+    LaunchedEffect(state.toSpeak, handsFree) {
+        val text = state.toSpeak ?: return@LaunchedEffect
+        if (handsFree && speaker != null) speaker.speak(text) else speechEnd()
+    }
+    var micOpenedHere by remember { mutableStateOf(false) }
+    val speaking = speaker?.speaking == true
+    val talking = state.chat.streaming || state.sending || speaking || state.toSpeak != null
+    val recording = dictation?.recording == true
+    val listening = dictation?.listening == true
+    LaunchedEffect(handsFree, talking, recording, listening) {
+        if (dictation == null || speaker == null) {
+            if (handsFree) refuse()
+            return@LaunchedEffect
+        }
+        when {
+            !handsFree -> {
+                if (speaking) speaker.stop()
+                if (micOpenedHere && recording) dictation.toggle()
+                micOpenedHere = false
+            }
+            recording && !listening -> {
+                dictation.toggle()
+                refuse()
+            }
+            talking && recording && micOpenedHere -> dictation.toggle()
+            !talking && !recording -> {
+                micOpenedHere = true
+                dictation.toggle()
             }
         }
     }

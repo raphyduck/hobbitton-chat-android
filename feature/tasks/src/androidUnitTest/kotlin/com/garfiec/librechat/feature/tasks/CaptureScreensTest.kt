@@ -179,6 +179,9 @@ private fun ChatScreen(state: MissionChatUiState) {
                     onAttachAudio = { _, _, _ -> },
                     onRemoveAudioNote = {},
                     onDismissTranscriptionError = {},
+                    onSendSentence = {},
+                    onSpeechEnd = {},
+                    onHandsFreeOff = {},
                 )
             }
         },
