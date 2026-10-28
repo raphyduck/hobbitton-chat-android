@@ -15,6 +15,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
+import kotlin.random.Random
 
 @Serializable sealed interface TasksRoute : NavKey
 
@@ -31,7 +32,21 @@ import kotlinx.serialization.modules.subclass
 @Serializable data class EngineChat(
     val sessionId: String? = null,
     val title: String = "",
-) : TasksRoute
+) : TasksRoute {
+    /**
+     * This push of the conversation, out of `equals` (28/10/2026, Raphaël: « ça recommence », a
+     * conversation grey for good). Navigation 3 keys an entry's view models by its content key and
+     * clears them when an entry leaves, sometimes a transition late: by then an equal entry pushed
+     * again (a blank chat after « new », a conversation reopened) had put its view model in the same
+     * store, and the late clear killed it while it was on screen, its opening cancelled before the
+     * first read. Each push has a store of its own; equality still says « the same place », which
+     * is what the navigator compares. Saved with the back stack, so a restored entry keeps it.
+     */
+    val instance: Long = Random.nextLong()
+
+    /** The content key: what the entry's view models and saved state are kept under. */
+    val entryKey: String get() = "$sessionId|$title|$instance"
+}
 
 /** The week's spend and the providers' health, opened from Settings › Account. */
 @Serializable data object TasksUsage : TasksRoute
@@ -59,7 +74,10 @@ fun EntryProviderScope<NavKey>.engineChatEntries(
     onBack: () -> Unit,
 ) {
     // One chat replaces another as the root: a cross-fade, not the slide of a pushed screen.
-    entry<EngineChat>(metadata = NavDisplay.transitionSpec { crossfadeBetweenChats() }) { key ->
+    entry<EngineChat>(
+        clazzContentKey = { it.entryKey },
+        metadata = NavDisplay.transitionSpec { crossfadeBetweenChats() },
+    ) { key ->
         MissionChatScreen(
             sessionId = key.sessionId,
             title = key.title,
