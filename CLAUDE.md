@@ -350,6 +350,20 @@ sheet for the diagnostic log). The shell and the sign-in resolve the engine grap
   `:core:common`, 80 ms), where each character redrew the conversation; a conversation left and
   the app left in the same instant mark it read once; a markdown image is decoded at 1 600 px a
   side at most and the image cache holds 64 MB.
+- **The shell's view models live in its own stores** (28/10/2026, Raphaël: « ça recommence », a
+  conversation grey for good; the journal showed one opening written two to five times in half a
+  second, then nothing, not even the guard). Navigation 3's decorator (lifecycle-viewmodel-navigation3
+  2.11.0-beta01) marks a popped entry's store for disposal and drops it once nothing holds it, even
+  after an equal entry was pushed again and took it: « new conversation » tapped twice, a
+  conversation reopened as it faded out, and the view model on screen died before its first read,
+  `koinViewModel` handing the dead store a new one at each recomposition. `EntryViewModelStores`
+  (`:shared`, `rememberEntryViewModelStoreDecorator`) keeps one store per entry while the entry is
+  on the back stack or still drawn, and clears it once it is neither, read off the back stack as it
+  is then; each push of a conversation is its own entry (`EngineChat.instance`, out of `equals`,
+  `entryKey` its content key, `shellContentKey`). `EntryViewModelStoresTest` drives thousands of
+  gestures at random paces through `NavDisplay` and finds Navigation 3's decorator killing a drawn
+  view model; none with the shell's. The journal writes « closed » when a conversation's view model
+  goes, « before its transcript landed » when that is so.
 - **The app's own threads** (27/10/2026, Raphaël: a conversation stayed grey for good, and the
   journal had not one line for it, not even the device-cache look that opens every opening). The
   app's blocking work never queues on the shared `Dispatchers.IO` any more: `ioDispatcher` and

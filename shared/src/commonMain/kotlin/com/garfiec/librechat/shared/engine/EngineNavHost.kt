@@ -27,7 +27,6 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
@@ -284,7 +283,8 @@ private fun EngineMainLayout(
         },
         entryDecorators = listOf(
             rememberSaveableStateHolderNavEntryDecorator(),
-            rememberViewModelStoreNavEntryDecorator(),
+            // The shell's own stores, not Navigation 3's (28/10/2026): see EntryViewModelStores.
+            rememberEntryViewModelStoreDecorator(backStack, ::shellContentKey),
         ),
         entryProvider = entryProvider {
             engineChatEntries(

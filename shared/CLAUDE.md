@@ -19,6 +19,11 @@ The engine shell, and the Koin module list the application starts from. KMP libr
   the Conversations page, which takes its place with the menu in place of its back arrow; back from
   there closes the app (Raphaël's rule, 20/10/2026: back closed the app; `backToConversations`, run
   by a `PlatformBackHandler` since Nav 3 hands a one-entry stack's back to the system).
+- `EntryViewModelStores` (28/10/2026): the view model store of each back-stack entry, in place of
+  Navigation 3's decorator, which cleared a store an equal entry pushed again had taken (a screen
+  left grey for good). A store lives while its entry is on the stack or drawn; `shellContentKey`
+  names the entries as `NavDisplay` does (a conversation by its push, `EngineChat.entryKey`).
+  Cleared when the shell leaves (sign-out), kept across an activity recreation.
 - `EngineConversationsScreen` (16/10/2026): every session, the unread under « Non lues », then the
   rest, each by latest activity; pushed like Programmées (`EngineConversations`), pull to refresh.
   Its rows are the drawer's (`RecentChatItem`, an unread title in bold). Both lists read 200

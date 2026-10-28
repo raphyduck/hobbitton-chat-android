@@ -882,6 +882,12 @@ class MissionChatViewModel(
     }
 
     override fun onCleared() {
+        // The other end of « opening » in the journal (28/10/2026): a view model closed before its
+        // transcript landed is what a grey screen leaves behind.
+        sessionId?.let { id ->
+            val early = if (_uiState.value.loadingHistory) ", before its transcript landed" else ""
+            Logger.i(LOG_TAG) { "History of $id: closed$early" }
+        }
         onHidden()
         super.onCleared()
     }
