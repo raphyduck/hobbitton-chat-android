@@ -30,7 +30,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import com.garfiec.librechat.core.ui.markdown.InlineSegment
-import com.garfiec.librechat.core.ui.markdown.LocalTrustedImageHosts
 import com.garfiec.librechat.core.ui.markdown.MarkdownSegment
 import com.garfiec.librechat.core.ui.markdown.NoOpMarkdownAnnotator
 import com.garfiec.librechat.core.ui.markdown.StandaloneStreamingCursor
@@ -38,7 +37,7 @@ import com.garfiec.librechat.core.ui.markdown.StreamingCursorAnnotator
 import com.garfiec.librechat.core.ui.markdown.canHostInlineCursor
 import com.garfiec.librechat.core.ui.markdown.chatMarkdownColors
 import com.garfiec.librechat.core.ui.markdown.chatMarkdownTypography
-import com.garfiec.librechat.core.ui.markdown.imagesOffTrustedHostsAsLinks
+import com.garfiec.librechat.core.ui.markdown.insecureImagesAsLinks
 import com.garfiec.librechat.core.ui.markdown.parseMarkdownSegments
 import com.garfiec.librechat.core.ui.markdown.rememberStreamingCursorInlineContent
 import com.garfiec.librechat.core.ui.markdown.withStreamingCursor
@@ -112,9 +111,8 @@ private fun InlineSegment.rawText(): String = when (this) {
 /** The shared markdown theme — `core:ui` owns it, this file only asks for it. */
 @Composable
 private fun Prose(content: String, color: Color, fontScale: Float, trailingCursor: Boolean = false) {
-    // An image off the platform is a link, never fetched on its own (26/10/2026, see TrustedImages).
-    val trustedHosts = LocalTrustedImageHosts.current
-    val safe = remember(content, trustedHosts) { imagesOffTrustedHostsAsLinks(content, trustedHosts) }
+    // An https image draws, a cleartext one is a link (27/10/2026, see TrustedImages).
+    val safe = remember(content) { insecureImagesAsLinks(content) }
     Markdown(
         content = if (trailingCursor) withStreamingCursor(safe) else safe,
         colors = chatMarkdownColors(text = color),
