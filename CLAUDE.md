@@ -225,11 +225,12 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   (`redoStronger`, `MissionChatUiState.canRedoStronger`) sends the last request again, prefixed
   (`REDO_STRONGER_PREFIX`), on the tier above the one that answered, read off the scheduler's ladder
   (`GET /palier` → `ModelTiers.strongerThan`); at the top of the ladder the button is not shown.
-- **What the phone keeps to itself** (26/10/2026, the review). An image a message names loads on
-  its own only from the platform's hosts or as a `data:` URL (`LocalTrustedImageHosts`,
-  `imagesOffTrustedHostsAsLinks`, `:core:ui`): any other becomes a link the person opens on purpose,
-  since a trapped content could make the model write an image URL that carries the context out.
-  No SVG decoder. Notifications keep their text off the lock screen (`VISIBILITY_PRIVATE` with a
+- **What the phone keeps to itself** (26/10/2026, the review). An image a message names draws on
+  its own from any `https:` host or as a `data:` URL (27/10/2026, Raphaël: « il faut pouvoir
+  afficher des images dans les sessions »; the day before only the platform's hosts drew, and a
+  search's product photos all showed as links); a cleartext or odd-scheme image becomes a link
+  (`insecureImagesAsLinks`, `:core:ui`). Accepted with his rule of openness: a trapped content
+  could make the model write an image URL that carries the context out. No SVG decoder. Notifications keep their text off the lock screen (`VISIBILITY_PRIVATE` with a
   public version that only says something waits). An intent's extras name a conversation only by
   a valid engine session id (`isEngineSessionId`). Signing out also revokes the refresh token at
   the portal (`revokeAndForget`, RFC 7009), deletes the opened attachments, the image cache and the
