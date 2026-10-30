@@ -147,8 +147,11 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   titulaire there. The screen shows the agent's state (`lk.agent.state`), what it understood and
   its last sentence (the `lk.transcription` text streams), and a red button hangs up; it joins as
   it opens (microphone asked first, `rememberMicrophoneGate`) and leaves as it closes. The room is
-  LiveKit's Android SDK in `:app` (`LiveKitVoiceLink`, a media audio type so the speaker plays,
-  behind the shell's `VoiceLink`); a scheduler without LiveKit settings answers 503 and the screen
+  LiveKit's Android SDK in `:app` (`LiveKitVoiceLink`, behind the shell's `VoiceLink`; the room is
+  a call for Android, `CallAudioType`, since 30/10/2026: in communication mode the phone's echo
+  canceller removes the agent's own voice from the microphone, where the media type of the first
+  version let it come back and interrupt the agent on the speaker; the speakerphone stays the
+  preferred output, after a headset); a scheduler without LiveKit settings answers 503 and the screen
   says so. What the agent can do is the server's affair (step 2's tools, Raphaël's rule of sober
   code: the agent reads the conversations and does the rest itself). Since 28/10/2026 the room
   lives on when the app leaves the foreground or the phone locks (Raphaël: « implémente le mode
