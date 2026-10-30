@@ -22,9 +22,16 @@ import kotlinx.coroutines.launch
 
 /**
  * The voice mode's room on LiveKit (27/10/2026): the microphone published, the agent's voice played
- * on the speaker (a media stream, not a call: no earpiece), the agent's state and transcriptions
- * read off the room. One room at a time; [disconnect] releases it. While joined, [VoiceCallService]
- * keeps the microphone open when the app leaves the foreground (28/10/2026).
+ * on the speaker, the agent's state and transcriptions read off the room. One room at a time;
+ * [disconnect] releases it. While joined, [VoiceCallService] keeps the microphone open when the app
+ * leaves the foreground (28/10/2026).
+ *
+ * The room is a CALL for Android (30/10/2026, Raphaël: on the speaker the agent stopped talking by
+ * itself, hearing its own voice as the person's). In communication mode the phone's acoustic echo
+ * canceller gets the played sound as its reference and takes it out of the microphone; as a media
+ * stream (the first version, chosen for the speaker) it had no reference, the agent's voice went
+ * back to the room and its barge-in cut the agent off. The SDK's call type still prefers the
+ * speakerphone over the earpiece, after a headset when one is plugged.
  */
 class LiveKitVoiceLink(private val context: Context) : VoiceLink {
 
@@ -42,7 +49,7 @@ class LiveKitVoiceLink(private val context: Context) : VoiceLink {
         VoiceCallService.start(context)
         val opened = LiveKit.create(
             appContext = context,
-            overrides = LiveKitOverrides(audioOptions = AudioOptions(audioOutputType = AudioType.MediaAudioType())),
+            overrides = LiveKitOverrides(audioOptions = AudioOptions(audioOutputType = AudioType.CallAudioType())),
         )
         room = opened
         opened.registerTextStreamHandler(TRANSCRIPTION_TOPIC) { reader, _ ->
