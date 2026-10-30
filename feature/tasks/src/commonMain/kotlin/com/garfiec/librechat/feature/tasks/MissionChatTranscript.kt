@@ -40,12 +40,16 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_chat_copy
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_redo_stronger
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_thinking
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_turn_failed
+import com.garfiec.librechat.feature.tasks.resources.tasks_chat_turn_loop_stopped
+import com.garfiec.librechat.feature.tasks.resources.tasks_chat_turn_tool_forbidden
 import com.garfiec.librechat.feature.tasks.resources.tasks_copied
 import com.garfiec.librechat.feature.tasks.util.ChatBlock
 import com.garfiec.librechat.feature.tasks.util.ChatPart
 import com.garfiec.librechat.feature.tasks.util.ChatTurn
+import com.garfiec.librechat.feature.tasks.util.TurnRefusal
 import com.garfiec.librechat.feature.tasks.util.asBlocks
 import com.garfiec.librechat.feature.tasks.util.compactTokens
+import com.garfiec.librechat.feature.tasks.util.turnRefusal
 import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.stringResource
 
@@ -176,9 +180,17 @@ internal fun AssistantTurn(
     }
 }
 
-/** Why a turn produced no answer, in the engine's (or the gateway's) own words. */
+/**
+ * Why a turn produced no answer: the engine's refusals in the person's words (`turnRefusal`), the
+ * rest in the engine's (or the gateway's) own.
+ */
 @Composable
 private fun TurnError(error: String) {
+    val text = when (turnRefusal(error)) {
+        TurnRefusal.LOOP -> stringResource(Res.string.tasks_chat_turn_loop_stopped)
+        TurnRefusal.FORBIDDEN_TOOL -> stringResource(Res.string.tasks_chat_turn_tool_forbidden)
+        null -> stringResource(Res.string.tasks_chat_turn_failed, error)
+    }
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -191,7 +203,7 @@ private fun TurnError(error: String) {
             modifier = Modifier.size(18.dp),
         )
         Text(
-            text = stringResource(Res.string.tasks_chat_turn_failed, error),
+            text = text,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.error,
         )
