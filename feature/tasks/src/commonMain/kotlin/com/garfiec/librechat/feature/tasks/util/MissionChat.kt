@@ -518,6 +518,22 @@ internal fun String.withoutSanitisedPlaceholder(): String =
 
 private val SANITISED_PLACEHOLDER = Regex("""\[System: [^\]\n]*saniti[sz]ed[^\]\n]*]""")
 
+/**
+ * Why the engine refused a turn (30/10/2026, Raphaël: « C'est quoi » under a wall of JSON rules).
+ * The engine's permission check ends a turn with « The user has specified a rule which prevents you
+ * from using this specific tool call. Here are some of the relevant rules [...] »: either its
+ * loop guard (`doom_loop`: the same call, the same arguments, three times; it asks a permission
+ * nobody answers from this app, so the turn dies: six clicks on « Effacer » at once on a bank's
+ * keypad), or a tool the session's rules forbid. The screen says which, in the person's words.
+ */
+enum class TurnRefusal { LOOP, FORBIDDEN_TOOL }
+
+fun turnRefusal(error: String): TurnRefusal? = when {
+    "specified a rule which prevents you" !in error -> null
+    "doom_loop" in error -> TurnRefusal.LOOP
+    else -> TurnRefusal.FORBIDDEN_TOOL
+}
+
 /** What the last answer says, for a voice (28/10/2026): its prose, or its error, without markdown. */
 internal fun MissionChatState.lastAnswerSpeech(): String? {
     val answer = turns.lastOrNull { it is ChatTurn.Assistant && !it.summary } as? ChatTurn.Assistant ?: return null

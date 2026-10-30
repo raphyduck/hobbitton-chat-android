@@ -28,6 +28,17 @@ class MissionChatTest {
         EngineStreamEvent.PartDelta(msg, id, "text", text)
 
     @Test
+    fun `le refus du moteur est reconnu, boucle ou outil interdit`() {
+        val regles = """The user has specified a rule which prevents you from using this specific tool call. """ +
+            """Here are some of the relevant rules [{"permission":"*","action":"allow","pattern":"*"},""" +
+            """{"permission":"doom_loop","action":"ask","pattern":"*"},{"permission":"*","action":"deny","pattern":"*"}]"""
+        assertEquals(TurnRefusal.LOOP, turnRefusal(regles))
+        assertEquals(TurnRefusal.FORBIDDEN_TOOL, turnRefusal(regles.replace("doom_loop", "bash")))
+        assertEquals(null, turnRefusal("ExceededBudget"))
+        assertEquals(null, turnRefusal("Key over budget"))
+    }
+
+    @Test
     fun `une reponse refusee par le moteur montre sa raison au lieu d'un blanc`() {
         val live = missionChatFrom(
             listOf(
