@@ -89,14 +89,17 @@ private fun namesOneTool(pattern: String): Boolean {
  * session can reach rather than overstating it, which is the only direction a capability chip may
  * err in. Settling it needs a measurement nobody has made: revoke a tool, then call it.
  *
- * Strict beyond that — a connector counts as on only when **every** tool it declares is allowed.
- * `permissionsFor` writes exactly that, one `allow` per tool, so a ruleset this app or the scheduler
- * produced round-trips exactly. A hand-written one that opens half a connector reads as off; the
- * alternative reading (any tool allowed ⇒ connector on) would report `shell` as granted from a lone
- * `bash` rule.
+ * A connector counts as on when the standing block allows **one** of its tools (31/10/2026). It
+ * used to take every tool it declares, so that a ruleset this app or the scheduler wrote would
+ * round-trip exactly and a hand-written one opening half a connector would read as off. But a
+ * ruleset is written once, at the session's creation, and the catalogue moves on: the day the
+ * scheduler gained `planificateur_pieces_jointes` (30/10/2026), every conversation opened before
+ * read its `planificateur` as absent, and the next rewrite of its rules (the lift to the titulaire's
+ * level, a tick) stripped the whole connector, the new tool with it (Raphaël, 31/10/2026: « cette
+ * conversation n'en a pas »). The tools a ruleset predates are never named in it, so they cannot
+ * count against it; [rulesPredate] tells when they are missing, and the screen repairs the rules.
  *
- * `ask` and `deny` are not grants. A connector that declares no tool is never on: `containsAll` of
- * an empty list is vacuously true, and that would light up every empty entry the catalogue carries.
+ * `ask` and `deny` are not grants. A connector that declares no tool is never on.
  */
 fun connectorsGranted(
     catalogue: ConnectorCatalogue,
@@ -108,8 +111,24 @@ fun connectorsGranted(
         .map { it.permission }
         .toSet()
     return catalogue.connecteurs
-        .filterValues { grant -> grant.outils.isNotEmpty() && standing.containsAll(grant.outils) }
+        .filterValues { grant -> grant.outils.any { it in standing } }
         .keys
+}
+
+/**
+ * Whether the standing block of [rules] misses a tool of a connector it grants: the catalogue
+ * gained tools since the rules were written. A session in that state offers the model yesterday's
+ * list; [permissionsFor] from the connectors read back writes today's.
+ */
+fun rulesPredate(
+    catalogue: ConnectorCatalogue,
+    rules: List<EnginePermissionRule>,
+): Boolean {
+    val lastBlock = rules.indexOfLast { it.permission == ANY_TOOL && it.action == ACTION_DENY }
+    val standing = rules.drop(lastBlock + 1).filter { it.action == ACTION_ALLOW }.map { it.permission }.toSet()
+    return connectorsGranted(catalogue, rules).any { name ->
+        catalogue.connecteurs.getValue(name).outils.any { it !in standing }
+    }
 }
 
 /** The one rule action that grants. */

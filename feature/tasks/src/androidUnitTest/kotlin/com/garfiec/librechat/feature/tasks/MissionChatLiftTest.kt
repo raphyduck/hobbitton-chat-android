@@ -128,6 +128,34 @@ class MissionChatLiftTest {
     }
 
     @Test
+    fun `a conversation whose rules predate the catalogue is regranted once at the titulaire's level`() {
+        // 31/10/2026 : ouverte avant que le planificateur gagne pieces_jointes, une conversation
+        // gardait la liste d'outils de sa création pour de bon.
+        coEvery { repository.sessionScope("ses_run") } returns
+            SessionScopeRead(setOf("annuaire"), TITULAR_LEVEL, stale = true)
+        val vm = MissionChatViewModel(
+            sessionId = "ses_run",
+            repository = repository,
+            modelPrices = mockk(relaxed = true),
+            settings = settings,
+            transcriber = { _, _, _ -> TranscriptionOutcome.Heard("") },
+            attention = mockk(relaxed = true),
+            ioDispatcher = dispatcher,
+        )
+        vm.onInputChange("envoie les photos")
+        vm.send()
+        vm.onInputChange("merci")
+        vm.send()
+
+        coVerifyOrder {
+            repository.setConnectors("ses_run", listOf("annuaire"))
+            repository.sendMessage("ses_run", "envoie les photos", any(), any())
+            repository.sendMessage("ses_run", "merci", any(), any())
+        }
+        coVerify(exactly = 1) { repository.setConnectors("ses_run", any()) }
+    }
+
+    @Test
     fun `an unknown level is lifted too, the cheap side of the doubt`() {
         val vm = viewModel(level = null)
         vm.onInputChange("bonjour")

@@ -67,6 +67,21 @@ class EngineConnectorScopeTest {
     }
 
     @Test
+    fun `rules written before a connector gained a tool still read it as granted, and as stale`() {
+        // 30/10/2026 : le planificateur gagne pieces_jointes ; les conversations ouvertes avant
+        // lisaient leur planificateur absent et le perdaient tout entier à la relecture suivante.
+        val before = ConnectorCatalogue(
+            connecteurs = mapOf("annuaire" to ConnectorGrant(outils = listOf("planificateur_annuaire_chercher"))),
+        )
+        val rules = permissionsFor(before, listOf("annuaire"))
+
+        assertEquals(setOf("annuaire"), connectorsGranted(catalogue, rules))
+        assertTrue(rulesPredate(catalogue, rules))
+        assertFalse(rulesPredate(catalogue, permissionsFor(catalogue, listOf("annuaire"))))
+        assertTrue("planificateur_annuaire_appeler" in permissionsFor(catalogue, connectorsGranted(catalogue, rules).toList()).map { it.permission })
+    }
+
+    @Test
     fun `a catalogue without the field declares everything ticked, as before D-071`() {
         val old = ConnectorCatalogue(
             connecteurs = mapOf("qonto" to ConnectorGrant(outils = listOf("qonto_qonto_list_transactions"))),
