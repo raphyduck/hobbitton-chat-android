@@ -145,12 +145,16 @@ class PermissionsForTest {
     }
 
     @Test
-    fun `half a connector is not a connector`() {
-        // `bash` alone is not `shell`. Reading « any tool allowed ⇒ connector on » would report a
-        // capability the session does not have, which is the one direction this must never err in.
+    fun `one tool allowed is the connector, and the rest of it reads as owed`() {
+        // Until 31/10/2026 `bash` alone was not `shell`: a half connector read as off, so that the
+        // chip never overstated. But rules are written once and the catalogue grows: a connector
+        // that gained a tool read as absent in every older session, and the next rewrite stripped
+        // it whole (pieces_jointes, 30/10/2026). The tools a ruleset predates are never named in
+        // it; they cannot count against it. What they say instead is that the rules are stale.
         val rules = listOf(EnginePermissionRule(permission = "bash", action = "allow"))
 
-        assertEquals(emptySet(), connectorsGranted(catalogue, rules))
+        assertEquals(setOf("shell"), connectorsGranted(catalogue, rules))
+        assertTrue(rulesPredate(catalogue, rules))
     }
 
     @Test

@@ -50,7 +50,11 @@ import kotlin.time.Clock
  * run, it has something to say (16/10/2026, [ChatScope]).
  */
 /** What a session reaches, as the screen reads it: its connectors and the trust level recorded for it. */
-data class SessionScopeRead(val connectors: Set<String>, val level: String?)
+/**
+ * What a live session carries: its connectors, the scheduler's level, and whether its rules predate
+ * the catalogue ([rulesPredate]: a connector it grants gained a tool since they were written).
+ */
+data class SessionScopeRead(val connectors: Set<String>, val level: String?, val stale: Boolean = false)
 
 data class EngineChatSummary(
     val sessionId: String,
@@ -712,7 +716,8 @@ class EngineMissionRepository(
      */
     suspend fun sessionScope(sessionId: String): SessionScopeRead {
         val catalogue = connectors()
-        val declared = connectorsGranted(catalogue, api.session(sessionId).permission)
+        val rules = api.session(sessionId).permission
+        val declared = connectorsGranted(catalogue, rules)
         // The annuaire's share of a session lives in the scheduler, not in the rules (D-071). A
         // session the app never recorded — the scheduler's own, or one launched before D-071 —
         // has no scope, and its chips show what its rules carry. A scheduler that cannot be
@@ -720,7 +725,8 @@ class EngineMissionRepository(
         // direction a capability chip may err in.
         val scope = runCatching { scheduler.scope(sessionId) }.getOrNull()
         val scoped = scope?.connectors.orEmpty()
-        return SessionScopeRead(declared + scoped.filter { it in catalogue.connecteurs }, scope?.level)
+        return SessionScopeRead(declared + scoped.filter { it in catalogue.connecteurs }, scope?.level,
+            stale = rulesPredate(catalogue, rules))
     }
 
     /**

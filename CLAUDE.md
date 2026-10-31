@@ -68,7 +68,13 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   decision or a reply to follow, stands at the mission's level until the titulaire says a word,
   the kit's review; `liftToTitularIfNeeded`). The
   lift rewrites the rules only from connectors the screen read; unread, it records the level alone
-  (`liftToTitular`) and the chip offers a retry (26/10/2026: an empty list stripped every tool).
+  (`liftToTitular`) and the chip offers a retry (26/10/2026: an empty list stripped every tool). A
+  connector is read as granted from ONE of its tools allowed (31/10/2026; before, every tool): rules
+  are written once and the catalogue grows, so the day the scheduler gained
+  `planificateur_pieces_jointes` every older conversation read its `planificateur` as absent and the
+  next rewrite stripped it whole. Rules a connector has outgrown read as `stale`
+  (`rulesPredate`, `SessionScopeRead.stale`) and the first send rewrites them from the connectors
+  read back, at the titulaire's level too (`rulesStale`, `liftToTitularIfNeeded`).
 - **Programmées** (ex Tasks tab): the scheduler's entries only, recurring then one-shot, each row
   opening its actions. Their runs are not listed there: they are conversations, named after their
   mission with a small clock (`EngineChatSummary.scheduled`). `classifySession` still leaves out a

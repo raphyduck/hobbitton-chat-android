@@ -132,6 +132,13 @@ data class MissionChatUiState(
      * first message in it: it is now them speaking, and what the annuaire serves follows.
      */
     val sessionLevel: String? = null,
+    /**
+     * The session's rules predate the catalogue (31/10/2026): a connector they grant gained a tool
+     * since they were written, so the model lacks it. The first send rewrites them from the
+     * connectors read back, as the lift does; a conversation already at the titulaire's level used
+     * to keep yesterday's list for good.
+     */
+    val rulesStale: Boolean = false,
     /** The models a message may be sent on. */
     val models: List<EngineSelectableModel> = emptyList(),
     /**
@@ -463,6 +470,7 @@ class MissionChatViewModel(
                             enabledConnectors = it.enabledConnectors ?: granted,
                             // A lift done meanwhile (a send) outranks the level read before it.
                             sessionLevel = it.sessionLevel ?: scope?.level,
+                            rulesStale = scope?.stale == true && it.sessionLevel == null,
                             connectorsError = null,
                         )
                     }
@@ -973,12 +981,20 @@ class MissionChatViewModel(
      * one of them). Called by a send and by an answer to a question.
      */
     private suspend fun liftToTitularIfNeeded(sessionId: String, state: MissionChatUiState) {
-        if (state.sessionLevel == TITULAR_LEVEL) return
         val known = state.enabledConnectors
+        if (state.sessionLevel == TITULAR_LEVEL) {
+            // Already the titulaire's: only rules the catalogue has outgrown are rewritten, from
+            // the connectors read back, never from an unread list (26/10/2026).
+            if (state.rulesStale && known != null) {
+                withContext(ioDispatcher) { repository.setConnectors(sessionId, known.toList()) }
+                _uiState.update { it.copy(rulesStale = false) }
+            }
+            return
+        }
         withContext(ioDispatcher) {
             if (known != null) repository.setConnectors(sessionId, known.toList()) else repository.liftToTitular(sessionId)
         }
-        _uiState.update { it.copy(sessionLevel = TITULAR_LEVEL) }
+        _uiState.update { it.copy(sessionLevel = TITULAR_LEVEL, rulesStale = false) }
     }
 
     private fun closeQuestion(requestId: String) {
