@@ -51,6 +51,12 @@ class RecentMissionsTest {
     fun `a scheduled run names its mission, even one whose name holds the separator`() {
         assertEquals("brief-crypto", scheduledMissionName("brief-crypto — 2026-09-23T06:45+0200"))
         assertEquals("rapprochement-qonto", scheduledMissionName("rapprochement-qonto — manuel reprise 2"))
+        // 25/10/2026: a lot names its pass (the pré-tri, a palier); 03/11/2026: unmatched, the runs of
+        // 31/10 older than the scheduler's history showed in the drawer as unread sessions.
+        assertEquals("trier-les-non-lus", scheduledMissionName("trier-les-non-lus — non-lus #292 tri (lancement)"))
+        assertEquals("traiter-les-non-lus", scheduledMissionName("traiter-les-non-lus — non-lus #292 moyen (lancement)"))
+        assertEquals("traiter-les-non-lus", scheduledMissionName("traiter-les-non-lus — non-lus #342 moyen reprise 2 (lancement)"))
+        assertEquals("traiter-les-non-lus", scheduledMissionName("traiter-les-non-lus — non-lus #343 haut (lancement)"))
         // The last separator is the scheduler's; any earlier one belongs to the name.
         assertEquals("Engie — clôture", scheduledMissionName("Engie — clôture — 2026-09-14T08:30+0200"))
     }
