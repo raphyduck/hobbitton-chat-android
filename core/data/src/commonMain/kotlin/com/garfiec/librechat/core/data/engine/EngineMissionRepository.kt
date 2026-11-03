@@ -100,8 +100,9 @@ fun runHasNews(run: SchedulerRun?): Boolean =
  * background mission, which speaks through a report or a decision conversation), failed or not
  * (Raphaël's rule, 20/10/2026: traiter-les-non-lus, failing on a spent budget, filled the drawer;
  * its failure stays in the mission's history under Programmées, whose row turns red).
- * [discreetMissions] names the missions the scheduler marks discreet, read off its latest runs: a
- * session whose own run fell outside that window is still known by its mission.
+ * [discreetMissions] names the missions the scheduler marks discreet: the flag of each mission
+ * (`discrete`, set from Programmées; 03/11/2026, Raphaël: the flag decides, never the title alone),
+ * completed by the flag its latest runs carry. A session is known by its mission whatever its age.
  */
 fun runHidden(mission: String?, discreetMissions: Set<String>): Boolean =
     mission != null && mission in discreetMissions
@@ -271,7 +272,8 @@ class EngineMissionRepository(
         val runs = snapshot.runs
         val sessions = snapshot.sessions
         val recorded = recordedKinds()
-        val discreetMissions = runs.values.filter { it.discreet }.mapNotNull { it.mission }.toSet()
+        val discreetMissions = snapshot.discreetMissions +
+            runs.values.filter { it.discreet }.mapNotNull { it.mission }
         val searching = query.isNotBlank()
         val readBudget = if (searching) MAX_SEARCH_CLASSIFICATION_READS else MAX_CLASSIFICATION_READS
         var classified = 0
@@ -362,6 +364,9 @@ class EngineMissionRepository(
         val reads: ReadSnapshot?,
         val runs: Map<String, SchedulerRun>,
         val sessions: List<EngineSession>,
+        // The missions the scheduler marks discreet (03/11/2026): read off the missions themselves,
+        // not off the last 200 runs, so a run of any age stays out of the lists.
+        val discreetMissions: Set<String> = emptySet(),
     )
 
     private var listSnapshot: ListSnapshot? = null
@@ -376,6 +381,7 @@ class EngineMissionRepository(
             val local = async { reads?.let { store -> runCatching { store.snapshot() }.getOrNull() } }
             val server = async { if (reads != null) serverReads() else emptyMap() }
             val runs = async { if (scope == ChatScope.ALL) latestRuns() else emptyMap() }
+            val discreet = async { if (scope == ChatScope.ALL) discreetMissionNames() else emptySet() }
             val sessions = async {
                 api.sessions().sortedByDescending { it.time?.updated ?: it.time?.created ?: Long.MIN_VALUE }
             }
@@ -386,6 +392,7 @@ class EngineMissionRepository(
                 reads = local.await()?.withServerReads(server.await()),
                 runs = runs.await(),
                 sessions = sessions.await(),
+                discreetMissions = discreet.await(),
             )
         }.also { listSnapshot = it }
     }
@@ -418,6 +425,12 @@ class EngineMissionRepository(
         runCatching { scheduler.serverReads() }
             .onFailure { Logger.w(it) { "Conversations: the scheduler's read marks are unavailable" } }
             .getOrDefault(emptyMap())
+
+    /** The names of the missions the scheduler marks discreet; none when it does not answer. */
+    private suspend fun discreetMissionNames(): Set<String> =
+        runCatching { scheduler.state().missions.filter { it.discreet }.map { it.name }.toSet() }
+            .onFailure { Logger.w(it) { "Conversations: the scheduler's missions are unavailable" } }
+            .getOrDefault(emptySet())
 
     private suspend fun latestRuns(): Map<String, SchedulerRun> {
         val runs = runCatching { scheduler.runs() }
