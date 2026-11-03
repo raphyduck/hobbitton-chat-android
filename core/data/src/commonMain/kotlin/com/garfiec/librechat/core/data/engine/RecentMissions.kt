@@ -137,9 +137,13 @@ fun missionDisplayName(name: String): String =
 
 private const val IDLE = "idle"
 private const val SCHEDULER_SEPARATOR = " — "
+// A lot of the non-lus names its pass since 25/10/2026 (the pré-tri, then one pass per palier):
+// « non-lus #292 tri », « non-lus #292 moyen ». Unmatched, such a title named no mission, and a run
+// older than the scheduler's last 200 showed in the drawer as an unread session with its raw title
+// (03/11/2026, Raphaël's screenshot: lots #287 to #292 of 31/10, thirteen rows).
 private val SCHEDULER_TRIGGER =
     Regex(
-        """(manuel|reprise après panne|\d{4}-\d{2}-\d{2}T\d{2}:\d{2}[+-]\d{4}|guet #\d+|non-lus #\d+)""" +
+        """(manuel|reprise après panne|\d{4}-\d{2}-\d{2}T\d{2}:\d{2}[+-]\d{4}|guet #\d+|non-lus #\d+( tri| bas| moyen| haut)?)""" +
             """( reprise \d+)?( \(lancement\))?( \(à blanc\))?""",
     )
 
