@@ -50,7 +50,16 @@ class AgentEngineApi(
      * that exists only on a phone is a mission nobody can supervise.
      */
     suspend fun sessions(): List<EngineSession> =
-        client.get { url { path("session") } }.decoded()
+        client.get {
+            url {
+                path("session")
+                // 03/11/2026: without `limit`, OpenCode 1.18 serves only its last 100 sessions, about ten
+                // days: the list and the search stopped there. `roots` leaves the sub-agents out,
+                // which are nobody's conversation.
+                parameters.append("roots", "true")
+                parameters.append("limit", ALL_SESSIONS.toString())
+            }
+        }.decoded()
 
     /**
      * One session, with the ruleset it currently carries.
@@ -253,5 +262,10 @@ class AgentEngineApi(
                 path = request.url.encodedPath,
             )
         }
+    }
+
+    companion object {
+        /** Every session the engine has: it takes no "all", only a number (03/11/2026). */
+        const val ALL_SESSIONS = 1_000_000
     }
 }

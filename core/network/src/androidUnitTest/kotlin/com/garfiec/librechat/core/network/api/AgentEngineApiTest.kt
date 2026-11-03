@@ -62,6 +62,22 @@ class AgentEngineApiTest {
     }
 
     @Test
+    fun `the session list asks for every root session, not the engine's last hundred`() = runTest {
+        var url: io.ktor.http.Url? = null
+        val engine = MockEngine { request ->
+            url = request.url
+            respond(content = "[]", status = HttpStatusCode.OK, headers = jsonHeaders())
+        }
+
+        agentEngineApi(engine).sessions()
+
+        // 03/11/2026: without `limit` OpenCode 1.18 serves 100 sessions, about ten days of them.
+        assertThat(url!!.encodedPath).isEqualTo("/session")
+        assertThat(url!!.parameters["limit"]).isEqualTo(AgentEngineApi.ALL_SESSIONS.toString())
+        assertThat(url!!.parameters["roots"]).isEqualTo("true")
+    }
+
+    @Test
     fun `the objective goes to prompt_async, which is the route that exists`() = runTest {
         var path: String? = null
         var parts: kotlinx.serialization.json.JsonArray? = null
