@@ -137,6 +137,7 @@ fun missionDisplayName(name: String): String =
 
 private const val IDLE = "idle"
 private const val SCHEDULER_SEPARATOR = " — "
+
 // A lot of the non-lus names its pass since 25/10/2026 (the pré-tri, then one pass per palier):
 // « non-lus #292 tri », « non-lus #292 moyen ». Unmatched, such a title named no mission, and a run
 // older than the scheduler's last 200 showed in the drawer as an unread session with its raw title
