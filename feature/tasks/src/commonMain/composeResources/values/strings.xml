@@ -203,4 +203,28 @@
     <string name="tasks_hands_free_listening">Hands-free: speak, each sentence goes out on its own.</string>
     <string name="tasks_speaking">Eva reads the answer…</string>
     <string name="tasks_hands_free_needs_phone">Hands-free needs the phone’s own dictation and voice (Settings → Dictation).</string>
+    <!-- The mission's own screen (04/11/2026). -->
+    <string name="tasks_mission_details">Details and edit</string>
+    <string name="tasks_mission_schedule">Schedule</string>
+    <string name="tasks_mission_settings">Model and limits</string>
+    <string name="tasks_mission_model">Model</string>
+    <string name="tasks_mission_model_hint">A model id of the gateway. Empty: the mission follows its tier, or the default.</string>
+    <string name="tasks_mission_model_pick">Pick a model</string>
+    <string name="tasks_mission_tier">Tier</string>
+    <string name="tasks_mission_tier_none">None</string>
+    <string name="tasks_mission_prompt">Prompt</string>
+    <string name="tasks_mission_budget">Token budget (weighted)</string>
+    <string name="tasks_mission_timeout">Time limit (seconds)</string>
+    <string name="tasks_mission_ceiling">Tool call ceiling</string>
+    <string name="tasks_mission_notify">Notify when done</string>
+    <string name="tasks_mission_discreet">Keep its runs out of the conversations</string>
+    <string name="tasks_mission_connectors">Connectors</string>
+    <string name="tasks_mission_tools">Tools</string>
+    <string name="tasks_mission_tools_follow">Those of its connectors</string>
+    <string name="tasks_mission_profile">Profile: %1$s</string>
+    <string name="tasks_mission_tokens_run">%1$s tokens · %2$s s</string>
+    <string name="tasks_mission_open_run">Open the last run</string>
+    <string name="tasks_mission_saved">Saved</string>
+    <string name="tasks_mission_save_failed">Not saved: %1$s</string>
+    <string name="tasks_mission_load_failed">Could not read this mission</string>
 </resources>

@@ -301,6 +301,8 @@ private fun EngineMainLayout(
             tasksEntries(
                 onBack = { navigator.goBack() },
                 onOpenDrawer = openDrawer,
+                onOpenMission = { navigator.openMission(it) },
+                onOpenConversation = { sessionId, title -> navigator.openChat(sessionId, title) },
             )
             entry<EngineAppSettings> {
                 // Read on every arrival: the deployment's models may have moved since.

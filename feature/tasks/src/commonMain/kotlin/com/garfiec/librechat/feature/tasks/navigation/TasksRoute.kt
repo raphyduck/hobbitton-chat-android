@@ -9,6 +9,7 @@ import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.ui.NavDisplay
 import com.garfiec.librechat.feature.tasks.MissionChatScreen
+import com.garfiec.librechat.feature.tasks.MissionDetailScreen
 import com.garfiec.librechat.feature.tasks.TasksScreen
 import com.garfiec.librechat.feature.tasks.UsageScreen
 import kotlinx.serialization.Serializable
@@ -51,6 +52,9 @@ import kotlin.random.Random
 /** The week's spend and the providers' health, opened from Settings › Account. */
 @Serializable data object TasksUsage : TasksRoute
 
+/** One scheduled mission in full, to read and to change (04/11/2026). */
+@Serializable data class TasksMission(val name: String) : TasksRoute
+
 /**
  * Programmées and the usage screen. [onOpenDrawer] is null where the host has no drawer to open;
  * Programmées then shows no leading button.
@@ -58,9 +62,16 @@ import kotlin.random.Random
 fun EntryProviderScope<NavKey>.tasksEntries(
     onBack: () -> Unit,
     onOpenDrawer: (() -> Unit)? = null,
+    /** A mission's own screen, pushed by the host (04/11/2026). */
+    onOpenMission: (name: String) -> Unit = {},
+    /** The conversation of a mission's last run, opened from its screen. */
+    onOpenConversation: (sessionId: String, title: String) -> Unit = { _, _ -> },
 ) {
-    entry<TasksList> { TasksScreen(onOpenDrawer = onOpenDrawer) }
+    entry<TasksList> { TasksScreen(onOpenDrawer = onOpenDrawer, onOpenMission = onOpenMission) }
     entry<TasksUsage> { UsageScreen(onBack = onBack) }
+    entry<TasksMission> { route ->
+        MissionDetailScreen(name = route.name, onBack = onBack, onOpenConversation = onOpenConversation)
+    }
 }
 
 /**

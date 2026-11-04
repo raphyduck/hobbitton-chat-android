@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.PauseCircle
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.PlayCircle
@@ -61,6 +62,7 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_cron_weekly
 import com.garfiec.librechat.feature.tasks.resources.tasks_date
 import com.garfiec.librechat.feature.tasks.resources.tasks_days
 import com.garfiec.librechat.feature.tasks.resources.tasks_days_short
+import com.garfiec.librechat.feature.tasks.resources.tasks_mission_details
 import com.garfiec.librechat.feature.tasks.resources.tasks_months_short
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_actions
 import com.garfiec.librechat.feature.tasks.resources.tasks_scheduled_cron
@@ -113,6 +115,8 @@ internal fun ScheduledMissionRow(
     onDelete: () -> Unit,
     onToggleDiscreet: () -> Unit,
     modifier: Modifier = Modifier,
+    /** The mission's own screen (04/11/2026): a tap on the row goes there, the kebab to the sheet. */
+    onOpen: () -> Unit = {},
 ) {
     var acting by rememberSaveable(mission.name) { mutableStateOf(false) }
     var editing by rememberSaveable(mission.name) { mutableStateOf(false) }
@@ -121,7 +125,7 @@ internal fun ScheduledMissionRow(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clickable { acting = true }
+            .clickable(onClick = onOpen)
             .heightIn(min = 56.dp)
             .padding(start = 16.dp, end = 4.dp, top = 10.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -157,6 +161,10 @@ internal fun ScheduledMissionRow(
         ActionsSheet(
             mission = mission,
             onDismiss = { acting = false },
+            onOpen = {
+                acting = false
+                onOpen()
+            },
             onRun = {
                 acting = false
                 onRun()
@@ -218,7 +226,7 @@ internal fun ScheduledMissionRow(
 
 /** « 0 7 * * 1-5 · 14 outils par tour · Prochaine 2026-10-13T07:00 », or « Suspendue », or « En cours ». */
 @Composable
-private fun ScheduledMission.scheduleLine(): String {
+internal fun ScheduledMission.scheduleLine(): String {
     // Said as a person says it (19/10/2026): « Du lundi au vendredi à 7 h », not « 0 7 * * 1-5 ».
     // The tools declared per turn went with it: a budget figure, kept in the scheduler's own view.
     val words = scheduleWords()
@@ -277,6 +285,7 @@ private fun ScheduledMission.dotColour(): Color = when {
 private fun ActionsSheet(
     mission: ScheduledMission,
     onDismiss: () -> Unit,
+    onOpen: () -> Unit,
     onRun: () -> Unit,
     onToggle: () -> Unit,
     onEdit: () -> Unit,
@@ -290,6 +299,11 @@ private fun ActionsSheet(
             modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
         )
         Spacer(Modifier.height(8.dp))
+        SheetAction(
+            icon = Icons.Outlined.Info,
+            label = stringResource(Res.string.tasks_mission_details),
+            onClick = onOpen,
+        )
         SheetAction(
             icon = Icons.Outlined.PlayArrow,
             label = stringResource(Res.string.tasks_scheduled_run),
@@ -450,7 +464,7 @@ private fun RescheduleSheet(
  * showing a red failure on a mission that is working would be worse than showing nothing.
  */
 @Composable
-private fun LastRunLine(mission: ScheduledMission) {
+internal fun LastRunLine(mission: ScheduledMission) {
     val last = mission.lastRun
     when {
         last == null -> Text(

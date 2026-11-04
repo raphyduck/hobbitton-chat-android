@@ -7,6 +7,8 @@ import com.garfiec.librechat.core.data.engine.EngineMissionRepository
 import com.garfiec.librechat.core.data.engine.ModelPreference
 import com.garfiec.librechat.feature.tasks.MissionChatArgs
 import com.garfiec.librechat.feature.tasks.MissionChatViewModel
+import com.garfiec.librechat.feature.tasks.MissionDetailArgs
+import com.garfiec.librechat.feature.tasks.MissionDetailViewModel
 import com.garfiec.librechat.feature.tasks.TasksViewModel
 import com.garfiec.librechat.feature.tasks.UsageViewModel
 import kotlinx.coroutines.flow.first
@@ -40,6 +42,9 @@ val tasksModule = module {
     single { EngineAttentionWatcher(repository = get(), signals = get()) }
     viewModelOf(::TasksViewModel)
     viewModelOf(::UsageViewModel)
+    // The mission's name comes from the navigation layer as MissionDetailArgs (04/11/2026).
+    @Suppress("DeprecatedKoinApi")
+    viewModel { params -> MissionDetailViewModel(name = params.get<MissionDetailArgs>().name, scheduler = get()) }
     // The session arrives from the navigation layer via parametersOf, as one MissionChatArgs, so the lambda-form viewModel is the only DSL that can read them (viewModelOf
     // wires every arg via get()).
     @Suppress("DeprecatedKoinApi")

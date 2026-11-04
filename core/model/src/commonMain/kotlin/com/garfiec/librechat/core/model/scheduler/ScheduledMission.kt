@@ -30,6 +30,8 @@ data class ScheduledMission(
      */
     @SerialName("outils_declares") val declaredTools: Int = 0,
     @SerialName("modele") val model: String? = null,
+    /** The scheduler's tier (« bas », « moyen », « haut »), when the mission runs on one rather than a named model. */
+    @SerialName("palier") val tier: String? = null,
     @SerialName("timeout_s") val timeoutSeconds: Int = 0,
     @SerialName("budget_tokens") val tokenBudget: Int = 0,
     @SerialName("plafond_appels") val toolCallCeiling: Int? = null,
@@ -38,7 +40,36 @@ data class ScheduledMission(
     @SerialName("discrete") val discreet: Boolean = false,
     @SerialName("en_cours") val running: Boolean = false,
     @SerialName("derniere") val lastRun: MissionRun? = null,
+    /**
+     * What `etat` leaves out and the `mission` tool adds (04/11/2026, the mission's own screen):
+     * the prompt, and the explicit tool list when the mission has one (null: it follows its
+     * connectors).
+     */
+    @SerialName("prompt") val prompt: String? = null,
+    @SerialName("outils") val tools: List<String>? = null,
 )
+
+/**
+ * What the mission's screen may change (04/11/2026). Null leaves a field alone: server-side
+ * `modifier` merges, and only what the person touched travels, so an unchanged prompt is never
+ * resent (and never truncated by a client that did not have it whole).
+ */
+data class MissionEdits(
+    val cron: String? = null,
+    val runAt: String? = null,
+    val prompt: String? = null,
+    val model: String? = null,
+    val tier: String? = null,
+    val tokenBudget: Int? = null,
+    val timeoutSeconds: Int? = null,
+    val toolCallCeiling: Int? = null,
+    val notifies: Boolean? = null,
+    val discreet: Boolean? = null,
+) {
+    val isEmpty: Boolean
+        get() = listOf(cron, runAt, prompt, model, tier, tokenBudget, timeoutSeconds, toolCallCeiling, notifies, discreet)
+            .all { it == null }
+}
 
 /**
  * The last time this mission ran.
