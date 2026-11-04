@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -26,12 +27,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
+import coil3.compose.LocalPlatformContext
+import coil3.request.ImageRequest
 import com.garfiec.librechat.core.ui.markdown.InlineSegment
 import com.garfiec.librechat.core.ui.markdown.MarkdownSegment
 import com.garfiec.librechat.core.ui.markdown.NoOpMarkdownAnnotator
+import com.garfiec.librechat.core.ui.markdown.ProsePart
 import com.garfiec.librechat.core.ui.markdown.StandaloneStreamingCursor
 import com.garfiec.librechat.core.ui.markdown.StreamingCursorAnnotator
 import com.garfiec.librechat.core.ui.markdown.canHostInlineCursor
@@ -40,6 +47,7 @@ import com.garfiec.librechat.core.ui.markdown.chatMarkdownTypography
 import com.garfiec.librechat.core.ui.markdown.insecureImagesAsLinks
 import com.garfiec.librechat.core.ui.markdown.parseMarkdownSegments
 import com.garfiec.librechat.core.ui.markdown.rememberStreamingCursorInlineContent
+import com.garfiec.librechat.core.ui.markdown.splitOutImages
 import com.garfiec.librechat.core.ui.markdown.withStreamingCursor
 import com.garfiec.librechat.core.ui.util.copyToClipboard
 import com.garfiec.librechat.feature.tasks.resources.Res
@@ -111,8 +119,51 @@ private fun InlineSegment.rawText(): String = when (this) {
 /** The shared markdown theme — `core:ui` owns it, this file only asks for it. */
 @Composable
 private fun Prose(content: String, color: Color, fontScale: Float, trailingCursor: Boolean = false) {
-    // An https image draws, a cleartext one is a link (27/10/2026, see TrustedImages).
+    // An https image draws, a cleartext one is a link (27/10/2026, see TrustedImages), and every
+    // image is drawn by the message itself, between the pieces of prose (04/11/2026): the
+    // renderer sizes an image inside its line of text from the paragraph around it, and drew a
+    // band one line high over a tall hole.
     val safe = remember(content) { insecureImagesAsLinks(content) }
+    val parts = remember(safe) { splitOutImages(safe) }
+    parts.forEachIndexed { index, part ->
+        val cursorHere = trailingCursor && index == parts.lastIndex
+        when (part) {
+            is ProsePart.Text -> ProseText(part.markdown, color, fontScale, cursorHere)
+            is ProsePart.Image -> {
+                MessageImage(part.url, part.description)
+                if (cursorHere) StandaloneStreamingCursor(fontSizeMultiplier = fontScale)
+            }
+        }
+    }
+}
+
+/**
+ * An image a message names, at the width of the message and the height of its own ratio
+ * (capped, so a tall portrait does not take the screen), decoded no larger than
+ * [MarkdownImages.MAX_EDGE_PX] a side; nothing is drawn until it has arrived.
+ */
+@Composable
+private fun MessageImage(url: String, description: String) {
+    val context = LocalPlatformContext.current
+    val request = remember(url) {
+        ImageRequest.Builder(context).data(url).size(MarkdownImages.MAX_EDGE_PX).build()
+    }
+    AsyncImage(
+        model = request,
+        contentDescription = description.ifEmpty { null },
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(max = MESSAGE_IMAGE_MAX_HEIGHT)
+            .clip(RoundedCornerShape(8.dp)),
+        contentScale = ContentScale.Fit,
+        alignment = Alignment.CenterStart,
+    )
+}
+
+private val MESSAGE_IMAGE_MAX_HEIGHT = 420.dp
+
+@Composable
+private fun ProseText(safe: String, color: Color, fontScale: Float, trailingCursor: Boolean) {
     Markdown(
         content = if (trailingCursor) withStreamingCursor(safe) else safe,
         colors = chatMarkdownColors(text = color),

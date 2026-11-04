@@ -23,7 +23,9 @@ import com.mikepenz.markdown.model.PlaceholderConfig
  * The images a message names in markdown, `![description](https://…)`, drawn in the message
  * (23/10/2026, Raphaël: two tickets' QR codes came as links to copy and open, minutes before
  * the concert). Loaded by the app's Coil loader, the one the attached photos already use; the
- * renderer sizes them from their own dimensions once they have arrived.
+ * renderer sizes them from their own dimensions once they have arrived. Since 04/11/2026 the
+ * message draws its images itself (`splitOutImages`, `MessageImage`); the renderer only meets
+ * one the split did not take, a reference-style image for instance.
  */
 internal object MarkdownImages : ImageTransformer {
 
@@ -39,7 +41,7 @@ internal object MarkdownImages : ImageTransformer {
         return ImageData(painter = rememberAsyncImagePainter(request))
     }
 
-    private const val MAX_EDGE_PX = 1_600
+    internal const val MAX_EDGE_PX = 1_600
 
     @Composable
     override fun intrinsicSize(painter: Painter): Size {
