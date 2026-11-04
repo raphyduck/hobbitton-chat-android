@@ -35,7 +35,7 @@ internal actual fun rememberAttachmentOpener(): ((ChatPart.Attachment) -> Unit)?
             }
             val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", file)
             val view = Intent(Intent.ACTION_VIEW)
-                .setDataAndType(uri, attachment.mime)
+                .setDataAndType(uri, viewerMime(attachment.mime, file.name))
                 .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             try {
                 context.startActivity(Intent.createChooser(view, file.name).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
@@ -52,6 +52,19 @@ private fun cached(context: Context, attachment: ChatPart.Attachment): File {
     val directory = File(context.cacheDir, ATTACHMENTS_DIR).apply { mkdirs() }
     return File(directory, fileName(attachment)).apply { writeBytes(Base64.Mime.decode(base64)) }
 }
+
+/**
+ * The type the viewer is asked for: the attachment's own, unless it says nothing
+ * (`application/octet-stream`, what a tool gives a file it does not know) and the name's extension
+ * does (04/11/2026: a document written as `.html` came as octets and nothing offered to open it).
+ */
+internal fun viewerMime(mime: String, fileName: String): String {
+    if (mime.isNotBlank() && mime != OCTET_STREAM) return mime
+    val extension = fileName.substringAfterLast('.', "").lowercase()
+    return MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension) ?: mime.ifBlank { OCTET_STREAM }
+}
+
+private const val OCTET_STREAM = "application/octet-stream"
 
 /** The file's own name, or one made from its type; never a path out of the directory. */
 private fun fileName(attachment: ChatPart.Attachment): String {
