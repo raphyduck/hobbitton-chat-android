@@ -40,6 +40,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -109,6 +110,7 @@ fun MissionDetailScreen(
     name: String,
     onBack: () -> Unit,
     onOpenConversation: (sessionId: String, title: String) -> Unit,
+    modifier: Modifier = Modifier,
     viewModel: MissionDetailViewModel = koinViewModel { parametersOf(MissionDetailArgs(name)) },
 ) {
     // Collected whatever the entry's lifecycle says, as the conversation does (see MissionChatScreen).
@@ -128,11 +130,13 @@ fun MissionDetailScreen(
         )
         viewModel.noticeShown()
     }
-    LaunchedEffect(state.deleted) { if (state.deleted) onBack() }
+    // The effect keys on the deletion alone: a new `onBack` lambda must not restart it.
+    val goBack by rememberUpdatedState(onBack)
+    LaunchedEffect(state.deleted) { if (state.deleted) goBack() }
 
     val edits = draft?.let { current -> mission?.let { current.editsFrom(it) } }
     Scaffold(
-        modifier = Modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
                 title = { Text(missionDisplayName(name), maxLines = 1, overflow = TextOverflow.Ellipsis) },
@@ -275,103 +279,111 @@ private fun MissionEditor(
     draft: MissionDraft,
     models: List<String>,
     onChange: (MissionDraft) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    Text(stringResource(Res.string.tasks_mission_schedule), style = MaterialTheme.typography.titleSmall)
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        FilterChip(
-            selected = draft.recurring,
-            onClick = { onChange(draft.copy(recurring = true)) },
-            label = { Text(stringResource(Res.string.tasks_scheduled_recurring)) },
-        )
-        FilterChip(
-            selected = !draft.recurring,
-            onClick = { onChange(draft.copy(recurring = false)) },
-            label = { Text(stringResource(Res.string.tasks_scheduled_once)) },
-        )
-    }
-    if (draft.recurring) {
-        OutlinedTextField(
-            value = draft.cron,
-            onValueChange = { onChange(draft.copy(cron = it)) },
-            label = { Text(stringResource(Res.string.tasks_scheduled_cron)) },
-            supportingText = { Text(stringResource(Res.string.tasks_scheduled_cron_hint)) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
-    } else {
-        OutlinedTextField(
-            value = draft.runAt,
-            onValueChange = { onChange(draft.copy(runAt = it)) },
-            label = { Text(stringResource(Res.string.tasks_scheduled_runat)) },
-            supportingText = { Text(stringResource(Res.string.tasks_scheduled_runat_hint)) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
-    }
-    if (mission.timeZone.isNotBlank()) {
-        Text(
-            stringResource(Res.string.tasks_scheduled_timezone, mission.timeZone),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-
-    Text(stringResource(Res.string.tasks_mission_settings), style = MaterialTheme.typography.titleSmall)
-    ModelField(value = draft.model, models = models, onChange = { onChange(draft.copy(model = it)) })
-    Text(stringResource(Res.string.tasks_mission_tier), style = MaterialTheme.typography.labelLarge)
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        (listOf<String?>(null) + TIERS).forEach { tier ->
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Text(stringResource(Res.string.tasks_mission_schedule), style = MaterialTheme.typography.titleSmall)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(
-                selected = draft.tier == tier,
-                onClick = { onChange(draft.copy(tier = tier)) },
-                label = { Text(tier ?: stringResource(Res.string.tasks_mission_tier_none)) },
+                selected = draft.recurring,
+                onClick = { onChange(draft.copy(recurring = true)) },
+                label = { Text(stringResource(Res.string.tasks_scheduled_recurring)) },
+            )
+            FilterChip(
+                selected = !draft.recurring,
+                onClick = { onChange(draft.copy(recurring = false)) },
+                label = { Text(stringResource(Res.string.tasks_scheduled_once)) },
             )
         }
-    }
-    OutlinedTextField(
-        value = draft.prompt,
-        onValueChange = { onChange(draft.copy(prompt = it)) },
-        label = { Text(stringResource(Res.string.tasks_mission_prompt)) },
-        minLines = 8,
-        modifier = Modifier.fillMaxWidth(),
-    )
-    OutlinedTextField(
-        value = draft.tokenBudget,
-        onValueChange = { onChange(draft.copy(tokenBudget = it.filter(Char::isDigit))) },
-        label = { Text(stringResource(Res.string.tasks_mission_budget)) },
-        singleLine = true,
-        modifier = Modifier.fillMaxWidth(),
-    )
-    OutlinedTextField(
-        value = draft.timeoutSeconds,
-        onValueChange = { onChange(draft.copy(timeoutSeconds = it.filter(Char::isDigit))) },
-        label = { Text(stringResource(Res.string.tasks_mission_timeout)) },
-        singleLine = true,
-        modifier = Modifier.fillMaxWidth(),
-    )
-    OutlinedTextField(
-        value = draft.toolCallCeiling,
-        onValueChange = { onChange(draft.copy(toolCallCeiling = it.filter(Char::isDigit))) },
-        label = { Text(stringResource(Res.string.tasks_mission_ceiling)) },
-        singleLine = true,
-        modifier = Modifier.fillMaxWidth(),
-    )
-    SwitchRow(stringResource(Res.string.tasks_mission_notify), draft.notifies) { onChange(draft.copy(notifies = it)) }
-    SwitchRow(stringResource(Res.string.tasks_mission_discreet), draft.discreet) { onChange(draft.copy(discreet = it)) }
+        if (draft.recurring) {
+            OutlinedTextField(
+                value = draft.cron,
+                onValueChange = { onChange(draft.copy(cron = it)) },
+                label = { Text(stringResource(Res.string.tasks_scheduled_cron)) },
+                supportingText = { Text(stringResource(Res.string.tasks_scheduled_cron_hint)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        } else {
+            OutlinedTextField(
+                value = draft.runAt,
+                onValueChange = { onChange(draft.copy(runAt = it)) },
+                label = { Text(stringResource(Res.string.tasks_scheduled_runat)) },
+                supportingText = { Text(stringResource(Res.string.tasks_scheduled_runat_hint)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+        if (mission.timeZone.isNotBlank()) {
+            Text(
+                stringResource(Res.string.tasks_scheduled_timezone, mission.timeZone),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
 
-    Text(stringResource(Res.string.tasks_mission_connectors), style = MaterialTheme.typography.titleSmall)
-    Text(
-        mission.connectors.joinToString(", ").ifEmpty { "—" },
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
-    Text(stringResource(Res.string.tasks_mission_tools), style = MaterialTheme.typography.titleSmall)
-    Text(
-        mission.tools?.joinToString(", ")?.ifEmpty { "—" } ?: stringResource(Res.string.tasks_mission_tools_follow),
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
-    Spacer(Modifier.height(24.dp))
+        Text(stringResource(Res.string.tasks_mission_settings), style = MaterialTheme.typography.titleSmall)
+        ModelField(value = draft.model, models = models, onChange = { onChange(draft.copy(model = it)) })
+        Text(stringResource(Res.string.tasks_mission_tier), style = MaterialTheme.typography.labelLarge)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            (listOf<String?>(null) + TIERS).forEach { tier ->
+                FilterChip(
+                    selected = draft.tier == tier,
+                    onClick = { onChange(draft.copy(tier = tier)) },
+                    label = { Text(tier ?: stringResource(Res.string.tasks_mission_tier_none)) },
+                )
+            }
+        }
+        OutlinedTextField(
+            value = draft.prompt,
+            onValueChange = { onChange(draft.copy(prompt = it)) },
+            label = { Text(stringResource(Res.string.tasks_mission_prompt)) },
+            minLines = 8,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        OutlinedTextField(
+            value = draft.tokenBudget,
+            onValueChange = { onChange(draft.copy(tokenBudget = it.filter(Char::isDigit))) },
+            label = { Text(stringResource(Res.string.tasks_mission_budget)) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        OutlinedTextField(
+            value = draft.timeoutSeconds,
+            onValueChange = { onChange(draft.copy(timeoutSeconds = it.filter(Char::isDigit))) },
+            label = { Text(stringResource(Res.string.tasks_mission_timeout)) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        OutlinedTextField(
+            value = draft.toolCallCeiling,
+            onValueChange = { onChange(draft.copy(toolCallCeiling = it.filter(Char::isDigit))) },
+            label = { Text(stringResource(Res.string.tasks_mission_ceiling)) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        SwitchRow(stringResource(Res.string.tasks_mission_notify), draft.notifies) {
+            onChange(draft.copy(notifies = it))
+        }
+        SwitchRow(stringResource(Res.string.tasks_mission_discreet), draft.discreet) {
+            onChange(draft.copy(discreet = it))
+        }
+
+        Text(stringResource(Res.string.tasks_mission_connectors), style = MaterialTheme.typography.titleSmall)
+        Text(
+            mission.connectors.joinToString(", ").ifEmpty { "—" },
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(stringResource(Res.string.tasks_mission_tools), style = MaterialTheme.typography.titleSmall)
+        Text(
+            mission.tools?.joinToString(", ")?.ifEmpty { "—" }
+                ?: stringResource(Res.string.tasks_mission_tools_follow),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(24.dp))
+    }
 }
 
 /** The model id, typed or picked among the gateway's; empty, the mission follows its tier. */
