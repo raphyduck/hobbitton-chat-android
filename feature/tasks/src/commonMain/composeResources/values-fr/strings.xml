@@ -203,4 +203,28 @@
     <string name="tasks_hands_free_listening">Mains libres : parlez, chaque phrase part d’elle-même.</string>
     <string name="tasks_speaking">Eva lit la réponse…</string>
     <string name="tasks_hands_free_needs_phone">Le mode mains libres a besoin de la dictée et de la voix du téléphone (Réglages → Dictée).</string>
+    <!-- The mission's own screen (04/11/2026). -->
+    <string name="tasks_mission_details">Détails et modification</string>
+    <string name="tasks_mission_schedule">Horaire</string>
+    <string name="tasks_mission_settings">Modèle et limites</string>
+    <string name="tasks_mission_model">Modèle</string>
+    <string name="tasks_mission_model_hint">Un identifiant de modèle de la passerelle. Vide : la mission suit son palier, sinon le modèle par défaut.</string>
+    <string name="tasks_mission_model_pick">Choisir un modèle</string>
+    <string name="tasks_mission_tier">Palier</string>
+    <string name="tasks_mission_tier_none">Aucun</string>
+    <string name="tasks_mission_prompt">Consigne (prompt)</string>
+    <string name="tasks_mission_budget">Budget (jetons pondérés)</string>
+    <string name="tasks_mission_timeout">Durée maximale (secondes)</string>
+    <string name="tasks_mission_ceiling">Plafond d\'appels d\'outils</string>
+    <string name="tasks_mission_notify">Prévenir à la fin</string>
+    <string name="tasks_mission_discreet">Passages hors des conversations</string>
+    <string name="tasks_mission_connectors">Connecteurs</string>
+    <string name="tasks_mission_tools">Outils</string>
+    <string name="tasks_mission_tools_follow">Ceux de ses connecteurs</string>
+    <string name="tasks_mission_profile">Profil : %1$s</string>
+    <string name="tasks_mission_tokens_run">%1$s jetons · %2$s s</string>
+    <string name="tasks_mission_open_run">Ouvrir le dernier passage</string>
+    <string name="tasks_mission_saved">Enregistré</string>
+    <string name="tasks_mission_save_failed">Non enregistré : %1$s</string>
+    <string name="tasks_mission_load_failed">Mission illisible</string>
 </resources>

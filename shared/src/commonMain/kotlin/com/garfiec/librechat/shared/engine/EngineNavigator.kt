@@ -5,6 +5,7 @@ import androidx.navigation3.runtime.NavKey
 import androidx.savedstate.serialization.SavedStateConfiguration
 import com.garfiec.librechat.feature.tasks.navigation.EngineChat
 import com.garfiec.librechat.feature.tasks.navigation.TasksList
+import com.garfiec.librechat.feature.tasks.navigation.TasksMission
 import com.garfiec.librechat.feature.tasks.navigation.TasksUsage
 import com.garfiec.librechat.feature.tasks.navigation.tasksSerializersModule
 import kotlinx.serialization.Serializable
@@ -98,6 +99,9 @@ class EngineNavigator(val backStack: NavBackStack<NavKey>) {
 
     /** Programmées: pushed over the conversation, unwound to when already on the stack. */
     fun openTasks() = pushOrUnwind(TasksList)
+
+    /** A mission's own screen, over Programmées (04/11/2026). */
+    fun openMission(name: String) = pushOrUnwind(TasksMission(name))
 
     fun openSettings() {
         if (currentRoute != EngineAppSettings) backStack.add(EngineAppSettings)

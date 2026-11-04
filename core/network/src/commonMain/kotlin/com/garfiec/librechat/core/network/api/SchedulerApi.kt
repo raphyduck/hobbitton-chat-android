@@ -3,6 +3,7 @@ package com.garfiec.librechat.core.network.api
 import com.garfiec.librechat.core.model.scheduler.ChatBudget
 import com.garfiec.librechat.core.model.scheduler.ConnectorCatalogue
 import com.garfiec.librechat.core.model.scheduler.Consumption
+import com.garfiec.librechat.core.model.scheduler.MissionEdits
 import com.garfiec.librechat.core.model.scheduler.ModelPrices
 import com.garfiec.librechat.core.model.scheduler.ModelTierChoice
 import com.garfiec.librechat.core.model.scheduler.ModelTiers
@@ -259,15 +260,32 @@ class SchedulerApi(
         cron: String? = null,
         runAt: String? = null,
         discreet: Boolean? = null,
-    ): String = callTool(
+    ): String = updateMission(name, MissionEdits(cron = cron, runAt = runAt, discreet = discreet))
+
+    /** The mission's screen: every field a person may change there, only the touched ones sent. */
+    suspend fun updateMission(name: String, edits: MissionEdits): String = callTool(
         "modifier",
         buildJsonObject {
             put("nom", name)
-            cron?.let { put("cron", it) }
-            runAt?.let { put("quand", it) }
-            discreet?.let { put("discrete", it) }
+            edits.cron?.let { put("cron", it) }
+            edits.runAt?.let { put("quand", it) }
+            edits.prompt?.let { put("prompt", it) }
+            edits.model?.let { put("modele", it) }
+            edits.tier?.let { put("palier", it) }
+            edits.tokenBudget?.let { put("budget_tokens", it) }
+            edits.timeoutSeconds?.let { put("timeout_s", it) }
+            edits.toolCallCeiling?.let { put("plafond_appels", it) }
+            edits.notifies?.let { put("notifier", it) }
+            edits.discreet?.let { put("discrete", it) }
         },
     )
+
+    /**
+     * One mission in full (04/11/2026): what `etat` publishes for it, plus its prompt and its
+     * explicit tool list, which `etat` leaves out for every screen that lists missions.
+     */
+    suspend fun mission(name: String): ScheduledMission =
+        decode(callTool("mission", buildJsonObject { put("nom", name) }), "mission")
 
     /**
      * Removes a scheduled mission. **Its history survives** — that is the record of what ran, and

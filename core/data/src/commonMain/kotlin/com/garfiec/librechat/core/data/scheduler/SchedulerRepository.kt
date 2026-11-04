@@ -4,6 +4,7 @@ import com.garfiec.librechat.core.data.engine.EngineSettingsStore
 import com.garfiec.librechat.core.data.pricing.ModelPriceSource
 import com.garfiec.librechat.core.model.scheduler.ChatBudget
 import com.garfiec.librechat.core.model.scheduler.Consumption
+import com.garfiec.librechat.core.model.scheduler.MissionEdits
 import com.garfiec.librechat.core.model.scheduler.ModelPrices
 import com.garfiec.librechat.core.model.scheduler.ModelTierChoice
 import com.garfiec.librechat.core.model.scheduler.ModelTiers
@@ -149,6 +150,12 @@ class SchedulerRepository(
     /** Keeps a mission's runs out of the conversation lists, or brings them back (19/10/2026). */
     suspend fun setDiscreet(name: String, discreet: Boolean): String =
         api.updateMission(name = name, discreet = discreet)
+
+    /** One mission in full, prompt and tool list included (the mission's screen, 04/11/2026). */
+    suspend fun mission(name: String): ScheduledMission = api.mission(name)
+
+    /** The mission's screen saves what the person touched, nothing else. */
+    suspend fun updateMission(name: String, edits: MissionEdits): String = api.updateMission(name, edits)
 
     /** Deletes a scheduled mission. Its run history is kept server-side. */
     suspend fun deleteMission(name: String): String = api.deleteMission(name)

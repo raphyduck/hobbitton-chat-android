@@ -64,6 +64,8 @@ fun TasksScreen(
      * the screen is reached from the drawer, and the only way back to it was the system back gesture.
      */
     onOpenDrawer: (() -> Unit)? = null,
+    /** A mission's own screen (04/11/2026): the row opens it, the kebab keeps the quick actions. */
+    onOpenMission: (name: String) -> Unit = {},
     viewModel: TasksViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -138,6 +140,7 @@ fun TasksScreen(
                         onReschedule = { mission, cron, runAt -> viewModel.rescheduleMission(mission.name, cron, runAt) },
                         onDeleteScheduled = { viewModel.deleteScheduled(it.name) },
                         onSetDiscreet = { mission, discreet -> viewModel.setScheduledDiscreet(mission.name, discreet) },
+                        onOpenMission = { onOpenMission(it.name) },
                     ),
                 )
             }
@@ -162,6 +165,7 @@ internal class TasksListActions(
     val onReschedule: (ScheduledMission, cron: String?, runAt: String?) -> Unit,
     val onDeleteScheduled: (ScheduledMission) -> Unit,
     val onSetDiscreet: (ScheduledMission, Boolean) -> Unit,
+    val onOpenMission: (ScheduledMission) -> Unit = {},
 )
 
 /**
@@ -222,6 +226,7 @@ internal fun TasksListBody(
                             onReschedule = { cron, runAt -> actions.onReschedule(mission, cron, runAt) },
                             onDelete = { actions.onDeleteScheduled(mission) },
                             onToggleDiscreet = { actions.onSetDiscreet(mission, !mission.discreet) },
+                            onOpen = { actions.onOpenMission(mission) },
                         )
                     }
                 }
