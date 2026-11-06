@@ -3,6 +3,8 @@ package com.garfiec.librechat.core.data.di
 import android.os.SystemClock
 import com.garfiec.librechat.core.common.di.KoinQualifiers
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
+import com.garfiec.librechat.core.data.engine.AndroidAttachmentUploader
+import com.garfiec.librechat.core.data.engine.AttachmentUploader
 import com.garfiec.librechat.core.data.engine.AttentionPreference
 import com.garfiec.librechat.core.data.engine.AttentionSignals
 import com.garfiec.librechat.core.data.engine.AudioTranscriber
@@ -148,6 +150,14 @@ val engineModule: Module = module {
             configured = { settings.access()?.hasScheduler == true },
             language = { isoLanguageOrNull(Locale.getDefault().language) },
         )
+    }
+
+    /**
+     * A video, or a file too large for a message, deposited on the server's binary channel through
+     * the scheduler's ticket (06/11/2026); the message then names its path.
+     */
+    single<AttachmentUploader> {
+        AndroidAttachmentUploader(api = get(), resolver = androidContext().contentResolver, ioDispatcher = get(KoinQualifiers.IO))
     }
 
     /**

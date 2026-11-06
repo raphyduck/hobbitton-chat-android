@@ -35,6 +35,7 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_attachment_remove
 import com.garfiec.librechat.feature.tasks.util.AudioNote
 import com.garfiec.librechat.feature.tasks.util.ChatPart
 import com.garfiec.librechat.feature.tasks.util.StagedAttachment
+import com.garfiec.librechat.feature.tasks.util.humanSize
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -98,7 +99,11 @@ internal fun StagedAttachmentsRow(
                             Modifier.size(16.dp),
                         )
                     },
-                    label = { Text(staged.filename ?: staged.mime) },
+                    label = {
+                        // A deposited file shows its size: what will travel, and how long it may take.
+                        val name = staged.filename ?: staged.mime
+                        Text(if (staged.deposited) "$name · ${humanSize(staged.sizeBytes)}" else name)
+                    },
                     trailingIcon = {
                         Icon(
                             Icons.Default.Close,

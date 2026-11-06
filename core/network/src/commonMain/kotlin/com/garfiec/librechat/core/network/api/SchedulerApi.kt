@@ -532,6 +532,35 @@ class SchedulerApi(
         return content.joinToString("") { (it as? JsonObject)?.get("text")?.asStringOrNull().orEmpty() }
     }
 
+    /**
+     * A ticket of the files connector's binary channel, for a file the app deposits itself
+     * (06/11/2026, Raphaël: « il faut pouvoir ajouter des vidéos également »): a video, or any file
+     * too large for a message. `POST pieces-jointes/ticket` answers the one-shot PUT URL and the
+     * server path the message will name. [session] is null before the conversation exists.
+     */
+    suspend fun uploadTicket(session: String?, filename: String?, mime: String, sizeBytes: Long): UploadTicket {
+        val response = client.post {
+            url { path("pieces-jointes", "ticket") }
+            accept(ContentType.Application.Json)
+            contentType(ContentType.Application.Json)
+            setBody(
+                buildJsonObject {
+                    session?.let { put("session", it) }
+                    filename?.takeIf { it.isNotBlank() }?.let { put("nom", it) }
+                    put("mime", mime)
+                    put("taille", sizeBytes)
+                }.toString(),
+            )
+        }
+        val answer = response.bodyAsText().asJsonObjectOrNull()
+        val url = answer?.get("url")?.asStringOrNull()
+        val path = answer?.get("chemin")?.asStringOrNull()
+        if (!response.status.isSuccess() || url.isNullOrBlank() || path.isNullOrBlank()) {
+            throw EngineHttpException(response.status.value, "POST", "pieces-jointes/ticket")
+        }
+        return UploadTicket(url = url, path = path)
+    }
+
     /** The body as a JSON object, or null when it is not JSON or not an object — never a throw. */
     private fun String.asJsonObjectOrNull(): JsonObject? =
         runCatching { json.parseToJsonElement(this) }.getOrNull() as? JsonObject
@@ -566,3 +595,6 @@ class SchedulerApi(
             }
     }
 }
+
+/** Where a deposited file goes: the one-shot PUT [url], and the server [path] the message names. */
+class UploadTicket(val url: String, val path: String)

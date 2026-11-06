@@ -6,6 +6,7 @@ import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.common.diagnostics.threadReport
 import com.garfiec.librechat.core.common.flow.batched
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
+import com.garfiec.librechat.core.data.engine.AttachmentUploader
 import com.garfiec.librechat.core.data.engine.AttentionSignals
 import com.garfiec.librechat.core.data.engine.AudioTranscriber
 import com.garfiec.librechat.core.data.engine.ConnectorOption
@@ -20,6 +21,7 @@ import com.garfiec.librechat.core.data.pricing.ModelPriceCache
 import com.garfiec.librechat.core.data.scheduler.SchedulerRepository
 import com.garfiec.librechat.core.model.engine.EngineFailureKind
 import com.garfiec.librechat.core.model.engine.EngineModelRef
+import com.garfiec.librechat.core.model.engine.EnginePromptPart
 import com.garfiec.librechat.core.model.engine.EngineQuestionRequest
 import com.garfiec.librechat.core.model.engine.EngineSelectableModel
 import com.garfiec.librechat.core.model.engine.EngineStreamEvent
@@ -33,14 +35,18 @@ import com.garfiec.librechat.feature.tasks.util.AudioNote
 import com.garfiec.librechat.feature.tasks.util.ChatPart
 import com.garfiec.librechat.feature.tasks.util.ChatTurn
 import com.garfiec.librechat.feature.tasks.util.MissionChatState
+import com.garfiec.librechat.feature.tasks.util.OutgoingAttachments
 import com.garfiec.librechat.feature.tasks.util.QuestionDraft
 import com.garfiec.librechat.feature.tasks.util.StagedAttachment
 import com.garfiec.librechat.feature.tasks.util.asPromptPart
+import com.garfiec.librechat.feature.tasks.util.depositedLine
 import com.garfiec.librechat.feature.tasks.util.knowsPart
 import com.garfiec.librechat.feature.tasks.util.lastAnswerSpeech
 import com.garfiec.librechat.feature.tasks.util.outgoingMessageText
+import com.garfiec.librechat.feature.tasks.util.previewPart
 import com.garfiec.librechat.feature.tasks.util.reduce
 import com.garfiec.librechat.feature.tasks.util.speechText
+import com.garfiec.librechat.feature.tasks.util.withDepositedLines
 import com.garfiec.librechat.feature.tasks.util.withPendingQuestions
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
@@ -305,6 +311,11 @@ class MissionChatViewModel(
     private val scheduler: SchedulerRepository? = null,
     /** The model this device last sent each conversation with (26/10/2026); null in tests. */
     private val conversationModels: ConversationModelStore? = null,
+    /**
+     * Deposits on the server what does not ride in a message (06/11/2026: a video, a large file);
+     * the message then names the path. Defaulted for the tests, which stage nothing of the kind.
+     */
+    private val uploader: AttachmentUploader = AttachmentUploader.None,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(
@@ -1090,14 +1101,15 @@ class MissionChatViewModel(
                 liftToTitularIfNeeded(sessionId, staged)
                 // The answer streams in over the feed while this call is in flight; what it returns is
                 // the finished turn, folded in to reconcile anything the feed missed.
-                val model = resolveModel(text, attachments.any { it.mime.startsWith("image/") })
+                val model = resolveModel(text, attachments.any { it.showsAsImage })
                 model?.let { rememberModel(sessionId, it) }
                 val settled = withContext(ioDispatcher) {
+                    val outgoing = deposit(sessionId, text, attachments)
                     repository.sendMessage(
                         sessionId,
-                        text,
+                        outgoing.text,
                         model,
-                        files = attachments.map { it.asPromptPart() },
+                        files = outgoing.files,
                     )
                 }
                 _uiState.update { current ->
@@ -1145,15 +1157,16 @@ class MissionChatViewModel(
         }
         viewModelScope.launch {
             try {
-                val files = attachments.map { it.asPromptPart() }
-                val model = resolveModel(text, attachments.any { it.mime.startsWith("image/") })
+                val model = resolveModel(text, attachments.any { it.showsAsImage })
                 val created = withContext(ioDispatcher) {
+                    // No session yet: the deposit goes under the server's `envois` folder.
+                    val outgoing = deposit(null, text, attachments)
                     repository.startChat(
-                        text = text,
+                        text = outgoing.text,
                         // Null while the catalogue is unknown: the repository then takes the defaults.
                         connectors = staged.enabledConnectors?.toList(),
                         model = model,
-                        files = files,
+                        files = outgoing.files,
                     )
                 }
                 model?.let { rememberModel(created, it) }
@@ -1173,6 +1186,35 @@ class MissionChatViewModel(
                 }
             }
         }
+    }
+
+    /**
+     * Settles the attachments before the message leaves (06/11/2026, Raphaël: « il faut pouvoir
+     * ajouter des vidéos également »). A photo rides in the message as before. A video, or a file
+     * too large for a message, is deposited on the server first through the [uploader] and the
+     * message names its path on one line (`🎬 nom · 48 Mo · /srv/filemcp/eva/<session>/nom`), with
+     * the video's first frame as an image part so the model sees the scene; the tools then take
+     * the path as it is. A deposit that fails fails the send, and the composer gets everything back.
+     */
+    private suspend fun deposit(sessionId: String?, text: String, attachments: List<StagedAttachment>): OutgoingAttachments {
+        val lines = mutableListOf<String>()
+        val files = mutableListOf<EnginePromptPart>()
+        for (staged in attachments) {
+            if (!staged.deposited) {
+                files += staged.asPromptPart()
+                continue
+            }
+            val uploaded = uploader.upload(
+                session = sessionId,
+                filename = staged.filename,
+                mime = staged.mime,
+                sizeBytes = staged.sizeBytes,
+                uri = staged.uploadUri.orEmpty(),
+            )
+            lines += depositedLine(staged.filename, staged.mime, staged.sizeBytes, uploaded.path)
+            staged.previewPart()?.let { files += it }
+        }
+        return OutgoingAttachments(withDepositedLines(text, lines), files)
     }
 
     /**

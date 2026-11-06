@@ -3,6 +3,7 @@ package com.garfiec.librechat.feature.tasks.components
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -21,8 +22,9 @@ import kotlinx.coroutines.withContext
 
 /**
  * The system photo picker — photos and, since 02/10/2026, videos — feeding [StagedAttachment]s. A
- * photo arrives already shrunk to what a vision model reads; a video as it is, within
- * [MAX_FILE_BYTES].
+ * photo arrives already shrunk to what a vision model reads; a video is staged for the deposit
+ * (06/11/2026, Raphaël: « il faut pouvoir ajouter des vidéos également »; before, one past
+ * [MAX_FILE_BYTES] silently became no chip), its first frame as a preview.
  *
  * Decode and re-encode happen off the main thread: a 12 MB camera photo takes long enough to
  * decode that doing it in the result callback would freeze the composer mid-tap.
@@ -73,11 +75,75 @@ internal actual fun rememberMissionFilePicker(
     return { launcher.launch(arrayOf("*/*")) }
 }
 
-/** A picture is shrunk ([stageImage]); anything else is read as it is ([stageFile]). */
+/**
+ * A picture is shrunk ([stageImage]); a video, or a file too large for a message, is staged for
+ * the server's deposit ([stageForUpload]); anything else is read as it is ([stageFile]).
+ */
 private fun Context.stage(uri: Uri): StagedAttachment? {
     val mime = contentResolver.getType(uri) ?: "application/octet-stream"
-    return if (mime.startsWith("image/") && mime != "image/gif") stageImage(uri) else stageFile(uri, mime)
+    return when {
+        mime.startsWith("image/") && mime != "image/gif" -> stageImage(uri)
+        mime.startsWith("video/") -> stageForUpload(uri, mime)
+        (sizeOf(uri) ?: 0L) > MAX_FILE_BYTES -> stageForUpload(uri, mime)
+        else -> stageFile(uri, mime)
+    }
 }
+
+/**
+ * Stages a file for the deposit at send time: nothing of it is read now but its name, its size
+ * and, for a video, its first frame (JPEG, [PREVIEW_DIMENSION_PX] a side at most) so the model sees
+ * the scene the words describe. Null past [MAX_UPLOAD_BYTES] (the deposit's own ceiling) or when
+ * the size is unknown: a chip that would fail at send time is not staged.
+ */
+@OptIn(ExperimentalUuidApi::class)
+private fun Context.stageForUpload(uri: Uri, mime: String): StagedAttachment? = runCatching {
+    val size = sizeOf(uri) ?: return null
+    if (size <= 0L || size > MAX_UPLOAD_BYTES) return null
+    val name = displayNameOf(uri)
+    val preview = if (mime.startsWith("video/")) firstFrame(uri) else ByteArray(0)
+    StagedAttachment(
+        id = Uuid.random().toString(),
+        mime = mime,
+        filename = name,
+        bytes = preview,
+        uploadUri = uri.toString(),
+        sizeBytes = size,
+    )
+}.getOrNull()
+
+/** A video's first frame as JPEG, or nothing when the phone cannot decode it. */
+private fun Context.firstFrame(uri: Uri): ByteArray = runCatching {
+    val retriever = MediaMetadataRetriever()
+    try {
+        retriever.setDataSource(this, uri)
+        val frame = retriever.frameAtTime ?: return ByteArray(0)
+        val longest = maxOf(frame.width, frame.height)
+        val scaled = if (longest > PREVIEW_DIMENSION_PX) {
+            val ratio = PREVIEW_DIMENSION_PX.toFloat() / longest
+            Bitmap.createScaledBitmap(frame, (frame.width * ratio).toInt(), (frame.height * ratio).toInt(), true)
+        } else {
+            frame
+        }
+        ByteArrayOutputStream().use { out ->
+            scaled.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, out)
+            out.toByteArray()
+        }
+    } finally {
+        retriever.release()
+    }
+}.getOrDefault(ByteArray(0))
+
+private fun Context.displayNameOf(uri: Uri): String? =
+    contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+        if (cursor.moveToFirst() && !cursor.isNull(0)) cursor.getString(0) else null
+    }
+
+/** The file's size as its provider declares it, null when it does not. */
+private fun Context.sizeOf(uri: Uri): Long? = runCatching {
+    contentResolver.query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)?.use { cursor ->
+        if (cursor.moveToFirst() && !cursor.isNull(0)) cursor.getLong(0) else null
+    }
+}.getOrNull()
 
 /**
  * Reads one file whole, with its own name and type.
@@ -88,9 +154,7 @@ private fun Context.stage(uri: Uri): StagedAttachment? {
  */
 @OptIn(ExperimentalUuidApi::class)
 private fun Context.stageFile(uri: Uri, mime: String): StagedAttachment? = runCatching {
-    val name = contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
-        if (cursor.moveToFirst()) cursor.getString(0) else null
-    }
+    val name = displayNameOf(uri)
     val bytes = contentResolver.openInputStream(uri)?.use { input ->
         val out = ByteArrayOutputStream()
         val buffer = ByteArray(BUFFER_BYTES)
@@ -158,4 +222,8 @@ private const val JPEG_QUALITY = 82
  * 25 MB (hobbitton-proxy.inc).
  */
 private const val MAX_FILE_BYTES = 16L * 1024 * 1024
+
+/** The deposit's ceiling: the files connector's upload channel takes 100 MB at most. */
+private const val MAX_UPLOAD_BYTES = 100L * 1024 * 1024
+private const val PREVIEW_DIMENSION_PX = 1024
 private const val BUFFER_BYTES = 64 * 1024
