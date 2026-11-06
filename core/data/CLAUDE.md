@@ -78,7 +78,11 @@ Since 12/10/2026 chats and tasks are one conversation, as on Claude.ai.
   INSIDE a conversation (a reminder set from it, a relance's decision; `SchedulerRun.inConversation`,
   the scheduler's `conversation`, 26/10/2026) is not that conversation's kind: the session keeps its
   title and is unread whenever it moved (before, two decision conversations read as read while
-  their relances ran, and a chat was listed under its reminder's name). A discreet mission's
+  their relances ran, and a chat was listed under its reminder's name), whatever that title
+  (`missionOf`, `listedTitle`, 06/11/2026: a relance's conversation the scheduler had opened under
+  a run's title read as a run without a verdict, never unread, and left out of the drawer; a
+  session seen in-conversation is recorded as a chat so the reading holds once its run leaves the
+  scheduler's last 200). A discreet mission's
   runs are left out (`runHidden`, 19/10/2026), failed or not since 20/10 (its failure shows on its row
   under Programmées); a session the
   scheduler lists as a run counts as one even when its title is not recognised. `classifySession` +
