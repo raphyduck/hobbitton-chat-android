@@ -115,6 +115,37 @@ fun runHidden(mission: String?, discreetMissions: Set<String>): Boolean =
 fun runUnread(mission: String?, run: SchedulerRun?): Boolean = mission == null || runHasNews(run)
 
 /**
+ * The mission a listed session is a run of, or null for a conversation: the scheduler's title
+ * shape, else the mission of the run the scheduler lists under the session. Null, whatever the
+ * title, when the scheduler played its run INSIDE the conversation ([SchedulerRun.inConversation])
+ * or when this device already recorded the session as a chat ([recorded]; a chat never has the
+ * scheduler's title shape unless it was learnt so, below).
+ *
+ * 06/11/2026, Raphaël: « Relance winovatio negociation » stayed read whatever he and Eva wrote in
+ * it. The scheduler had opened that conversation under a run's title
+ * (`relance-winovatio-negociation — manuel (lancement)`) and plays the relance in it; the title
+ * named the mission, the run was dropped as in-conversation, and a run without a verdict is read.
+ * The conversation was also left out of the drawer with the other runs. A session seen
+ * in-conversation once is recorded as a chat ([EngineSessionKind.CHAT]) so that the reading holds
+ * when its run leaves the scheduler's last 200.
+ */
+fun missionOf(title: String?, run: SchedulerRun?, recorded: EngineSessionKind? = null): String? {
+    if (run?.inConversation == true || recorded == EngineSessionKind.CHAT) return null
+    return title?.let(::scheduledMissionName) ?: run?.mission
+}
+
+/**
+ * The title a listed session shows: a run its mission's name as a person reads it, a conversation
+ * its own title, or the mission's name when the scheduler opened it under a run's title
+ * ([missionOf]), or its id when it has none.
+ */
+fun listedTitle(sessionId: String, title: String?, mission: String?): String {
+    mission?.let { return missionDisplayName(it) }
+    val shown = title.orEmpty().ifBlank { return sessionId }
+    return scheduledMissionName(shown)?.let(::missionDisplayName) ?: shown
+}
+
+/**
  * What the model picker needs: the list, and the model a conversation runs on when none is picked
  * ([preselected]: the person's default from Settings when the list still offers it, the engine's
  * own otherwise, which [engineDefault] keeps for Settings to name).
@@ -292,16 +323,23 @@ class EngineMissionRepository(
                 // decision; 26/10/2026) is not that conversation's kind: the session keeps its title and
                 // is unread whenever it moved. Before that flag, such a conversation was listed under
                 // the mission's name, read while the run lasted or when it had « rien à signaler ».
-                val run = runs[session.id]?.takeUnless { it.inConversation }
-                val mission = session.title?.let(::scheduledMissionName) ?: run?.mission
-                val title = mission?.let(::missionDisplayName) ?: session.title.orEmpty().ifBlank { session.id }
+                // Whatever its title (06/11/2026: the scheduler opens a relance's conversation under a
+                // run's title), and recorded as a chat so the reading outlives the scheduler's window.
+                val entry = runs[session.id]
+                val recordedKind = recorded[session.id]
+                val mission = missionOf(session.title, entry, recordedKind)
+                val run = entry?.takeUnless { it.inConversation }
+                if (entry?.inConversation == true && recordedKind != EngineSessionKind.CHAT) {
+                    learned[session.id] = EngineSessionKind.CHAT
+                }
+                val title = listedTitle(session.id, session.title, mission)
                 // Before any transcript is read: a run never costs the drawer one, nor does a session
                 // the search does not name.
                 val left = (mission != null && scope == ChatScope.MANUAL) ||
                     runHidden(mission, discreetMissions) ||
                     (searching && !title.matchesSearch(query))
                 if (left) continue
-                val kind = classifySession(session.title, recorded[session.id], messages = null)
+                val kind = classifySession(session.title, recordedKind ?: learned[session.id], messages = null)
                 if (kind == null) {
                     if (classified >= readBudget) continue
                     classified++

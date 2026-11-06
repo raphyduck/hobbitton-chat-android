@@ -96,7 +96,11 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   something to say »: the scheduler's `historique(json_brut=True)` carries `a_signaler`, false when
   the run answered « RIEN À SIGNALER » (`runHasNews`). A run played inside a conversation (a
   reminder, a relance's decision; the scheduler's `conversation` flag, 26/10/2026) never makes that
-  conversation a run: it keeps its title and is unread whenever it moved.
+  conversation a run: it keeps its title and is unread whenever it moved, whatever its title
+  (06/11/2026, Raphaël: « Relance winovatio negociation » stayed read under everything written in
+  it, and out of the drawer; the scheduler had opened it under a run's title, which named the
+  mission while the run was dropped; `missionOf`, `listedTitle`, the session then recorded as a
+  chat so the reading outlives the scheduler's last 200 runs).
   A **discreet** mission (Raphaël's rule, 19/10/2026: the guet's lots crowded both lists) keeps its
   runs out of both, failed or not (`runHidden`, the scheduler's `discrete` on each mission, read off the missions themselves since 03/11/2026 and no longer off the last 200 runs, whose window left the lots of 31/10 showing as unread sessions; Raphaël: the flag decides, never the title alone; Raphaël,
   20/10/2026: the failing runs filled the drawer; a failure shows on its row under Programmées); its history stays under Programmées, whose actions sheet hides or shows it
