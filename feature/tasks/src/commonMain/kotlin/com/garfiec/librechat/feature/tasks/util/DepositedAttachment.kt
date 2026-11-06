@@ -31,11 +31,12 @@ fun humanSize(bytes: Long): String = when {
     else -> "$bytes o"
 }
 
-/** One decimal under ten, none above: `1,5 Mo`, `48 Mo`. */
+/** One decimal under ten, none above, rounded to the nearest: `1,5 Mo`, `2,3 Mo`, `48 Mo`. */
 private fun format(value: Double): String {
-    val tenths = (value * 10).toLong()
+    val tenths = (value * 10 + HALF).toLong()
     return if (value < 10 && tenths % 10 != 0L) "${tenths / 10},${tenths % 10}" else "${tenths / 10}"
 }
 
+private const val HALF = 0.5
 private const val KILOBYTE = 1024L
 private const val MEGABYTE = 1024L * 1024L
