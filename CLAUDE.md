@@ -223,6 +223,11 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   (`planifier(..., dans_cette_conversation=True)`, 19/10/2026; its turn opens with
   `REMINDER_PREFIX`). The decision is common (`AttentionSignals`), the sound and channels are `:app`'s
   (`AndroidAttentionNotifier`); a tap opens the conversation (`ConversationRequests`).
+  A notification goes when its conversation is read (06/11/2026, Raphaël: one stayed in the shade
+  after he had opened the conversation from the drawer): `markRead` withdraws what was posted for
+  the session (`AttentionNotifier.dismissConversation`: the question ids the notifier posted in
+  this process, the reply's and the push's ids, which follow from the session), and every list
+  read withdraws those of the conversations the scheduler now reads as read (`dismissRead`).
   **Push** (19/10/2026, Raphaël's rule: no third-party app, nothing to configure): the server
   publishes decisions and questions on its ntfy topic; `PushService` (`:app`, a foreground service of
   type `remoteMessaging`, restarted at boot by `PushBootReceiver`) asks the scheduler where

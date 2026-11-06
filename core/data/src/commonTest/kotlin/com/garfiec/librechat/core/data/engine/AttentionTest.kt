@@ -43,6 +43,14 @@ class AttentionTest {
         override fun cancelReplyReady(sessionId: String) {
             calls += "cancelReply:$sessionId"
         }
+
+        override fun dismissConversation(sessionId: String) {
+            calls += "dismiss:$sessionId"
+        }
+
+        override fun dismissRead(read: Collection<String>) {
+            calls += "dismissRead:${read.sorted().joinToString(",")}"
+        }
     }
 
     private fun request(id: String, session: String = "ses_1") = EngineQuestionRequest(

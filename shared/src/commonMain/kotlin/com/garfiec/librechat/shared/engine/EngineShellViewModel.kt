@@ -7,6 +7,7 @@ import com.garfiec.librechat.core.data.datastore.ChatFontSize
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.datastore.ThemeDataStore
 import com.garfiec.librechat.core.data.datastore.ThemeMode
+import com.garfiec.librechat.core.data.engine.AttentionNotifier
 import com.garfiec.librechat.core.data.engine.ChatScope
 import com.garfiec.librechat.core.data.engine.ConversationModelStore
 import com.garfiec.librechat.core.data.engine.ConversationReads
@@ -80,6 +81,8 @@ class EngineShellViewModel(
     private val attentionWatcher: EngineAttentionWatcher? = null,
     /** The conversation a tapped notification asks to open. Null without the engine graph. */
     private val conversationRequests: ConversationRequests? = null,
+    /** The notifications on this device, withdrawn once their conversation is read (06/11/2026). */
+    private val notifier: AttentionNotifier? = null,
     /** Who the portal says is signed in, for the drawer's foot (lot 3). Null without the engine graph. */
     private val scheduler: SchedulerRepository? = null,
     /** The phone's share sheet for the diagnostic log (Settings → Plateforme, 20/10/2026). Null in tests. */
@@ -309,6 +312,9 @@ class EngineShellViewModel(
                 val limit = shown
                 val chats = source.recentChats(scope = ChatScope.ALL, limit = limit, maxAgeMillis = reuseMillis)
                 _allChats.value = EngineChatsState(chats = chats, more = chats.size >= limit)
+                // A conversation read elsewhere (the scheduler's mark, a reading by phone) loses
+                // its notification here too (06/11/2026).
+                notifier?.dismissRead(chats.filterNot { it.unread }.map { it.sessionId })
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -361,6 +367,9 @@ class EngineShellViewModel(
     fun markRead(sessionId: String) {
         val source = repository ?: return
         _allChats.update { state -> state.copy(chats = state.chats.map { if (it.sessionId == sessionId) it.copy(unread = false) else it }) }
+        // Shown is read: the notification that announced it has nothing left to say (06/11/2026,
+        // Raphaël: it stayed in the shade after he had opened the conversation from the drawer).
+        notifier?.dismissConversation(sessionId)
         // Leaving a conversation and leaving the app mark it in the same instant (26/10/2026
         // evening): one write of the preferences, not two.
         val now = Clock.System.now().toEpochMilliseconds()
