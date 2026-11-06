@@ -194,6 +194,21 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   Whisper large-v3 then Cohere Transcribe on the platform's GPU), and so do audio files. A
   dictation lands in the composer and is never sent on its own; an audio file leaves with the
   message as a quoted transcription.
+- **Videos and large files** (06/11/2026, Raphaël: « il faut pouvoir ajouter des vidéos également »;
+  a leak video he sent never reached the agent: past 16 MB the picker silently staged nothing). A
+  photo still rides in the message as a base64 part. A video, whatever its size, and any other file
+  past `MAX_FILE_BYTES` are staged for the **deposit** (`StagedAttachment.uploadUri`, `deposited`;
+  the picker reads only the name, the size and a video's first frame, `stageForUpload`, 100 MB at
+  most) and uploaded at send time (`MissionChatViewModel.deposit`, before `sendMessage` /
+  `startChat`): the scheduler's `POST /pieces-jointes/ticket` (`SchedulerApi.uploadTicket`) signs a
+  one-shot PUT URL of the files connector's binary channel under `/srv/filemcp/eva/<session>/`
+  (`eva/envois/` for a conversation's first message), and `AndroidAttachmentUploader` (`:core:data`,
+  `AttachmentUploader`) streams the bytes to it, never whole in memory. The message then carries one
+  line per file, `🎬 nom · 48 Mo · /srv/filemcp/eva/<session>/nom` (`📎` for anything but a video,
+  `depositedLine`), and the video's first frame as an image part (`previewPart`): the model sees the
+  scene, and the tools (`beeper_envoyer_piece_jointe`, `imap_send_email`, `rclone_upload_file`) take
+  the path as it is. A deposit that fails fails the send and everything returns to the composer; the
+  chip shows the size that will travel.
 - **Questions from the agent** (OpenCode's `question` tool, 03/10/2026): the engine announces one on
   the feed (`question.asked`) and blocks the turn until `POST /question/{id}/reply` or `/reject`.
   The conversation shows it as a form in place of the composer (`MissionQuestionForm`, options,

@@ -61,6 +61,7 @@ val tasksModule = module {
             ioDispatcher = get(KoinQualifiers.IO),
             scheduler = get(),
             conversationModels = get(),
+            uploader = get(),
         )
     }
 }
