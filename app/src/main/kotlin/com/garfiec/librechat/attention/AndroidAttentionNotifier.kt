@@ -40,6 +40,13 @@ class AndroidAttentionNotifier(private val context: Context) : AttentionNotifier
 
     private val manager = NotificationManagerCompat.from(context)
 
+    /**
+     * The notification ids posted for each conversation while this process lives (06/11/2026):
+     * the questions' ids name their request, not their session, and only this map knows which
+     * question belongs to which conversation. A reply's and a push's ids follow from the session.
+     */
+    private val posted = mutableMapOf<String, MutableSet<Int>>()
+
     init {
         createChannels()
     }
@@ -97,7 +104,7 @@ class AndroidAttentionNotifier(private val context: Context) : AttentionNotifier
     fun showPush(message: PushMessage) {
         val conversation = message.sessionId?.let { OpenConversation(it, title = null) }
         post(
-            id = "p:${message.sessionId ?: message.id}".hashCode(),
+            id = message.sessionId?.let(::pushId) ?: "p:${message.id}".hashCode(),
             channel = if (message.kind == PushKind.DECISION) CHANNEL_DECISIONS else CHANNEL_QUESTIONS,
             title = message.title.ifBlank { context.getString(R.string.attention_question) },
             text = message.text,
@@ -108,6 +115,18 @@ class AndroidAttentionNotifier(private val context: Context) : AttentionNotifier
     override fun cancelQuestion(requestId: String) = manager.cancel(questionId(requestId))
 
     override fun cancelReplyReady(sessionId: String) = manager.cancel(replyId(sessionId))
+
+    override fun dismissConversation(sessionId: String) {
+        val ids = synchronized(posted) { posted.remove(sessionId).orEmpty() }
+        // The ids that follow from the session go whatever this process remembers: a push posted
+        // before the app restarted is withdrawn too.
+        (ids + replyId(sessionId) + pushId(sessionId)).forEach(manager::cancel)
+    }
+
+    override fun dismissRead(read: Collection<String>) {
+        val notified = synchronized(posted) { posted.keys.toSet() }
+        read.filter { it in notified }.forEach(::dismissConversation)
+    }
 
     private fun post(id: Int, channel: String, title: String, text: String, conversation: OpenConversation?) {
         if (!canPost()) return
@@ -132,6 +151,7 @@ class AndroidAttentionNotifier(private val context: Context) : AttentionNotifier
             .build()
         try {
             manager.notify(id, notification)
+            conversation?.let { synchronized(posted) { posted.getOrPut(it.sessionId) { mutableSetOf() } += id } }
         } catch (e: SecurityException) {
             // Revoked between the check and the post.
             Logger.w(e) { "Attention: notification permission withdrawn" }
@@ -192,6 +212,8 @@ class AndroidAttentionNotifier(private val context: Context) : AttentionNotifier
     private fun questionId(requestId: String) = "q:$requestId".hashCode()
 
     private fun replyId(sessionId: String) = "r:$sessionId".hashCode()
+
+    private fun pushId(sessionId: String) = "p:$sessionId".hashCode()
 
     /** What the lock screen may say of a notification on [channel]: that something waits, no more. */
     private fun publicTitleOf(channel: String): Int = when (channel) {

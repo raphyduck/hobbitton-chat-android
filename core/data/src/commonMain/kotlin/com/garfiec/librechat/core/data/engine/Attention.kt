@@ -36,6 +36,16 @@ interface AttentionNotifier {
     fun cancelQuestion(requestId: String)
 
     fun cancelReplyReady(sessionId: String)
+
+    /**
+     * The conversation was shown on this device, or read elsewhere (06/11/2026, Raphaël: a
+     * notification stayed after he had opened its conversation from the drawer): whatever was
+     * posted for it, a question, a finished reply, the server's push, is withdrawn.
+     */
+    fun dismissConversation(sessionId: String)
+
+    /** Among the conversations this notifier has posted for, those [read] now: their notifications go. */
+    fun dismissRead(read: Collection<String>)
 }
 
 /**

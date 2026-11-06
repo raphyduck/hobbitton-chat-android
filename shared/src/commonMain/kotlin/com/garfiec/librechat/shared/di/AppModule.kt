@@ -1,5 +1,6 @@
 package com.garfiec.librechat.shared.di
 
+import com.garfiec.librechat.core.data.engine.AttentionNotifier
 import com.garfiec.librechat.core.data.engine.ConversationModelStore
 import com.garfiec.librechat.core.data.engine.ConversationRequests
 import com.garfiec.librechat.core.data.engine.DeviceSession
@@ -38,6 +39,7 @@ val sharedAppModule = module {
             settingsDataStore = get(),
             attentionWatcher = getOrNull<EngineAttentionWatcher>(),
             conversationRequests = getOrNull<ConversationRequests>(),
+            notifier = getOrNull<AttentionNotifier>(),
             scheduler = getOrNull<SchedulerRepository>(),
             diagnostics = getOrNull<DiagnosticLogShare>(),
             transcripts = getOrNull<TranscriptCache>(),
