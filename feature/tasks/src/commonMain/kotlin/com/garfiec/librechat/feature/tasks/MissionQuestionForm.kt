@@ -3,6 +3,7 @@ package com.garfiec.librechat.feature.tasks
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -26,10 +27,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -46,6 +50,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.garfiec.librechat.core.model.engine.EngineFailureKind
 import com.garfiec.librechat.core.model.engine.EngineQuestionInfo
@@ -53,7 +58,9 @@ import com.garfiec.librechat.core.model.engine.EngineQuestionRequest
 import com.garfiec.librechat.core.ui.input.ChatInputDefaults
 import com.garfiec.librechat.core.ui.input.ChatInputField
 import com.garfiec.librechat.feature.tasks.resources.Res
+import com.garfiec.librechat.feature.tasks.resources.tasks_question_collapse
 import com.garfiec.librechat.feature.tasks.resources.tasks_question_dismiss
+import com.garfiec.librechat.feature.tasks.resources.tasks_question_expand
 import com.garfiec.librechat.feature.tasks.resources.tasks_question_other
 import com.garfiec.librechat.feature.tasks.resources.tasks_question_pick_several
 import com.garfiec.librechat.feature.tasks.resources.tasks_question_send
@@ -75,6 +82,11 @@ import org.jetbrains.compose.resources.stringResource
  * question allows it), then (when the model allows it, which is the engine's default) a free field
  * for an answer of one's own. « Send » waits until every question has an answer; « Dismiss » lets
  * the agent go on without one. The sheet is the composer's own box, so the two read as one place.
+ *
+ * The form folds (07/11/2026, Raphaël: a long exposé hid the conversation it asked about): a chevron
+ * reduces it to one bar at the bottom, the transcript takes the room, and a tap on the bar brings
+ * the question back with its draft intact. The question itself is untouched: it still waits, and
+ * the agent is told nothing.
  */
 @Composable
 internal fun MissionQuestionForm(
@@ -82,11 +94,18 @@ internal fun MissionQuestionForm(
     draft: QuestionDraft,
     sending: Boolean,
     error: EngineFailureKind?,
+    collapsed: Boolean,
+    onCollapse: () -> Unit,
+    onExpand: () -> Unit,
     onPick: (index: Int, label: String) -> Unit,
     onType: (index: Int, text: String) -> Unit,
     onSend: () -> Unit,
     onDismiss: () -> Unit,
 ) {
+    if (collapsed) {
+        CollapsedQuestionBar(request = request, onExpand = onExpand)
+        return
+    }
     Surface(
         shape = SheetShape,
         color = ChatInputDefaults.containerColor,
@@ -101,11 +120,24 @@ internal fun MissionQuestionForm(
                 .padding(horizontal = 16.dp, vertical = 14.dp)
                 .testTag("mission_question_form"),
         ) {
-            Text(
-                text = stringResource(Res.string.tasks_question_title),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-            )
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = stringResource(Res.string.tasks_question_title),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.weight(1f),
+                )
+                IconButton(
+                    onClick = onCollapse,
+                    modifier = Modifier.size(28.dp).testTag("mission_question_collapse"),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ExpandMore,
+                        contentDescription = stringResource(Res.string.tasks_question_collapse),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -167,6 +199,54 @@ internal fun MissionQuestionForm(
                     Text(stringResource(Res.string.tasks_question_send))
                 }
             }
+        }
+    }
+}
+
+/**
+ * The folded form: one bar in the composer's place, the title and the first question's header (or
+ * its first words) on a line, a chevron up. The whole bar is the tap that reopens it.
+ */
+@Composable
+private fun CollapsedQuestionBar(request: EngineQuestionRequest, onExpand: () -> Unit) {
+    val first = request.questions.firstOrNull()
+    val summary = first?.header?.takeIf { it.isNotBlank() } ?: first?.question.orEmpty()
+    Surface(
+        shape = SheetShape,
+        color = ChatInputDefaults.containerColor,
+        border = BorderStroke(1.dp, ChatInputDefaults.borderColor),
+        shadowElevation = ChatInputDefaults.shadowElevation,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onExpand)
+                .windowInsetsPadding(WindowInsets.navigationBars)
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .testTag("mission_question_collapsed"),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(Res.string.tasks_question_title),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                if (summary.isNotBlank()) {
+                    Text(
+                        text = summary,
+                        style = MaterialTheme.typography.bodyMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+            Icon(
+                imageVector = Icons.Default.ExpandLess,
+                contentDescription = stringResource(Res.string.tasks_question_expand),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

@@ -272,11 +272,16 @@ fun MissionChatScreen(
             // The agent is waiting on an answer: the form takes the composer's place until it has one.
             val question = state.pendingQuestion
             if (question != null) {
+                // Folded by the person to read the transcript behind; a new question opens unfolded.
+                var collapsed by rememberSaveable(question.id) { mutableStateOf(false) }
                 MissionQuestionForm(
                     request = question,
                     draft = state.questionDraftFor(question),
                     sending = state.answeringQuestion,
                     error = state.questionError,
+                    collapsed = collapsed,
+                    onCollapse = { collapsed = true },
+                    onExpand = { collapsed = false },
                     onPick = viewModel::pickQuestionOption,
                     onType = viewModel::typeQuestionAnswer,
                     onSend = viewModel::answerQuestion,
