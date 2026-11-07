@@ -26,6 +26,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.garfiec.librechat.core.data.engine.EngineChatSummary
 import com.garfiec.librechat.shared.resources.Res
+import com.garfiec.librechat.shared.resources.engine_conversations_paused
 import com.garfiec.librechat.shared.resources.engine_conversations_read
 import com.garfiec.librechat.shared.resources.engine_conversations_unread
 import com.garfiec.librechat.shared.resources.engine_drawer_conversations
@@ -97,7 +98,9 @@ private fun ConversationList(
 ) {
     // Read once per list: the ages of one drawing agree on what « now » is.
     val now = remember(state.chats) { Clock.System.now().toEpochMilliseconds() }
-    val (unread, read) = remember(state.chats) { state.chats.partition { it.unread } }
+    // Three parts (07/11/2026): what waits on the budget, what moved, the rest.
+    val (paused, rest) = remember(state.chats) { state.chats.partition { it.paused } }
+    val (unread, read) = remember(rest) { rest.partition { it.unread } }
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         when {
             state.chats.isEmpty() && state.loading -> items(PLACEHOLDER_ROWS) { PlaceholderRow() }
@@ -113,6 +116,12 @@ private fun ConversationList(
             }
             state.chats.isEmpty() -> item { QuietLine(stringResource(Res.string.engine_drawer_empty)) }
             else -> {
+                if (paused.isNotEmpty()) {
+                    item(key = "header-paused") { RecentHeader(stringResource(Res.string.engine_conversations_paused)) }
+                    items(paused, key = { it.sessionId }) { chat ->
+                        RecentChatItem(chat = chat, nowMillis = now, selected = false, onClick = { onOpenChat(chat) })
+                    }
+                }
                 if (unread.isNotEmpty()) {
                     item(key = "header-unread") { RecentHeader(stringResource(Res.string.engine_conversations_unread)) }
                     items(unread, key = { it.sessionId }) { chat ->

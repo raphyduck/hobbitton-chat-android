@@ -101,4 +101,26 @@ data class MissionRun(
 @Serializable
 data class SchedulerState(
     @SerialName("missions") val missions: List<ScheduledMission> = emptyList(),
+    /** The sessions the scheduler holds in pause on a spending ceiling (07/11/2026). */
+    @SerialName("pauses") val pauses: List<PausedSession> = emptyList(),
+)
+
+/**
+ * A session the scheduler paused because the gateway refused its last step on a spending ceiling
+ * (07/11/2026, Raphaël's rule: a conversation out of budget waits for it to come back and resumes
+ * by itself). The scheduler's `pauses_plafond` tool and `etat`'s `pauses` list one row per session.
+ */
+@Serializable
+data class PausedSession(
+    val session: String,
+    /** When the pause began, ISO 8601. */
+    @SerialName("depuis") val since: String? = null,
+    /** The gateway's own refusal, summarised. */
+    @SerialName("motif") val reason: String? = null,
+    /** The mission whose run this is, or null for a conversation. */
+    val mission: String? = null,
+    /** `pause` while waiting, `reprise` once the resume order left and is being confirmed. */
+    @SerialName("etat") val state: String? = null,
+    /** How many resume attempts the gateway refused since. */
+    @SerialName("reprises") val attempts: Int = 0,
 )

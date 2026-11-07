@@ -23,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Chat
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.GraphicEq
+import androidx.compose.material.icons.outlined.PauseCircle
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
@@ -60,8 +61,10 @@ import com.garfiec.librechat.shared.resources.Res
 import com.garfiec.librechat.shared.resources.engine_age_days
 import com.garfiec.librechat.shared.resources.engine_age_hours
 import com.garfiec.librechat.shared.resources.engine_age_minutes
+import com.garfiec.librechat.shared.resources.engine_chat_paused
 import com.garfiec.librechat.shared.resources.engine_chat_running
 import com.garfiec.librechat.shared.resources.engine_chat_unread
+import com.garfiec.librechat.shared.resources.engine_conversations_paused
 import com.garfiec.librechat.shared.resources.engine_conversations_unread
 import com.garfiec.librechat.shared.resources.engine_drawer_account
 import com.garfiec.librechat.shared.resources.engine_drawer_conversations
@@ -386,6 +389,16 @@ internal fun RecentChatItem(
             // All the room the tag, the dot and the age leave: the title is what one reads.
             modifier = Modifier.weight(1f).semantics { if (chat.unread) stateDescription = unread },
         )
+        if (chat.paused) {
+            // Waiting on the budget (07/11/2026): the scheduler resumes it by itself.
+            val paused = stringResource(Res.string.engine_chat_paused)
+            Icon(
+                Icons.Outlined.PauseCircle,
+                contentDescription = paused,
+                modifier = Modifier.size(16.dp),
+                tint = MaterialTheme.colorScheme.tertiary,
+            )
+        }
         if (chat.scheduled) {
             val scheduled = stringResource(Res.string.engine_drawer_scheduled_run)
             Icon(
@@ -487,6 +500,7 @@ internal fun PlaceholderRow() {
 }
 
 private fun RecentDay.label() = when (this) {
+    RecentDay.PAUSED -> Res.string.engine_conversations_paused
     RecentDay.UNREAD -> Res.string.engine_conversations_unread
     RecentDay.TODAY -> Res.string.engine_drawer_today
     RecentDay.YESTERDAY -> Res.string.engine_drawer_yesterday

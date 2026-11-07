@@ -303,6 +303,7 @@ fun MissionChatScreen(
                     onSendSentence = viewModel::sendSpoken,
                     onSpeechEnd = viewModel::spoken,
                     onHandsFreeOff = { viewModel.setHandsFree(false) },
+                    onRecheckPause = viewModel::loadPause,
                 )
             }
         },

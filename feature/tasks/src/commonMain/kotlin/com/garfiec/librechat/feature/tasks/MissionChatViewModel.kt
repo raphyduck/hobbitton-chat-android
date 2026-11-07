@@ -27,6 +27,7 @@ import com.garfiec.librechat.core.model.engine.EngineSelectableModel
 import com.garfiec.librechat.core.model.engine.EngineStreamEvent
 import com.garfiec.librechat.core.model.scheduler.ModelPrices
 import com.garfiec.librechat.core.model.scheduler.ModelTiers
+import com.garfiec.librechat.core.model.scheduler.PausedSession
 import com.garfiec.librechat.core.model.scheduler.asModelRef
 import com.garfiec.librechat.feature.tasks.delegate.CatalogueFetch
 import com.garfiec.librechat.feature.tasks.delegate.ComposerStagingDelegate
@@ -145,6 +146,12 @@ data class MissionChatUiState(
      * to keep yesterday's list for good.
      */
     val rulesStale: Boolean = false,
+    /**
+     * The scheduler holds this conversation in pause on a spending ceiling (07/11/2026): the
+     * gateway refused its last step, and the scheduler resumes it by itself once the budget is
+     * back (or at once when the ceilings are raised in Settings). Said above the composer.
+     */
+    val paused: PausedSession? = null,
     /** The models a message may be sent on. */
     val models: List<EngineSelectableModel> = emptyList(),
     /**
@@ -427,6 +434,23 @@ class MissionChatViewModel(
         catalogueRequested = true
         loadConnectors()
         loadModels()
+        loadPause()
+    }
+
+    /**
+     * Whether the scheduler holds this conversation in pause on a spending ceiling (07/11/2026):
+     * one small read of its `pauses_plafond`, with the catalogue and again on a refresh; a
+     * scheduler that does not answer costs the line, nothing else.
+     */
+    fun loadPause() {
+        val sessionId = sessionId ?: return
+        val scheduler = scheduler ?: return
+        viewModelScope.launch {
+            val paused = withContext(ioDispatcher) {
+                runCatching { scheduler.pausedSessions().firstOrNull { it.session == sessionId } }.getOrNull()
+            }
+            _uiState.update { it.copy(paused = paused) }
+        }
     }
 
     /** The catalogue is read once per screen: the transcript's retries must not read it again. */
@@ -817,6 +841,7 @@ class MissionChatViewModel(
         if (sessionId == null) return
         _uiState.update { it.copy(refreshing = true, chat = it.chat.copy(streaming = false)) }
         loadHistory(trustCache = false)
+        if (catalogueRequested) loadPause()
     }
 
     /**

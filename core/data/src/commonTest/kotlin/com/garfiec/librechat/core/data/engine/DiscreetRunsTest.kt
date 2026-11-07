@@ -29,6 +29,18 @@ class DiscreetRunsTest {
         assertTrue(runUnread(null, null))
     }
 
+    /** 07/11/2026: a session paused on the spending ceiling leads the Conversations page. */
+    @Test
+    fun `a paused session comes first, then the unread, then by activity`() {
+        val chats = listOf(
+            EngineChatSummary("read", "Lue", 30, running = false),
+            EngineChatSummary("unread", "Non lue", 10, running = false, unread = true),
+            EngineChatSummary("paused", "En pause", 1, running = false, paused = true),
+            EngineChatSummary("recent", "Récente", 40, running = false),
+        )
+        assertEquals(listOf("paused", "unread", "recent", "read"), inboxOrder(chats).map { it.sessionId })
+    }
+
     /**
      * 06/11/2026: a conversation the scheduler opened under a run's title and plays a relance in
      * stayed read whatever was written in it, and out of the drawer.

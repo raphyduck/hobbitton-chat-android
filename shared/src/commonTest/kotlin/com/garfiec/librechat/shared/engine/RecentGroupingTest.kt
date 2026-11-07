@@ -86,6 +86,22 @@ class RecentGroupingTest {
         assertEquals(listOf("b", "c"), groups.first().chats.map { it.sessionId })
     }
 
+    /** 07/11/2026: what waits on the budget comes before everything, unread or not. */
+    @Test
+    fun thePausedComeBeforeTheUnread() {
+        val chats = listOf(
+            chat("a", now - HOUR),
+            chat("b", now - 3 * DAY).copy(unread = true),
+            chat("c", now - 2 * HOUR).copy(paused = true, unread = true),
+            chat("d", now - 5 * DAY).copy(paused = true),
+        )
+
+        val groups = groupRecent(chats, now, paris)
+
+        assertEquals(listOf(RecentDay.PAUSED, RecentDay.UNREAD, RecentDay.TODAY), groups.map { it.day })
+        assertEquals(listOf("c", "d"), groups.first().chats.map { it.sessionId })
+    }
+
     @Test
     fun emptyHeadersAreLeftOut() {
         val groups = groupRecent(listOf(chat("a", now - 10 * DAY)), now, paris)

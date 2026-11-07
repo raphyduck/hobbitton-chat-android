@@ -64,6 +64,30 @@ class SchedulerApiTest {
         assertThat(mission.lastRun?.succeeded).isTrue()
     }
 
+    /** 07/11/2026: the sessions the scheduler holds in pause on a spending ceiling. */
+    @Test
+    fun `the paused sessions are read with their reason and their mission`() = runTest {
+        val api = schedulerApi(MockEngine {
+            respond(
+                content = envelope(
+                    """[{"session":"ses_chat","depuis":"2026-11-07T12:00:00+00:00",""" +
+                        """"motif":"ExceededBudget: Key over 1d budget","mission":null,"cle":"chat","etat":"pause","reprises":2},""" +
+                        """{"session":"ses_run","depuis":"2026-11-07T12:05:00+00:00","motif":"Budget has been exceeded",""" +
+                        """"mission":"brief-crypto","cle":"agent","etat":"reprise","reprises":0}]""",
+                ),
+                headers = jsonHeaders(),
+            )
+        })
+
+        val paused = api.pausedSessions()
+
+        assertThat(paused.map { it.session }).containsExactly("ses_chat", "ses_run").inOrder()
+        assertThat(paused[0].mission).isNull()
+        assertThat(paused[0].attempts).isEqualTo(2)
+        assertThat(paused[1].mission).isEqualTo("brief-crypto")
+        assertThat(paused[1].state).isEqualTo("reprise")
+    }
+
     /**
      * The edge may negotiate `text/event-stream` instead of JSON. Accepting only JSON works until
      * the day it doesn't, and then the list is empty with nothing in the logs to say why.

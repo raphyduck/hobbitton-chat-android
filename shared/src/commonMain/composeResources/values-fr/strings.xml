@@ -6,7 +6,9 @@
     <string name="engine_drawer_conversations">Conversations</string>
     <string name="engine_conversations_unread">Non lues</string>
     <string name="engine_conversations_read">Lues</string>
+    <string name="engine_conversations_paused">En pause</string>
     <string name="engine_chat_unread">Non lue</string>
+    <string name="engine_chat_paused">En pause : plafond de dépense atteint</string>
     <string name="engine_drawer_settings">Réglages</string>
     <string name="engine_drawer_recent">Conversations récentes</string>
     <string name="engine_drawer_empty">Aucune conversation pour l'instant.</string>
