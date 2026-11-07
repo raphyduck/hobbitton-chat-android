@@ -163,6 +163,8 @@
     <string name="tasks_question_send">Reply</string>
     <string name="tasks_question_dismiss">Dismiss</string>
     <string name="tasks_question_waiting">Sending…</string>
+    <string name="tasks_question_collapse">Collapse the question</string>
+    <string name="tasks_question_expand">Back to the question</string>
     <string name="tasks_scheduled_intro">What Eva does on her own. Each run opens as a conversation, in the menu's list.</string>
     <string-array name="tasks_days">
         <item>Monday</item><item>Tuesday</item><item>Wednesday</item><item>Thursday</item><item>Friday</item><item>Saturday</item><item>Sunday</item>

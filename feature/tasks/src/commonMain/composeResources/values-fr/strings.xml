@@ -163,6 +163,8 @@
     <string name="tasks_question_send">Répondre</string>
     <string name="tasks_question_dismiss">Ignorer</string>
     <string name="tasks_question_waiting">Envoi…</string>
+    <string name="tasks_question_collapse">Réduire la question</string>
+    <string name="tasks_question_expand">Revenir à la question</string>
     <string name="tasks_scheduled_intro">Ce qu’Eva fait sans vous. Chaque exécution s'ouvre comme une conversation, dans la liste du menu.</string>
     <string-array name="tasks_days">
         <item>lundi</item><item>mardi</item><item>mercredi</item><item>jeudi</item><item>vendredi</item><item>samedi</item><item>dimanche</item>

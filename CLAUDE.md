@@ -219,7 +219,10 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   multiple choice, a free answer), and reads `GET /question` at opening so a question asked before
   the screen opened is not missed. The server opens the tool to the `chat` profile (and `mission`);
   the app grants it on every session it builds rules for (`permissionsFor`), the scheduler's
-  autonomous missions never get it.
+  autonomous missions never get it. The form folds (07/11/2026, Raphaël: a long exposé hid the
+  conversation it asked about): a chevron reduces it to one bar in the composer's place, the
+  transcript takes the room, a tap on the bar reopens it with its draft (`collapsed`, kept per
+  question id with `rememberSaveable`; a new question opens unfolded). Nothing is said to the engine.
 - **Sound and notifications** (Settings → Notifications, on by default): a question chimes when its
   conversation is on screen and is notified otherwise (`EngineAttentionWatcher`, run by the shell
   over the global feed, every session); a reply the screen saw start is notified when it ends out
