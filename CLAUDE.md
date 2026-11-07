@@ -244,6 +244,15 @@ Most modules have their own `CLAUDE.md` with specific guidance.
 - **Spending ceilings** (Settings → Plafonds de dépense, 12/10/2026): the conversations' key per
   day, per week and over 30 days, read and set through the scheduler's `/plafonds`
   (`EngineBudgetScreen`). The scheduled missions' key is not set from here.
+  **A session out of budget waits, it is not cut** (07/11/2026, Raphaël's rule; kit #211): the
+  scheduler holds every session the gateway refused on a ceiling in pause and resumes it by itself
+  once the budget is back (a conversation by a synthetic « continue », a run in its own session),
+  at once when the ceilings are raised here (`POST /plafonds`). The app shows what waits: the
+  scheduler's `pauses_plafond` (`SchedulerApi.pausedSessions`, `PausedSession`; `etat` carries
+  `pauses` too) marks the session (`EngineChatSummary.paused`): a pause mark on its row, a
+  « En pause » group first in the drawer (`RecentDay.PAUSED`) and on the Conversations page
+  (`inboxOrder`), and a line above the composer (`MissionChatUiState.paused`, read with the
+  catalogue and on a refresh; a tap asks again).
 - **Global instructions** (`GlobalProfile`, sent as `system` on every chat and task turn) are edited
   from Settings → Instructions (`EngineInstructionsScreen`) and stored on the device
   (`GlobalProfileStore`, `device:` keys).

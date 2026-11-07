@@ -11,6 +11,7 @@ import com.garfiec.librechat.core.model.scheduler.ModelTiers
 import com.garfiec.librechat.core.model.scheduler.PortalIdentity
 import com.garfiec.librechat.core.model.scheduler.ProviderHealth
 import com.garfiec.librechat.core.model.scheduler.PushChannel
+import com.garfiec.librechat.core.model.scheduler.PausedSession
 import com.garfiec.librechat.core.model.scheduler.ScheduledMission
 import com.garfiec.librechat.core.network.api.SchedulerApi
 import kotlin.time.Clock
@@ -94,6 +95,15 @@ class SchedulerRepository(
     suspend fun missions(): List<ScheduledMission> {
         if (!isConfigured()) return emptyList()
         return api.state().missions.sortedByDescending { it.running }
+    }
+
+    /**
+     * The sessions the scheduler holds in pause on a spending ceiling (07/11/2026), empty without
+     * a scheduler. The conversation screen reads it to say so above the composer.
+     */
+    suspend fun pausedSessions(): List<PausedSession> {
+        if (!isConfigured()) return emptyList()
+        return api.pausedSessions()
     }
 
     /**

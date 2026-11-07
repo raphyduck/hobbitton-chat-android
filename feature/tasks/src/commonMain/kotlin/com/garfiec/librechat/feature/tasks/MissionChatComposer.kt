@@ -77,6 +77,8 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_chat_add
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_connector_count
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_connectors_failed
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_model_blind
+import com.garfiec.librechat.feature.tasks.resources.tasks_chat_paused
+import com.garfiec.librechat.feature.tasks.resources.tasks_chat_paused_mission
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_models_failed
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_send
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_shell_on
@@ -136,6 +138,8 @@ internal fun MissionChatInput(
     onSendSentence: (String) -> Unit,
     onSpeechEnd: () -> Unit,
     onHandsFreeOff: () -> Unit,
+    /** A tap on the pause line asks the scheduler again whether the conversation still waits. */
+    onRecheckPause: () -> Unit = {},
 ) {
     var picker by remember { mutableStateOf(Picker.NONE) }
     // Null where the platform has nothing to offer (iOS today) — then no menu entry, rather than an
@@ -183,6 +187,17 @@ internal fun MissionChatInput(
         }
         if (handsFreeRefused) {
             ComposerNotice(stringResource(Res.string.tasks_hands_free_needs_phone), onDismiss = { handsFreeRefused = false })
+        }
+        state.paused?.let { pause ->
+            // The scheduler holds the conversation on a spending ceiling (07/11/2026): it resumes
+            // by itself once the budget is back; say so, and let a tap ask again.
+            ComposerNotice(
+                text = stringResource(
+                    if (pause.mission != null) Res.string.tasks_chat_paused_mission else Res.string.tasks_chat_paused,
+                ),
+                onDismiss = onRecheckPause,
+                color = MaterialTheme.colorScheme.tertiary,
+            )
         }
         when {
             speaker?.speaking == true -> ComposerStatus(stringResource(Res.string.tasks_speaking))

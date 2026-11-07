@@ -64,6 +64,12 @@ data class EngineChatSummary(
     val kind: EngineSessionKind = EngineSessionKind.CHAT,
     val scheduled: Boolean = false,
     val unread: Boolean = false,
+    /**
+     * The scheduler holds the session in pause on a spending ceiling (07/11/2026): the gateway
+     * refused its last step, and it resumes by itself once the budget is back. Shown first in the
+     * lists, with a pause mark, so one sees at a glance what waits on the budget.
+     */
+    val paused: Boolean = false,
 )
 
 /**
@@ -78,11 +84,13 @@ data class EngineChatSummary(
 enum class ChatScope { MANUAL, ALL }
 
 /**
- * The Conversations page's order: the unread first, then the most recently active, in each half.
+ * The Conversations page's order: the paused first (07/11/2026, they wait on the budget), then the
+ * unread, then the most recently active, in each part.
  */
 fun inboxOrder(chats: List<EngineChatSummary>): List<EngineChatSummary> =
     chats.sortedWith(
-        compareByDescending<EngineChatSummary> { it.unread }
+        compareByDescending<EngineChatSummary> { it.paused }
+            .thenByDescending { it.unread }
             .thenByDescending { it.lastActivityMillis ?: Long.MIN_VALUE },
     )
 
@@ -299,6 +307,7 @@ class EngineMissionRepository(
     ): List<EngineChatSummary> = withContext(ioDispatcher) {
         val snapshot = listSnapshot(scope, maxAgeMillis)
         val statuses = snapshot.statuses
+        val paused = snapshot.paused
         val read = snapshot.reads
         val runs = snapshot.runs
         val sessions = snapshot.sessions
@@ -373,6 +382,7 @@ class EngineMissionRepository(
                     kind = kind,
                     scheduled = row.mission != null,
                     unread = moved && runUnread(row.mission, row.run),
+                    paused = session.id in paused,
                 )
             }
         }
@@ -405,6 +415,8 @@ class EngineMissionRepository(
         // The missions the scheduler marks discreet (03/11/2026): read off the missions themselves,
         // not off the last 200 runs, so a run of any age stays out of the lists.
         val discreetMissions: Set<String> = emptySet(),
+        // The sessions the scheduler holds in pause on a spending ceiling (07/11/2026).
+        val paused: Set<String> = emptySet(),
     )
 
     private var listSnapshot: ListSnapshot? = null
@@ -420,6 +432,7 @@ class EngineMissionRepository(
             val server = async { if (reads != null) serverReads() else emptyMap() }
             val runs = async { if (scope == ChatScope.ALL) latestRuns() else emptyMap() }
             val discreet = async { if (scope == ChatScope.ALL) discreetMissionNames() else emptySet() }
+            val paused = async { pausedSessionIds() }
             val sessions = async {
                 api.sessions().sortedByDescending { it.time?.updated ?: it.time?.created ?: Long.MIN_VALUE }
             }
@@ -431,6 +444,7 @@ class EngineMissionRepository(
                 runs = runs.await(),
                 sessions = sessions.await(),
                 discreetMissions = discreet.await(),
+                paused = paused.await(),
             )
         }.also { listSnapshot = it }
     }
@@ -468,6 +482,11 @@ class EngineMissionRepository(
     private suspend fun discreetMissionNames(): Set<String> =
         runCatching { scheduler.state().missions.filter { it.discreet }.map { it.name }.toSet() }
             .onFailure { Logger.w(it) { "Conversations: the scheduler's missions are unavailable" } }
+            .getOrDefault(emptySet())
+
+    private suspend fun pausedSessionIds(): Set<String> =
+        runCatching { scheduler.pausedSessions().map { it.session }.toSet() }
+            .onFailure { Logger.w(it) { "Conversations: the scheduler's paused sessions are unavailable" } }
             .getOrDefault(emptySet())
 
     private suspend fun latestRuns(): Map<String, SchedulerRun> {

@@ -202,6 +202,8 @@
     <string name="tasks_hands_free_stop">Leave hands-free</string>
     <string name="tasks_hands_free_listening">Hands-free: speak, each sentence goes out on its own.</string>
     <string name="tasks_speaking">Eva reads the answer…</string>
+    <string name="tasks_chat_paused">Paused: the spending ceiling is reached. The conversation resumes by itself once the budget is back; raising the ceilings in Settings resumes it at once.</string>
+    <string name="tasks_chat_paused_mission">Paused: the spending ceiling is reached. The scheduled run resumes by itself once the budget is back.</string>
     <string name="tasks_hands_free_needs_phone">Hands-free needs the phone’s own dictation and voice (Settings → Dictation).</string>
     <!-- The mission's own screen (04/11/2026). -->
     <string name="tasks_mission_details">Details and edit</string>

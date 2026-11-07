@@ -12,6 +12,7 @@ import com.garfiec.librechat.core.model.scheduler.ProviderHealth
 import com.garfiec.librechat.core.model.scheduler.PushChannel
 import com.garfiec.librechat.core.model.scheduler.ScheduledMission
 import com.garfiec.librechat.core.model.scheduler.SchedulerRun
+import com.garfiec.librechat.core.model.scheduler.PausedSession
 import com.garfiec.librechat.core.model.scheduler.SchedulerState
 import com.garfiec.librechat.core.model.scheduler.SessionScope
 import com.garfiec.librechat.core.model.scheduler.VoiceRoom
@@ -154,6 +155,26 @@ class SchedulerApi(
             throw EngineHttpException(HTTP_OK, "conversations_lues", "$UNEXPECTED_ANSWER: ${e.message}", e)
         } catch (e: IllegalArgumentException) {
             throw EngineHttpException(HTTP_OK, "conversations_lues", "$UNEXPECTED_ANSWER: ${e.message}", e)
+        }
+    }
+
+    /**
+     * The sessions the scheduler holds in pause on a spending ceiling (07/11/2026): the gateway
+     * refused their last step, and the scheduler resumes them itself once the budget is back. A
+     * JSON list; a failure is raised like [runs]'. Cheaper than [state] for a list that is read
+     * with every conversation list.
+     */
+    suspend fun pausedSessions(): List<PausedSession> {
+        val payload = callTool("pauses_plafond", null)
+        payload.asJsonObjectOrNull()?.get("erreur")?.let { reason ->
+            throw EngineHttpException(HTTP_OK, "pauses_plafond", reason.asStringOrNull() ?: reason.toString())
+        }
+        return try {
+            json.decodeFromString(payload)
+        } catch (e: SerializationException) {
+            throw EngineHttpException(HTTP_OK, "pauses_plafond", "$UNEXPECTED_ANSWER: ${e.message}", e)
+        } catch (e: IllegalArgumentException) {
+            throw EngineHttpException(HTTP_OK, "pauses_plafond", "$UNEXPECTED_ANSWER: ${e.message}", e)
         }
     }
 
