@@ -60,8 +60,10 @@ class MissionChatLiftTest {
         Dispatchers.resetMain()
     }
 
-    private fun viewModel(level: String?): MissionChatViewModel {
-        coEvery { repository.sessionScope("ses_run") } returns SessionScopeRead(emptySet(), level)
+    private fun viewModel(level: String?, delegates: Boolean = true): MissionChatViewModel {
+        // Rules that delegate: what the penseur, who leads without a roles table, writes (08/11/2026).
+        coEvery { repository.sessionScope("ses_run") } returns
+            SessionScopeRead(emptySet(), level, delegates = delegates)
         return MissionChatViewModel(
             sessionId = "ses_run",
             repository = repository,
@@ -82,11 +84,11 @@ class MissionChatLiftTest {
         vm.send()
 
         coVerifyOrder {
-            repository.setConnectors("ses_run", any())
+            repository.setConnectors("ses_run", any(), any())
             repository.sendMessage("ses_run", "Go ssh", any(), any())
             repository.sendMessage("ses_run", "et ensuite", any(), any())
         }
-        coVerify(exactly = 1) { repository.setConnectors("ses_run", any()) }
+        coVerify(exactly = 1) { repository.setConnectors("ses_run", any(), any()) }
     }
 
     @Test
@@ -111,7 +113,7 @@ class MissionChatLiftTest {
         vm.answerQuestion()
 
         coVerifyOrder {
-            repository.setConnectors("ses_run", any())
+            repository.setConnectors("ses_run", any(), any())
             repository.answerQuestion("que_1", listOf(listOf("Oui")))
         }
         assertThat(vm.uiState.value.sessionLevel).isEqualTo(TITULAR_LEVEL)
@@ -123,8 +125,22 @@ class MissionChatLiftTest {
         vm.onInputChange("bonjour")
         vm.send()
 
-        coVerify(exactly = 0) { repository.setConnectors(any(), any()) }
+        coVerify(exactly = 0) { repository.setConnectors(any(), any(), any()) }
         coVerify { repository.sendMessage("ses_run", "bonjour", any(), any()) }
+    }
+
+    @Test
+    fun `rules written for another role than the one now speaking are rewritten once`() {
+        // 08/11/2026 evening (accès par rôle) : a conversation opened before the app wrote `task`
+        // rules never delegated ; led by the penseur, its first send opens the sub-agents.
+        val vm = viewModel(level = TITULAR_LEVEL, delegates = false)
+        vm.onInputChange("bonjour")
+        vm.send()
+        vm.onInputChange("et ensuite")
+        vm.send()
+
+        coVerify(exactly = 1) { repository.setConnectors("ses_run", any(), match { it.delegates }) }
+        assertThat(vm.uiState.value.sessionLevel).isEqualTo(TITULAR_LEVEL)
     }
 
     @Test
@@ -148,11 +164,11 @@ class MissionChatLiftTest {
         vm.send()
 
         coVerifyOrder {
-            repository.setConnectors("ses_run", listOf("annuaire"))
+            repository.setConnectors("ses_run", listOf("annuaire"), any())
             repository.sendMessage("ses_run", "envoie les photos", any(), any())
             repository.sendMessage("ses_run", "merci", any(), any())
         }
-        coVerify(exactly = 1) { repository.setConnectors("ses_run", any()) }
+        coVerify(exactly = 1) { repository.setConnectors("ses_run", any(), any()) }
     }
 
     @Test
@@ -161,7 +177,7 @@ class MissionChatLiftTest {
         vm.onInputChange("bonjour")
         vm.send()
 
-        coVerify(exactly = 1) { repository.setConnectors("ses_run", any()) }
+        coVerify(exactly = 1) { repository.setConnectors("ses_run", any(), any()) }
     }
 
     @Test
@@ -184,7 +200,7 @@ class MissionChatLiftTest {
         vm.onInputChange("reprends les annonces")
         vm.send()
 
-        coVerify(exactly = 0) { repository.setConnectors(any(), any()) }
+        coVerify(exactly = 0) { repository.setConnectors(any(), any(), any()) }
         coVerify(exactly = 1) { repository.liftToTitular("ses_run") }
         coVerify { repository.sendMessage("ses_run", "reprends les annonces", any(), any()) }
     }

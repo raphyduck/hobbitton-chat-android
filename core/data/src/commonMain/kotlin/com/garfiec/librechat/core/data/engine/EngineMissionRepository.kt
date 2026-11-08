@@ -18,6 +18,7 @@ import com.garfiec.librechat.core.model.engine.EngineStreamEvent
 import com.garfiec.librechat.core.model.engine.engineHistoryEvents
 import com.garfiec.librechat.core.model.engine.isAuto
 import com.garfiec.librechat.core.model.scheduler.ConnectorCatalogue
+import com.garfiec.librechat.core.model.scheduler.RoleAccess
 import com.garfiec.librechat.core.model.scheduler.SchedulerRun
 import com.garfiec.librechat.core.network.api.AgentEngineApi
 import com.garfiec.librechat.core.network.api.SchedulerApi
@@ -54,7 +55,13 @@ import kotlin.time.Clock
  * What a live session carries: its connectors, the scheduler's level, and whether its rules predate
  * the catalogue ([rulesPredate]: a connector it grants gained a tool since they were written).
  */
-data class SessionScopeRead(val connectors: Set<String>, val level: String?, val stale: Boolean = false)
+data class SessionScopeRead(
+    val connectors: Set<String>,
+    val level: String?,
+    val stale: Boolean = false,
+    /** The rules open a sub-agent: the session is led by a role that delegates (08/11/2026). */
+    val delegates: Boolean = false,
+)
 
 data class EngineChatSummary(
     val sessionId: String,
@@ -524,6 +531,8 @@ class EngineMissionRepository(
         connectors: List<String>?,
         model: EngineModelRef? = null,
         files: List<EnginePromptPart> = emptyList(),
+        /** The access of the role [model] belongs to (08/11/2026): the rules follow it. */
+        access: RoleAccess? = null,
     ): String {
         val catalogue = connectors()
         // D-083 (22/10/2026): the session stands at the titulaire's level and the scheduler
@@ -534,7 +543,7 @@ class EngineMissionRepository(
             CreateEngineSessionRequest(
                 agent = CHAT_AGENT,
                 title = text.trim().ifBlank { files.firstOrNull()?.filename.orEmpty() }.take(TITLE_LENGTH),
-                permission = permissionsFor(catalogue, catalogue.directPerimeter(connectors)),
+                permission = permissionsFor(catalogue, catalogue.directPerimeter(connectors), access),
             ),
         )
         runCatching { kinds.record(session.id, EngineSessionKind.CHAT) }
@@ -801,8 +810,12 @@ class EngineMissionRepository(
         // direction a capability chip may err in.
         val scope = runCatching { scheduler.scope(sessionId) }.getOrNull()
         val scoped = scope?.connectors.orEmpty()
-        return SessionScopeRead(declared + scoped.filter { it in catalogue.connecteurs }, scope?.level,
-            stale = rulesPredate(catalogue, rules))
+        // A session led by a role that delegates carries no rule for the annuaire (its sub-agents
+        // call it, 08/11/2026): the chip still reads it as on, since the conversation reaches it.
+        val delegates = rulesDelegate(rules)
+        val viaSubAgents = if (delegates && ANNUAIRE_CONNECTOR in catalogue.connecteurs) setOf(ANNUAIRE_CONNECTOR) else emptySet()
+        return SessionScopeRead(declared + viaSubAgents + scoped.filter { it in catalogue.connecteurs }, scope?.level,
+            stale = rulesPredate(catalogue, rules), delegates = delegates)
     }
 
     /**
@@ -811,7 +824,7 @@ class EngineMissionRepository(
      * scheduler is asked for, D-083). A scheduled run opened from the app is lifted to the
      * titulaire's level by it: the person is now the one speaking to it.
      */
-    suspend fun setConnectors(sessionId: String, connectors: List<String>) {
+    suspend fun setConnectors(sessionId: String, connectors: List<String>, access: RoleAccess? = null) {
         // The scope first (D-071): if recording it fails, nothing has changed and the caller hears
         // it; recording it after the rules would leave a session whose direct tools moved while
         // the annuaire still serves yesterday's list.
@@ -821,7 +834,7 @@ class EngineMissionRepository(
         // §4.2's ban — an approval prompt nobody answers is not a safeguard, but one they *do*
         // answer is exactly the supervision the rule asks for.
         val catalogue = connectors()
-        api.setPermissions(sessionId, permissionsFor(catalogue, catalogue.directPerimeter(connectors)))
+        api.setPermissions(sessionId, permissionsFor(catalogue, catalogue.directPerimeter(connectors), access))
     }
 
     /**
@@ -842,6 +855,9 @@ class EngineMissionRepository(
 
     private companion object {
         const val TITLE_LENGTH = 60
+
+        /** The direct connector the annuaire's two tools belong to. */
+        const val ANNUAIRE_CONNECTOR = "annuaire"
 
         /** The engine's answer about a question that is no longer pending. */
         const val HTTP_NOT_FOUND = 404

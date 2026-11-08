@@ -45,7 +45,7 @@ class NewConversationTest {
                 "shell" to ConnectorGrant(),
             ),
         )
-        coEvery { it.startChat(any(), any(), any(), any()) } returns "ses_nouvelle"
+        coEvery { it.startChat(any(), any(), any(), any(), any()) } returns "ses_nouvelle"
     }
     private val settings = mockk<SettingsDataStore>().also {
         every { it.chatFontSize } returns emptyFlow()
@@ -80,7 +80,7 @@ class NewConversationTest {
 
         // Ticked before it exists: kept on screen, nothing sent to an engine session.
         vm.toggleConnector("shell")
-        coVerify(exactly = 0) { repository.setConnectors(any(), any()) }
+        coVerify(exactly = 0) { repository.setConnectors(any(), any(), any()) }
 
         val photo = StagedAttachment(id = "p1", mime = "image/jpeg", filename = "recu.jpg", bytes = byteArrayOf(1))
         vm.addAttachments(listOf(photo))
@@ -93,6 +93,7 @@ class NewConversationTest {
                 connectors = match { it.toSet() == setOf("memoire", "nas", "shell") },
                 model = null,
                 files = match { files -> files.single().filename == "recu.jpg" },
+                access = any(),
             )
         }
         assertThat(vm.uiState.value.started?.sessionId).isEqualTo("ses_nouvelle")
@@ -100,8 +101,10 @@ class NewConversationTest {
     }
 
     @Test
-    fun `a reopened conversation sends the model its last turn ran on, not the agent's default`() {
+    fun `a reopened conversation without a pick of this device follows Piloté, not its last turn`() {
         // Picked on another day, then the app restarted: the pick is gone, the transcript is not.
+        // 08/11/2026 evening (Raphaël): the last turn's model never decides; without a roles table
+        // the message goes without a model, to the chat agent's own.
         val deepseek = EngineModelRef("hobbitton-gateway", "deepseek-v4-pro")
         coEvery { repository.history("ses_suivie", any()) } returns listOf(
             EngineStreamEvent.MessageStarted("m1", "user"),
@@ -113,6 +116,7 @@ class NewConversationTest {
         vm.onInputChange("Envoie")
         vm.send()
 
-        coVerify { repository.sendMessage("ses_suivie", "Envoie", deepseek, any()) }
+        coVerify { repository.sendMessage("ses_suivie", "Envoie", null, any()) }
+        coVerify(exactly = 0) { repository.sendMessage("ses_suivie", "Envoie", deepseek, any()) }
     }
 }

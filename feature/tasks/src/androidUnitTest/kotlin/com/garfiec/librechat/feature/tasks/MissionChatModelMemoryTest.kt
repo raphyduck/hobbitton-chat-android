@@ -22,9 +22,10 @@ import org.junit.Before
 import org.junit.Test
 
 /**
- * Le modèle d'une conversation est celui que cet appareil lui a envoyé en dernier (26/10/2026,
- * Raphaël : « le choix du modèle change en cours de route »), pas celui du dernier tour, qu'un
- * rappel ou une relance du planificateur a pu jouer sur un autre modèle.
+ * Le modèle d'une conversation est le choix que cet appareil lui a envoyé en dernier (26/10/2026,
+ * Raphaël : « le choix du modèle change en cours de route » ; 08/11/2026 au soir : « Piloté »
+ * reste « Piloté »), jamais celui du dernier tour, qu'un rappel ou une relance du planificateur a
+ * pu jouer sur un autre modèle.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class MissionChatModelMemoryTest {
@@ -90,16 +91,20 @@ class MissionChatModelMemoryTest {
     }
 
     @Test
-    fun `without a memory the last turn's model stands, and a send records it`() {
+    fun `without a memory the last turn's model does not stand, the message goes on the person's default`() {
+        // 08/11/2026 evening, Raphaël: « une fois qu'une session est en mode pilote, elle doit le
+        // rester à chaque nouvelle réponse ». A reminder's turn on Sonnet decides nothing; with no
+        // catalogue here, no pick is resolved nor recorded and the engine's agent answers.
         coEvery { memory.modelOf("ses_1") } returns null
         val vm = viewModel()
 
-        assertThat(vm.uiState.value.effectiveModel?.ref).isEqualTo(sonnet)
+        assertThat(vm.uiState.value.chat.model).isEqualTo(sonnet)
+        assertThat(vm.uiState.value.effectiveModel).isNull()
 
         vm.onInputChange("continue")
         vm.send()
 
-        coVerify { repository.sendMessage("ses_1", "continue", sonnet, any()) }
-        coVerify { memory.record("ses_1", sonnet) }
+        coVerify { repository.sendMessage("ses_1", "continue", null, any()) }
+        coVerify(exactly = 0) { memory.record("ses_1", sonnet) }
     }
 }

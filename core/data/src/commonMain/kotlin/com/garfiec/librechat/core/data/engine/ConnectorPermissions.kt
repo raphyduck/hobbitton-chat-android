@@ -3,6 +3,7 @@ package com.garfiec.librechat.core.data.engine
 import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.model.engine.EnginePermissionRule
 import com.garfiec.librechat.core.model.scheduler.ConnectorCatalogue
+import com.garfiec.librechat.core.model.scheduler.RoleAccess
 
 /**
  * What the mission is allowed to touch, built from the scheduler's own catalogue.
@@ -36,6 +37,13 @@ import com.garfiec.librechat.core.model.scheduler.ConnectorCatalogue
 fun permissionsFor(
     catalogue: ConnectorCatalogue,
     connectors: List<String>,
+    /**
+     * The access of the role that leads the session (08/11/2026 evening, access by role): a role
+     * that does not call the annuaire gets no rule for it, neither allow nor deny — the agent's
+     * profile refuses it, and a session deny would be inherited by the sub-agents who do call it;
+     * a role that delegates gets one `task` rule per sub-agent. Null: the rules as before the table.
+     */
+    access: RoleAccess? = null,
 ): List<EnginePermissionRule> {
     val granted = connectors
         .mapNotNull { name -> catalogue.connecteurs[name]?.let { name to it } }
@@ -44,6 +52,7 @@ fun permissionsFor(
         // catalogue in front of the model on every turn — the very cost the annuaire exists to
         // avoid.
         .filter { (_, grant) -> grant.direct }
+        .filter { (name, _) -> access == null || access.annuaire || name != ANNUAIRE_CONNECTOR }
 
     val rules = mutableListOf(EnginePermissionRule(permission = ANY_TOOL, action = ACTION_DENY))
     catalogue.socle.forEach { (tool, action) ->
@@ -58,7 +67,21 @@ fun permissionsFor(
         .distinct()
         .filter(::namesOneTool)
         .forEach { tool -> rules += EnginePermissionRule(permission = tool, action = ACTION_ALLOW) }
+    // A role that delegates opens its sub-agents by name; `task` stays closed to any other name
+    // by the profile's own `*` → deny, and a session that does not delegate writes nothing for it.
+    access?.subAgents.orEmpty().forEach { name ->
+        rules += EnginePermissionRule(permission = TASK_TOOL, pattern = name, action = ACTION_ALLOW)
+    }
     return rules
+}
+
+/**
+ * Whether the standing block of [rules] opens a sub-agent: the session is led by a role that
+ * delegates (08/11/2026). Read back to rewrite the rules when the model sent changes role.
+ */
+fun rulesDelegate(rules: List<EnginePermissionRule>): Boolean {
+    val lastBlock = rules.indexOfLast { it.permission == ANY_TOOL && it.action == ACTION_DENY }
+    return rules.drop(lastBlock + 1).any { it.permission == TASK_TOOL && it.action == ACTION_ALLOW }
 }
 
 /** A concrete tool name — not blank, no `*` or `?` — the only shape a catalogue pattern may take. */
@@ -137,6 +160,12 @@ private const val ACTION_ALLOW = "allow"
 /** The catch-all every ruleset opens with, and so the marker of where the last one begins. */
 private const val ACTION_DENY = "deny"
 private const val ANY_TOOL = "*"
+
+/** The direct connector whose two tools are the annuaire's; the only one a role may be refused. */
+private const val ANNUAIRE_CONNECTOR = "annuaire"
+
+/** The engine's delegation tool; its rules name a sub-agent in their pattern. */
+private const val TASK_TOOL = "task"
 
 /** OpenCode's tool for asking the person a question, answered by the conversation's form. */
 private const val QUESTION_TOOL = "question"

@@ -59,7 +59,7 @@ class PilotedModelTest {
             engineDefault = opus,
         )
         coEvery { it.connectors() } returns ConnectorCatalogue(connecteurs = emptyMap())
-        coEvery { it.startChat(any(), any(), any(), any()) } returns "ses_nouvelle"
+        coEvery { it.startChat(any(), any(), any(), any(), any()) } returns "ses_nouvelle"
     }
     private val scheduler = mockk<SchedulerRepository>(relaxed = true).also {
         coEvery { it.roles() } returns roles
@@ -99,10 +99,10 @@ class PilotedModelTest {
         vm.onInputChange("Analyse ce devis")
         vm.send()
 
-        coVerify { repository.startChat(text = "Analyse ce devis", connectors = any(), model = opus.ref, files = any()) }
+        coVerify { repository.startChat(text = "Analyse ce devis", connectors = any(), model = opus.ref, files = any(), access = any()) }
         // The conversation now runs on the thinker, which is what « Piloté » means: the chip does
         // not switch to the model's name.
-        assertThat(vm.uiState.value.rememberedModel).isEqualTo(opus.ref)
+        assertThat(vm.uiState.value.rememberedModel).isEqualTo(EngineSelectableModel.AUTO.ref)
         assertThat(vm.uiState.value.showsPiloted).isTrue()
     }
 
@@ -114,25 +114,37 @@ class PilotedModelTest {
         vm.onInputChange("Bonjour")
         vm.send()
 
-        coVerify { repository.startChat(text = "Bonjour", connectors = any(), model = null, files = any()) }
+        coVerify { repository.startChat(text = "Bonjour", connectors = any(), model = null, files = any(), access = any()) }
         assertThat(vm.uiState.value.canAskSavant).isFalse()
     }
 
     @Test
-    fun `a conversation that already ran keeps its model`() {
-        val ran = EngineModelRef("hobbitton-chat", "deepseek-v4-pro")
+    fun `a model picked here stays the conversation's, send after send, and the last turn never decides`() {
+        // 08/11/2026 evening, Raphaël: « une fois qu'une session est en mode pilote, elle doit le
+        // rester à chaque nouvelle réponse, jusqu'à ce que je décide de changer ». Nothing picked
+        // here: Piloté, whatever the last turn ran on; a model picked here is kept the same way.
         coEvery { repository.history("ses_suivie", any()) } returns listOf(
             EngineStreamEvent.MessageStarted("m1", "user"),
-            EngineStreamEvent.MessageStarted("m2", "assistant", ran),
+            EngineStreamEvent.MessageStarted("m2", "assistant", deepseek.ref),
         )
         every { repository.events("ses_suivie") } returns flowOf()
         val vm = viewModel(sessionId = "ses_suivie")
-        vm.selectModel(EngineSelectableModel.AUTO)
+        assertThat(vm.uiState.value.effectiveModel).isEqualTo(EngineSelectableModel.AUTO)
+        assertThat(vm.uiState.value.showsPiloted).isTrue()
 
         vm.onInputChange("Et ensuite ?")
         vm.send()
+        coVerify { repository.sendMessage("ses_suivie", "Et ensuite ?", opus.ref, any()) }
 
-        coVerify { repository.sendMessage("ses_suivie", "Et ensuite ?", ran, any()) }
+        vm.selectModel(deepseek)
+        vm.onInputChange("Sur DeepSeek")
+        vm.send()
+        vm.onInputChange("Encore")
+        vm.send()
+
+        coVerify { repository.sendMessage("ses_suivie", "Sur DeepSeek", deepseek.ref, any()) }
+        coVerify { repository.sendMessage("ses_suivie", "Encore", deepseek.ref, any()) }
+        assertThat(vm.uiState.value.rememberedModel).isEqualTo(deepseek.ref)
         assertThat(vm.uiState.value.showsPiloted).isFalse()
     }
 
@@ -171,7 +183,7 @@ class PilotedModelTest {
         vm.onInputChange("Faut-il vendre la SCPI ?")
         vm.send()
 
-        coVerify { repository.startChat(text = "Faut-il vendre la SCPI ?", connectors = any(), model = fable.ref, files = any()) }
+        coVerify { repository.startChat(text = "Faut-il vendre la SCPI ?", connectors = any(), model = fable.ref, files = any(), access = any()) }
     }
 
     @Test
