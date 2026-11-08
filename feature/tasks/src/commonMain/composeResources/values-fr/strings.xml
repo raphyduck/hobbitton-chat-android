@@ -220,6 +220,35 @@
     <string name="tasks_mission_pilot_thinker">Le penseur</string>
     <string name="tasks_mission_pilot_scout">L'éclaireur seul</string>
     <string name="tasks_mission_pilot_savant">Le savant</string>
+    <string name="tasks_role_thinker">penseur</string>
+    <string name="tasks_role_scout">éclaireur</string>
+    <string name="tasks_role_savant">savant</string>
+    <string name="tasks_role_navigator">navigateur</string>
+    <string name="tasks_role_coder">codeur</string>
+    <string name="tasks_role_clerk">commis</string>
+    <string name="tasks_role_reader">lecteur</string>
+    <string name="tasks_role_other">autre</string>
+    <string name="tasks_spend">Répartition de la session</string>
+    <string name="tasks_spend_loading">Lecture de la conversation et de ses sous-agents…</string>
+    <string name="tasks_spend_failed">La répartition n'a pas pu être lue.</string>
+    <string name="tasks_spend_empty">Aucun appel de modèle pour l'instant.</string>
+    <string name="tasks_spend_total">Total</string>
+    <string name="tasks_spend_unpriced">sans prix</string>
+    <string name="tasks_spend_tokens">%1$s entrée · %2$s sortie</string>
+    <string name="tasks_spend_estimated">≈ estimé d'après les jetons et les tarifs de la passerelle, là où le moteur n'avait pas de chiffre.</string>
+    <string name="tasks_spend_hint">Chaque réponse est signée du rôle et du modèle qui l'ont écrite ; une délégation tourne dans la session d'un sous-agent, comptée ici sous son rôle.</string>
+    <plurals name="tasks_spend_calls">
+        <item quantity="one">%1$d appel</item>
+        <item quantity="other">%1$d appels</item>
+    </plurals>
+    <plurals name="tasks_spend_tools">
+        <item quantity="one">%1$d outil</item>
+        <item quantity="other">%1$d outils</item>
+    </plurals>
+    <plurals name="tasks_spend_children">
+        <item quantity="one">%1$d session de sous-agent</item>
+        <item quantity="other">%1$d sessions de sous-agents</item>
+    </plurals>
     <string name="tasks_mission_prompt">Consigne (prompt)</string>
     <string name="tasks_mission_budget">Budget (jetons pondérés)</string>
     <string name="tasks_mission_timeout">Durée maximale (secondes)</string>

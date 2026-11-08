@@ -64,6 +64,7 @@ class EngineEventParser(private val json: Json) {
                         runCatching { json.decodeFromJsonElement(EngineTokens.serializer(), tokens) }.getOrNull()
                     },
                     summary = (info["summary"] as? JsonPrimitive)?.content == "true",
+                    cost = (info["cost"] as? JsonPrimitive)?.content?.toDoubleOrNull(),
                 )
             } else {
                 null

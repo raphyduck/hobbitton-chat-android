@@ -4,6 +4,7 @@ import com.garfiec.librechat.core.model.engine.EngineModelRef
 import com.garfiec.librechat.core.model.engine.EnginePartSnapshot
 import com.garfiec.librechat.core.model.engine.EngineQuestionRequest
 import com.garfiec.librechat.core.model.engine.EngineStreamEvent
+import com.garfiec.librechat.core.model.engine.EngineTokens
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -66,6 +67,14 @@ sealed interface ChatTurn {
          * transcript does not draw it; the compaction's notice stands for it.
          */
         val summary: Boolean = false,
+        /**
+         * Who wrote this step (08/11/2026): the model the engine ran it on, what it read and wrote,
+         * and what it charged. A merged run keeps the model of its last step that named one and the
+         * sum of its costs.
+         */
+        val model: EngineModelRef? = null,
+        val tokens: EngineTokens? = null,
+        val cost: Double? = null,
     ) : ChatTurn
 }
 
@@ -158,11 +167,18 @@ fun MissionChatState.reduce(event: EngineStreamEvent): MissionChatState = when (
             known -> copy(
                 model = event.model ?: model,
                 contextTokens = event.contextOr(contextTokens),
-                turns = if (event.error == null) {
-                    turns
-                } else {
-                    turns.map { turn ->
-                        if (turn is ChatTurn.Assistant && turn.key == event.messageId) turn.copy(error = event.error) else turn
+                // The envelope is rewritten at every step: the model, the tokens and the cost of
+                // the turn follow it, as its error does.
+                turns = turns.map { turn ->
+                    if (turn is ChatTurn.Assistant && turn.key == event.messageId) {
+                        turn.copy(
+                            error = event.error ?: turn.error,
+                            model = event.model ?: turn.model,
+                            tokens = event.tokens ?: turn.tokens,
+                            cost = event.cost ?: turn.cost,
+                        )
+                    } else {
+                        turn
                     }
                 },
             )
@@ -181,7 +197,15 @@ fun MissionChatState.reduce(event: EngineStreamEvent): MissionChatState = when (
                 )
             else ->
                 copy(
-                    turns = turns.withNewTurn(ChatTurn.Assistant(event.messageId, error = event.error)),
+                    turns = turns.withNewTurn(
+                        ChatTurn.Assistant(
+                            event.messageId,
+                            error = event.error,
+                            model = event.model,
+                            tokens = event.tokens,
+                            cost = event.cost,
+                        ),
+                    ),
                     model = event.model ?: model,
                     contextTokens = event.contextOr(contextTokens),
                 )
@@ -431,7 +455,13 @@ fun List<ChatTurn>.mergedAssistantRuns(): List<ChatTurn> {
     forEach { turn ->
         val previous = merged.lastOrNull()
         if (turn is ChatTurn.Assistant && previous is ChatTurn.Assistant) {
-            merged[merged.lastIndex] = previous.copy(parts = previous.parts + turn.parts, error = turn.error ?: previous.error)
+            merged[merged.lastIndex] = previous.copy(
+                parts = previous.parts + turn.parts,
+                error = turn.error ?: previous.error,
+                model = turn.model ?: previous.model,
+                tokens = turn.tokens ?: previous.tokens,
+                cost = listOfNotNull(previous.cost, turn.cost).takeIf { it.isNotEmpty() }?.sum(),
+            )
         } else {
             merged += turn
         }

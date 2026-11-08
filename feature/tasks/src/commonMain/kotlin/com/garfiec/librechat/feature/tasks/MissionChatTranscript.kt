@@ -3,6 +3,7 @@ package com.garfiec.librechat.feature.tasks
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -32,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import com.garfiec.librechat.core.ui.components.ShimmerText
 import com.garfiec.librechat.core.ui.util.copyToClipboard
 import com.garfiec.librechat.feature.tasks.components.MissionMarkdown
+import com.garfiec.librechat.feature.tasks.components.SignatureCaption
 import com.garfiec.librechat.feature.tasks.resources.Res
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_ask_savant
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_compacted
@@ -134,6 +136,10 @@ internal fun AssistantTurn(
     fontScale: Float,
     /** « Ask the savant » (D-086), under the last answer only, when the platform has a savant. */
     askSavant: (() -> Unit)? = null,
+    /** Who wrote it, « penseur · Opus 5.5 » (08/11/2026); null when the step named no model. */
+    signature: String? = null,
+    /** The signature of a delegation's sub-agent by its name (`eclaireur`, `savant`…), for the fold's header. */
+    taskSignature: (String) -> String? = { null },
 ) {
     val blocks = remember(turn.parts) { turn.parts.asBlocks() }
     Column(
@@ -152,7 +158,7 @@ internal fun AssistantTurn(
                     fontScale = fontScale,
                     trailingCursor = streaming && index == lastProse,
                 )
-                is ChatBlock.Activity -> ActivityBlock(block)
+                is ChatBlock.Activity -> ActivityBlock(block, taskSignature)
             }
         }
         // Before the first delta there is no insertion point, so « Réflexion… » shimmers where the
@@ -172,9 +178,13 @@ internal fun AssistantTurn(
         // the last answer « ask the savant » (D-086, 08/11/2026), the same request put to the savant.
         if (!streaming && lastProse >= 0) {
             val prose = blocks.filterIsInstance<ChatBlock.Prose>().joinToString("\n\n") { it.part.text }
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            // At the row's end, the discreet signature (08/11/2026, Raphaël): the role that wrote
+            // the answer and the model it ran on, in small print, never louder than the answer.
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 CopyTurnButton(prose)
                 askSavant?.let { AskSavantButton(it) }
+                Spacer(Modifier.weight(1f))
+                signature?.let { DisableSelection { SignatureCaption(it, Modifier.padding(end = 4.dp)) } }
             }
         }
     }

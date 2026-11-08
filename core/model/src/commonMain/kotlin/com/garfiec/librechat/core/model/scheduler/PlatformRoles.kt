@@ -37,6 +37,16 @@ data class PlatformRoles(
     /** The savant in service, the strongest model, for heavy reasoning; null without a table. */
     val savant: EngineModelRef? get() = conversationModel(SAVANT)
 
+    /**
+     * The role [modelId] belongs to, null when no list names it (08/11/2026): a model is in exactly
+     * one role (the server's rule), so the role a message ran under follows from its model alone.
+     */
+    fun roleOf(modelId: String): String? =
+        roles.entries.firstOrNull { (_, models) -> models.models.any { it.equals(modelId, ignoreCase = true) } }?.key
+
+    /** The roles in the order the screen lists them: the pilots first, then the rest of the table. */
+    val ordered: List<String> get() = (ORDER + roles.keys).distinct().filter { it in roles }
+
     /** True when [ref] is the model in service of [role], whatever the provider it is named on. */
     fun isInService(role: String, ref: EngineModelRef?): Boolean =
         ref != null && inService(role)?.equals(ref.modelId, ignoreCase = true) == true
@@ -46,8 +56,16 @@ data class PlatformRoles(
         const val SCOUT = "eclaireur"
         const val SAVANT = "savant"
 
+        const val NAVIGATOR = "navigateur"
+        const val CODER = "codeur"
+        const val CLERK = "commis"
+        const val READER = "lecteur"
+
         /** The pilots a mission may name, in the order the screen shows them. */
         val PILOTS = listOf(THINKER, SCOUT, SAVANT)
+
+        /** The whole table in reading order: who leads, who is consulted, who executes, the rest. */
+        val ORDER = listOf(THINKER, SAVANT, SCOUT, NAVIGATOR, CODER, CLERK, READER)
         val NONE = PlatformRoles()
     }
 }

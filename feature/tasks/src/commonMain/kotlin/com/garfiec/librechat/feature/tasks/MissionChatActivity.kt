@@ -72,7 +72,7 @@ import org.jetbrains.compose.resources.stringResource
  * a delta appending to the turn does not snap it shut under their thumb.
  */
 @Composable
-internal fun ActivityBlock(block: ChatBlock.Activity) {
+internal fun ActivityBlock(block: ChatBlock.Activity, taskSignature: (String) -> String? = { null }) {
     var expanded by rememberSaveable(block.key) { mutableStateOf(false) }
     val failed = block.hasFailure()
     val running = block.isRunning()
@@ -83,7 +83,7 @@ internal fun ActivityBlock(block: ChatBlock.Activity) {
         // does NOT have and this keeps: a spinner while a tool still runs and error colour on a
         // failure — the two states a fold must never hide.
         DisclosureRow(
-            label = activityLabel(block),
+            label = activityLabel(block, taskSignature),
             expanded = expanded,
             onToggle = { expanded = !expanded },
             labelColor = if (failed) {
@@ -152,14 +152,28 @@ internal fun ActivityBlock(block: ChatBlock.Activity) {
 
 /** « 3 outils · réflexion » — enough to decide whether opening it is worth it. */
 @Composable
-private fun activityLabel(block: ChatBlock.Activity): String {
+private fun activityLabel(block: ChatBlock.Activity, taskSignature: (String) -> String?): String {
     val tools = block.toolCount()
     val parts = buildList {
         if (tools > 0) add(pluralStringResource(Res.plurals.tasks_chat_tool_count, tools, tools))
         if (block.hasReasoning()) add(stringResource(Res.string.tasks_chat_reasoning))
+        // A delegation (08/11/2026): the fold's header names who it went to, « → éclaireur ·
+        // DeepSeek Flash », since the sub-agent runs on another model than the answer above.
+        block.subAgents().mapNotNull(taskSignature).distinct().forEach { add("→ $it") }
     }
     return parts.joinToString(" · ").ifEmpty { stringResource(Res.string.tasks_chat_reasoning) }
 }
+
+/** The sub-agents the block's `task` calls name (`eclaireur-mission` → `eclaireur`), in order. */
+private fun ChatBlock.Activity.subAgents(): List<String> =
+    parts.filterIsInstance<ChatPart.Tool>()
+        .filter { it.name == TASK_TOOL }
+        .mapNotNull { tool -> tool.arguments.firstOrNull { it.name == SUB_AGENT_ARGUMENT }?.value }
+        .map { it.trim('"').removeSuffix(MISSION_SUFFIX) }
+
+private const val TASK_TOOL = "task"
+private const val SUB_AGENT_ARGUMENT = "subagent_type"
+private const val MISSION_SUFFIX = "-mission"
 
 /**
  * One tool call — its name and outcome, and, when opened, what it was called with and what it
