@@ -1289,7 +1289,6 @@ class MissionChatViewModel(
     private fun currentPick(): EngineModelRef? =
         _uiState.value.effectiveModel?.let { if (it.isAuto) EngineSelectableModel.AUTO.ref else it.ref }
 
-
     /**
      * The model the next message names: what the chip shows — the pick, else the model this device
      * last sent the conversation with, else the model the last turn ran on, else the conversations'

@@ -82,11 +82,11 @@ class MissionChatLiftTest {
         vm.send()
 
         coVerifyOrder {
-            repository.setConnectors("ses_run", any())
+            repository.setConnectors("ses_run", any(), any())
             repository.sendMessage("ses_run", "Go ssh", any(), any())
             repository.sendMessage("ses_run", "et ensuite", any(), any())
         }
-        coVerify(exactly = 1) { repository.setConnectors("ses_run", any()) }
+        coVerify(exactly = 1) { repository.setConnectors("ses_run", any(), any()) }
     }
 
     @Test
@@ -111,7 +111,7 @@ class MissionChatLiftTest {
         vm.answerQuestion()
 
         coVerifyOrder {
-            repository.setConnectors("ses_run", any())
+            repository.setConnectors("ses_run", any(), any())
             repository.answerQuestion("que_1", listOf(listOf("Oui")))
         }
         assertThat(vm.uiState.value.sessionLevel).isEqualTo(TITULAR_LEVEL)
@@ -123,7 +123,7 @@ class MissionChatLiftTest {
         vm.onInputChange("bonjour")
         vm.send()
 
-        coVerify(exactly = 0) { repository.setConnectors(any(), any()) }
+        coVerify(exactly = 0) { repository.setConnectors(any(), any(), any()) }
         coVerify { repository.sendMessage("ses_run", "bonjour", any(), any()) }
     }
 
@@ -148,11 +148,11 @@ class MissionChatLiftTest {
         vm.send()
 
         coVerifyOrder {
-            repository.setConnectors("ses_run", listOf("annuaire"))
+            repository.setConnectors("ses_run", listOf("annuaire"), any())
             repository.sendMessage("ses_run", "envoie les photos", any(), any())
             repository.sendMessage("ses_run", "merci", any(), any())
         }
-        coVerify(exactly = 1) { repository.setConnectors("ses_run", any()) }
+        coVerify(exactly = 1) { repository.setConnectors("ses_run", any(), any()) }
     }
 
     @Test
@@ -161,7 +161,7 @@ class MissionChatLiftTest {
         vm.onInputChange("bonjour")
         vm.send()
 
-        coVerify(exactly = 1) { repository.setConnectors("ses_run", any()) }
+        coVerify(exactly = 1) { repository.setConnectors("ses_run", any(), any()) }
     }
 
     @Test
@@ -184,7 +184,7 @@ class MissionChatLiftTest {
         vm.onInputChange("reprends les annonces")
         vm.send()
 
-        coVerify(exactly = 0) { repository.setConnectors(any(), any()) }
+        coVerify(exactly = 0) { repository.setConnectors(any(), any(), any()) }
         coVerify(exactly = 1) { repository.liftToTitular("ses_run") }
         coVerify { repository.sendMessage("ses_run", "reprends les annonces", any(), any()) }
     }
