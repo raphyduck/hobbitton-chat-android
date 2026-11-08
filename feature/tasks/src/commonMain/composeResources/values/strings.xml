@@ -220,6 +220,30 @@
     <string name="tasks_mission_pilot_thinker">The thinker</string>
     <string name="tasks_mission_pilot_scout">The scout alone</string>
     <string name="tasks_mission_pilot_savant">The savant</string>
+    <string name="tasks_role_thinker">thinker</string>
+    <string name="tasks_role_scout">scout</string>
+    <string name="tasks_role_savant">savant</string>
+    <string name="tasks_role_navigator">navigator</string>
+    <string name="tasks_role_coder">coder</string>
+    <string name="tasks_role_clerk">clerk</string>
+    <string name="tasks_role_reader">reader</string>
+    <string name="tasks_role_other">other</string>
+    <string name="tasks_spend">Session spend</string>
+    <string name="tasks_spend_loading">Reading the conversation and its sub-agents…</string>
+    <string name="tasks_spend_failed">The spend could not be read.</string>
+    <string name="tasks_spend_empty">No model call yet.</string>
+    <string name="tasks_spend_sum">Total</string>
+    <string name="tasks_spend_tokens">%1$s in · %2$s out</string>
+    <string name="tasks_spend_estimated">≈ estimated from the tokens and the gateway’s prices, where the engine had no figure.</string>
+    <string name="tasks_spend_hint">Each answer is signed by the role and the model that wrote it; a delegation runs in a sub-agent’s session, counted here under its role.</string>
+    <plurals name="tasks_spend_tools">
+        <item quantity="one">%1$d tool</item>
+        <item quantity="other">%1$d tools</item>
+    </plurals>
+    <plurals name="tasks_spend_children">
+        <item quantity="one">%1$d sub-agent session</item>
+        <item quantity="other">%1$d sub-agent sessions</item>
+    </plurals>
     <string name="tasks_mission_prompt">Prompt</string>
     <string name="tasks_mission_budget">Token budget (weighted)</string>
     <string name="tasks_mission_timeout">Time limit (seconds)</string>

@@ -75,10 +75,15 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import co.touchlab.kermit.Logger
+import com.garfiec.librechat.core.model.engine.EngineSelectableModel
+import com.garfiec.librechat.core.model.scheduler.PlatformRoles
 import com.garfiec.librechat.core.ui.input.ChatInputDefaults
 import com.garfiec.librechat.feature.tasks.components.ContextRing
 import com.garfiec.librechat.feature.tasks.components.ContextSheet
 import com.garfiec.librechat.feature.tasks.components.Explanation
+import com.garfiec.librechat.feature.tasks.components.SessionSpendSheet
+import com.garfiec.librechat.feature.tasks.components.SpendButton
+import com.garfiec.librechat.feature.tasks.components.signatureText
 import com.garfiec.librechat.feature.tasks.resources.Res
 import com.garfiec.librechat.feature.tasks.resources.chat_empty
 import com.garfiec.librechat.feature.tasks.resources.chat_greeting_evening
@@ -100,10 +105,12 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_retry
 import com.garfiec.librechat.feature.tasks.util.ChatPart
 import com.garfiec.librechat.feature.tasks.util.ChatTurn
 import com.garfiec.librechat.feature.tasks.util.MissionChatState
+import com.garfiec.librechat.feature.tasks.util.ModelSignature
 import com.garfiec.librechat.feature.tasks.util.contextUsage
 import com.garfiec.librechat.feature.tasks.util.currentHourOfDay
 import com.garfiec.librechat.feature.tasks.util.hint
 import com.garfiec.librechat.feature.tasks.util.mergedAssistantRuns
+import com.garfiec.librechat.feature.tasks.util.signatureOf
 import com.garfiec.librechat.feature.tasks.util.title
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -236,6 +243,26 @@ fun MissionChatScreen(
                                 usage = usage,
                                 modelLabel = state.effectiveModel?.label,
                                 onDismiss = { showContext = false },
+                            )
+                        }
+                    }
+                    // The session's spend by role and model (08/11/2026, Raphaël), read when the
+                    // sheet opens: the whole transcript and the sub-agents' sessions, not before.
+                    if (!state.isNew) {
+                        var showSpend by rememberSaveable { mutableStateOf(false) }
+                        SpendButton(
+                            onClick = {
+                                showSpend = true
+                                viewModel.loadSpend()
+                            },
+                        )
+                        if (showSpend) {
+                            SessionSpendSheet(
+                                spend = state.spend,
+                                loading = state.spendLoading,
+                                failed = state.spendFailed,
+                                models = state.models,
+                                onDismiss = { showSpend = false },
                             )
                         }
                     }
@@ -382,6 +409,8 @@ private fun MissionChatBody(
                         onAskSavant = onAskSavant.takeIf { state.canAskSavant },
                         onLoadEarlier = onLoadEarlier.takeIf { state.historyTruncated },
                         loadingEarlier = state.loadingEarlier,
+                        roles = state.roles,
+                        models = state.models,
                     )
                 }
             }
@@ -400,8 +429,17 @@ internal fun MissionTurns(
     /** Offered at the top while only the conversation's tail was read (26/10/2026). */
     onLoadEarlier: (() -> Unit)? = null,
     loadingEarlier: Boolean = false,
+    /** The platform's roles and the catalogue, for the signature under each answer (08/11/2026). */
+    roles: PlatformRoles = PlatformRoles.NONE,
+    models: List<EngineSelectableModel> = emptyList(),
 ) {
     val listState = rememberLazyListState()
+    // The sub-agent of a delegation, as its fold names it: the role's word and its model in service.
+    // Resolved once, in composition: the fold's header asks for a sub-agent's signature by name
+    // while it draws, where no resource can be read.
+    val roleWords = PlatformRoles.ORDER.associateWith { role ->
+        signatureText(ModelSignature(role = role, modelId = roles.inService(role) ?: role), models)
+    }
     // The « earlier messages » row sits before the turns: the list's indices are shifted by it.
     val headerCount = if (onLoadEarlier != null) 1 else 0
     // One drawn turn per run of assistant steps: their tool calls fold into one growing line.
@@ -515,6 +553,8 @@ internal fun MissionTurns(
                                 streaming = live,
                                 fontScale = fontScale,
                                 askSavant = onAskSavant.takeIf { index == turns.lastIndex },
+                                signature = signatureText(signatureOf(turn.model, roles), models),
+                                taskSignature = { role -> roleWords[role] },
                             )
                         }
                     }

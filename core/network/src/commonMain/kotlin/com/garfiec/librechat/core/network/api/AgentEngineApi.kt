@@ -72,6 +72,13 @@ class AgentEngineApi(
         client.get { url { path("session/${sessionId.encodeURLPathPart()}") } }.decoded()
 
     /**
+     * The sessions a sub-agent opened under this one (08/11/2026): the éclaireur's and the savant's
+     * work, which [sessions] leaves out (`roots`). Read on demand, for the conversation's spend.
+     */
+    suspend fun children(sessionId: String): List<EngineSession> =
+        client.get { url { path("session/${sessionId.encodeURLPathPart()}/children") } }.decoded()
+
+    /**
      * The providers this engine is wired to, and the models each one offers.
      *
      * `config/providers`, **not** `provider`. Both answer 200 and both look right; the second

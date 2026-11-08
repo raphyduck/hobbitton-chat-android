@@ -620,6 +620,12 @@ class EngineMissionRepository(
     }
 
     /**
+     * The sessions the sub-agents opened under [sessionId] (08/11/2026): what the conversation's
+     * spend adds to its own messages. Never listed as conversations ([recentChats] reads roots only).
+     */
+    suspend fun childSessions(sessionId: String): List<EngineSession> = api.children(sessionId)
+
+    /**
      * The tail the device kept of this conversation, to show at once; null when it kept none.
      * [CachedHistory.updated] is what [historyUnlessUpdatedAt] compares against.
      */

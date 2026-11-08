@@ -47,6 +47,12 @@ sealed interface EngineStreamEvent {
         val tokens: EngineTokens? = null,
         /** The message holds a compaction's summary ([EngineMessageInfo.summary]). */
         val summary: Boolean = false,
+        /**
+         * What the engine charged this message, in dollars (08/11/2026): the model's tariff from
+         * the deployment's configuration applied to [tokens]. Zero when the model carries no
+         * tariff, null on a user message.
+         */
+        val cost: Double? = null,
     ) : EngineStreamEvent
 
     /**
@@ -132,6 +138,7 @@ fun engineHistoryEvents(messages: List<EngineMessage>): List<EngineStreamEvent> 
                     error = message.info.error?.readable(),
                     tokens = message.info.tokens,
                     summary = message.info.summary == true,
+                    cost = message.info.cost,
                 ),
             )
             message.parts.forEachIndexed { index, part ->

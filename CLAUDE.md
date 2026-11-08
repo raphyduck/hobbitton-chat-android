@@ -288,7 +288,19 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   platform has a savant) sends the last request again, prefixed (`ASK_SAGE_PREFIX`), on the
   conversation's model: the penseur has the savant consulted as a sub-agent on a brief and reports its
   opinion. A mission's screen says who leads it (« Menée par » : penseur, éclaireur seul, savant ;
-  `ScheduledMission.pilot`, the scheduler's `pilote`).
+  `ScheduledMission.pilot`, the scheduler's `pilote`). **Who wrote what, and what it cost**
+  (08/11/2026, Raphaël): every assistant step carries its model, tokens and the engine's `cost`
+  (`ChatTurn.Assistant.model/tokens/cost`, `MessageStarted.cost`; the kit renders each model's
+  tariff as the engine's `cost`, so the figure is exact, sub-agents included). Under each answer, at
+  the end of the action row, a small caption signs it « penseur · Opus 5.5 » (`signatureOf`,
+  `PlatformRoles.roleOf`: a model is in one role; `SignatureCaption`), and a delegation's fold reads
+  « → éclaireur · DeepSeek Flash » (`activityLabel`, the `task` call's `subagent_type`). Beside the
+  context ring, a second small button (`SpendButton`) opens the session's spend
+  (`SessionSpendSheet`, `sessionSpend`): calls, tool calls, tokens and dollars per model under its
+  role, the sub-agents' sessions folded in (`GET /session/{id}/children`, read with the whole
+  transcript when the sheet opens, `loadSpend`), the total at the bottom; a message the engine did
+  not price falls back to the tokens at the gateway's table and the sheet says « ≈ estimé ». No
+  price ever sits next to a role elsewhere.
 - **What the phone keeps to itself** (26/10/2026, the review). An image a message names draws on
   its own from any `https:` host or as a `data:` URL (27/10/2026, Raphaël: « il faut pouvoir
   afficher des images dans les sessions »; the day before only the platform's hosts drew, and a

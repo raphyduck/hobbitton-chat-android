@@ -37,6 +37,7 @@ import com.garfiec.librechat.feature.tasks.util.ChatTurn
 import com.garfiec.librechat.feature.tasks.util.MissionChatState
 import com.garfiec.librechat.feature.tasks.util.OutgoingAttachments
 import com.garfiec.librechat.feature.tasks.util.QuestionDraft
+import com.garfiec.librechat.feature.tasks.util.SessionSpend
 import com.garfiec.librechat.feature.tasks.util.StagedAttachment
 import com.garfiec.librechat.feature.tasks.util.asPromptPart
 import com.garfiec.librechat.feature.tasks.util.depositedLine
@@ -45,6 +46,7 @@ import com.garfiec.librechat.feature.tasks.util.lastAnswerSpeech
 import com.garfiec.librechat.feature.tasks.util.outgoingMessageText
 import com.garfiec.librechat.feature.tasks.util.previewPart
 import com.garfiec.librechat.feature.tasks.util.reduce
+import com.garfiec.librechat.feature.tasks.util.sessionSpend
 import com.garfiec.librechat.feature.tasks.util.speechText
 import com.garfiec.librechat.feature.tasks.util.withDepositedLines
 import com.garfiec.librechat.feature.tasks.util.withPendingQuestions
@@ -205,6 +207,13 @@ data class MissionChatUiState(
      * « Piloté » then leaves the model to the engine, whose chat agent is the penseur too.
      */
     val roles: PlatformRoles = PlatformRoles.NONE,
+    /**
+     * The session's spend by role and model (08/11/2026), read when its sheet opens: the whole
+     * transcript and the sub-agents' sessions. Null until read; kept across openings of the sheet.
+     */
+    val spend: SessionSpend? = null,
+    val spendLoading: Boolean = false,
+    val spendFailed: Boolean = false,
     /**
      * Set once a **new** chat exists on the engine: the screen hands it to the navigation, which
      * replaces the blank conversation with the real one. Null for an existing session.
@@ -1318,6 +1327,31 @@ class MissionChatViewModel(
             } finally {
                 sendsInFlight--
                 _uiState.update { it.copy(sending = sendsInFlight > 0) }
+            }
+        }
+    }
+
+    /**
+     * Reads the conversation's spend (08/11/2026): the whole transcript, not the tail on screen, and
+     * every session a sub-agent opened under it, folded by role and model. On IO, on demand: a
+     * long conversation with its children is several transcripts, which the opening never pays.
+     */
+    fun loadSpend() {
+        val sessionId = sessionId ?: return
+        if (_uiState.value.spendLoading) return
+        _uiState.update { it.copy(spendLoading = true, spendFailed = false) }
+        viewModelScope.launch {
+            val result = runCatching {
+                withContext(ioDispatcher) {
+                    val parent = repository.history(sessionId)
+                    val children = repository.childSessions(sessionId).map { child -> repository.history(child.id) }
+                    val state = _uiState.value
+                    sessionSpend(parent, children, state.roles, state.prices)
+                }
+            }
+            result.onFailure { Logger.w(LOG_TAG, it) { "Could not read the spend of $sessionId" } }
+            _uiState.update {
+                it.copy(spend = result.getOrNull() ?: it.spend, spendLoading = false, spendFailed = result.isFailure)
             }
         }
     }
