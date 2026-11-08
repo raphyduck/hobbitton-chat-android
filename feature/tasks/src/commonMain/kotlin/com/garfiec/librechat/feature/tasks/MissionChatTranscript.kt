@@ -33,7 +33,7 @@ import com.garfiec.librechat.core.ui.components.ShimmerText
 import com.garfiec.librechat.core.ui.util.copyToClipboard
 import com.garfiec.librechat.feature.tasks.components.MissionMarkdown
 import com.garfiec.librechat.feature.tasks.resources.Res
-import com.garfiec.librechat.feature.tasks.resources.tasks_chat_ask_sage
+import com.garfiec.librechat.feature.tasks.resources.tasks_chat_ask_savant
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_compacted
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_compacted_saved
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_compacting
@@ -132,8 +132,8 @@ internal fun AssistantTurn(
     turn: ChatTurn.Assistant,
     streaming: Boolean,
     fontScale: Float,
-    /** « Ask the sage » (D-086), under the last answer only, when the platform has a sage. */
-    askSage: (() -> Unit)? = null,
+    /** « Ask the savant » (D-086), under the last answer only, when the platform has a savant. */
+    askSavant: (() -> Unit)? = null,
 ) {
     val blocks = remember(turn.parts) { turn.parts.asBlocks() }
     Column(
@@ -169,12 +169,12 @@ internal fun AssistantTurn(
         // A blank space under the question read as « nothing happened », which was false.
         turn.error?.let { error -> TurnError(error) }
         // Under a finished answer, the action row the chat and Claude both have: « copy », and under
-        // the last answer « ask the sage » (D-086, 08/11/2026), the same request put to the sage.
+        // the last answer « ask the savant » (D-086, 08/11/2026), the same request put to the savant.
         if (!streaming && lastProse >= 0) {
             val prose = blocks.filterIsInstance<ChatBlock.Prose>().joinToString("\n\n") { it.part.text }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 CopyTurnButton(prose)
-                askSage?.let { AskSageButton(it) }
+                askSavant?.let { AskSavantButton(it) }
             }
         }
     }
@@ -210,13 +210,13 @@ private fun TurnError(error: String) {
     }
 }
 
-/** « Ask the sage »: the person's last request, put to the platform's strongest model by the penseur. */
+/** « Ask the savant »: the person's last request, put to the platform's strongest model by the penseur. */
 @Composable
-private fun AskSageButton(onClick: () -> Unit) {
+private fun AskSavantButton(onClick: () -> Unit) {
     DisableSelection {
         TextButton(onClick = onClick) {
             Text(
-                stringResource(Res.string.tasks_chat_ask_sage),
+                stringResource(Res.string.tasks_chat_ask_savant),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

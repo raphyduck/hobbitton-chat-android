@@ -264,11 +264,11 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   and read by the repository's `models()` (`ModelPreference`) as `preselected`. **Piloté** is the
   rule (`EngineSelectableModel.AUTO`, id `auto` kept from the « Auto » of 25/10, never sent to the
   engine; a device that chose nothing is on it): the conversation runs on the platform's **penseur**
-  in service, who delegates the plumbing to the éclaireur and consults the sage through the engine's
+  in service, who delegates the plumbing to the éclaireur and consults the savant through the engine's
   sub-agents (the scheduler opens `task` to every conversation), read from the scheduler's
   `GET /roles` (`PlatformRoles`, `SchedulerRepository.roles()`, ten minutes); without a roles table
   the message goes without a model, to the chat agent's own, the penseur too. The picker is a choice
-  of role first (« Piloté », « Sage » for a conversation that is all heavy reasoning, then « Autre
+  of role first (« Piloté », « Savant » for a conversation that is all heavy reasoning, then « Autre
   modèle », the exception), and the composer's label reads « Piloté » whenever the conversation runs
   on the penseur in service (`showsPiloted`); Settings offer « Piloté » and the models, a model the
   deployment no longer lists falling back to Piloté. A conversation that already ran keeps its model.
@@ -283,10 +283,10 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   jamais choisi Sonnet »). The engine keeps no model per session, and the last turn's model is
   whoever wrote it: a reminder played back by the scheduler, a relance posing its decision in its own
   conversation, ran on their own model, and the chip and the next message followed them. Under the
-  last answer, « Demander au sage » (`askSage`, `MissionChatUiState.canAskSage`, shown when the
-  platform has a sage) sends the last request again, prefixed (`ASK_SAGE_PREFIX`), on the
-  conversation's model: the penseur has the sage consulted as a sub-agent on a brief and reports its
-  opinion. A mission's screen says who leads it (« Menée par » : penseur, éclaireur seul, sage ;
+  last answer, « Demander au savant » (`askSavant`, `MissionChatUiState.canAskSavant`, shown when the
+  platform has a savant) sends the last request again, prefixed (`ASK_SAGE_PREFIX`), on the
+  conversation's model: the penseur has the savant consulted as a sub-agent on a brief and reports its
+  opinion. A mission's screen says who leads it (« Menée par » : penseur, éclaireur seul, savant ;
   `ScheduledMission.pilot`, the scheduler's `pilote`).
 - **What the phone keeps to itself** (26/10/2026, the review). An image a message names draws on
   its own from any `https:` host or as a `data:` URL (27/10/2026, Raphaël: « il faut pouvoir

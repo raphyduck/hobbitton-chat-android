@@ -66,7 +66,7 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_mission_model_pick
 import com.garfiec.librechat.feature.tasks.resources.tasks_mission_notify
 import com.garfiec.librechat.feature.tasks.resources.tasks_mission_open_run
 import com.garfiec.librechat.feature.tasks.resources.tasks_mission_pilot
-import com.garfiec.librechat.feature.tasks.resources.tasks_mission_pilot_sage
+import com.garfiec.librechat.feature.tasks.resources.tasks_mission_pilot_savant
 import com.garfiec.librechat.feature.tasks.resources.tasks_mission_pilot_scout
 import com.garfiec.librechat.feature.tasks.resources.tasks_mission_pilot_thinker
 import com.garfiec.librechat.feature.tasks.resources.tasks_mission_profile
@@ -328,7 +328,7 @@ private fun MissionEditor(
         Text(stringResource(Res.string.tasks_mission_settings), style = MaterialTheme.typography.titleSmall)
         ModelField(value = draft.model, models = models, onChange = { onChange(draft.copy(model = it)) })
         // Who leads the mission (D-086): the penseur by default, the éclaireur alone for the
-        // mechanical, the sage for a mission that is all heavy reasoning.
+        // mechanical, the savant for a mission that is all heavy reasoning.
         Text(stringResource(Res.string.tasks_mission_pilot), style = MaterialTheme.typography.labelLarge)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             PlatformRoles.PILOTS.forEach { pilot ->
@@ -445,7 +445,7 @@ private fun SwitchRow(label: String, checked: Boolean, onChange: (Boolean) -> Un
 private fun pilotLabel(pilot: String): String = when (pilot) {
     PlatformRoles.THINKER -> stringResource(Res.string.tasks_mission_pilot_thinker)
     PlatformRoles.SCOUT -> stringResource(Res.string.tasks_mission_pilot_scout)
-    PlatformRoles.SAGE -> stringResource(Res.string.tasks_mission_pilot_sage)
+    PlatformRoles.SAVANT -> stringResource(Res.string.tasks_mission_pilot_savant)
     else -> pilot
 }
 

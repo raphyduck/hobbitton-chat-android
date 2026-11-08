@@ -31,7 +31,7 @@ import org.junit.Test
 /**
  * « Piloté » (08/11/2026, D-086 ; « Auto » du 25/10 lisait le premier message par un trieur et
  * choisissait un palier) : une conversation part sur le penseur en service de la plateforme et le
- * garde ; « Demander au sage » met la dernière demande au sage par le penseur.
+ * garde ; « Demander au savant » met la dernière demande au savant par le penseur.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class PilotedModelTest {
@@ -44,7 +44,7 @@ class PilotedModelTest {
     private val roles = PlatformRoles(
         roles = mapOf(
             PlatformRoles.THINKER to RoleModels("claude-opus-5-5", listOf("claude-opus-5-5", "gpt-6.1-sol")),
-            PlatformRoles.SAGE to RoleModels("claude-fable-5-1", listOf("claude-fable-5-1")),
+            PlatformRoles.SAVANT to RoleModels("claude-fable-5-1", listOf("claude-fable-5-1")),
             PlatformRoles.SCOUT to RoleModels("deepseek-flash", listOf("deepseek-flash")),
         ),
         pilots = PlatformRoles.PILOTS,
@@ -115,7 +115,7 @@ class PilotedModelTest {
         vm.send()
 
         coVerify { repository.startChat(text = "Bonjour", connectors = any(), model = null, files = any()) }
-        assertThat(vm.uiState.value.canAskSage).isFalse()
+        assertThat(vm.uiState.value.canAskSavant).isFalse()
     }
 
     @Test
@@ -162,9 +162,9 @@ class PilotedModelTest {
     }
 
     @Test
-    fun `the sage is offered in the picker and picking it runs the conversation on it`() {
+    fun `the savant is offered in the picker and picking it runs the conversation on it`() {
         val vm = viewModel()
-        assertThat(vm.uiState.value.sageModel).isEqualTo(fable)
+        assertThat(vm.uiState.value.savantModel).isEqualTo(fable)
         vm.selectModel(fable)
         assertThat(vm.uiState.value.showsPiloted).isFalse()
 
@@ -175,7 +175,7 @@ class PilotedModelTest {
     }
 
     @Test
-    fun `ask the sage puts the last request to the sage through the conversation's model`() {
+    fun `ask the savant puts the last request to the savant through the conversation's model`() {
         val ran = EngineModelRef("hobbitton-chat", "claude-opus-5-5")
         coEvery { repository.history("ses_suivie", any()) } returns listOf(
             EngineStreamEvent.MessageStarted("m1", "user"),
@@ -187,8 +187,8 @@ class PilotedModelTest {
         every { repository.events("ses_suivie") } returns flowOf()
         val vm = viewModel(sessionId = "ses_suivie")
 
-        assertThat(vm.uiState.value.canAskSage).isTrue()
-        vm.askSage()
+        assertThat(vm.uiState.value.canAskSavant).isTrue()
+        vm.askSavant()
 
         coVerify { repository.sendMessage("ses_suivie", ASK_SAGE_PREFIX + "Rédige la relance", ran, any()) }
     }
