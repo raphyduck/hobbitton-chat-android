@@ -91,7 +91,7 @@ class MissionChatModelMemoryTest {
     }
 
     @Test
-    fun `without a memory the last turn's model does not stand: the message goes on the person's default`() {
+    fun `without a memory the last turn's model does not stand, the message goes on the person's default`() {
         // 08/11/2026 evening, Raphaël: « une fois qu'une session est en mode pilote, elle doit le
         // rester à chaque nouvelle réponse ». A reminder's turn on Sonnet decides nothing; with no
         // catalogue here, no pick is resolved nor recorded and the engine's agent answers.
