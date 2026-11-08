@@ -201,7 +201,7 @@ data class MissionChatUiState(
     val engineDefault: EngineSelectableModel? = null,
     /**
      * The platform's roles and their models (08/11/2026, D-086): what « Piloté » runs on (the
-     * penseur in service), the sage « Ask the sage » goes to; empty without a scheduler, and
+     * penseur in service), the savant « Ask the savant » goes to; empty without a scheduler, and
      * « Piloté » then leaves the model to the engine, whose chat agent is the penseur too.
      */
     val roles: PlatformRoles = PlatformRoles.NONE,
@@ -272,27 +272,27 @@ data class MissionChatUiState(
     val showsPiloted: Boolean
         get() = effectiveModel?.let { it.isAuto || roles.isInService(PlatformRoles.THINKER, it.ref) } ?: true
 
-    /** The sage in service, as the picker offers it: named from the catalogue when it lists it. */
-    val sageModel: EngineSelectableModel?
-        get() = roles.sage?.let { ref ->
+    /** The savant in service, as the picker offers it: named from the catalogue when it lists it. */
+    val savantModel: EngineSelectableModel?
+        get() = roles.savant?.let { ref ->
             models.firstOrNull { it.modelId == ref.modelId }
                 ?: EngineSelectableModel(providerId = ref.providerId, modelId = ref.modelId, label = ref.modelId)
         }
 
-    /** The last thing the person wrote, what « Ask the sage » puts to the sage; null when nothing was. */
+    /** The last thing the person wrote, what « Ask the savant » puts to the savant; null when nothing was. */
     val lastUserText: String?
         get() = chat.turns.filterIsInstance<ChatTurn.User>().lastOrNull()
             ?.parts?.filterIsInstance<ChatPart.Text>()?.joinToString("\n") { it.text }
             ?.takeIf { it.isNotBlank() }
 
     /**
-     * « Ask the sage » is offered under the last answer (D-086, in place of « redo stronger »): an
-     * answer is in, nothing runs, and the platform has a sage. The penseur stays the one who talks:
-     * it puts the request to the sage as a sub-agent, with the dossier, and reports its opinion.
+     * « Ask the savant » is offered under the last answer (D-086, in place of « redo stronger »): an
+     * answer is in, nothing runs, and the platform has a savant. The penseur stays the one who talks:
+     * it puts the request to the savant as a sub-agent, with the dossier, and reports its opinion.
      */
-    val canAskSage: Boolean
+    val canAskSavant: Boolean
         get() = !chat.streaming && !sending && chat.turns.lastOrNull() is ChatTurn.Assistant &&
-            lastUserText != null && roles.sage != null
+            lastUserText != null && roles.savant != null
 }
 
 /** A chat the composer just created on the engine, as the navigation needs it. */
@@ -537,7 +537,7 @@ class MissionChatViewModel(
                     val prices = catalogueLoader.prices()
                     _uiState.update { it.copy(prices = prices) }
                     // The platform's roles (08/11/2026, D-086): what « Piloté » runs on and whether
-                    // there is a sage to ask. Their absence costs « Ask the sage », nothing else.
+                    // there is a savant to ask. Their absence costs « Ask the savant », nothing else.
                     val roles = withContext(ioDispatcher) { runCatching { scheduler?.roles() }.getOrNull() }
                     _uiState.update { it.copy(roles = roles ?: PlatformRoles.NONE) }
                 }
@@ -1277,7 +1277,7 @@ class MissionChatViewModel(
         if (!effective.isAuto) return effective.ref
         // « Piloté » (D-086, 08/11/2026 ; « Auto » from 25/10 read the first message through the
         // scheduler's trieur and picked a tier): the conversation runs on the platform's penseur
-        // in service, who delegates the plumbing to the éclaireur and consults the sage when a
+        // in service, who delegates the plumbing to the éclaireur and consults the savant when a
         // decision is heavy. A conversation that already ran keeps its model: the provider's
         // cache is built on it, and changing mid-way throws it away. Without a roles table the
         // message goes without a model, to the chat agent's own, the penseur too server side.
@@ -1290,14 +1290,14 @@ class MissionChatViewModel(
     }
 
     /**
-     * « Ask the sage » (D-086): the last request again, put to the sage through the penseur, who
+     * « Ask the savant » (D-086): the last request again, put to the savant through the penseur, who
      * gathers the dossier, asks one bounded question and reports the opinion. The conversation
      * keeps its model; the engine has the first answer in its history.
      */
-    fun askSage() {
+    fun askSavant() {
         val state = _uiState.value
         val sessionId = sessionId ?: return
-        if (!state.canAskSage) return
+        if (!state.canAskSavant) return
         val text = state.lastUserText ?: return
         val model = state.effectiveModel?.takeUnless { it.isAuto }?.ref ?: state.roles.thinker
         _uiState.update { it.copy(sending = true, sendError = null) }
@@ -1416,6 +1416,6 @@ private const val CHAT_TITLE_LENGTH = 60
  * agent's prompts are French, and the message is for the model, not for the screen.
  */
 internal const val ASK_SAGE_PREFIX =
-    "Consulte le sage (sous-agent `sage`) sur ma dernière demande : fais rassembler par l'éclaireur le dossier " +
+    "Consulte le savant (sous-agent `savant`) sur ma dernière demande : fais rassembler par l'éclaireur le dossier " +
         "dont il a besoin, pose-lui une seule question précise avec les pièces et les chiffres, et rends-moi son " +
         "avis motivé tel quel, puis ce que tu en retiens :\n\n"

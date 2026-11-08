@@ -12,13 +12,13 @@ import kotlinx.serialization.Serializable
  *
  * What the app does with it: a conversation on « Piloté » runs on the [thinker] (the penseur in
  * service, which delegates the plumbing to the éclaireur through the engine's sub-agents); the
- * picker offers the [sage] for a conversation that is all heavy reasoning; « Ask the sage » under an
+ * picker offers the [savant] for a conversation that is all heavy reasoning; « Ask the savant » under an
  * answer exists when the server has one. Empty when the scheduler predates the route.
  */
 @Serializable
 data class PlatformRoles(
     @SerialName("roles") val roles: Map<String, RoleModels> = emptyMap(),
-    /** The roles a mission may be led by (`pilote`): penseur, eclaireur, sage. */
+    /** The roles a mission may be led by (`pilote`): penseur, eclaireur, savant. */
     @SerialName("pilotes") val pilots: List<String> = emptyList(),
     @SerialName("pilote_par_defaut") val defaultPilot: String = THINKER,
     /** The provider a conversation spends on (D-077): `hobbitton-chat`. */
@@ -34,8 +34,8 @@ data class PlatformRoles(
     /** The penseur in service, what « Piloté » runs on; null without a table. */
     val thinker: EngineModelRef? get() = conversationModel(THINKER)
 
-    /** The sage in service, the strongest model, for heavy reasoning; null without a table. */
-    val sage: EngineModelRef? get() = conversationModel(SAGE)
+    /** The savant in service, the strongest model, for heavy reasoning; null without a table. */
+    val savant: EngineModelRef? get() = conversationModel(SAVANT)
 
     /** True when [ref] is the model in service of [role], whatever the provider it is named on. */
     fun isInService(role: String, ref: EngineModelRef?): Boolean =
@@ -44,10 +44,10 @@ data class PlatformRoles(
     companion object {
         const val THINKER = "penseur"
         const val SCOUT = "eclaireur"
-        const val SAGE = "sage"
+        const val SAVANT = "savant"
 
         /** The pilots a mission may name, in the order the screen shows them. */
-        val PILOTS = listOf(THINKER, SCOUT, SAGE)
+        val PILOTS = listOf(THINKER, SCOUT, SAVANT)
         val NONE = PlatformRoles()
     }
 }

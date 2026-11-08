@@ -30,7 +30,7 @@ data class ScheduledMission(
      */
     @SerialName("outils_declares") val declaredTools: Int = 0,
     @SerialName("modele") val model: String? = null,
-    /** The role that leads the mission (D-086): « penseur » (default), « eclaireur » or « sage ». */
+    /** The role that leads the mission (D-086): « penseur » (default), « eclaireur » or « savant ». */
     @SerialName("pilote") val pilot: String? = null,
     @SerialName("timeout_s") val timeoutSeconds: Int = 0,
     @SerialName("budget_tokens") val tokenBudget: Int = 0,

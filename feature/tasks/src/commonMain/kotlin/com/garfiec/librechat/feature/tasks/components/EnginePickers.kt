@@ -30,7 +30,7 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_connectors_read
 import com.garfiec.librechat.feature.tasks.resources.tasks_model
 import com.garfiec.librechat.feature.tasks.resources.tasks_model_auto_long
 import com.garfiec.librechat.feature.tasks.resources.tasks_model_other
-import com.garfiec.librechat.feature.tasks.resources.tasks_model_sage_long
+import com.garfiec.librechat.feature.tasks.resources.tasks_model_savant_long
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
@@ -42,17 +42,17 @@ import com.garfiec.librechat.core.ui.resources.Res as CoreRes
  * A sheet of radio rows, not a dropdown: the catalogue has more than five entries, which is the
  * same reason the connector list once stopped being inline checkboxes. Since D-086 (08/11/2026)
  * the choice is a choice of ROLE first: « Piloté » (the platform's penseur in service, who
- * delegates the plumbing to the éclaireur and consults the sage when a decision is heavy),
- * « Sage » (the strongest model, for a conversation that is all heavy reasoning), and only then
+ * delegates the plumbing to the éclaireur and consults the savant when a decision is heavy),
+ * « Savant » (the strongest model, for a conversation that is all heavy reasoning), and only then
  * « another model », the exception. [piloted] is true when the conversation runs on the penseur
- * (whatever row got it there); [sage] is null when the server names none.
+ * (whatever row got it there); [savant] is null when the server names none.
  */
 @Composable
 internal fun ModelPickerSheet(
     models: List<EngineSelectableModel>,
     selected: EngineSelectableModel?,
     piloted: Boolean,
-    sage: EngineSelectableModel?,
+    savant: EngineSelectableModel?,
     prices: ModelPrices,
     onSelect: (EngineSelectableModel?) -> Unit,
     onDismiss: () -> Unit,
@@ -79,9 +79,9 @@ internal fun ModelPickerSheet(
             selected = piloted,
             onClick = { onSelect(EngineSelectableModel.AUTO) },
         )
-        sage?.let { candidate ->
+        savant?.let { candidate ->
             ModelRow(
-                label = stringResource(Res.string.tasks_model_sage_long),
+                label = stringResource(Res.string.tasks_model_savant_long),
                 price = prices.byModel[candidate.modelId.lowercase()],
                 selected = !piloted && candidate == selected,
                 onClick = { onSelect(candidate) },
@@ -100,7 +100,7 @@ internal fun ModelPickerSheet(
                 // where the gateway prices « claude-opus-5 », and matching on prose would find
                 // nothing while looking exactly like a model the gateway has no price for.
                 price = prices.byModel[candidate.modelId.lowercase()],
-                selected = !piloted && candidate == selected && candidate != sage,
+                selected = !piloted && candidate == selected && candidate != savant,
                 onClick = { onSelect(candidate) },
             )
         }

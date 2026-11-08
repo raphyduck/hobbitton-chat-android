@@ -290,7 +290,7 @@ internal fun MissionChatInput(
             models = state.models,
             selected = state.effectiveModel,
             piloted = state.showsPiloted,
-            sage = state.sageModel,
+            savant = state.savantModel,
             prices = state.prices,
             onSelect = {
                 onSelectModel(it)

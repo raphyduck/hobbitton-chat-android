@@ -66,7 +66,7 @@ class SchedulerRepository(
     /**
      * The platform's roles and their models (08/11/2026, D-086), or null: no scheduler, a scheduler
      * without the route, or one that cannot be reached. Null leaves « Piloté » on the engine's own
-     * default (the penseur too, server side) and the conversation without « Ask the sage ».
+     * default (the penseur too, server side) and the conversation without « Ask the savant ».
      */
     suspend fun roles(): PlatformRoles? {
         if (!isConfigured()) return null

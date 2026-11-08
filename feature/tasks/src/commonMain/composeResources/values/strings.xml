@@ -198,9 +198,9 @@
     <string name="tasks_chat_compacting">Compacting the conversation…</string>
     <string name="tasks_model_auto">Piloted</string>
     <string name="tasks_model_auto_long">Piloted: the platform\'s thinker, who delegates to the scout</string>
-    <string name="tasks_model_sage_long">Sage: the strongest model, for heavy reasoning</string>
+    <string name="tasks_model_savant_long">Savant: the strongest model, for heavy reasoning</string>
     <string name="tasks_model_other">Another model</string>
-    <string name="tasks_chat_ask_sage">Ask the sage</string>
+    <string name="tasks_chat_ask_savant">Ask the savant</string>
     <string name="tasks_chat_load_earlier">Earlier messages</string>
     <string name="tasks_hands_free">Hands-free</string>
     <string name="tasks_hands_free_stop">Leave hands-free</string>
@@ -219,7 +219,7 @@
     <string name="tasks_mission_pilot">Led by</string>
     <string name="tasks_mission_pilot_thinker">The thinker</string>
     <string name="tasks_mission_pilot_scout">The scout alone</string>
-    <string name="tasks_mission_pilot_sage">The sage</string>
+    <string name="tasks_mission_pilot_savant">The savant</string>
     <string name="tasks_mission_prompt">Prompt</string>
     <string name="tasks_mission_budget">Token budget (weighted)</string>
     <string name="tasks_mission_timeout">Time limit (seconds)</string>

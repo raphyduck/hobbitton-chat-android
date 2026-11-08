@@ -423,7 +423,7 @@ class SchedulerApi(
 
     /**
      * The platform's roles and their models: `GET /roles` (08/11/2026, D-086), a plain HTTP route
-     * like [identity]. What « Piloté » runs on, what the sage is, which pilots a mission may name.
+     * like [identity]. What « Piloté » runs on, what the savant is, which pilots a mission may name.
      * Null on a scheduler from before the route (404).
      */
     suspend fun roles(): PlatformRoles? {
