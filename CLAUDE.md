@@ -68,7 +68,18 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   decision or a reply to follow, stands at the mission's level until the titulaire says a word,
   the kit's review; `liftToTitularIfNeeded`). The
   lift rewrites the rules only from connectors the screen read; unread, it records the level alone
-  (`liftToTitular`) and the chip offers a retry (26/10/2026: an empty list stripped every tool). A
+  (`liftToTitular`) and the chip offers a retry (26/10/2026: an empty list stripped every tool).
+  **Rules follow the role of the model sent** (08/11/2026 evening, Raphaël: « le verrou se fait
+  par rôle »): `permissionsFor(catalogue, connectors, access)` takes the access of the role the
+  model belongs to (`PlatformRoles.accessOfModel`, the scheduler's `GET /roles` `acces` table, the
+  same table built in when it is not served): a role that delegates (penseur, savant) gets one
+  `task` rule per sub-agent and NO rule for the annuaire, neither allow nor deny (the engine's
+  profile refuses it to the penseur, and a session deny would be inherited by the éclaireur who
+  calls it); a role that calls the annuaire itself (éclaireur, codeur) gets it and no sub-agent.
+  Before this the app wrote no `task` rule at all, so no conversation ever delegated. The rules
+  read back say whether they delegate (`rulesDelegate`, `SessionScopeRead.delegates`,
+  `MissionChatUiState.rulesDelegate`) and the first send rewrites them when the role of the model
+  sent disagrees (`liftToTitularIfNeeded`), which migrates every older conversation. A
   connector is read as granted from ONE of its tools allowed (31/10/2026; before, every tool): rules
   are written once and the catalogue grows, so the day the scheduler gained
   `planificateur_pieces_jointes` every older conversation read its `planificateur` as absent and the

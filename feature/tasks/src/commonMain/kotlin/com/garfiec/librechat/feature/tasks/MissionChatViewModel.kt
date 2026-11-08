@@ -148,6 +148,13 @@ data class MissionChatUiState(
      */
     val rulesStale: Boolean = false,
     /**
+     * Whether the session's rules open a sub-agent (08/11/2026 evening, access by role): true for a
+     * session led by a role that delegates (the penseur, the savant). Null while unknown. The
+     * first send rewrites the rules when the role of the model sent disagrees: a conversation
+     * opened before the table carried no `task` rule and never delegated.
+     */
+    val rulesDelegate: Boolean? = null,
+    /**
      * The scheduler holds this conversation in pause on a spending ceiling (07/11/2026): the
      * gateway refused its last step, and the scheduler resumes it by itself once the budget is
      * back (or at once when the ceilings are raised in Settings). Said above the composer.
@@ -520,6 +527,7 @@ class MissionChatViewModel(
                             // A lift done meanwhile (a send) outranks the level read before it.
                             sessionLevel = it.sessionLevel ?: scope?.level,
                             rulesStale = scope?.stale == true && it.sessionLevel == null,
+                            rulesDelegate = it.rulesDelegate ?: scope?.delegates,
                             connectorsError = null,
                         )
                     }
@@ -582,8 +590,9 @@ class MissionChatViewModel(
         val sessionId = sessionId ?: return
         viewModelScope.launch {
             try {
-                withContext(ioDispatcher) { repository.setConnectors(sessionId, after.toList()) }
-                _uiState.update { it.copy(sessionLevel = TITULAR_LEVEL) }
+                val access = _uiState.value.roles.accessOfModel(resolveModel())
+                withContext(ioDispatcher) { repository.setConnectors(sessionId, after.toList(), access) }
+                _uiState.update { it.copy(sessionLevel = TITULAR_LEVEL, rulesDelegate = access.delegates) }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -1030,21 +1039,37 @@ class MissionChatViewModel(
      * alone, and the session keeps the tools it has (26/10/2026: an empty list had stripped every
      * one of them). Called by a send and by an answer to a question.
      */
-    private suspend fun liftToTitularIfNeeded(sessionId: String, state: MissionChatUiState) {
+    private suspend fun liftToTitularIfNeeded(
+        sessionId: String,
+        state: MissionChatUiState,
+        /** The model the message goes on; resolved here when the caller has not. */
+        model: EngineModelRef? = null,
+    ) {
         val known = state.enabledConnectors
+        // Access by role (08/11/2026 evening): the rules follow the role of the model sent. A role
+        // that delegates opens its sub-agents and never the annuaire; the others the reverse.
+        val wanted = state.roles.accessOfModel(model ?: resolveModel())
         if (state.sessionLevel == TITULAR_LEVEL) {
-            // Already the titulaire's: only rules the catalogue has outgrown are rewritten, from
-            // the connectors read back, never from an unread list (26/10/2026).
-            if (state.rulesStale && known != null) {
-                withContext(ioDispatcher) { repository.setConnectors(sessionId, known.toList()) }
-                _uiState.update { it.copy(rulesStale = false) }
+            // Already the titulaire's: rules the catalogue has outgrown, or written for another
+            // role than the one now speaking, are rewritten from the connectors read back, never
+            // from an unread list (26/10/2026).
+            val roleMoved = state.rulesDelegate != null && state.rulesDelegate != wanted.delegates
+            if ((state.rulesStale || roleMoved) && known != null) {
+                withContext(ioDispatcher) { repository.setConnectors(sessionId, known.toList(), wanted) }
+                _uiState.update { it.copy(rulesStale = false, rulesDelegate = wanted.delegates) }
             }
             return
         }
         withContext(ioDispatcher) {
-            if (known != null) repository.setConnectors(sessionId, known.toList()) else repository.liftToTitular(sessionId)
+            if (known != null) repository.setConnectors(sessionId, known.toList(), wanted) else repository.liftToTitular(sessionId)
         }
-        _uiState.update { it.copy(sessionLevel = TITULAR_LEVEL, rulesStale = false) }
+        _uiState.update {
+            it.copy(
+                sessionLevel = TITULAR_LEVEL,
+                rulesStale = false,
+                rulesDelegate = if (known != null) wanted.delegates else it.rulesDelegate,
+            )
+        }
     }
 
     private fun closeQuestion(requestId: String) {
@@ -1137,10 +1162,10 @@ class MissionChatViewModel(
         awaitingReply = true
         viewModelScope.launch {
             try {
-                liftToTitularIfNeeded(sessionId, staged)
+                val model = resolveModel()
+                liftToTitularIfNeeded(sessionId, staged, model)
                 // The answer streams in over the feed while this call is in flight; what it returns is
                 // the finished turn, folded in to reconcile anything the feed missed.
-                val model = resolveModel()
                 model?.let { rememberModel(sessionId, it) }
                 val settled = withContext(ioDispatcher) {
                     val outgoing = deposit(sessionId, text, attachments)
@@ -1206,6 +1231,7 @@ class MissionChatViewModel(
                         connectors = staged.enabledConnectors?.toList(),
                         model = model,
                         files = outgoing.files,
+                        access = staged.roles.accessOfModel(model),
                     )
                 }
                 model?.let { rememberModel(created, it) }

@@ -2,6 +2,8 @@ package com.garfiec.librechat.core.data.engine
 
 import com.garfiec.librechat.core.model.scheduler.ConnectorCatalogue
 import com.garfiec.librechat.core.model.scheduler.ConnectorGrant
+import com.garfiec.librechat.core.model.scheduler.PlatformRoles
+import com.garfiec.librechat.core.model.scheduler.RoleAccess
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -25,6 +27,43 @@ class EngineConnectorScopeTest {
         ),
         socle = mapOf("todowrite" to "allow"),
     )
+
+    @Test
+    fun `a role that delegates gets its sub-agents and no rule for the annuaire`() {
+        // 08/11/2026 evening (Raphaël: the lock is by role): the penseur never calls the annuaire,
+        // and a session deny would be inherited by the éclaireur who does; so nothing is written for
+        // it, and one `task` rule per sub-agent is.
+        val penseur = PlatformRoles.NONE.accessOf(PlatformRoles.THINKER)
+        val rules = permissionsFor(catalogue, listOf("memoire", "annuaire", "qonto"), penseur)
+
+        assertFalse(rules.any { it.permission.startsWith("planificateur_annuaire_") })
+        assertEquals(
+            listOf("eclaireur", "navigateur", "savant"),
+            rules.filter { it.permission == "task" && it.action == "allow" }.map { it.pattern },
+        )
+        assertTrue(rulesDelegate(rules))
+        // The chip still reads the annuaire as the conversation's: its sub-agents reach it.
+        assertEquals(setOf("memoire"), connectorsGranted(catalogue, rules))
+    }
+
+    @Test
+    fun `a role that calls the annuaire itself gets it and no sub-agent`() {
+        val eclaireur = PlatformRoles.NONE.accessOf(PlatformRoles.SCOUT)
+        val rules = permissionsFor(catalogue, listOf("memoire", "annuaire"), eclaireur)
+
+        assertEquals(
+            listOf("todowrite", "question", "memoire_lire", "planificateur_annuaire_chercher", "planificateur_annuaire_appeler"),
+            rules.filter { it.action == "allow" }.map { it.permission },
+        )
+        assertFalse(rulesDelegate(rules))
+        // The savant who leads opens the éclaireur and the navigateur, never itself; a model no
+        // list names is led as the penseur.
+        assertEquals(listOf("eclaireur", "navigateur"), PlatformRoles.NONE.accessOf(PlatformRoles.SAVANT).subAgents)
+        assertEquals(PlatformRoles.NONE.accessOf(PlatformRoles.THINKER), PlatformRoles.NONE.accessOfModel(null))
+        // The server's table wins over the built-in one when it is published.
+        val served = PlatformRoles(access = mapOf(PlatformRoles.SCOUT to RoleAccess(annuaire = false)))
+        assertFalse(served.accessOf(PlatformRoles.SCOUT).annuaire)
+    }
 
     @Test
     fun `only direct connectors become rules`() {
