@@ -232,15 +232,10 @@
     <string name="tasks_spend_loading">Reading the conversation and its sub-agents…</string>
     <string name="tasks_spend_failed">The spend could not be read.</string>
     <string name="tasks_spend_empty">No model call yet.</string>
-    <string name="tasks_spend_total">Total</string>
-    <string name="tasks_spend_unpriced">no price</string>
+    <string name="tasks_spend_sum">Total</string>
     <string name="tasks_spend_tokens">%1$s in · %2$s out</string>
     <string name="tasks_spend_estimated">≈ estimated from the tokens and the gateway’s prices, where the engine had no figure.</string>
     <string name="tasks_spend_hint">Each answer is signed by the role and the model that wrote it; a delegation runs in a sub-agent’s session, counted here under its role.</string>
-    <plurals name="tasks_spend_calls">
-        <item quantity="one">%1$d call</item>
-        <item quantity="other">%1$d calls</item>
-    </plurals>
     <plurals name="tasks_spend_tools">
         <item quantity="one">%1$d tool</item>
         <item quantity="other">%1$d tools</item>

@@ -39,9 +39,9 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_spend_estimated
 import com.garfiec.librechat.feature.tasks.resources.tasks_spend_failed
 import com.garfiec.librechat.feature.tasks.resources.tasks_spend_hint
 import com.garfiec.librechat.feature.tasks.resources.tasks_spend_loading
+import com.garfiec.librechat.feature.tasks.resources.tasks_spend_sum
 import com.garfiec.librechat.feature.tasks.resources.tasks_spend_tokens
 import com.garfiec.librechat.feature.tasks.resources.tasks_spend_tools
-import com.garfiec.librechat.feature.tasks.resources.tasks_spend_total
 import com.garfiec.librechat.feature.tasks.resources.tasks_spend_unpriced
 import com.garfiec.librechat.feature.tasks.util.ModelSignature
 import com.garfiec.librechat.feature.tasks.util.SessionSpend
@@ -177,7 +177,7 @@ private fun SpendTable(spend: SessionSpend, models: List<EngineSelectableModel>)
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    stringResource(Res.string.tasks_spend_total),
+                    stringResource(Res.string.tasks_spend_sum),
                     style = MaterialTheme.typography.titleSmall,
                     modifier = Modifier.weight(1f),
                 )
