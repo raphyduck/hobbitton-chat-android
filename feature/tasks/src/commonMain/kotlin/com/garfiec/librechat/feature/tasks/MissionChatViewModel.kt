@@ -1249,10 +1249,13 @@ class MissionChatViewModel(
 
     /**
      * [model] is the conversation's from now on, on this device (26/10/2026): the chip shows it
-     * whatever the scheduler plays into the conversation, and the next messages follow it.
+     * whatever the scheduler plays into the conversation, and the next messages follow it. A pick
+     * of « Piloté » has done its work once resolved (D-086): it gives way, so the chip names the
+     * model the conversation really runs on, and still reads « Piloté » when that is the penseur in
+     * service.
      */
     private fun rememberModel(sessionId: String, model: EngineModelRef) {
-        _uiState.update { it.copy(rememberedModel = model) }
+        _uiState.update { it.copy(rememberedModel = model, model = it.model?.takeUnless { pick -> pick.isAuto }) }
         viewModelScope.launch {
             runCatching { withContext(ioDispatcher) { conversationModels?.record(sessionId, model) } }
                 .onFailure { Logger.w(LOG_TAG, it) { "Could not record the model of $sessionId" } }
