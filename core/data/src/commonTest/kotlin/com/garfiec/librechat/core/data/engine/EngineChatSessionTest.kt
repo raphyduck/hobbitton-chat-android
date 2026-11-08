@@ -225,7 +225,9 @@ class EngineChatSessionTest {
         val choice = testMissionRepository(engine()).models()
 
         assertEquals(setOf("hobbitton-chat"), choice.models.map { it.providerId }.toSet())
-        assertEquals("hobbitton-chat", choice.preselected?.providerId)
+        // « Piloté » is preselected (D-086); the engine's default is the chat provider's.
+        assertTrue(choice.preselected?.isAuto == true)
+        assertEquals("hobbitton-chat", choice.engineDefault?.providerId)
     }
 
     @Test
