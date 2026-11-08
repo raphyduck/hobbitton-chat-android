@@ -92,8 +92,6 @@ import com.garfiec.librechat.shared.resources.engine_settings_cancel
 import com.garfiec.librechat.shared.resources.engine_settings_default_model
 import com.garfiec.librechat.shared.resources.engine_settings_default_model_auto
 import com.garfiec.librechat.shared.resources.engine_settings_default_model_hint
-import com.garfiec.librechat.shared.resources.engine_settings_default_model_server
-import com.garfiec.librechat.shared.resources.engine_settings_default_model_server_named
 import com.garfiec.librechat.shared.resources.engine_settings_default_model_unavailable
 import com.garfiec.librechat.shared.resources.engine_settings_diagnostics
 import com.garfiec.librechat.shared.resources.engine_settings_diagnostics_hint
@@ -246,8 +244,9 @@ internal fun EngineSettingsScreen(
 }
 
 /**
- * The default model, picked among the conversations' models, « the server's » first: the engine's
- * own default, which follows the deployment when it changes. Picking closes the dialog.
+ * The default model, « Piloté » first (the platform's penseur in service, D-086), then the
+ * conversations' models for who wants one model for every new conversation. Picking closes the
+ * dialog.
  */
 @Composable
 private fun DefaultModelDialog(
@@ -266,15 +265,12 @@ private fun DefaultModelDialog(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 8.dp),
                 )
-                ModelOption(
-                    label = serverModelLabel(state.engineDefault),
-                    selected = state.defaultModelId == null,
-                    onClick = { onPick(null) },
-                )
-                // « Auto » (25/10/2026): the scheduler reads the first message and picks the tier.
+                // « Piloté » (D-086, 08/11/2026 ; « Auto » from 25/10): the platform's penseur in
+                // service, who delegates to the éclaireur. The default of a device that chose
+                // nothing (null) reads the same; the engine's own default is the penseur too.
                 ModelOption(
                     label = stringResource(Res.string.engine_settings_default_model_auto),
-                    selected = state.defaultModelId == EngineSelectableModel.AUTO_MODEL_ID,
+                    selected = state.defaultModelId == null || state.defaultModelId == EngineSelectableModel.AUTO_MODEL_ID,
                     onClick = { onPick(EngineSelectableModel.AUTO_MODEL_ID) },
                 )
                 state.models.forEach { model ->
@@ -317,10 +313,6 @@ private fun ModelOption(label: String, selected: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun serverModelLabel(engineDefault: EngineSelectableModel?): String =
-    engineDefault?.let { stringResource(Res.string.engine_settings_default_model_server_named, it.label) }
-        ?: stringResource(Res.string.engine_settings_default_model_server)
-
 /** Signing out forgets the portal session: asked once, never on a stray tap. */
 @Composable
 private fun SignOutDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
@@ -440,8 +432,7 @@ private fun SettingsBody(
                 icon = Icons.Outlined.AutoAwesome,
                 headline = stringResource(Res.string.engine_settings_default_model),
                 supporting = when (state.defaultModelId) {
-                    null -> serverModelLabel(state.engineDefault)
-                    EngineSelectableModel.AUTO_MODEL_ID -> stringResource(Res.string.engine_settings_default_model_auto)
+                    null, EngineSelectableModel.AUTO_MODEL_ID -> stringResource(Res.string.engine_settings_default_model_auto)
                     else -> state.defaultModelLabel
                 },
                 onClick = onPickModel,

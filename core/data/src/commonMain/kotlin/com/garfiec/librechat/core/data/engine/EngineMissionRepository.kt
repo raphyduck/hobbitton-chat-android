@@ -265,12 +265,12 @@ class EngineMissionRepository(
             catalogue.default[p.id]?.let { key -> selectable(p.id, key, p.models[key]) }
         }
         // A preference the deployment no longer lists falls back to the engine's: a turn sent to a
-        // model the gateway dropped would only fail. « Auto » (25/10/2026) is not in any list: the
-        // conversation resolves it to a model when its first message is sent.
+        // model the gateway dropped would only fail. « Piloté » (25/10/2026 « Auto », 08/11/2026
+        // D-086) is not in any list: the conversation resolves it to the platform's penseur when
+        // its first message is sent, and it is the default of a device that chose nothing.
         val preferredId = modelPreference?.modelId()
         val preferred = when (preferredId) {
-            null -> null
-            EngineSelectableModel.AUTO_MODEL_ID -> EngineSelectableModel.AUTO
+            null, EngineSelectableModel.AUTO_MODEL_ID -> EngineSelectableModel.AUTO
             else -> models.firstOrNull { it.modelId == preferredId }
         }
         return EngineModelChoice(models = models, preselected = preferred ?: engineDefault, engineDefault = engineDefault)

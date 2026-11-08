@@ -29,24 +29,30 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_connectors_hint
 import com.garfiec.librechat.feature.tasks.resources.tasks_connectors_read
 import com.garfiec.librechat.feature.tasks.resources.tasks_model
 import com.garfiec.librechat.feature.tasks.resources.tasks_model_auto_long
-import com.garfiec.librechat.feature.tasks.resources.tasks_model_default_short
+import com.garfiec.librechat.feature.tasks.resources.tasks_model_other
+import com.garfiec.librechat.feature.tasks.resources.tasks_model_sage_long
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import com.garfiec.librechat.core.ui.resources.Res as CoreRes
 
 /**
- * The model choice — the module's ONE copy, for both the conversation and the new-mission form.
+ * The model choice — the module's ONE copy, for the conversation.
  *
  * A sheet of radio rows, not a dropdown: the catalogue has more than five entries, which is the
- * same reason the connector list once stopped being inline checkboxes. The nullable row is deliberate —
- * an unpicked model is not a missing setting, it is the engine's (or the profile's) own choice,
- * and taking a pick back must stay possible.
+ * same reason the connector list once stopped being inline checkboxes. Since D-086 (08/11/2026)
+ * the choice is a choice of ROLE first: « Piloté » (the platform's penseur in service, who
+ * delegates the plumbing to the éclaireur and consults the sage when a decision is heavy),
+ * « Sage » (the strongest model, for a conversation that is all heavy reasoning), and only then
+ * « another model », the exception. [piloted] is true when the conversation runs on the penseur
+ * (whatever row got it there); [sage] is null when the server names none.
  */
 @Composable
 internal fun ModelPickerSheet(
     models: List<EngineSelectableModel>,
     selected: EngineSelectableModel?,
+    piloted: Boolean,
+    sage: EngineSelectableModel?,
     prices: ModelPrices,
     onSelect: (EngineSelectableModel?) -> Unit,
     onDismiss: () -> Unit,
@@ -68,18 +74,24 @@ internal fun ModelPickerSheet(
             )
         }
         ModelRow(
-            label = stringResource(Res.string.tasks_model_default_short),
-            price = null,
-            selected = selected == null,
-            onClick = { onSelect(null) },
-        )
-        // « Auto » (25/10/2026, Raphaël's rule: the model necessary and sufficient): the scheduler
-        // reads the first message and picks the tier; the conversation then keeps that model.
-        ModelRow(
             label = stringResource(Res.string.tasks_model_auto_long),
             price = null,
-            selected = selected?.isAuto == true,
+            selected = piloted,
             onClick = { onSelect(EngineSelectableModel.AUTO) },
+        )
+        sage?.let { candidate ->
+            ModelRow(
+                label = stringResource(Res.string.tasks_model_sage_long),
+                price = prices.byModel[candidate.modelId.lowercase()],
+                selected = !piloted && candidate == selected,
+                onClick = { onSelect(candidate) },
+            )
+        }
+        Text(
+            stringResource(Res.string.tasks_model_other),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
         )
         models.forEach { candidate ->
             ModelRow(
@@ -88,7 +100,7 @@ internal fun ModelPickerSheet(
                 // where the gateway prices « claude-opus-5 », and matching on prose would find
                 // nothing while looking exactly like a model the gateway has no price for.
                 price = prices.byModel[candidate.modelId.lowercase()],
-                selected = candidate == selected,
+                selected = !piloted && candidate == selected && candidate != sage,
                 onClick = { onSelect(candidate) },
             )
         }

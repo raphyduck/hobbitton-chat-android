@@ -6,8 +6,7 @@ import com.garfiec.librechat.core.model.scheduler.ChatBudget
 import com.garfiec.librechat.core.model.scheduler.Consumption
 import com.garfiec.librechat.core.model.scheduler.MissionEdits
 import com.garfiec.librechat.core.model.scheduler.ModelPrices
-import com.garfiec.librechat.core.model.scheduler.ModelTierChoice
-import com.garfiec.librechat.core.model.scheduler.ModelTiers
+import com.garfiec.librechat.core.model.scheduler.PlatformRoles
 import com.garfiec.librechat.core.model.scheduler.PausedSession
 import com.garfiec.librechat.core.model.scheduler.PortalIdentity
 import com.garfiec.librechat.core.model.scheduler.ProviderHealth
@@ -47,12 +46,12 @@ class SchedulerRepository(
     }
 
     private var identityRead: Pair<Long, PortalIdentity>? = null
-    private var tiersRead: Pair<Long, ModelTiers>? = null
+    private var rolesRead: Pair<Long, PlatformRoles>? = null
 
     /** Sign-out: the next person signed in may be another. */
     fun forget() {
         identityRead = null
-        tiersRead = null
+        rolesRead = null
     }
 
     /**
@@ -65,24 +64,14 @@ class SchedulerRepository(
     }
 
     /**
-     * The tiers of model the server offers a conversation (25/10/2026), or null: no scheduler, a
-     * scheduler without the route, or one that cannot be reached. Null leaves the conversation
-     * without a « redo stronger »; nothing else depends on it.
+     * The platform's roles and their models (08/11/2026, D-086), or null: no scheduler, a scheduler
+     * without the route, or one that cannot be reached. Null leaves « Piloté » on the engine's own
+     * default (the penseur too, server side) and the conversation without « Ask the sage ».
      */
-    suspend fun modelTiers(): ModelTiers? {
+    suspend fun roles(): PlatformRoles? {
         if (!isConfigured()) return null
-        tiersRead?.takeIf { now() - it.first < TIERS_TTL_MS }?.let { return it.second }
-        return runCatching { api.modelTiers() }.getOrNull()?.also { tiersRead = now() to it }
-    }
-
-    /**
-     * The tier and model a first message calls for, from the server's trieur (25/10/2026); null
-     * when there is no scheduler, no route, no trieur, or no answer. Null means « the default »,
-     * never an error to show: the conversation starts either way.
-     */
-    suspend fun triage(text: String, hasImages: Boolean): ModelTierChoice? {
-        if (!isConfigured()) return null
-        return runCatching { api.triageModel(text, hasImages) }.getOrNull()
+        rolesRead?.takeIf { now() - it.first < ROLES_TTL_MS }?.let { return it.second }
+        return runCatching { api.roles() }.getOrNull()?.also { rolesRead = now() to it }
     }
 
     /**
@@ -183,6 +172,6 @@ class SchedulerRepository(
         const val IDENTITY_TTL_MS = 60L * 60 * 1000
 
         /** Ten minutes: the ladder changes when the platform is reconfigured. */
-        const val TIERS_TTL_MS = 10L * 60 * 1000
+        const val ROLES_TTL_MS = 10L * 60 * 1000
     }
 }

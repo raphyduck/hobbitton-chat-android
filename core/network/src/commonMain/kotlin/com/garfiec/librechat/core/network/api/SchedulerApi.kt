@@ -5,8 +5,7 @@ import com.garfiec.librechat.core.model.scheduler.ConnectorCatalogue
 import com.garfiec.librechat.core.model.scheduler.Consumption
 import com.garfiec.librechat.core.model.scheduler.MissionEdits
 import com.garfiec.librechat.core.model.scheduler.ModelPrices
-import com.garfiec.librechat.core.model.scheduler.ModelTierChoice
-import com.garfiec.librechat.core.model.scheduler.ModelTiers
+import com.garfiec.librechat.core.model.scheduler.PlatformRoles
 import com.garfiec.librechat.core.model.scheduler.PausedSession
 import com.garfiec.librechat.core.model.scheduler.PortalIdentity
 import com.garfiec.librechat.core.model.scheduler.ProviderHealth
@@ -293,7 +292,7 @@ class SchedulerApi(
             edits.runAt?.let { put("quand", it) }
             edits.prompt?.let { put("prompt", it) }
             edits.model?.let { put("modele", it) }
-            edits.tier?.let { put("palier", it) }
+            edits.pilot?.let { put("pilote", it) }
             edits.tokenBudget?.let { put("budget_tokens", it) }
             edits.timeoutSeconds?.let { put("timeout_s", it) }
             edits.toolCallCeiling?.let { put("plafond_appels", it) }
@@ -423,45 +422,20 @@ class SchedulerApi(
     }
 
     /**
-     * The tiers of model a conversation may start on, and whether the server can read a first
-     * message to pick one: `GET /palier` (25/10/2026), a plain HTTP route like [identity]. Null on
-     * a scheduler from before the route (404).
+     * The platform's roles and their models: `GET /roles` (08/11/2026, D-086), a plain HTTP route
+     * like [identity]. What « Piloté » runs on, what the sage is, which pilots a mission may name.
+     * Null on a scheduler from before the route (404).
      */
-    suspend fun modelTiers(): ModelTiers? {
+    suspend fun roles(): PlatformRoles? {
         val response = client.get {
-            url { path("palier") }
+            url { path("roles") }
             accept(ContentType.Application.Json)
         }
         if (response.status == HttpStatusCode.NotFound) return null
         if (!response.status.isSuccess()) {
             throw EngineHttpException(response.status.value, response.request.method.value, response.request.url.encodedPath)
         }
-        return json.decodeFromString(ModelTiers.serializer(), response.bodyAsText())
-    }
-
-    /**
-     * What tier a first message calls for, read by the server's cheap trieur: `POST /palier` with
-     * the text and whether an image comes with it (25/10/2026). The answer's `modele` is the model
-     * to start the conversation on, null when the server has no trieur or it did not answer: the
-     * caller then keeps its default. Null on a scheduler from before the route (404).
-     */
-    suspend fun triageModel(text: String, hasImages: Boolean): ModelTierChoice? {
-        val response = client.post {
-            url { path("palier") }
-            accept(ContentType.Application.Json)
-            contentType(ContentType.Application.Json)
-            setBody(
-                buildJsonObject {
-                    put("texte", text)
-                    put("images", hasImages)
-                },
-            )
-        }
-        if (response.status == HttpStatusCode.NotFound) return null
-        if (!response.status.isSuccess()) {
-            throw EngineHttpException(response.status.value, response.request.method.value, response.request.url.encodedPath)
-        }
-        return json.decodeFromString(ModelTierChoice.serializer(), response.bodyAsText())
+        return json.decodeFromString(PlatformRoles.serializer(), response.bodyAsText())
     }
 
     /**

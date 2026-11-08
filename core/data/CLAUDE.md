@@ -98,8 +98,12 @@ Since 12/10/2026 chats and tasks are one conversation, as on Claude.ai.
   Cleared at sign-out.
 - **`models()`**: the conversations' provider only; `preselected` is the person's default
   (`ModelPreference`, Settings' `SettingsDataStore.defaultChatModel`) while the list still has it,
-  the engine's otherwise (`engineDefault`, kept for Settings to name). A turn sent without a model
-  goes there too (`chatModel`).
+  « Piloté » (`EngineSelectableModel.AUTO`) otherwise and for a device that chose nothing (D-086,
+  08/11/2026); `engineDefault` is kept for the conversation to tell a fallback nobody chose. A turn
+  sent without a model runs on the chat agent's own (`chatModel`).
+- **`SchedulerRepository.roles()`** (D-086): the platform's roles and their models in service
+  (`GET /roles`, `PlatformRoles`), kept ten minutes, forgotten at sign-out; what « Piloté » runs on
+  and whether there is a sage to ask. Replaces the tiers and the trieur (`/palier`).
 - **`AudioTranscriber` (`SchedulerTranscriber`)** — the composer's speech to text on the scheduler's
   `POST /transcription`. Answers `TranscriptionOutcome` (the words, or a `TranscriptionFailure` plus
   the server's `erreur`), never throws past `:core:data`. The language hint is the device's when it
