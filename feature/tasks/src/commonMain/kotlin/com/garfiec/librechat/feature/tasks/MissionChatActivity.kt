@@ -40,6 +40,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.garfiec.librechat.feature.tasks.components.DisclosureRow
 import com.garfiec.librechat.feature.tasks.components.RunningIndicator
+import com.garfiec.librechat.feature.tasks.components.SignatureCaption
 import com.garfiec.librechat.feature.tasks.resources.Res
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_argument
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_collapse
@@ -72,10 +73,16 @@ import org.jetbrains.compose.resources.stringResource
  * a delta appending to the turn does not snap it shut under their thumb.
  */
 @Composable
-internal fun ActivityBlock(block: ChatBlock.Activity, taskSignature: (String) -> String? = { null }) {
+internal fun ActivityBlock(
+    block: ChatBlock.Activity,
+    taskSignature: (String) -> String? = { null },
+    /** Who ran each part (08/11/2026): on the folded header when the block has one author, on each row inside. */
+    signatureFor: (ChatPart) -> String? = { null },
+) {
     var expanded by rememberSaveable(block.key) { mutableStateOf(false) }
     val failed = block.hasFailure()
     val running = block.isRunning()
+    val signatures = block.parts.mapNotNull(signatureFor).distinct()
 
     Column(Modifier.fillMaxWidth()) {
         // The chat's activity header, measure for measure (`ActivityGroup`): 16 dp Build icon at
@@ -91,6 +98,9 @@ internal fun ActivityBlock(block: ChatBlock.Activity, taskSignature: (String) ->
             } else {
                 MaterialTheme.colorScheme.onSurfaceVariant
             },
+            // One author for the whole block: said on the header, no need to open it. Several
+            // (a step that thought on one model, a tool called by another): each row says its own.
+            trailing = signatures.singleOrNull()?.let { signature -> { SignatureCaption(signature) } },
             leading = {
                 // Each state is named for TalkBack: colour and a spinner say nothing to it.
                 when {
@@ -127,16 +137,15 @@ internal fun ActivityBlock(block: ChatBlock.Activity, taskSignature: (String) ->
                 Modifier.padding(start = 12.dp, bottom = 4.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
+                // Each row is signed only when the block's rows differ: a signature the header
+                // already carries would be repeated on every line.
+                val rowSignature: (ChatPart) -> String? = if (signatures.size > 1) signatureFor else { _ -> null }
                 block.parts.forEach { part ->
                     when (part) {
-                        is ChatPart.Tool -> ToolRow(part)
+                        is ChatPart.Tool -> ToolRow(part, rowSignature(part))
                         // bodyMedium: thinking is read as prose, and at bodySmall in the secondary
                         // colour it fell short of a comfortable contrast on the dark theme.
-                        is ChatPart.Reasoning -> Text(
-                            text = part.text,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                        is ChatPart.Reasoning -> ReasoningRow(part, rowSignature(part))
                         // Neither ever reaches an activity group: prose and attachments open
                         // their own blocks in asBlocks.
                         is ChatPart.Text -> Unit
@@ -184,8 +193,21 @@ private const val MISSION_SUFFIX = "-mission"
  * protect. A call with neither arguments nor output does not open at all: an empty drawer with a
  * chevron on it is a promise the row cannot keep.
  */
+/** The model's thinking, and under it who thought, when the block's rows have different authors. */
 @Composable
-private fun ToolRow(tool: ChatPart.Tool) {
+private fun ReasoningRow(part: ChatPart.Reasoning, signature: String?) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(
+            text = part.text,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        signature?.let { SignatureCaption(it, Modifier.align(Alignment.End)) }
+    }
+}
+
+@Composable
+private fun ToolRow(tool: ChatPart.Tool, signature: String? = null) {
     val hasPayload = tool.arguments.isNotEmpty() || tool.output != null
     var open by rememberSaveable(tool.id) { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -227,8 +249,9 @@ private fun ToolRow(tool: ChatPart.Tool) {
                     tint = MaterialTheme.colorScheme.error,
                 )
             }
+            Spacer(Modifier.weight(1f))
+            signature?.let { SignatureCaption(it) }
             if (hasPayload) {
-                Spacer(Modifier.weight(1f))
                 Icon(
                     imageVector = if (open) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                     contentDescription = stringResource(

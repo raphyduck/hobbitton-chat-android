@@ -294,6 +294,29 @@ class MissionChatTest {
     }
 
     @Test
+    fun aMergedRunSignsEachPartWithTheModelOfItsOwnStep() {
+        val flash = EngineModelRef(providerId = "hobbitton-chat", modelId = "deepseek-flash")
+        val opus = EngineModelRef(providerId = "hobbitton-chat", modelId = "claude-opus-5-5")
+        val steps = listOf(
+            ChatTurn.Assistant("msg_2a", parts = listOf(thinking("r1"), tool("t1")), model = flash),
+            ChatTurn.Assistant("msg_3a", parts = listOf(tool("t2"), text("p1", "Voilà.")), model = opus),
+            // A step the engine named no model for: its parts follow the run's model.
+            ChatTurn.Assistant("msg_4a", parts = listOf(text("p2", "Et voilà."))),
+        )
+
+        val run = assertIs<ChatTurn.Assistant>(steps.mergedAssistantRuns().single())
+
+        // Every message, tool call and reasoning is signed by its own step (08/11/2026), not by
+        // the model the run ended on.
+        assertEquals(flash, run.modelOf(thinking("r1")))
+        assertEquals(flash, run.modelOf(tool("t1")))
+        assertEquals(opus, run.modelOf(tool("t2")))
+        assertEquals(opus, run.modelOf(text("p1", "Voilà.")))
+        assertEquals(opus, run.modelOf(text("p2", "Et voilà.")))
+        assertEquals(opus, run.model)
+    }
+
+    @Test
     fun aTurnWithoutAModelLeavesTheLastKnownOneStanding() {
         val kimi = EngineModelRef(providerId = "hobbitton-gateway", modelId = "kimi-k3")
         val state = missionChatFrom(

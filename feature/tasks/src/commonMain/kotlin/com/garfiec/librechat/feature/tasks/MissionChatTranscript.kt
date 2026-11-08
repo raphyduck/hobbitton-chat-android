@@ -136,8 +136,11 @@ internal fun AssistantTurn(
     fontScale: Float,
     /** « Ask the savant » (D-086), under the last answer only, when the platform has a savant. */
     askSavant: (() -> Unit)? = null,
-    /** Who wrote it, « penseur · Opus 5.5 » (08/11/2026); null when the step named no model. */
-    signature: String? = null,
+    /**
+     * Who wrote a part, « penseur · Opus 5.5 » (08/11/2026, Raphaël: every message, tool call and
+     * reasoning signed, since a turn's steps run on different models); null when its step named none.
+     */
+    signatureFor: (ChatPart) -> String? = { null },
     /** The signature of a delegation's sub-agent by its name (`eclaireur`, `savant`…), for the fold's header. */
     taskSignature: (String) -> String? = { null },
 ) {
@@ -153,12 +156,20 @@ internal fun AssistantTurn(
         blocks.forEachIndexed { index, block ->
             when (block) {
                 is ChatBlock.Media -> AttachmentContent(block.part)
-                is ChatBlock.Prose -> MissionMarkdown(
-                    text = block.part.text,
-                    fontScale = fontScale,
-                    trailingCursor = streaming && index == lastProse,
-                )
-                is ChatBlock.Activity -> ActivityBlock(block, taskSignature)
+                is ChatBlock.Prose -> {
+                    MissionMarkdown(
+                        text = block.part.text,
+                        fontScale = fontScale,
+                        trailingCursor = streaming && index == lastProse,
+                    )
+                    // A paragraph written between two tool calls is signed under itself (the last
+                    // one is signed on the action row below); the step it came from may have run
+                    // on another model than the answer that closes the turn.
+                    if (index != lastProse) {
+                        signatureFor(block.part)?.let { SignatureLine(it) }
+                    }
+                }
+                is ChatBlock.Activity -> ActivityBlock(block, taskSignature, signatureFor)
             }
         }
         // Before the first delta there is no insertion point, so « Réflexion… » shimmers where the
@@ -180,6 +191,7 @@ internal fun AssistantTurn(
             val prose = blocks.filterIsInstance<ChatBlock.Prose>().joinToString("\n\n") { it.part.text }
             // At the row's end, the discreet signature (08/11/2026, Raphaël): the role that wrote
             // the answer and the model it ran on, in small print, never louder than the answer.
+            val signature = signatureFor((blocks[lastProse] as ChatBlock.Prose).part)
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 CopyTurnButton(prose)
                 askSavant?.let { AskSavantButton(it) }
@@ -187,6 +199,15 @@ internal fun AssistantTurn(
                 signature?.let { DisableSelection { SignatureCaption(it, Modifier.padding(end = 4.dp)) } }
             }
         }
+    }
+}
+
+/** A signature alone on its line, at the right, under a paragraph that is not the turn's last. */
+@Composable
+private fun SignatureLine(text: String) {
+    Row(Modifier.fillMaxWidth()) {
+        Spacer(Modifier.weight(1f))
+        DisableSelection { SignatureCaption(text, Modifier.padding(end = 4.dp)) }
     }
 }
 
