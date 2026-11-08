@@ -1131,7 +1131,7 @@ class MissionChatViewModel(
                 liftToTitularIfNeeded(sessionId, staged)
                 // The answer streams in over the feed while this call is in flight; what it returns is
                 // the finished turn, folded in to reconcile anything the feed missed.
-                val model = resolveModel(text, attachments.any { it.showsAsImage })
+                val model = resolveModel()
                 model?.let { rememberModel(sessionId, it) }
                 val settled = withContext(ioDispatcher) {
                     val outgoing = deposit(sessionId, text, attachments)
@@ -1187,7 +1187,7 @@ class MissionChatViewModel(
         }
         viewModelScope.launch {
             try {
-                val model = resolveModel(text, attachments.any { it.showsAsImage })
+                val model = resolveModel()
                 val created = withContext(ioDispatcher) {
                     // No session yet: the deposit goes under the server's `envois` folder.
                     val outgoing = deposit(null, text, attachments)
@@ -1269,7 +1269,7 @@ class MissionChatViewModel(
      * soon as the app restarted and forgot the pick (Raphaël, 03/10/2026). The last turn's model is
      * the session's model, and it is sent as such.
      */
-    private suspend fun resolveModel(text: String, hasImages: Boolean): EngineModelRef? {
+    private suspend fun resolveModel(): EngineModelRef? {
         val effective = _uiState.value.effectiveModel ?: return null
         if (!effective.isAuto) return effective.ref
         // « Piloté » (D-086, 08/11/2026 ; « Auto » from 25/10 read the first message through the
@@ -1412,4 +1412,7 @@ private const val CHAT_TITLE_LENGTH = 60
  * What « redo stronger » puts before the person's last words. In the platform's language: the
  * agent's prompts are French, and the message is for the model, not for the screen.
  */
-internal const val ASK_SAGE_PREFIX = "Consulte le sage (sous-agent `sage`) sur ma dernière demande : fais rassembler par l'éclaireur le dossier dont il a besoin, pose-lui une seule question précise avec les pièces et les chiffres, et rends-moi son avis motivé tel quel, puis ce que tu en retiens :\n\n"
+internal const val ASK_SAGE_PREFIX =
+    "Consulte le sage (sous-agent `sage`) sur ma dernière demande : fais rassembler par l'éclaireur le dossier " +
+        "dont il a besoin, pose-lui une seule question précise avec les pièces et les chiffres, et rends-moi son " +
+        "avis motivé tel quel, puis ce que tu en retiens :\n\n"

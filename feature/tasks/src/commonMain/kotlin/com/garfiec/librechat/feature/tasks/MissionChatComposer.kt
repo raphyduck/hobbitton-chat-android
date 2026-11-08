@@ -519,9 +519,12 @@ private fun ComposerChips(
         state.models.isNotEmpty() -> ComposerPill(
             // « Piloté » (D-086) whenever the conversation runs on the platform's penseur: the
             // model's own name stays in the picker, one tap away, and off the row.
-            label = if (state.showsPiloted) stringResource(Res.string.tasks_model_auto)
-            else state.effectiveModel?.let { shortModelLabel(it.label) }
-                ?: stringResource(Res.string.tasks_model_default_short),
+            label = if (state.showsPiloted) {
+                stringResource(Res.string.tasks_model_auto)
+            } else {
+                state.effectiveModel?.let { shortModelLabel(it.label) }
+                    ?: stringResource(Res.string.tasks_model_default_short)
+            },
             onClick = onOpenModels,
             modifier = Modifier.widthIn(max = MODEL_PILL_MAX_WIDTH),
         )

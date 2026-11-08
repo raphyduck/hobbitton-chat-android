@@ -312,7 +312,6 @@ private fun ModelOption(label: String, selected: Boolean, onClick: () -> Unit) {
     }
 }
 
-@Composable
 /** Signing out forgets the portal session: asked once, never on a stray tap. */
 @Composable
 private fun SignOutDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {

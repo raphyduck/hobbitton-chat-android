@@ -45,6 +45,7 @@ data class PlatformRoles(
         const val THINKER = "penseur"
         const val SCOUT = "eclaireur"
         const val SAGE = "sage"
+
         /** The pilots a mission may name, in the order the screen shows them. */
         val PILOTS = listOf(THINKER, SCOUT, SAGE)
         val NONE = PlatformRoles()
