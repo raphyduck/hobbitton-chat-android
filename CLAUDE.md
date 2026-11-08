@@ -259,32 +259,35 @@ Most modules have their own `CLAUDE.md` with specific guidance.
 - **Global instructions** (`GlobalProfile`, sent as `system` on every chat and task turn) are edited
   from Settings → Instructions (`EngineInstructionsScreen`) and stored on the device
   (`GlobalProfileStore`, `device:` keys).
-- **Default model** (Settings → Assistant, 19/10/2026): the model a new conversation starts on,
-  stored on the device (`SettingsDataStore.defaultChatModel`, a model id) and read by the
-  repository's `models()` (`ModelPreference`) as `preselected`; « Celui du serveur » (null) follows
-  the engine's default, and so does a model the deployment no longer lists. The composer still picks
-  another for one conversation. **Auto** (25/10/2026, Raphaël's rule: the model necessary and
-  sufficient, the cheapest): a choice of Settings and of the picker (`EngineSelectableModel.AUTO`,
-  id `auto`, never sent to the engine). The first message of a new conversation goes to the
-  scheduler's trieur (`POST /palier`, `SchedulerRepository.triage`), which names the tier and its
-  model on the chat's provider; the conversation starts on it and keeps it (`resolveModel`), the chip
-  showing what Auto chose; a trieur that does not answer leaves it on the ladder's lowest tier
-  (`ModelTiers.lowest`, 27/10/2026: sent without a model it ran on the engine's default, Sonnet, which
-  Auto never picks), and only with no ladder either on the engine's default. A
-  conversation that already ran keeps its model. **A conversation's model is what this device last
+- **Default model and « Piloté »** (Settings → Assistant, 19/10/2026 ; D-086, 08/11/2026): what a
+  new conversation starts on, stored on the device (`SettingsDataStore.defaultChatModel`, a model id)
+  and read by the repository's `models()` (`ModelPreference`) as `preselected`. **Piloté** is the
+  rule (`EngineSelectableModel.AUTO`, id `auto` kept from the « Auto » of 25/10, never sent to the
+  engine; a device that chose nothing is on it): the conversation runs on the platform's **penseur**
+  in service, who delegates the plumbing to the éclaireur and consults the sage through the engine's
+  sub-agents (the scheduler opens `task` to every conversation), read from the scheduler's
+  `GET /roles` (`PlatformRoles`, `SchedulerRepository.roles()`, ten minutes); without a roles table
+  the message goes without a model, to the chat agent's own, the penseur too. The picker is a choice
+  of role first (« Piloté », « Sage » for a conversation that is all heavy reasoning, then « Autre
+  modèle », the exception), and the composer's label reads « Piloté » whenever the conversation runs
+  on the penseur in service (`showsPiloted`); Settings offer « Piloté » and the models, a model the
+  deployment no longer lists falling back to Piloté. A conversation that already ran keeps its model.
+  Before D-086 « Auto » went through the scheduler's trieur and a ladder of tiers (`POST /palier`,
+  `ModelTiers`, « Refaire plus fort »): gone. **A conversation's model is what this device last
   sent it with** (26/10/2026, Raphaël: « le choix du modèle change en cours de route »):
   `ConversationModelStore` (`EngineConversationModels`, device preferences, cleared at sign-out),
   recorded at every send and read ahead of the model the last turn ran on
   (`MissionChatUiState.rememberedModel`, `effectiveModel`), and a last turn that ran on the engine's
   own default nobody chose (not the person's default either) does not hold the conversation: the chip
   and the next message follow the person's default (`chosenRunModel`, 27/10/2026, Raphaël: « je n'ai
-  jamais choisi Sonnet »). The engine keeps no model per session,
-  and the last turn's model is whoever wrote it: a reminder played back by the scheduler, a relance
-  posing its decision in its own conversation, ran on their own model (the palier's Sonnet until
-  kit #149), and the chip and the next message followed them. Under the last answer, « Refaire plus fort »
-  (`redoStronger`, `MissionChatUiState.canRedoStronger`) sends the last request again, prefixed
-  (`REDO_STRONGER_PREFIX`), on the tier above the one that answered, read off the scheduler's ladder
-  (`GET /palier` → `ModelTiers.strongerThan`); at the top of the ladder the button is not shown.
+  jamais choisi Sonnet »). The engine keeps no model per session, and the last turn's model is
+  whoever wrote it: a reminder played back by the scheduler, a relance posing its decision in its own
+  conversation, ran on their own model, and the chip and the next message followed them. Under the
+  last answer, « Demander au sage » (`askSage`, `MissionChatUiState.canAskSage`, shown when the
+  platform has a sage) sends the last request again, prefixed (`ASK_SAGE_PREFIX`), on the
+  conversation's model: the penseur has the sage consulted as a sub-agent on a brief and reports its
+  opinion. A mission's screen says who leads it (« Menée par » : penseur, éclaireur seul, sage ;
+  `ScheduledMission.pilot`, the scheduler's `pilote`).
 - **What the phone keeps to itself** (26/10/2026, the review). An image a message names draws on
   its own from any `https:` host or as a `data:` URL (27/10/2026, Raphaël: « il faut pouvoir
   afficher des images dans les sessions »; the day before only the platform's hosts drew, and a

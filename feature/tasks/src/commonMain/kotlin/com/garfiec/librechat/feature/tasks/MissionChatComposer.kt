@@ -289,6 +289,8 @@ internal fun MissionChatInput(
         Picker.MODELS -> ModelPickerSheet(
             models = state.models,
             selected = state.effectiveModel,
+            piloted = state.showsPiloted,
+            sage = state.sageModel,
             prices = state.prices,
             onSelect = {
                 onSelectModel(it)
@@ -515,8 +517,14 @@ private fun ComposerChips(
         // Capped: the model's name is the longest thing on the row, and the connectors' label
         // beside it should stay in view. The provider is in the picker, not on the label.
         state.models.isNotEmpty() -> ComposerPill(
-            label = state.effectiveModel?.let { if (it.isAuto) stringResource(Res.string.tasks_model_auto) else shortModelLabel(it.label) }
-                ?: stringResource(Res.string.tasks_model_default_short),
+            // « Piloté » (D-086) whenever the conversation runs on the platform's penseur: the
+            // model's own name stays in the picker, one tap away, and off the row.
+            label = if (state.showsPiloted) {
+                stringResource(Res.string.tasks_model_auto)
+            } else {
+                state.effectiveModel?.let { shortModelLabel(it.label) }
+                    ?: stringResource(Res.string.tasks_model_default_short)
+            },
             onClick = onOpenModels,
             modifier = Modifier.widthIn(max = MODEL_PILL_MAX_WIDTH),
         )

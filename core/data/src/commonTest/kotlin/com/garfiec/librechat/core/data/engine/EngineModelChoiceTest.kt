@@ -78,13 +78,15 @@ class EngineModelChoiceTest {
     }
 
     @Test
-    fun `the engine's own default is what gets preselected`() = runTest {
+    fun `a device that chose nothing is on Piloté, the engine's default kept beside it`() = runTest {
         val choice = testMissionRepository(catalogueEngine()).models()
 
-        // Not the first of the list: that would quietly make the alphabet decide which model this
-        // deployment runs on.
-        assertEquals("gpt-5.5", choice.preselected?.modelId)
-        assertEquals("hobbitton-chat", choice.preselected?.providerId)
+        // D-086 (08/11/2026): « Piloté » is the rule, the conversation resolves it to the platform's
+        // penseur. The engine's own default is still named, never the first of the list: that would
+        // quietly make the alphabet decide which model this deployment runs on.
+        assertTrue(choice.preselected?.isAuto == true)
+        assertEquals("gpt-5.5", choice.engineDefault?.modelId)
+        assertEquals("hobbitton-chat", choice.engineDefault?.providerId)
     }
 
     @Test
@@ -112,7 +114,7 @@ class EngineModelChoiceTest {
     }
 
     @Test
-    fun `an engine that names no default preselects nothing`() = runTest {
+    fun `an engine that names no default still preselects Piloté, with no engine default`() = runTest {
         val sansDefaut = catalogue.replace(
             """"default": { "opencode": "big-pickle", "hobbitton-gateway": "claude-sonnet-5", "hobbitton-chat": "gpt-5.5" }""",
             """"default": {}""",
@@ -122,7 +124,8 @@ class EngineModelChoiceTest {
         ).models()
 
         assertTrue(choice.models.isNotEmpty())
-        assertNull(choice.preselected)
+        assertTrue(choice.preselected?.isAuto == true)
+        assertNull(choice.engineDefault)
     }
 
     @Test

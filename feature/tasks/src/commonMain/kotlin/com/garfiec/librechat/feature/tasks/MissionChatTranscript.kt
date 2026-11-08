@@ -33,11 +33,11 @@ import com.garfiec.librechat.core.ui.components.ShimmerText
 import com.garfiec.librechat.core.ui.util.copyToClipboard
 import com.garfiec.librechat.feature.tasks.components.MissionMarkdown
 import com.garfiec.librechat.feature.tasks.resources.Res
+import com.garfiec.librechat.feature.tasks.resources.tasks_chat_ask_sage
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_compacted
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_compacted_saved
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_compacting
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_copy
-import com.garfiec.librechat.feature.tasks.resources.tasks_chat_redo_stronger
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_thinking
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_turn_failed
 import com.garfiec.librechat.feature.tasks.resources.tasks_chat_turn_loop_stopped
@@ -132,8 +132,8 @@ internal fun AssistantTurn(
     turn: ChatTurn.Assistant,
     streaming: Boolean,
     fontScale: Float,
-    /** « Redo stronger » (25/10/2026), under the last answer only, when a stronger tier exists. */
-    redo: (() -> Unit)? = null,
+    /** « Ask the sage » (D-086), under the last answer only, when the platform has a sage. */
+    askSage: (() -> Unit)? = null,
 ) {
     val blocks = remember(turn.parts) { turn.parts.asBlocks() }
     Column(
@@ -169,12 +169,12 @@ internal fun AssistantTurn(
         // A blank space under the question read as « nothing happened », which was false.
         turn.error?.let { error -> TurnError(error) }
         // Under a finished answer, the action row the chat and Claude both have: « copy », and under
-        // the last answer « redo stronger » (25/10/2026), the same request on the tier above.
+        // the last answer « ask the sage » (D-086, 08/11/2026), the same request put to the sage.
         if (!streaming && lastProse >= 0) {
             val prose = blocks.filterIsInstance<ChatBlock.Prose>().joinToString("\n\n") { it.part.text }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 CopyTurnButton(prose)
-                redo?.let { RedoStrongerButton(it) }
+                askSage?.let { AskSageButton(it) }
             }
         }
     }
@@ -210,13 +210,13 @@ private fun TurnError(error: String) {
     }
 }
 
-/** « Redo stronger »: the person's last request again, on the tier above the one that answered. */
+/** « Ask the sage »: the person's last request, put to the platform's strongest model by the penseur. */
 @Composable
-private fun RedoStrongerButton(onClick: () -> Unit) {
+private fun AskSageButton(onClick: () -> Unit) {
     DisableSelection {
         TextButton(onClick = onClick) {
             Text(
-                stringResource(Res.string.tasks_chat_redo_stronger),
+                stringResource(Res.string.tasks_chat_ask_sage),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

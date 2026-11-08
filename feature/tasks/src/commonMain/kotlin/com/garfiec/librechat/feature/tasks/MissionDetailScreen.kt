@@ -48,6 +48,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.garfiec.librechat.core.data.engine.missionDisplayName
 import com.garfiec.librechat.core.model.scheduler.MissionEdits
+import com.garfiec.librechat.core.model.scheduler.PlatformRoles
 import com.garfiec.librechat.core.model.scheduler.ScheduledMission
 import com.garfiec.librechat.core.ui.components.SectionGroup
 import com.garfiec.librechat.feature.tasks.components.Explanation
@@ -64,14 +65,16 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_mission_model_hint
 import com.garfiec.librechat.feature.tasks.resources.tasks_mission_model_pick
 import com.garfiec.librechat.feature.tasks.resources.tasks_mission_notify
 import com.garfiec.librechat.feature.tasks.resources.tasks_mission_open_run
+import com.garfiec.librechat.feature.tasks.resources.tasks_mission_pilot
+import com.garfiec.librechat.feature.tasks.resources.tasks_mission_pilot_sage
+import com.garfiec.librechat.feature.tasks.resources.tasks_mission_pilot_scout
+import com.garfiec.librechat.feature.tasks.resources.tasks_mission_pilot_thinker
 import com.garfiec.librechat.feature.tasks.resources.tasks_mission_profile
 import com.garfiec.librechat.feature.tasks.resources.tasks_mission_prompt
 import com.garfiec.librechat.feature.tasks.resources.tasks_mission_save_failed
 import com.garfiec.librechat.feature.tasks.resources.tasks_mission_saved
 import com.garfiec.librechat.feature.tasks.resources.tasks_mission_schedule
 import com.garfiec.librechat.feature.tasks.resources.tasks_mission_settings
-import com.garfiec.librechat.feature.tasks.resources.tasks_mission_tier
-import com.garfiec.librechat.feature.tasks.resources.tasks_mission_tier_none
 import com.garfiec.librechat.feature.tasks.resources.tasks_mission_timeout
 import com.garfiec.librechat.feature.tasks.resources.tasks_mission_tokens_run
 import com.garfiec.librechat.feature.tasks.resources.tasks_mission_tools
@@ -324,13 +327,15 @@ private fun MissionEditor(
 
         Text(stringResource(Res.string.tasks_mission_settings), style = MaterialTheme.typography.titleSmall)
         ModelField(value = draft.model, models = models, onChange = { onChange(draft.copy(model = it)) })
-        Text(stringResource(Res.string.tasks_mission_tier), style = MaterialTheme.typography.labelLarge)
+        // Who leads the mission (D-086): the penseur by default, the éclaireur alone for the
+        // mechanical, the sage for a mission that is all heavy reasoning.
+        Text(stringResource(Res.string.tasks_mission_pilot), style = MaterialTheme.typography.labelLarge)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            (listOf<String?>(null) + TIERS).forEach { tier ->
+            PlatformRoles.PILOTS.forEach { pilot ->
                 FilterChip(
-                    selected = draft.tier == tier,
-                    onClick = { onChange(draft.copy(tier = tier)) },
-                    label = { Text(tier ?: stringResource(Res.string.tasks_mission_tier_none)) },
+                    selected = draft.pilot == pilot,
+                    onClick = { onChange(draft.copy(pilot = pilot)) },
+                    label = { Text(pilotLabel(pilot)) },
                 )
             }
         }
@@ -435,7 +440,14 @@ private fun SwitchRow(label: String, checked: Boolean, onChange: (Boolean) -> Un
     }
 }
 
-private val TIERS = listOf("bas", "moyen", "haut")
+/** The pilots' names as the screen says them; the server's word itself for one it does not know. */
+@Composable
+private fun pilotLabel(pilot: String): String = when (pilot) {
+    PlatformRoles.THINKER -> stringResource(Res.string.tasks_mission_pilot_thinker)
+    PlatformRoles.SCOUT -> stringResource(Res.string.tasks_mission_pilot_scout)
+    PlatformRoles.SAGE -> stringResource(Res.string.tasks_mission_pilot_sage)
+    else -> pilot
+}
 
 /**
  * The editable fields as text, the way the screen holds them; [editsFrom] turns what differs
@@ -447,7 +459,7 @@ internal data class MissionDraft(
     val runAt: String,
     val prompt: String,
     val model: String,
-    val tier: String?,
+    val pilot: String,
     val tokenBudget: String,
     val timeoutSeconds: String,
     val toolCallCeiling: String,
@@ -463,7 +475,7 @@ internal data class MissionDraft(
             runAt = runAt.trim().takeIf { scheduleChanged && !recurring && it.isNotEmpty() },
             prompt = prompt.takeIf { it != mission.prompt.orEmpty() && it.isNotBlank() },
             model = model.trim().takeIf { it != mission.model.orEmpty() && it.isNotEmpty() },
-            tier = tier.takeIf { it != mission.tier && it != null },
+            pilot = pilot.takeIf { it != (mission.pilot ?: PlatformRoles.THINKER) },
             tokenBudget = tokenBudget.toIntOrNull()?.takeIf { it != mission.tokenBudget },
             timeoutSeconds = timeoutSeconds.toIntOrNull()?.takeIf { it != mission.timeoutSeconds },
             toolCallCeiling = toolCallCeiling.toIntOrNull()?.takeIf { it != mission.toolCallCeiling },
@@ -479,7 +491,7 @@ internal data class MissionDraft(
             runAt = mission.runAt.orEmpty(),
             prompt = mission.prompt.orEmpty(),
             model = mission.model.orEmpty(),
-            tier = mission.tier,
+            pilot = mission.pilot ?: PlatformRoles.THINKER,
             tokenBudget = mission.tokenBudget.toString(),
             timeoutSeconds = mission.timeoutSeconds.toString(),
             toolCallCeiling = mission.toolCallCeiling?.toString().orEmpty(),

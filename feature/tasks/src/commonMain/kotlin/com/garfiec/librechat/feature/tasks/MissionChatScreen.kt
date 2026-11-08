@@ -319,7 +319,7 @@ fun MissionChatScreen(
             onRetryHistory = viewModel::retryHistory,
             onRefresh = viewModel::refresh,
             onPickPrompt = viewModel::onInputChange,
-            onRedoStronger = viewModel::redoStronger,
+            onAskSage = viewModel::askSage,
             onLoadEarlier = viewModel::loadEarlierHistory,
         )
     }
@@ -336,7 +336,7 @@ private fun MissionChatBody(
     onRefresh: () -> Unit,
     onPickPrompt: (String) -> Unit,
     /** « Redo stronger » (25/10/2026), shown under the last answer when a stronger tier exists. */
-    onRedoStronger: () -> Unit = {},
+    onAskSage: () -> Unit = {},
     onLoadEarlier: () -> Unit = {},
 ) {
     // Le geste que Raphaël a cherché le 21/09/2026 avant de contourner par la liste. Il ne masque
@@ -379,7 +379,7 @@ private fun MissionChatBody(
                         chat = state.chat,
                         fontScale = state.fontScale,
                         historyLoaded = !state.loadingHistory,
-                        onRedoStronger = onRedoStronger.takeIf { state.canRedoStronger },
+                        onAskSage = onAskSage.takeIf { state.canAskSage },
                         onLoadEarlier = onLoadEarlier.takeIf { state.historyTruncated },
                         loadingEarlier = state.loadingEarlier,
                     )
@@ -395,8 +395,8 @@ internal fun MissionTurns(
     fontScale: Float,
     /** The transcript has landed (or failed to): until then the turns on screen are the feed's only. */
     historyLoaded: Boolean,
-    /** Offered under the last answer when the conversation can redo it on a stronger tier. */
-    onRedoStronger: (() -> Unit)? = null,
+    /** Offered under the last answer when the platform has a sage to put the request to (D-086). */
+    onAskSage: (() -> Unit)? = null,
     /** Offered at the top while only the conversation's tail was read (26/10/2026). */
     onLoadEarlier: (() -> Unit)? = null,
     loadingEarlier: Boolean = false,
@@ -514,7 +514,7 @@ internal fun MissionTurns(
                                 turn,
                                 streaming = live,
                                 fontScale = fontScale,
-                                redo = onRedoStronger.takeIf { index == turns.lastIndex },
+                                askSage = onAskSage.takeIf { index == turns.lastIndex },
                             )
                         }
                     }

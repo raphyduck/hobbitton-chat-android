@@ -26,9 +26,8 @@ import com.garfiec.librechat.core.model.engine.EngineQuestionRequest
 import com.garfiec.librechat.core.model.engine.EngineSelectableModel
 import com.garfiec.librechat.core.model.engine.EngineStreamEvent
 import com.garfiec.librechat.core.model.scheduler.ModelPrices
-import com.garfiec.librechat.core.model.scheduler.ModelTiers
 import com.garfiec.librechat.core.model.scheduler.PausedSession
-import com.garfiec.librechat.core.model.scheduler.asModelRef
+import com.garfiec.librechat.core.model.scheduler.PlatformRoles
 import com.garfiec.librechat.feature.tasks.delegate.CatalogueFetch
 import com.garfiec.librechat.feature.tasks.delegate.ComposerStagingDelegate
 import com.garfiec.librechat.feature.tasks.delegate.MissionCatalogueDelegate
@@ -201,10 +200,11 @@ data class MissionChatUiState(
     /** The engine's own default: what a turn sent without a model runs on. */
     val engineDefault: EngineSelectableModel? = null,
     /**
-     * The tiers of model the scheduler offers a conversation (25/10/2026), lowest first, for
-     * « redo stronger »; empty without a scheduler, and the button stays away.
+     * The platform's roles and their models (08/11/2026, D-086): what « Piloté » runs on (the
+     * penseur in service), the sage « Ask the sage » goes to; empty without a scheduler, and
+     * « Piloté » then leaves the model to the engine, whose chat agent is the penseur too.
      */
-    val tiers: ModelTiers = ModelTiers.NONE,
+    val roles: PlatformRoles = PlatformRoles.NONE,
     /**
      * Set once a **new** chat exists on the engine: the screen hands it to the navigation, which
      * replaces the blank conversation with the real one. Null for an existing session.
@@ -265,29 +265,34 @@ data class MissionChatUiState(
         } ?: defaultModel
 
     /**
-     * The model one step up the scheduler's ladder from the one the conversation runs on, for
-     * « redo stronger » (25/10/2026); null at the top, off the ladder, or while « Auto » is still
-     * unresolved. Named from the catalogue when it lists it, by its raw id otherwise.
+     * The chip reads « Piloté » (D-086): the pick is « Piloté », or the conversation runs on the
+     * penseur in service, which is what « Piloté » resolves to. The model's own name is one tap
+     * away in the picker; the chip does not push it forward.
      */
-    val strongerModel: EngineSelectableModel?
-        get() {
-            val current = effectiveModel?.takeUnless { it.isAuto } ?: return null
-            val (_, qualified) = tiers.strongerThan(current.modelId) ?: return null
-            val ref = qualified.asModelRef() ?: return null
-            return models.firstOrNull { it.modelId == ref.modelId }
+    val showsPiloted: Boolean
+        get() = effectiveModel?.let { it.isAuto || roles.isInService(PlatformRoles.THINKER, it.ref) } ?: true
+
+    /** The sage in service, as the picker offers it: named from the catalogue when it lists it. */
+    val sageModel: EngineSelectableModel?
+        get() = roles.sage?.let { ref ->
+            models.firstOrNull { it.modelId == ref.modelId }
                 ?: EngineSelectableModel(providerId = ref.providerId, modelId = ref.modelId, label = ref.modelId)
         }
 
-    /** The last thing the person wrote, what « redo stronger » asks again; null when nothing was. */
+    /** The last thing the person wrote, what « Ask the sage » puts to the sage; null when nothing was. */
     val lastUserText: String?
         get() = chat.turns.filterIsInstance<ChatTurn.User>().lastOrNull()
             ?.parts?.filterIsInstance<ChatPart.Text>()?.joinToString("\n") { it.text }
             ?.takeIf { it.isNotBlank() }
 
-    /** « Redo stronger » is offered: an answer is in, nothing runs, and a stronger tier exists. */
-    val canRedoStronger: Boolean
+    /**
+     * « Ask the sage » is offered under the last answer (D-086, in place of « redo stronger »): an
+     * answer is in, nothing runs, and the platform has a sage. The penseur stays the one who talks:
+     * it puts the request to the sage as a sub-agent, with the dossier, and reports its opinion.
+     */
+    val canAskSage: Boolean
         get() = !chat.streaming && !sending && chat.turns.lastOrNull() is ChatTurn.Assistant &&
-            lastUserText != null && strongerModel != null
+            lastUserText != null && roles.sage != null
 }
 
 /** A chat the composer just created on the engine, as the navigation needs it. */
@@ -531,10 +536,10 @@ class MissionChatViewModel(
                     // service, and its absence must cost the prices, not the picker.
                     val prices = catalogueLoader.prices()
                     _uiState.update { it.copy(prices = prices) }
-                    // The ladder of tiers (25/10/2026), for « redo stronger »: the scheduler's, and
-                    // its absence costs the button, nothing else.
-                    val tiers = withContext(ioDispatcher) { runCatching { scheduler?.modelTiers() }.getOrNull() }
-                    _uiState.update { it.copy(tiers = tiers ?: ModelTiers.NONE) }
+                    // The platform's roles (08/11/2026, D-086): what « Piloté » runs on and whether
+                    // there is a sage to ask. Their absence costs « Ask the sage », nothing else.
+                    val roles = withContext(ioDispatcher) { runCatching { scheduler?.roles() }.getOrNull() }
+                    _uiState.update { it.copy(roles = roles ?: PlatformRoles.NONE) }
                 }
             }
         }
@@ -1126,7 +1131,7 @@ class MissionChatViewModel(
                 liftToTitularIfNeeded(sessionId, staged)
                 // The answer streams in over the feed while this call is in flight; what it returns is
                 // the finished turn, folded in to reconcile anything the feed missed.
-                val model = resolveModel(text, attachments.any { it.showsAsImage })
+                val model = resolveModel()
                 model?.let { rememberModel(sessionId, it) }
                 val settled = withContext(ioDispatcher) {
                     val outgoing = deposit(sessionId, text, attachments)
@@ -1182,7 +1187,7 @@ class MissionChatViewModel(
         }
         viewModelScope.launch {
             try {
-                val model = resolveModel(text, attachments.any { it.showsAsImage })
+                val model = resolveModel()
                 val created = withContext(ioDispatcher) {
                     // No session yet: the deposit goes under the server's `envois` folder.
                     val outgoing = deposit(null, text, attachments)
@@ -1244,10 +1249,13 @@ class MissionChatViewModel(
 
     /**
      * [model] is the conversation's from now on, on this device (26/10/2026): the chip shows it
-     * whatever the scheduler plays into the conversation, and the next messages follow it.
+     * whatever the scheduler plays into the conversation, and the next messages follow it. A pick
+     * of « Piloté » has done its work once resolved (D-086): it gives way, so the chip names the
+     * model the conversation really runs on, and still reads « Piloté » when that is the penseur in
+     * service.
      */
     private fun rememberModel(sessionId: String, model: EngineModelRef) {
-        _uiState.update { it.copy(rememberedModel = model) }
+        _uiState.update { it.copy(rememberedModel = model, model = it.model?.takeUnless { pick -> pick.isAuto }) }
         viewModelScope.launch {
             runCatching { withContext(ioDispatcher) { conversationModels?.record(sessionId, model) } }
                 .onFailure { Logger.w(LOG_TAG, it) { "Could not record the model of $sessionId" } }
@@ -1264,50 +1272,41 @@ class MissionChatViewModel(
      * soon as the app restarted and forgot the pick (Raphaël, 03/10/2026). The last turn's model is
      * the session's model, and it is sent as such.
      */
-    private suspend fun resolveModel(text: String, hasImages: Boolean): EngineModelRef? {
+    private suspend fun resolveModel(): EngineModelRef? {
         val effective = _uiState.value.effectiveModel ?: return null
         if (!effective.isAuto) return effective.ref
-        // « Auto » (25/10/2026, Raphaël's rule: the model necessary and sufficient). A conversation
-        // that already ran keeps its model: the provider's cache is built on it, and changing
-        // mid-way throws it away. A new one is read once by the scheduler's trieur. A trieur that
-        // does not answer leaves it on the ladder's lowest tier, the cheapest (27/10/2026): sent
-        // without a model it ran on the engine's default, Sonnet, which Auto never picks and
-        // Raphaël never chose. No ladder either, and only then the engine's default.
+        // « Piloté » (D-086, 08/11/2026 ; « Auto » from 25/10 read the first message through the
+        // scheduler's trieur and picked a tier): the conversation runs on the platform's penseur
+        // in service, who delegates the plumbing to the éclaireur and consults the sage when a
+        // decision is heavy. A conversation that already ran keeps its model: the provider's
+        // cache is built on it, and changing mid-way throws it away. Without a roles table the
+        // message goes without a model, to the chat agent's own, the penseur too server side.
         _uiState.value.chosenRunModel?.let { return it }
-        val choice = withContext(ioDispatcher) { scheduler?.triage(text, hasImages) }
-        val qualified = choice?.model
-            ?: ModelTiers(choice?.models.orEmpty()).lowest
-            ?: _uiState.value.tiers.lowest
-        if (choice?.model == null) {
-            Logger.w(LOG_TAG) { "Auto: no answer from the trieur, starting on ${qualified ?: "the engine's default"}" }
+        val thinker = _uiState.value.roles.thinker
+        if (thinker == null) {
+            Logger.w(LOG_TAG) { "Piloté: no roles table, starting on the engine's default" }
         }
-        val ref = qualified?.asModelRef() ?: return null
-        val picked = _uiState.value.models.firstOrNull { it.modelId == ref.modelId }
-            ?: EngineSelectableModel(providerId = ref.providerId, modelId = ref.modelId, label = ref.modelId)
-        // On the chip from now on: the person sees what Auto chose, and the next messages follow it.
-        _uiState.update { it.copy(model = picked) }
-        return picked.ref
+        return thinker
     }
 
     /**
-     * « Redo stronger » (25/10/2026): the last request again, on the tier above the model that
-     * answered, which the conversation then keeps. The engine has the first answer in its history;
-     * the message says what is asked of the stronger model.
+     * « Ask the sage » (D-086): the last request again, put to the sage through the penseur, who
+     * gathers the dossier, asks one bounded question and reports the opinion. The conversation
+     * keeps its model; the engine has the first answer in its history.
      */
-    fun redoStronger() {
+    fun askSage() {
         val state = _uiState.value
         val sessionId = sessionId ?: return
-        if (!state.canRedoStronger) return
-        val stronger = state.strongerModel ?: return
+        if (!state.canAskSage) return
         val text = state.lastUserText ?: return
-        _uiState.update { it.copy(model = stronger, sending = true, sendError = null) }
-        rememberModel(sessionId, stronger.ref)
+        val model = state.effectiveModel?.takeUnless { it.isAuto }?.ref ?: state.roles.thinker
+        _uiState.update { it.copy(sending = true, sendError = null) }
         sendsInFlight++
         awaitingReply = true
         viewModelScope.launch {
             try {
                 val settled = withContext(ioDispatcher) {
-                    repository.sendMessage(sessionId, REDO_STRONGER_PREFIX + text, stronger.ref)
+                    repository.sendMessage(sessionId, ASK_SAGE_PREFIX + text, model)
                 }
                 _uiState.update { current ->
                     current.copy(chat = settled.fold(current.chat) { chat, event -> chat.reduce(event) })
@@ -1416,4 +1415,7 @@ private const val CHAT_TITLE_LENGTH = 60
  * What « redo stronger » puts before the person's last words. In the platform's language: the
  * agent's prompts are French, and the message is for the model, not for the screen.
  */
-internal const val REDO_STRONGER_PREFIX = "Reprends ma dernière demande avec plus de soin et de rigueur, sur un modèle plus fort :\n\n"
+internal const val ASK_SAGE_PREFIX =
+    "Consulte le sage (sous-agent `sage`) sur ma dernière demande : fais rassembler par l'éclaireur le dossier " +
+        "dont il a besoin, pose-lui une seule question précise avec les pièces et les chiffres, et rends-moi son " +
+        "avis motivé tel quel, puis ce que tu en retiens :\n\n"
