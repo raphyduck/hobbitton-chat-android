@@ -269,7 +269,8 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   `GET /roles` (`PlatformRoles`, `SchedulerRepository.roles()`, ten minutes); without a roles table
   the message goes without a model, to the chat agent's own, the penseur too. The picker is a choice
   of role first (« Piloté », « Savant » for a conversation that is all heavy reasoning, then « Autre
-  modèle », the exception), and the composer's label reads « Piloté » whenever the conversation runs
+  modèle », the exception; a price only next to a model, never next to a role: Raphaël, 08/11/2026,
+  « Piloté » cannot be priced), and the composer's label reads « Piloté » whenever the conversation runs
   on the penseur in service (`showsPiloted`); Settings offer « Piloté » and the models, a model the
   deployment no longer lists falling back to Piloté. A conversation that already ran keeps its model.
   Before D-086 « Auto » went through the scheduler's trieur and a ladder of tiers (`POST /palier`,
