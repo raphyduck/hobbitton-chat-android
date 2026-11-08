@@ -120,12 +120,16 @@ private fun ModelRow(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         RadioButton(selected = selected, onClick = onClick)
-        Text(label, style = MaterialTheme.typography.bodyLarge)
+        // The label takes the room and wraps; the price keeps its one line (08/11/2026: the role
+        // rows' long labels squeezed « 10 / 50 $/M » into a column of single characters).
+        Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
         modelPriceLabel(price)?.let { tag ->
             Text(
                 tag,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                softWrap = false,
             )
         }
     }
