@@ -25,6 +25,7 @@ import com.garfiec.librechat.core.model.engine.EnginePromptPart
 import com.garfiec.librechat.core.model.engine.EngineQuestionRequest
 import com.garfiec.librechat.core.model.engine.EngineSelectableModel
 import com.garfiec.librechat.core.model.engine.EngineStreamEvent
+import com.garfiec.librechat.core.model.engine.isAuto
 import com.garfiec.librechat.core.model.scheduler.ModelPrices
 import com.garfiec.librechat.core.model.scheduler.PausedSession
 import com.garfiec.librechat.core.model.scheduler.PlatformRoles
@@ -177,9 +178,11 @@ data class MissionChatUiState(
      */
     val model: EngineSelectableModel? = null,
     /**
-     * The model this device last sent this conversation with (26/10/2026), ahead of the one the
-     * last turn ran on: a reminder or a relance the scheduler played into the conversation ran on
-     * its own model, and the person's next message used to follow it.
+     * The PICK this device last sent this conversation with (26/10/2026; the pick itself since
+     * 08/11/2026 evening): « Piloté » ([EngineSelectableModel.AUTO]'s reference) or a model. Raphaël's
+     * rule: a conversation in Piloté stays in Piloté at every new answer until he changes it, so what
+     * is kept is the pilotage, never the model it resolved to that day; the model the last turn ran
+     * on never decides either (a reminder or a relance the scheduler played ran on its own).
      */
     val rememberedModel: EngineModelRef? = null,
     /**
@@ -247,37 +250,23 @@ data class MissionChatUiState(
         questionDraft?.takeIf { it.requestId == request.id } ?: QuestionDraft.blank(request)
 
     /**
-     * The model the session's last turn ran on, unless nobody chose it (27/10/2026, Raphaël: « le
-     * modèle affiché devrait être celui qui est déjà choisi pour cette session ; je n'ai jamais
-     * choisi Sonnet »). A turn sent without a model runs on the engine's own default; when that is
-     * not the person's default either, nobody picked it (a trieur that did not answer, a decision
-     * the scheduler opened without a tier), and the conversation is not held to it: the chip and
-     * the next message follow the person's default instead. A model picked on this device is
-     * [rememberedModel] and comes first anyway.
-     */
-    val chosenRunModel: EngineModelRef?
-        get() = chat.model?.takeUnless { ran ->
-            val fallback = engineDefault ?: return@takeUnless false
-            val preferred = defaultModel ?: return@takeUnless false
-            ran == fallback.ref && preferred != fallback
-        }
-
-    /**
      * What the model chip says, and what the picker shows as current.
      *
-     * The user's pick for the next message wins; failing that, the model this device last sent the
-     * conversation with ([rememberedModel]); failing that, the model the session's last turn
-     * actually ran on — read off the engine's own message envelopes. A model the catalogue does not list still gets named, by its raw id: an
-     * unfamiliar model is worth showing, and « Session model » in its place says less than nothing.
+     * The user's pick for the next message wins; failing that, the pick this device recorded for
+     * the conversation ([rememberedModel]: « Piloté » or a model); failing that, the person's
+     * default. The model the session's last turn ran on never decides (08/11/2026 evening, Raphaël:
+     * « une fois qu'une session est en mode pilote, elle doit le rester à chaque nouvelle réponse,
+     * jusqu'à ce que je décide de changer »). A model the catalogue does not list still gets named,
+     * by its raw id: an unfamiliar model is worth showing.
      */
     val effectiveModel: EngineSelectableModel?
-        get() = model ?: (rememberedModel ?: chosenRunModel)?.let { ref ->
-            models.firstOrNull { it.ref == ref }
-                ?: EngineSelectableModel(
-                    providerId = ref.providerId,
-                    modelId = ref.modelId,
-                    label = ref.modelId,
-                )
+        get() = model ?: rememberedModel?.let { ref ->
+            if (ref.isAuto) {
+                EngineSelectableModel.AUTO
+            } else {
+                models.firstOrNull { it.ref == ref }
+                    ?: EngineSelectableModel(providerId = ref.providerId, modelId = ref.modelId, label = ref.modelId)
+            }
         } ?: defaultModel
 
     /**
@@ -1162,11 +1151,12 @@ class MissionChatViewModel(
         awaitingReply = true
         viewModelScope.launch {
             try {
+                val pick = currentPick()
                 val model = resolveModel()
                 liftToTitularIfNeeded(sessionId, staged, model)
                 // The answer streams in over the feed while this call is in flight; what it returns is
                 // the finished turn, folded in to reconcile anything the feed missed.
-                model?.let { rememberModel(sessionId, it) }
+                pick?.let { rememberPick(sessionId, it) }
                 val settled = withContext(ioDispatcher) {
                     val outgoing = deposit(sessionId, text, attachments)
                     repository.sendMessage(
@@ -1234,7 +1224,7 @@ class MissionChatViewModel(
                         access = staged.roles.accessOfModel(model),
                     )
                 }
-                model?.let { rememberModel(created, it) }
+                currentPick()?.let { rememberPick(created, it) }
                 val title = chatTitle(text).ifBlank { attachments.firstOrNull()?.filename.orEmpty() }
                 _uiState.update { it.copy(started = StartedChat(created, title)) }
             } catch (e: CancellationException) {
@@ -1283,19 +1273,22 @@ class MissionChatViewModel(
     }
 
     /**
-     * [model] is the conversation's from now on, on this device (26/10/2026): the chip shows it
-     * whatever the scheduler plays into the conversation, and the next messages follow it. A pick
-     * of « Piloté » has done its work once resolved (D-086): it gives way, so the chip names the
-     * model the conversation really runs on, and still reads « Piloté » when that is the penseur in
-     * service.
+     * Records the pick this conversation runs on, « Piloté » or a model, on the device and in the
+     * state (08/11/2026 evening, Raphaël's rule: Piloté stays Piloté at every answer until he changes
+     * it). The pick for the next message has done its work: cleared, the remembered one carries it.
      */
-    private fun rememberModel(sessionId: String, model: EngineModelRef) {
-        _uiState.update { it.copy(rememberedModel = model, model = it.model?.takeUnless { pick -> pick.isAuto }) }
+    private fun rememberPick(sessionId: String, pick: EngineModelRef) {
+        _uiState.update { it.copy(rememberedModel = pick, model = null) }
         viewModelScope.launch {
-            runCatching { withContext(ioDispatcher) { conversationModels?.record(sessionId, model) } }
-                .onFailure { Logger.w(LOG_TAG, it) { "Could not record the model of $sessionId" } }
+            runCatching { withContext(ioDispatcher) { conversationModels?.record(sessionId, pick) } }
+                .onFailure { Logger.w(LOG_TAG, it) { "Could not record the pick of $sessionId" } }
         }
     }
+
+    /** The pick the next message goes with: « Piloté » as [EngineSelectableModel.AUTO]'s reference, else the model. */
+    private fun currentPick(): EngineModelRef? =
+        _uiState.value.effectiveModel?.let { if (it.isAuto) EngineSelectableModel.AUTO.ref else it.ref }
+
 
     /**
      * The model the next message names: what the chip shows — the pick, else the model this device
@@ -1313,10 +1306,10 @@ class MissionChatViewModel(
         // « Piloté » (D-086, 08/11/2026 ; « Auto » from 25/10 read the first message through the
         // scheduler's trieur and picked a tier): the conversation runs on the platform's penseur
         // in service, who delegates the plumbing to the éclaireur and consults the savant when a
-        // decision is heavy. A conversation that already ran keeps its model: the provider's
-        // cache is built on it, and changing mid-way throws it away. Without a roles table the
-        // message goes without a model, to the chat agent's own, the penseur too server side.
-        _uiState.value.chosenRunModel?.let { return it }
+        // decision is heavy. Every message of a piloted conversation goes to the penseur in
+        // service, whatever its last turn ran on (08/11/2026 evening, Raphaël: Piloté stays
+        // Piloté until he changes it). Without a roles table the message goes without a model,
+        // to the chat agent's own, the penseur too server side.
         val thinker = _uiState.value.roles.thinker
         if (thinker == null) {
             Logger.w(LOG_TAG) { "Piloté: no roles table, starting on the engine's default" }

@@ -283,16 +283,19 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   modèle », the exception; a price only next to a model, never next to a role: Raphaël, 08/11/2026,
   « Piloté » cannot be priced), and the composer's label reads « Piloté » whenever the conversation runs
   on the penseur in service (`showsPiloted`); Settings offer « Piloté » and the models, a model the
-  deployment no longer lists falling back to Piloté. A conversation that already ran keeps its model.
+  deployment no longer lists falling back to Piloté.
   Before D-086 « Auto » went through the scheduler's trieur and a ladder of tiers (`POST /palier`,
-  `ModelTiers`, « Refaire plus fort »): gone. **A conversation's model is what this device last
-  sent it with** (26/10/2026, Raphaël: « le choix du modèle change en cours de route »):
-  `ConversationModelStore` (`EngineConversationModels`, device preferences, cleared at sign-out),
-  recorded at every send and read ahead of the model the last turn ran on
-  (`MissionChatUiState.rememberedModel`, `effectiveModel`), and a last turn that ran on the engine's
-  own default nobody chose (not the person's default either) does not hold the conversation: the chip
-  and the next message follow the person's default (`chosenRunModel`, 27/10/2026, Raphaël: « je n'ai
-  jamais choisi Sonnet »). The engine keeps no model per session, and the last turn's model is
+  `ModelTiers`, « Refaire plus fort »): gone. **A conversation's pick is what this device last
+  sent it with** (26/10/2026, Raphaël: « le choix du modèle change en cours de route »), and
+  **« Piloté » stays « Piloté »** (08/11/2026 evening, Raphaël: « une fois qu'une session est en mode
+  pilote, elle doit le rester à chaque nouvelle réponse, jusqu'à ce que je décide de changer ») :
+  `ConversationModelStore` (`EngineConversationModels`, device preferences, cleared at sign-out)
+  records the pick itself, « Piloté » as `EngineSelectableModel.AUTO`'s reference or a model, at
+  every send (`rememberPick`, `currentPick`), and `effectiveModel` reads the pick for the next
+  message, then the recorded one, then the person's default; the model the last turn ran on never
+  decides (the `chosenRunModel` of 27/10/2026 is gone), and a piloted conversation sends every
+  message to the penseur in service (`resolveModel`). The store's key changed that evening so that
+  every conversation recorded before falls back to « Piloté », as he asked. The engine keeps no model per session, and the last turn's model is
   whoever wrote it: a reminder played back by the scheduler, a relance posing its decision in its own
   conversation, ran on their own model, and the chip and the next message followed them. Under the
   last answer, « Demander au savant » (`askSavant`, `MissionChatUiState.canAskSavant`, shown when the

@@ -11,13 +11,17 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 
 /**
- * The model this device last sent each conversation with (26/10/2026).
+ * The PICK this device last sent each conversation with (26/10/2026): « Piloté », as the reference
+ * of `EngineSelectableModel.AUTO`, or a model.
  *
  * The engine keeps no model per session: the chip and the next message followed the model the
  * session's LAST assistant turn ran on, whoever wrote it. A reminder the scheduler plays back into
  * a conversation, a relance posing its decision in its own, ran on another model, and the person's
  * next message followed it (Raphaël: « le choix du modèle change en cours de route »). What the
- * person chose for a conversation, or what Auto chose for it, is theirs until they change it.
+ * person chose for a conversation is theirs until they change it; a conversation in « Piloté »
+ * stays in « Piloté » at every answer (08/11/2026 evening, Raphaël), so the pilotage itself is
+ * what is kept, never the model it resolved to that day. The key changed the same evening: every
+ * conversation recorded before falls back to the person's default, « Piloté », as he asked.
  */
 interface ConversationModelStore {
     suspend fun modelOf(sessionId: String): EngineModelRef?
@@ -62,7 +66,7 @@ class EngineConversationModels(
         raw?.let { runCatching { json.decodeFromString<Map<String, EngineModelRef>>(it) }.getOrNull() }.orEmpty()
 
     private companion object {
-        val KEY = stringPreferencesKey("engine_conversation_models")
+        val KEY = stringPreferencesKey("engine_conversation_picks")
 
         /** As many as the session kinds: months of conversations, a few tens of kilobytes. */
         const val CAPACITY = 1_000
