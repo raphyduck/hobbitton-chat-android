@@ -197,7 +197,7 @@
     <string name="tasks_chat_compacted_saved">Conversation compacted · %1$s tokens saved</string>
     <string name="tasks_chat_compacting">Compacting the conversation…</string>
     <string name="tasks_model_auto">Piloted</string>
-    <string name="tasks_model_auto_long">Piloted: the platform\'s thinker, who delegates to the scout</string>
+    <string name="tasks_model_auto_long">Piloted: the platform's thinker, who delegates to the scout</string>
     <string name="tasks_model_savant_long">Savant: the strongest model, for heavy reasoning</string>
     <string name="tasks_model_other">Another model</string>
     <string name="tasks_chat_ask_savant">Ask the savant</string>

@@ -63,16 +63,9 @@ internal fun ModelPickerSheet(
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
         )
-        if (prices.models.isNotEmpty()) {
-            // What the figure in each row means, said once. « 3 / 15 $/M » is unreadable without
-            // it, and repeating « input / output per million » on every row would drown the names.
-            Text(
-                stringResource(CoreRes.string.model_price_legend),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
-            )
-        }
+        // The role rows carry no price (Raphaël, 08/11/2026): « Piloté » cannot be priced, the
+        // penseur delegating to cheaper and dearer models as it goes, and a role is a choice of
+        // intelligence, not of tariff. Prices stay where they mean something, next to the models.
         ModelRow(
             label = stringResource(Res.string.tasks_model_auto_long),
             price = null,
@@ -82,7 +75,7 @@ internal fun ModelPickerSheet(
         savant?.let { candidate ->
             ModelRow(
                 label = stringResource(Res.string.tasks_model_savant_long),
-                price = prices.byModel[candidate.modelId.lowercase()],
+                price = null,
                 selected = !piloted && candidate == selected,
                 onClick = { onSelect(candidate) },
             )
@@ -93,6 +86,16 @@ internal fun ModelPickerSheet(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
         )
+        if (prices.models.isNotEmpty()) {
+            // What the figure in each row means, said once. « 3 / 15 $/M » is unreadable without
+            // it, and repeating « input / output per million » on every row would drown the names.
+            Text(
+                stringResource(CoreRes.string.model_price_legend),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
+            )
+        }
         models.forEach { candidate ->
             ModelRow(
                 label = candidate.label,
@@ -120,12 +123,16 @@ private fun ModelRow(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         RadioButton(selected = selected, onClick = onClick)
-        Text(label, style = MaterialTheme.typography.bodyLarge)
+        // The label takes the room and wraps; the price keeps its one line (08/11/2026: the role
+        // rows' long labels squeezed « 10 / 50 $/M » into a column of single characters).
+        Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
         modelPriceLabel(price)?.let { tag ->
             Text(
                 tag,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                softWrap = false,
             )
         }
     }
