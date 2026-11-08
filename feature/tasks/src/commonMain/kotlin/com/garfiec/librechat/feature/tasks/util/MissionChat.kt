@@ -75,7 +75,16 @@ sealed interface ChatTurn {
         val model: EngineModelRef? = null,
         val tokens: EngineTokens? = null,
         val cost: Double? = null,
-    ) : ChatTurn
+        /**
+         * The model of the step that wrote each part, by part id (08/11/2026, Raphaël: every
+         * message, tool call and reasoning signed, not the last answer only). Filled by
+         * [mergedAssistantRuns], since a drawn turn is several steps and each ran on its own model.
+         */
+        val partModels: Map<String, EngineModelRef> = emptyMap(),
+    ) : ChatTurn {
+        /** Who wrote [part]: its step's model, or the turn's when the step named none. */
+        fun modelOf(part: ChatPart): EngineModelRef? = partModels[part.id] ?: model
+    }
 }
 
 sealed interface ChatPart {
@@ -461,13 +470,18 @@ fun List<ChatTurn>.mergedAssistantRuns(): List<ChatTurn> {
                 model = turn.model ?: previous.model,
                 tokens = turn.tokens ?: previous.tokens,
                 cost = listOfNotNull(previous.cost, turn.cost).takeIf { it.isNotEmpty() }?.sum(),
+                partModels = previous.partModels + turn.stepModels(),
             )
         } else {
-            merged += turn
+            merged += if (turn is ChatTurn.Assistant) turn.copy(partModels = turn.stepModels()) else turn
         }
     }
     return merged
 }
+
+/** One step's parts, each under the step's model; empty when the step named no model. */
+private fun ChatTurn.Assistant.stepModels(): Map<String, EngineModelRef> =
+    model?.let { ref -> parts.associate { it.id to ref } } ?: emptyMap()
 
 /** Cut a turn's parts into readable blocks. Empty prose is dropped; empty activity never appears. */
 fun List<ChatPart>.asBlocks(): List<ChatBlock> {

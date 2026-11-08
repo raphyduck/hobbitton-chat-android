@@ -83,6 +83,7 @@ import com.garfiec.librechat.feature.tasks.components.ContextSheet
 import com.garfiec.librechat.feature.tasks.components.Explanation
 import com.garfiec.librechat.feature.tasks.components.SessionSpendSheet
 import com.garfiec.librechat.feature.tasks.components.SpendButton
+import com.garfiec.librechat.feature.tasks.components.rememberSignatureWords
 import com.garfiec.librechat.feature.tasks.components.signatureText
 import com.garfiec.librechat.feature.tasks.resources.Res
 import com.garfiec.librechat.feature.tasks.resources.chat_empty
@@ -110,7 +111,6 @@ import com.garfiec.librechat.feature.tasks.util.contextUsage
 import com.garfiec.librechat.feature.tasks.util.currentHourOfDay
 import com.garfiec.librechat.feature.tasks.util.hint
 import com.garfiec.librechat.feature.tasks.util.mergedAssistantRuns
-import com.garfiec.librechat.feature.tasks.util.signatureOf
 import com.garfiec.librechat.feature.tasks.util.title
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -437,6 +437,8 @@ internal fun MissionTurns(
     // The sub-agent of a delegation, as its fold names it: the role's word and its model in service.
     // Resolved once, in composition: the fold's header asks for a sub-agent's signature by name
     // while it draws, where no resource can be read.
+    // Who wrote each part, as words (08/11/2026): computed once, called on every row.
+    val signatureWords = rememberSignatureWords(roles, models)
     val roleWords = PlatformRoles.ORDER.associateWith { role ->
         signatureText(ModelSignature(role = role, modelId = roles.inService(role) ?: role), models)
     }
@@ -553,7 +555,7 @@ internal fun MissionTurns(
                                 streaming = live,
                                 fontScale = fontScale,
                                 askSavant = onAskSavant.takeIf { index == turns.lastIndex },
-                                signature = signatureText(signatureOf(turn.model, roles), models),
+                                signatureFor = { part -> signatureWords(turn.modelOf(part)) },
                                 taskSignature = { role -> roleWords[role] },
                             )
                         }

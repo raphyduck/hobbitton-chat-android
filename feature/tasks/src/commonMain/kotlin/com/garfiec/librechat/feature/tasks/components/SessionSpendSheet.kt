@@ -17,9 +17,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.garfiec.librechat.core.model.engine.EngineModelRef
 import com.garfiec.librechat.core.model.engine.EngineSelectableModel
 import com.garfiec.librechat.core.model.scheduler.PlatformRoles
 import com.garfiec.librechat.feature.tasks.resources.Res
@@ -49,6 +51,7 @@ import com.garfiec.librechat.feature.tasks.util.SpendLine
 import com.garfiec.librechat.feature.tasks.util.compactTokens
 import com.garfiec.librechat.feature.tasks.util.formatDollars
 import com.garfiec.librechat.feature.tasks.util.shortModelLabel
+import com.garfiec.librechat.feature.tasks.util.signatureOf
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -81,6 +84,25 @@ internal fun modelLabel(modelId: String, models: List<EngineSelectableModel>): S
 @Composable
 internal fun signatureText(signature: ModelSignature?, models: List<EngineSelectableModel>): String? =
     signature?.let { "${roleLabel(it.role)} · ${modelLabel(it.modelId, models)}" }
+
+/**
+ * The signature's words as a plain function, for the transcript's rows (08/11/2026, Raphaël: every
+ * message, tool call and reasoning signed): the role labels are read once here, where resources
+ * can be, and the rows call the function on each part's model without composing a string resource.
+ */
+@Composable
+internal fun rememberSignatureWords(roles: PlatformRoles, models: List<EngineSelectableModel>): (EngineModelRef?) -> String? {
+    val roleWords = PlatformRoles.ORDER.associateWith { roleLabel(it) }
+    val otherRole = roleLabel(null)
+    return remember(roles, models, roleWords, otherRole) {
+        { ref: EngineModelRef? ->
+            signatureOf(ref, roles)?.let { signature ->
+                val role = signature.role?.let { roleWords[it] ?: it } ?: otherRole
+                "$role · ${modelLabel(signature.modelId, models)}"
+            }
+        }
+    }
+}
 
 /** The small caption of a signature: `labelSmall`, muted, never louder than the answer above it. */
 @Composable

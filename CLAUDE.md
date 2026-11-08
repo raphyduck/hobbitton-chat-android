@@ -294,7 +294,13 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   tariff as the engine's `cost`, so the figure is exact, sub-agents included). Under each answer, at
   the end of the action row, a small caption signs it « penseur · Opus 5.5 » (`signatureOf`,
   `PlatformRoles.roleOf`: a model is in one role; `SignatureCaption`), and a delegation's fold reads
-  « → éclaireur · DeepSeek Flash » (`activityLabel`, the `task` call's `subagent_type`). Beside the
+  « → éclaireur · DeepSeek Flash » (`activityLabel`, the `task` call's `subagent_type`). **Every
+  part is signed** (08/11/2026 evening, Raphaël: « pour chaque message, chaque appel d'outil, chaque
+  raisonnement, pas seulement pour la dernière réponse »): a drawn turn is several engine steps,
+  each run on its own model, so `mergedAssistantRuns` keeps the model of each part's step
+  (`ChatTurn.Assistant.partModels`, `modelOf`); a paragraph written between tool calls carries its
+  caption under itself, a folded activity carries it on its header when its parts share one author
+  and on each tool row and reasoning when they do not (`rememberSignatureWords`, `signatureFor`). Beside the
   context ring, a second small button (`SpendButton`) opens the session's spend
   (`SessionSpendSheet`, `sessionSpend`): calls, tool calls, tokens and dollars per model under its
   role, the sub-agents' sessions folded in (`GET /session/{id}/children`, read with the whole
