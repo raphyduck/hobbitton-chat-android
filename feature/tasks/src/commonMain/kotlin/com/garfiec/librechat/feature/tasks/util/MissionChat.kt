@@ -50,6 +50,14 @@ data class MissionChatState(
      * engine rewrites a message's tokens after each step; null until one does.
      */
     val contextTokens: Long? = null,
+    /**
+     * The files each sub-agent's session handed back (09/11/2026), by that session's id. A
+     * delegation runs in a session of its own and the engine's `task` returns its text alone: a
+     * document the éclaireur or the navigateur passed to the conversation (`fichiers_remettre_fichier`)
+     * sat on a tool part the person never saw. Read once per delegation, kept here, and grafted onto
+     * the `task` part so the fold shows them like any tool's files.
+     */
+    val delegatedFiles: Map<String, List<ChatPart.Attachment>> = emptyMap(),
 )
 
 sealed interface ChatTurn {
@@ -135,6 +143,11 @@ sealed interface ChatPart {
         val output: String? = null,
         /** Files the tool handed back: shown after the fold, as content (19/10/2026). */
         val attachments: List<Attachment> = emptyList(),
+        /**
+         * For a `task` call, the sub-agent's session (09/11/2026): the engine writes it at the head
+         * of the tool's output, `<task id="ses_…" state="…">`, or it is the `task_id` the call resumed.
+         */
+        val delegation: String? = null,
     ) : ChatPart
 }
 
@@ -225,7 +238,9 @@ fun MissionChatState.reduce(event: EngineStreamEvent): MissionChatState = when (
         // A summary's text is not shown: the compaction's notice stands for it.
         turns.isSummary(event.messageId) -> this
         event.part.type == COMPACTION_PART -> copy(turns = turns.withCompaction(event.messageId, event.partId, contextTokens))
-        else -> event.part.asChatPart(event.partId)?.let { copy(turns = turns.withPart(event.messageId, it)) } ?: this
+        else -> event.part.asChatPart(event.partId)?.let { part ->
+            copy(turns = turns.withPart(event.messageId, part.withDelegatedFiles(delegatedFiles)))
+        } ?: this
     }
 
     is EngineStreamEvent.PartDelta ->
@@ -296,7 +311,7 @@ fun MissionChatState.withPendingQuestions(pending: List<EngineQuestionRequest>):
 
 private const val ROLE_USER = "user"
 private const val FIELD_TEXT = "text"
-private const val DEFAULT_MIME = "application/octet-stream"
+internal const val DEFAULT_MIME = "application/octet-stream"
 
 /**
  * The parts worth rendering. `step-start` and `step-finish` are the run's own bookkeeping — nobody
@@ -325,6 +340,7 @@ private fun EnginePartSnapshot.asChatPart(partId: String): ChatPart? = when (typ
             // absent status as OK would put a ✓ on a tool that may still fail.
             else -> ToolState.RUNNING
         },
+        delegation = delegationOf(tool, input, output),
     )
     else -> null
 }
