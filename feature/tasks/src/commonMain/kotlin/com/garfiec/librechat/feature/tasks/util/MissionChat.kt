@@ -345,7 +345,6 @@ private fun EnginePartSnapshot.asChatPart(partId: String): ChatPart? = when (typ
     else -> null
 }
 
-
 /**
  * The tool a directory call really reaches. Since 08/2026 most tools are not called by name: the
  * engine calls `planificateur_annuaire_appeler` with `{"outil": "<real tool>", "arguments": {...}}`,
