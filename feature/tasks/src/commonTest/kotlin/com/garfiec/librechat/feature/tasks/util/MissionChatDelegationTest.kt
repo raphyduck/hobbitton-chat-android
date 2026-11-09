@@ -101,4 +101,27 @@ class MissionChatDelegationTest {
         assertEquals("Plan V4.pdf", files[0].filename)
         assertEquals("application/pdf", files[0].mime)
     }
+
+    @Test
+    fun `un fichier rendu par un outil porte son nom seul, sans l'adresse de la ressource`() {
+        // 09/11/2026 : le moteur nomme le fichier par l'URI de la ressource, « file:///1 - Plan V4.pdf ».
+        assertEquals("1 - Plan V4.pdf", shownFileName("file:///1 - Plan V4.pdf"))
+        assertEquals("devis.pdf", shownFileName("devis.pdf"))
+        assertNull(shownFileName(null))
+        val events = listOf(
+            EngineStreamEvent.PartUpdated(
+                "msg_f",
+                "p1",
+                EnginePartSnapshot(
+                    type = "tool",
+                    tool = "planificateur_annuaire_appeler",
+                    status = "completed",
+                    attachments = listOf(
+                        EngineFileAttachment("application/pdf", "data:application/pdf;base64,AAAA", "file:///2 - Dossier.pdf"),
+                    ),
+                ),
+            ),
+        )
+        assertEquals("2 - Dossier.pdf", delegatedFilesOf("ses_x", events).single().filename)
+    }
 }
