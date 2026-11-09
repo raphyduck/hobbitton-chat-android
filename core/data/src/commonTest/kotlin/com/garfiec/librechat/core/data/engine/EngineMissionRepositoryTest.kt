@@ -34,13 +34,19 @@ class PermissionsForTest {
     )
 
     @Test
-    fun `the rule list opens with a deny-all`() {
+    fun `the rule list opens with a task deny and closes the rest by name, never with a wildcard`() {
         val rules = permissionsFor(catalogue, listOf("memoire"))
 
-        // A profile is a ceiling; the checkboxes narrow it for this mission only. Starting from
-        // « allow everything » and subtracting would turn a forgotten connector into a granted one.
-        assertEquals("*", rules.first().permission)
-        assertEquals("deny", rules.first().action)
+        // A profile is a ceiling; the checkboxes narrow it for this mission only. Closing by name
+        // (09/11/2026): a session fille inherits every deny of its mother, and an inherited `*`
+        // left the sub-agents without a tool.
+        assertEquals("task" to "deny", rules.first().let { it.permission to it.action })
+        assertTrue(rules.none { it.permission == "*" })
+        val denied = rules.filter { it.action == "deny" }.map { it.permission }.toSet()
+        assertEquals(
+            setOf("task", "memoire_journaliser", "memoire_ecrire", "fichiers_list_roots", "fichiers_read_text", "bash", "lsp"),
+            denied,
+        )
     }
 
     @Test
@@ -71,22 +77,18 @@ class PermissionsForTest {
         val rules = permissionsFor(catalogue, listOf("connecteur-invente"))
 
         // A typo, a renamed connector, a newer server: none of them may end up widening access.
-        assertEquals(
-            listOf("*" to "deny", "todowrite" to "allow", "question" to "allow"),
-            rules.map { it.permission to it.action },
-        )
+        assertEquals(listOf("todowrite", "question"), rules.filter { it.action == "allow" }.map { it.permission })
+        assertTrue(catalogue.connecteurs.values.flatMap { it.outils }.all { tool -> rules.any { it.permission == tool && it.action == "deny" } })
     }
 
     @Test
     fun `no connectors at all is a mission that can only talk`() {
         val rules = permissionsFor(catalogue, emptyList())
 
-        // The deny-all, plus the socle the engine grants every session on top of its connectors.
-        // Dropping the socle builds incomplete rules, and silently.
-        assertEquals(
-            listOf("*" to "deny", "todowrite" to "allow", "question" to "allow"),
-            rules.map { it.permission to it.action },
-        )
+        // Every direct tool closed by name, plus the socle the engine grants every session on top
+        // of its connectors. Dropping the socle builds incomplete rules, and silently.
+        assertEquals(listOf("todowrite", "question"), rules.filter { it.action == "allow" }.map { it.permission })
+        assertTrue(catalogue.connecteurs.values.flatMap { it.outils }.all { tool -> rules.any { it.permission == tool && it.action == "deny" } })
     }
 
     @Test
@@ -124,9 +126,8 @@ class PermissionsForTest {
         val allowed = rules.filter { it.action == "allow" }.map { it.permission }
 
         assertEquals(listOf("todowrite", "question", "memoire_lire"), allowed)
-        // The opening deny-all is the only rule that may name `*`.
-        assertEquals(1, rules.count { it.permission == "*" })
-        assertEquals("deny", rules.first { it.permission == "*" }.action)
+        // No rule names `*`, not even to close: a closing wildcard would be inherited by the sub-agents.
+        assertEquals(0, rules.count { '*' in it.permission || '?' in it.permission })
     }
     @Test
     fun `what a session was granted is read back from the rules it carries`() {
