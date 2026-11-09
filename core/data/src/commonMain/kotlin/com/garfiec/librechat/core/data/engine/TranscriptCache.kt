@@ -26,5 +26,8 @@ data class CachedTranscript(
 interface TranscriptCache {
     suspend fun read(sessionId: String): CachedTranscript?
     suspend fun write(sessionId: String, transcript: CachedTranscript)
+
+    /** The tail of one session goes (09/11/2026): the conversation was deleted from the engine. */
+    suspend fun forget(sessionId: String) {}
     suspend fun clear()
 }

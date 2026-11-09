@@ -56,6 +56,12 @@ class FileTranscriptCache(
         Unit
     }
 
+    override suspend fun forget(sessionId: String) = withContext(ioDispatcher) {
+        runCatching { fileOf(sessionId).delete() }
+            .onFailure { Logger.w("TranscriptCache", it) { "tail of $sessionId not dropped" } }
+        Unit
+    }
+
     override suspend fun clear() = withContext(ioDispatcher) {
         directory.listFiles()?.forEach { it.delete() }
         Unit

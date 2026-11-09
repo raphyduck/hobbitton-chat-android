@@ -606,6 +606,20 @@ class EngineMissionRepository(
     suspend fun abort(sessionId: String) = api.abort(sessionId)
 
     /**
+     * Deletes a conversation (09/11/2026, Raphaël: a long press on its title in the lists): the
+     * engine first, which drops its messages and its sub-agents' sessions with it; a session the
+     * engine no longer has counts as deleted. Then what this device kept of it: its read mark, its
+     * recorded kind, its cached tail, and the lists' snapshot, so the next read shows it gone.
+     */
+    suspend fun deleteSession(sessionId: String) {
+        unlessGone { api.deleteSession(sessionId) }
+        listSnapshot = null
+        reads?.let { store -> runCatching { store.forget(sessionId) }.onFailure { Logger.w(it) { "Read mark of $sessionId kept" } } }
+        runCatching { kinds.forget(sessionId) }.onFailure { Logger.w(it) { "Kind of $sessionId kept" } }
+        transcripts?.let { cache -> runCatching { cache.forget(sessionId) }.onFailure { Logger.w(it) { "Tail of $sessionId kept" } } }
+    }
+
+    /**
      * What the session has already said, replayed as the events a live turn would have produced.
      *
      * The transcript is the **only** place a mission's past lives: the classic routes are what

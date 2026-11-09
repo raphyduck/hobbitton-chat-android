@@ -1,12 +1,15 @@
 package com.garfiec.librechat.shared.engine
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,12 +24,16 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Chat
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.PauseCircle
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -61,6 +68,10 @@ import com.garfiec.librechat.shared.resources.Res
 import com.garfiec.librechat.shared.resources.engine_age_days
 import com.garfiec.librechat.shared.resources.engine_age_hours
 import com.garfiec.librechat.shared.resources.engine_age_minutes
+import com.garfiec.librechat.shared.resources.engine_chat_delete
+import com.garfiec.librechat.shared.resources.engine_chat_delete_cancel
+import com.garfiec.librechat.shared.resources.engine_chat_delete_text
+import com.garfiec.librechat.shared.resources.engine_chat_delete_title
 import com.garfiec.librechat.shared.resources.engine_chat_paused
 import com.garfiec.librechat.shared.resources.engine_chat_running
 import com.garfiec.librechat.shared.resources.engine_chat_unread
@@ -129,6 +140,8 @@ internal fun EngineDrawerContent(
     search: EngineChatsState? = null,
     onSearch: (String) -> Unit = {},
     onLoadOlder: () -> Unit = {},
+    /** A long press on a title offers to delete the conversation (09/11/2026); null hides it. */
+    onDeleteChat: ((EngineChatSummary) -> Unit)? = null,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
     Column(modifier = modifier.fillMaxSize().padding(top = 12.dp)) {
@@ -181,6 +194,7 @@ internal fun EngineDrawerContent(
                 onOpenChat = onOpenChat,
                 onRetry = onRetry,
                 onLoadOlder = onLoadOlder,
+                onDeleteChat = onDeleteChat,
                 modifier = Modifier.fillMaxSize(),
             )
         }
@@ -256,6 +270,7 @@ private fun RecentChats(
     onOpenChat: (EngineChatSummary) -> Unit,
     onRetry: () -> Unit,
     onLoadOlder: () -> Unit,
+    onDeleteChat: ((EngineChatSummary) -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     // Read once per list: the headers and ages of one drawing agree on what « now » is.
@@ -309,6 +324,7 @@ private fun RecentChats(
                         nowMillis = now,
                         selected = chat.sessionId == activeSessionId,
                         onClick = { onOpenChat(chat) },
+                        onDelete = onDeleteChat?.let { delete -> { delete(chat) } },
                     )
                 }
             }
@@ -353,77 +369,130 @@ internal fun QuietLine(text: String) {
  * One conversation: its title alone (in bold while unread), a small clock when the scheduler
  * started it, a dot of the accent while it answers (« Running » is said for TalkBack), and how
  * long ago it moved. The open one sits on a sand fill. Shared by the drawer and the Conversations
- * page.
+ * page. A long press on the row (09/11/2026, Raphaël: « supprimer une session par menu contextuel
+ * et appui long sur titre dans les listes ») opens a menu with « Supprimer », which asks once
+ * before [onDelete] runs; a row without [onDelete] (the share sheet) has no long press.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun RecentChatItem(
     chat: EngineChatSummary,
     nowMillis: Long,
     selected: Boolean,
     onClick: () -> Unit,
+    onDelete: (() -> Unit)? = null,
 ) {
+    var menuShown by remember { mutableStateOf(false) }
+    var confirming by remember { mutableStateOf(false) }
+    if (confirming && onDelete != null) {
+        DeleteChatDialog(
+            title = chat.title,
+            onConfirm = {
+                confirming = false
+                onDelete()
+            },
+            onDismiss = { confirming = false },
+        )
+    }
     // Only the open conversation is filled: on the Conversations page every row was a grey box.
     val fill = if (selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp)
-            .clip(RowShape)
-            .background(fill, RowShape)
-            .clickable(onClick = onClick)
-            .heightIn(min = ROW_HEIGHT)
-            .padding(horizontal = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        val unread = stringResource(Res.string.engine_chat_unread)
-        Text(
-            chat.title,
-            // Unread (16/10/2026): the title in bold, as a mail client marks it; TalkBack says it.
-            style = MaterialTheme.typography.bodyMedium.let {
-                if (chat.unread) it.copy(fontWeight = FontWeight.SemiBold) else it
-            },
-            color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            // All the room the tag, the dot and the age leave: the title is what one reads.
-            modifier = Modifier.weight(1f).semantics { if (chat.unread) stateDescription = unread },
+    Box(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
+        if (onDelete != null) {
+            DropdownMenu(expanded = menuShown, onDismissRequest = { menuShown = false }) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(Res.string.engine_chat_delete)) },
+                    leadingIcon = { Icon(Icons.Outlined.Delete, contentDescription = null) },
+                    onClick = {
+                        menuShown = false
+                        confirming = true
+                    },
+                    modifier = Modifier.testTag("chat_delete"),
+                )
+            }
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RowShape)
+                .background(fill, RowShape)
+                .combinedClickable(onClick = onClick, onLongClick = onDelete?.let { { menuShown = true } })
+                .heightIn(min = ROW_HEIGHT)
+                .padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            RecentChatRowContent(chat, nowMillis)
+        }
+    }
+}
+
+/** « Supprimer cette conversation ? », the title quoted, the destructive choice in the error colour. */
+@Composable
+private fun DeleteChatDialog(title: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(Res.string.engine_chat_delete_title)) },
+        text = { Text(stringResource(Res.string.engine_chat_delete_text, title)) },
+        confirmButton = {
+            TextButton(onClick = onConfirm, modifier = Modifier.testTag("chat_delete_confirm")) {
+                Text(stringResource(Res.string.engine_chat_delete), color = MaterialTheme.colorScheme.error)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.engine_chat_delete_cancel)) }
+        },
+    )
+}
+
+@Composable
+private fun RowScope.RecentChatRowContent(chat: EngineChatSummary, nowMillis: Long) {
+    val unread = stringResource(Res.string.engine_chat_unread)
+    Text(
+        chat.title,
+        // Unread (16/10/2026): the title in bold, as a mail client marks it; TalkBack says it.
+        style = MaterialTheme.typography.bodyMedium.let {
+            if (chat.unread) it.copy(fontWeight = FontWeight.SemiBold) else it
+        },
+        color = MaterialTheme.colorScheme.onSurface,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        // All the room the tag, the dot and the age leave: the title is what one reads.
+        modifier = Modifier.weight(1f).semantics { if (chat.unread) stateDescription = unread },
+    )
+    if (chat.paused) {
+        // Waiting on the budget (07/11/2026): the scheduler resumes it by itself.
+        val paused = stringResource(Res.string.engine_chat_paused)
+        Icon(
+            Icons.Outlined.PauseCircle,
+            contentDescription = paused,
+            modifier = Modifier.size(16.dp),
+            tint = MaterialTheme.colorScheme.tertiary,
         )
-        if (chat.paused) {
-            // Waiting on the budget (07/11/2026): the scheduler resumes it by itself.
-            val paused = stringResource(Res.string.engine_chat_paused)
-            Icon(
-                Icons.Outlined.PauseCircle,
-                contentDescription = paused,
-                modifier = Modifier.size(16.dp),
-                tint = MaterialTheme.colorScheme.tertiary,
-            )
-        }
-        if (chat.scheduled) {
-            val scheduled = stringResource(Res.string.engine_drawer_scheduled_run)
-            Icon(
-                Icons.Outlined.Schedule,
-                contentDescription = scheduled,
-                modifier = Modifier.size(14.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        if (chat.running) {
-            val running = stringResource(Res.string.engine_chat_running)
-            Box(
-                Modifier
-                    .size(6.dp)
-                    .background(MaterialTheme.colorScheme.primary, CircleShape)
-                    .semantics { contentDescription = running },
-            )
-        }
-        chat.lastActivityMillis?.let { lastActivity ->
-            Text(
-                text = recentAge(lastActivity, nowMillis),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+    }
+    if (chat.scheduled) {
+        val scheduled = stringResource(Res.string.engine_drawer_scheduled_run)
+        Icon(
+            Icons.Outlined.Schedule,
+            contentDescription = scheduled,
+            modifier = Modifier.size(14.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+    if (chat.running) {
+        val running = stringResource(Res.string.engine_chat_running)
+        Box(
+            Modifier
+                .size(6.dp)
+                .background(MaterialTheme.colorScheme.primary, CircleShape)
+                .semantics { contentDescription = running },
+        )
+    }
+    chat.lastActivityMillis?.let { lastActivity ->
+        Text(
+            text = recentAge(lastActivity, nowMillis),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 

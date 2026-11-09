@@ -57,6 +57,9 @@ data class EngineChatsState(
     val more: Boolean = false,
 )
 
+/** A deletion under way, or one the engine refused (09/11/2026): the row stays until it is done. */
+data class ChatDeletion(val sessionId: String, val failed: Boolean = false)
+
 /**
  * The engine shell's own state (D-077): signed in or not, the drawer's chats, and what signing out
  * owes the device.
@@ -181,6 +184,11 @@ class EngineShellViewModel(
 
     /** How many sessions the lists read: a page more each « Plus anciennes » (21/10/2026). */
     private var shown = PAGE
+
+    private val _chatDeletion = MutableStateFlow<ChatDeletion?>(null)
+
+    /** The conversation being deleted, and whether the engine refused ([ChatDeletion.failed]). */
+    val chatDeletion: StateFlow<ChatDeletion?> = _chatDeletion.asStateFlow()
 
     private val _search = MutableStateFlow<EngineChatsState?>(null)
 
@@ -399,6 +407,40 @@ class EngineShellViewModel(
     }
 
     private val lastMarked = mutableMapOf<String, Long>()
+
+    /**
+     * Deletes [sessionId] (09/11/2026, Raphaël: a long press on a title in the lists): the engine
+     * and this device's records of it (the repository), the model it was pinned to, the
+     * notification that may still announce it; both lists drop its row at once. A refusal keeps
+     * the row and says so ([chatDeletion]); the caller has already moved off the conversation when
+     * it was the one on screen.
+     */
+    fun deleteChat(sessionId: String) {
+        val source = repository ?: return
+        _chatDeletion.value = ChatDeletion(sessionId)
+        viewModelScope.launch {
+            try {
+                source.deleteSession(sessionId)
+                conversationModels?.let { store ->
+                    runCatching { store.forget(sessionId) }.onFailure { Logger.w(it) { "Model pick of $sessionId kept" } }
+                }
+                notifier?.dismissConversation(sessionId)
+                _allChats.update { state -> state.copy(chats = state.chats.filterNot { it.sessionId == sessionId }) }
+                _search.update { state -> state?.copy(chats = state.chats.filterNot { it.sessionId == sessionId }) }
+                _chatDeletion.value = null
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Logger.w(e) { "Conversation $sessionId could not be deleted" }
+                _chatDeletion.value = ChatDeletion(sessionId, failed = true)
+            }
+        }
+    }
+
+    /** The refusal was read. */
+    fun dismissDeletionFailure() {
+        _chatDeletion.value = null
+    }
 
     fun setThemeMode(mode: ThemeMode) {
         viewModelScope.launch { themeDataStore.setThemeMode(mode) }

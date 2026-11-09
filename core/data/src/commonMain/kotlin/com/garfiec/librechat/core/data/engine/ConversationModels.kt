@@ -28,6 +28,9 @@ interface ConversationModelStore {
 
     suspend fun record(sessionId: String, model: EngineModelRef)
 
+    /** The pick of one session goes (09/11/2026): the conversation was deleted from the engine. */
+    suspend fun forget(sessionId: String) {}
+
     /** Forgets everything — part of signing out, with the other local session caches. */
     suspend fun clear()
 }
@@ -53,6 +56,15 @@ class EngineConversationModels(
                 models.remove(sessionId)
                 models[sessionId] = model
                 prefs[KEY] = json.encodeToString(models.entries.toList().takeLast(CAPACITY).associate { it.key to it.value })
+            }
+        }
+    }
+
+    override suspend fun forget(sessionId: String) {
+        withContext(ioDispatcher) {
+            dataStore.edit { prefs ->
+                val models = decode(prefs[KEY])
+                if (sessionId in models) prefs[KEY] = json.encodeToString(models - sessionId)
             }
         }
     }

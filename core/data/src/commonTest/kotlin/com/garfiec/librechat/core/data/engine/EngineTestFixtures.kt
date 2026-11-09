@@ -78,6 +78,10 @@ internal class InMemorySessionKinds(
         recorded.putAll(kinds)
     }
 
+    override suspend fun forget(sessionId: String) {
+        recorded.remove(sessionId)
+    }
+
     override suspend fun clear() {
         recorded.clear()
     }

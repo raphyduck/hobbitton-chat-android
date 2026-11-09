@@ -402,4 +402,35 @@ class EngineChatSessionTest {
         assertTrue(sent.none { it.url.encodedPath == "/session/ses_run/message" })
         assertEquals("Veille", chats.single().title)
     }
+
+    /**
+     * A long press on a title (09/11/2026): the conversation leaves the engine, and this device
+     * forgets what it kept of it, its kind among them; a session the engine no longer has counts
+     * as deleted, so the row still goes.
+     */
+    @Test
+    fun `deleting a conversation calls the engine once and forgets the device's records`() = runTest {
+        val kinds = InMemorySessionKinds(mapOf("ses_x" to EngineSessionKind.CHAT, "ses_y" to EngineSessionKind.CHAT))
+        val forgotten = mutableListOf<String>()
+        val transcripts = object : TranscriptCache {
+            override suspend fun read(sessionId: String): CachedTranscript? = null
+            override suspend fun write(sessionId: String, transcript: CachedTranscript) = Unit
+            override suspend fun forget(sessionId: String) { forgotten += sessionId }
+            override suspend fun clear() = Unit
+        }
+        val gone = MockEngine { request ->
+            sent += request
+            if (request.method == HttpMethod.Delete) respond("", HttpStatusCode.NotFound) else respond("{}", HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
+        }
+
+        testMissionRepository(engine(), kinds = kinds, transcripts = transcripts).deleteSession("ses_x")
+        val deletes = sent.filter { it.method == HttpMethod.Delete }
+        assertEquals(listOf("/session/ses_x"), deletes.map { it.url.encodedPath })
+        assertEquals(setOf("ses_y"), kinds.recorded.keys)
+        assertEquals(listOf("ses_x"), forgotten)
+
+        // Already gone from the engine: deleted all the same.
+        testMissionRepository(gone, kinds = kinds).deleteSession("ses_y")
+        assertEquals(emptySet<String>(), kinds.recorded.keys)
+    }
 }
