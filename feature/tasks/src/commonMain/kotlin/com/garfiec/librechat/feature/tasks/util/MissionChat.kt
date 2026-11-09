@@ -314,6 +314,13 @@ private const val FIELD_TEXT = "text"
 internal const val DEFAULT_MIME = "application/octet-stream"
 
 /**
+ * The name a tool's file shows under (09/11/2026): the engine names a file an MCP tool handed
+ * back by its resource URI, `file:///1 - Plan V4.pdf`, and the chip read so. The name alone.
+ */
+internal fun shownFileName(filename: String?): String? =
+    filename?.substringAfterLast('/')?.takeIf { it.isNotBlank() } ?: filename
+
+/**
  * The parts worth rendering. `step-start` and `step-finish` are the run's own bookkeeping — nobody
  * reads them — and a text part with nothing in it yet is not a blank bubble, it is a part waiting for
  * its deltas, so it is kept (empty) rather than dropped. A synthetic text is the model's alone (the
@@ -331,7 +338,7 @@ private fun EnginePartSnapshot.asChatPart(partId: String): ChatPart? = when (typ
         arguments = (if (input.directoryTarget(tool) != null) input.directoryArguments() else input).asToolArguments(),
         output = output?.takeIf { it.isNotBlank() },
         attachments = attachments.mapIndexedNotNull { index, file ->
-            file.url?.let { ChatPart.Attachment("$partId#$index", file.mime ?: DEFAULT_MIME, it, file.filename) }
+            file.url?.let { ChatPart.Attachment("$partId#$index", file.mime ?: DEFAULT_MIME, it, shownFileName(file.filename)) }
         },
         state = when (status) {
             "completed" -> ToolState.OK

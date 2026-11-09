@@ -78,7 +78,7 @@ fun delegatedFilesOf(delegation: String, events: List<EngineStreamEvent>): List<
         .flatMap { event ->
             event.part.attachments.asSequence().mapIndexedNotNull { index, file ->
                 file.url?.let {
-                    ChatPart.Attachment("$delegation#${event.partId}#$index", file.mime ?: DEFAULT_MIME, it, file.filename)
+                    ChatPart.Attachment("$delegation#${event.partId}#$index", file.mime ?: DEFAULT_MIME, it, shownFileName(file.filename))
                 }
             }
         }
