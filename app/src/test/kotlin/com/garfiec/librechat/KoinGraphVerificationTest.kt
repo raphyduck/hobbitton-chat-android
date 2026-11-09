@@ -7,6 +7,7 @@ import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.datastore.ThemeDataStore
 import com.garfiec.librechat.core.data.engine.ConversationReads
 import com.garfiec.librechat.core.data.engine.ConversationRequests
+import com.garfiec.librechat.feature.tasks.share.ShareIntake
 import com.garfiec.librechat.core.data.engine.EngineAttentionWatcher
 import com.garfiec.librechat.core.data.engine.EngineMissionRepository
 import com.garfiec.librechat.core.data.engine.EngineSettingsStore
@@ -71,6 +72,8 @@ class KoinGraphVerificationTest {
             ChatBudgetSource::class,
             // The app's lock (28/10/2026), bound by `engineModule`.
             AppLock::class,
+            // A share from another app (09/11/2026), bound by tasksModule.
+            ShareIntake::class,
         )
 
         // Types whose libraries aren't on the app test classpath (transitive

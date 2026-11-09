@@ -46,6 +46,24 @@
             </intent-filter>
 
             <!--
+                Partager vers Eva (09/11/2026, Raphaël : « partager des fichiers ou des photos ou des
+                vidéos à l'application … sous forme d'une nouvelle session ou d'une session existante
+                à choisir lors du partage »). Tout type : une photo part dans le message, une vidéo
+                ou un gros fichier au dépôt du serveur, comme depuis le sélecteur du composeur ; un
+                texte partagé va dans le composeur. L'application demande ensuite où l'envoyer.
+            -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
+
+            <!--
                 Le retour du portail d'authentification.
 
                 Le code d'autorisation revient forcément par un POST de formulaire — Authelia

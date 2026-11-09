@@ -79,7 +79,7 @@ internal actual fun rememberMissionFilePicker(
  * A picture is shrunk ([stageImage]); a video, or a file too large for a message, is staged for
  * the server's deposit ([stageForUpload]); anything else is read as it is ([stageFile]).
  */
-private fun Context.stage(uri: Uri): StagedAttachment? {
+internal fun Context.stage(uri: Uri): StagedAttachment? {
     val mime = contentResolver.getType(uri) ?: "application/octet-stream"
     return when {
         mime.startsWith("image/") && mime != "image/gif" -> stageImage(uri)

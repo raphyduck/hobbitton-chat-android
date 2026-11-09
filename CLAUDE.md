@@ -224,6 +224,19 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   scene, and the tools (`beeper_envoyer_piece_jointe`, `imap_send_email`, `rclone_upload_file`) take
   the path as it is. A deposit that fails fails the send and everything returns to the composer; the
   chip shows the size that will travel.
+- **Sharing into Eva** (09/11/2026, Raphaël: « partager des fichiers ou des photos ou des vidéos à
+  l'application … sous forme d'une nouvelle session ou d'une session existante à choisir lors du
+  partage »). The manifest takes `ACTION_SEND` and `ACTION_SEND_MULTIPLE` of any type.
+  `MainActivity.receiveShare` stages the content URIs off the main thread exactly as the composer's
+  picker does (`stageSharedUris`, `:feature:tasks` androidMain: a photo shrunk, a video or a large
+  file kept for the deposit with its first frame) and offers them, with `EXTRA_TEXT`, to
+  `ShareIntake` (`:feature:tasks` `share/`, a Koin single). The shell shows `ShareTargetSheet`
+  (`:shared`) while the share has no target: « Nouvelle conversation » first, then the drawer's
+  recent conversations with its search; the pick aims the share (`ShareTarget.NewConversation` or
+  `Conversation(id)`) and opens that conversation as the root. The view model whose session matches
+  the target takes it once (`ShareIntake.takeFor`, collected in `MissionChatViewModel`'s init) into
+  the composer, attachments and text under what was typed, never sent on its own; dismissing the
+  sheet drops the share. The lock stands in front: the sheet shows once unlocked.
 - **Questions from the agent** (OpenCode's `question` tool, 03/10/2026): the engine announces one on
   the feed (`question.asked`) and blocks the turn until `POST /question/{id}/reply` or `/reject`.
   The conversation shows it as a form in place of the composer (`MissionQuestionForm`, options,

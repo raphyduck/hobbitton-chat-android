@@ -2,6 +2,11 @@
 <resources>
     <!-- The engine shell (hobbitton, D-077) -->
     <string name="engine_drawer_new_chat">New chat</string>
+    <string name="engine_share_title">Where should this go?</string>
+    <string name="engine_share_files">%1$d file(s) to send</string>
+    <string name="engine_share_text">A text to send</string>
+    <string name="engine_share_files_and_text">%1$d file(s) and a text to send</string>
+    <string name="engine_share_cancel">Cancel</string>
     <string name="engine_drawer_tasks">Scheduled</string>
     <string name="engine_drawer_conversations">Conversations</string>
     <string name="engine_conversations_unread">Unread</string>

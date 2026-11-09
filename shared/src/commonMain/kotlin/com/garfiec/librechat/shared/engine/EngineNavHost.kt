@@ -41,6 +41,8 @@ import com.garfiec.librechat.feature.auth.screen.PortalSignInScreen
 import com.garfiec.librechat.feature.tasks.navigation.EngineChat
 import com.garfiec.librechat.feature.tasks.navigation.engineChatEntries
 import com.garfiec.librechat.feature.tasks.navigation.tasksEntries
+import com.garfiec.librechat.feature.tasks.share.PendingShare
+import com.garfiec.librechat.feature.tasks.share.ShareTarget
 import com.garfiec.librechat.shared.engine.lock.AppLockGate
 import com.garfiec.librechat.shared.engine.voice.EngineVoiceScreen
 import kotlinx.coroutines.awaitCancellation
@@ -78,6 +80,7 @@ fun EngineNavHost(
     val selectedLanguage by viewModel.selectedLanguage.collectAsStateWithLifecycle()
     val models by viewModel.models.collectAsStateWithLifecycle()
     val openRequest by viewModel.openRequest.collectAsStateWithLifecycle()
+    val pendingShare by viewModel.pendingShare.collectAsStateWithLifecycle()
     val identity by viewModel.identity.collectAsStateWithLifecycle()
 
     // Back in the foreground: a renewal refused while away has emptied the token store, and the
@@ -122,6 +125,9 @@ fun EngineNavHost(
                             ),
                             openRequest = openRequest,
                             onConsumeOpenRequest = viewModel::consumeOpenRequest,
+                            pendingShare = pendingShare,
+                            onAimShare = viewModel::aimShare,
+                            onDismissShare = viewModel::dismissShare,
                             onRefreshChats = viewModel::refreshChats,
                             onRefreshAllChats = viewModel::refreshAllChats,
                             onSearch = viewModel::search,
@@ -161,6 +167,9 @@ private fun EngineMainLayout(
     settings: EngineSettingsUiState,
     openRequest: OpenConversation?,
     onConsumeOpenRequest: (OpenConversation) -> Unit,
+    pendingShare: PendingShare?,
+    onAimShare: (ShareTarget) -> Unit,
+    onDismissShare: () -> Unit,
     onRefreshChats: () -> Unit,
     onRefreshAllChats: () -> Unit,
     onSearch: (String) -> Unit,
@@ -222,6 +231,29 @@ private fun EngineMainLayout(
     // A session alone on the stack: Nav 3 hands back to the system there, which closed the app.
     // Composed before the drawer, so an open drawer still takes the back first.
     PlatformBackHandler(enabled = navigator.backLeadsToConversations) { navigator.backToConversations() }
+
+    // A share from another app (09/11/2026): where does it go? A new conversation, or one of the
+    // recent ones; the pick aims the share, and the conversation's view model takes it as it opens.
+    if (pendingShare != null && pendingShare.target == null) {
+        LaunchedEffect(Unit) { refreshChats() }
+        ShareTargetSheet(
+            share = pendingShare,
+            chats = chats,
+            search = search,
+            onSearch = onSearch,
+            onNewChat = {
+                onAimShare(ShareTarget.NewConversation)
+                closeDrawer()
+                navigator.newChat()
+            },
+            onChat = { chat ->
+                onAimShare(ShareTarget.Conversation(chat.sessionId))
+                closeDrawer()
+                navigator.openChat(chat.sessionId, chat.title)
+            },
+            onDismiss = onDismissShare,
+        )
+    }
 
     ModalNavigationDrawer(
         drawerState = drawerState,

@@ -12,6 +12,9 @@ import com.garfiec.librechat.core.data.engine.ChatScope
 import com.garfiec.librechat.core.data.engine.ConversationModelStore
 import com.garfiec.librechat.core.data.engine.ConversationReads
 import com.garfiec.librechat.core.data.engine.ConversationRequests
+import com.garfiec.librechat.feature.tasks.share.PendingShare
+import com.garfiec.librechat.feature.tasks.share.ShareIntake
+import com.garfiec.librechat.feature.tasks.share.ShareTarget
 import com.garfiec.librechat.core.data.engine.DeviceSession
 import com.garfiec.librechat.core.data.engine.EngineAttentionWatcher
 import com.garfiec.librechat.core.data.engine.EngineChatSummary
@@ -95,6 +98,8 @@ class EngineShellViewModel(
     private val deviceSession: DeviceSession? = null,
     /** The app's lock (28/10/2026): forgotten at sign-out, the next person sets their own code. */
     private val appLock: AppLock? = null,
+    /** A share from another app, waiting for the conversation the person picks (09/11/2026). Null in tests. */
+    private val shareIntake: ShareIntake? = null,
 ) : ViewModel() {
 
     private val _signedIn = MutableStateFlow<Boolean?>(null)
@@ -156,6 +161,21 @@ class EngineShellViewModel(
     /** A conversation a notification asked to open, until the shell has opened it. */
     val openRequest: StateFlow<OpenConversation?> = conversationRequests?.pending
         ?: MutableStateFlow<OpenConversation?>(null).asStateFlow()
+
+    /**
+     * What another app shared into Eva (09/11/2026): the shell shows the chooser while its target
+     * is null, then the conversation picked takes it.
+     */
+    val pendingShare: StateFlow<PendingShare?> = shareIntake?.pending
+        ?: MutableStateFlow<PendingShare?>(null).asStateFlow()
+
+    fun aimShare(target: ShareTarget) {
+        shareIntake?.aim(target)
+    }
+
+    fun dismissShare() {
+        shareIntake?.dismiss()
+    }
 
     private var allChatsJob: Job? = null
 

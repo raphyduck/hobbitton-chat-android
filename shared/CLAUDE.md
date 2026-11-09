@@ -40,6 +40,10 @@ The engine shell, and the Koin module list the application starts from. KMP libr
 - `EngineNavHost` also sets the Nav 3 transitions: pushed screens slide in over a fade, a
   predictive back shrinks the leaving screen; the chat entry's own metadata cross-fades between
   two chats (`TasksRoute.kt`).
+- `ShareTargetSheet` (09/11/2026): where a share from another app goes, shown by `EngineMainLayout`
+  while `EngineShellViewModel.pendingShare` has no target: « Nouvelle conversation », then the
+  drawer's conversations and search; the pick aims the share (`aimShare`) and opens the conversation
+  as the root, whose view model takes it. Dismissed (`dismissShare`), the share is dropped.
 - `EngineShellViewModel` also runs the question watch (`EngineAttentionWatcher`) while signed in,
   and exposes the Settings switch for sound and notifications and the conversation a tapped
   notification asks to open (`ConversationRequests`), which `EngineMainLayout` opens as the root.

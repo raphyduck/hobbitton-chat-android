@@ -14,6 +14,7 @@ import com.garfiec.librechat.core.data.scheduler.ChatBudgetSource
 import com.garfiec.librechat.core.data.scheduler.SchedulerRepository
 import com.garfiec.librechat.core.logging.DiagnosticLogShare
 import com.garfiec.librechat.core.network.engine.EngineTokenStore
+import com.garfiec.librechat.feature.tasks.share.ShareIntake
 import com.garfiec.librechat.shared.engine.EngineBudgetViewModel
 import com.garfiec.librechat.shared.engine.EngineInstructionsViewModel
 import com.garfiec.librechat.shared.engine.EngineShellViewModel
@@ -46,6 +47,7 @@ val sharedAppModule = module {
             conversationModels = getOrNull<ConversationModelStore>(),
             deviceSession = getOrNull<DeviceSession>(),
             appLock = getOrNull<AppLock>(),
+            shareIntake = getOrNull<ShareIntake>(),
         )
     }
 
