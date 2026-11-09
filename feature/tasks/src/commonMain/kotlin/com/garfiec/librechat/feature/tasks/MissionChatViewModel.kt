@@ -32,6 +32,8 @@ import com.garfiec.librechat.core.model.scheduler.PlatformRoles
 import com.garfiec.librechat.feature.tasks.delegate.CatalogueFetch
 import com.garfiec.librechat.feature.tasks.delegate.ComposerStagingDelegate
 import com.garfiec.librechat.feature.tasks.delegate.MissionCatalogueDelegate
+import com.garfiec.librechat.feature.tasks.share.PendingShare
+import com.garfiec.librechat.feature.tasks.share.ShareIntake
 import com.garfiec.librechat.feature.tasks.util.AudioNote
 import com.garfiec.librechat.feature.tasks.util.ChatPart
 import com.garfiec.librechat.feature.tasks.util.ChatTurn
@@ -333,6 +335,11 @@ class MissionChatViewModel(
      * the message then names the path. Defaulted for the tests, which stage nothing of the kind.
      */
     private val uploader: AttachmentUploader = AttachmentUploader.None,
+    /**
+     * What another app shared into Eva (09/11/2026), waiting for the conversation it was aimed at:
+     * this one takes it into its composer when the target matches. Null in tests.
+     */
+    private val shareIntake: ShareIntake? = null,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(
@@ -406,6 +413,15 @@ class MissionChatViewModel(
             // level and the prices are five more requests, which used to leave with the transcript
             // and share its bandwidth on a weak link; the screen is the transcript.
             loadCatalogue()
+        }
+        // A share aimed at this conversation (09/11/2026) lands in the composer, attachments and
+        // text, never sent on its own: the person sees what travels and adds a word before sending.
+        shareIntake?.let { intake ->
+            viewModelScope.launch {
+                intake.pending.collect { share ->
+                    if (share?.target != null) intake.takeFor(sessionId)?.let(::receiveShare)
+                }
+            }
         }
         // A new conversation greets by name: one small read, and a greeting without a name if it fails.
         if (sessionId == null) {
@@ -1112,6 +1128,15 @@ class MissionChatViewModel(
     fun dismissTranscriptionError() = staging.dismissTranscriptionError()
 
     fun addAttachments(staged: List<StagedAttachment>) = staging.addAttachments(staged)
+
+    private fun receiveShare(share: PendingShare) {
+        if (share.attachments.isNotEmpty()) staging.addAttachments(share.attachments)
+        val text = share.text?.trim().orEmpty()
+        if (text.isEmpty()) return
+        _uiState.update { state ->
+            state.copy(input = if (state.input.isBlank()) text else state.input.trimEnd() + "\n" + text)
+        }
+    }
 
     fun removeAttachment(id: String) = staging.removeAttachment(id)
 

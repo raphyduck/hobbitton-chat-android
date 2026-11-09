@@ -1,5 +1,6 @@
 package com.garfiec.librechat.core.data.engine
 
+import com.garfiec.librechat.core.model.engine.EnginePermissionRule
 import com.garfiec.librechat.core.model.scheduler.ConnectorCatalogue
 import com.garfiec.librechat.core.model.scheduler.ConnectorGrant
 import com.garfiec.librechat.core.model.scheduler.PlatformRoles
@@ -63,6 +64,42 @@ class EngineConnectorScopeTest {
         // The server's table wins over the built-in one when it is published.
         val served = PlatformRoles(access = mapOf(PlatformRoles.SCOUT to RoleAccess(annuaire = false)))
         assertFalse(served.accessOf(PlatformRoles.SCOUT).annuaire)
+    }
+
+    @Test
+    fun `a ruleset closes by name and never with a wildcard, so a sub-agent keeps its own tools`() {
+        // 09/11/2026 (Raphaël's capture): the fille inherits every deny of its mother and reads it
+        // after its profile; an inherited `*` → deny left the éclaireur with no tool at all.
+        val withShell = ConnectorCatalogue(
+            connecteurs = catalogue.connecteurs + ("shell" to ConnectorGrant(outils = listOf("bash", "lsp"))),
+            socle = catalogue.socle,
+        )
+        val penseur = PlatformRoles.NONE.accessOf(PlatformRoles.THINKER)
+        val rules = permissionsFor(withShell, listOf("memoire"), penseur)
+
+        assertFalse(rules.any { it.permission == "*" })
+        assertEquals("task" to "deny", rules.first().let { it.permission to it.action })
+        // Closed by name: the shell the ticks left out; never the annuaire, never what is granted.
+        assertEquals(setOf("bash", "lsp"), rules.filter { it.action == "deny" && it.permission != "task" }.map { it.permission }.toSet())
+        assertEquals(setOf("memoire"), connectorsGranted(withShell, rules))
+        assertFalse(rulesCloseSubAgents(rules))
+        assertFalse(rulesPredate(withShell, rules))
+
+        // A ruleset written before that day: read as before, and as stale, so the next send rewrites it.
+        val before = listOf(
+            EnginePermissionRule(permission = "*", action = "deny"),
+            EnginePermissionRule(permission = "todowrite", action = "allow"),
+            EnginePermissionRule(permission = "memoire_lire", action = "allow"),
+            EnginePermissionRule(permission = "task", pattern = "eclaireur", action = "allow"),
+        )
+        assertEquals(setOf("memoire"), connectorsGranted(withShell, before))
+        assertTrue(rulesDelegate(before))
+        assertTrue(rulesCloseSubAgents(before))
+        assertTrue(rulesPredate(withShell, before))
+        // Appended after it (PATCH accumulates), the new ruleset is the standing one.
+        val appended = before + rules
+        assertFalse(rulesCloseSubAgents(appended))
+        assertEquals(setOf("memoire"), connectorsGranted(withShell, appended))
     }
 
     @Test

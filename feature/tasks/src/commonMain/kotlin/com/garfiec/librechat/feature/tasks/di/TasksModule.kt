@@ -11,6 +11,7 @@ import com.garfiec.librechat.feature.tasks.MissionDetailArgs
 import com.garfiec.librechat.feature.tasks.MissionDetailViewModel
 import com.garfiec.librechat.feature.tasks.TasksViewModel
 import com.garfiec.librechat.feature.tasks.UsageViewModel
+import com.garfiec.librechat.feature.tasks.share.ShareIntake
 import kotlinx.coroutines.flow.first
 import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
@@ -40,6 +41,8 @@ val tasksModule = module {
     // Questions asked anywhere on the engine, rung through the attention signals: the shell runs it
     // while signed in.
     single { EngineAttentionWatcher(repository = get(), signals = get()) }
+    // A share from another app, from the activity to the conversation that takes it (09/11/2026).
+    single { ShareIntake() }
     viewModelOf(::TasksViewModel)
     viewModelOf(::UsageViewModel)
     // The mission's name comes from the navigation layer as MissionDetailArgs (04/11/2026).
@@ -62,6 +65,7 @@ val tasksModule = module {
             scheduler = get(),
             conversationModels = get(),
             uploader = get(),
+            shareIntake = get(),
         )
     }
 }

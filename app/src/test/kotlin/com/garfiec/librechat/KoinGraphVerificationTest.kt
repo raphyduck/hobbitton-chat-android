@@ -17,6 +17,7 @@ import com.garfiec.librechat.core.data.portal.PortalTasksSignIn
 import com.garfiec.librechat.core.data.pricing.ModelPriceSource
 import com.garfiec.librechat.core.data.scheduler.ChatBudgetSource
 import com.garfiec.librechat.core.network.engine.EngineTokenStore
+import com.garfiec.librechat.feature.tasks.share.ShareIntake
 import com.garfiec.librechat.shared.di.sharedKoinModules
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -71,6 +72,8 @@ class KoinGraphVerificationTest {
             ChatBudgetSource::class,
             // The app's lock (28/10/2026), bound by `engineModule`.
             AppLock::class,
+            // A share from another app (09/11/2026), bound by tasksModule.
+            ShareIntake::class,
         )
 
         // Types whose libraries aren't on the app test classpath (transitive

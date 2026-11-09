@@ -3,6 +3,7 @@ package com.garfiec.librechat
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.compose.setContent
@@ -35,6 +36,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.core.content.IntentCompat
 import androidx.core.content.edit
 import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
@@ -44,6 +46,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import co.touchlab.kermit.Logger
 import com.garfiec.librechat.attention.AndroidAttentionNotifier
+import com.garfiec.librechat.core.common.di.AppThreads
 import com.garfiec.librechat.core.common.network.ConnectivityObserver
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.datastore.ThemeDataStore
@@ -54,10 +57,14 @@ import com.garfiec.librechat.core.data.engine.OpenConversation
 import com.garfiec.librechat.core.data.engine.sessionOfConversationLink
 import com.garfiec.librechat.core.network.engine.auth.CALLBACK_SCHEME
 import com.garfiec.librechat.core.ui.theme.LibreChatTheme
+import com.garfiec.librechat.feature.tasks.components.stageSharedUris
+import com.garfiec.librechat.feature.tasks.share.PendingShare
+import com.garfiec.librechat.feature.tasks.share.ShareIntake
 import com.garfiec.librechat.push.PushService
 import com.garfiec.librechat.shared.engine.EngineNavHost
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.koin.android.ext.android.inject
 
 /**
@@ -70,6 +77,7 @@ class MainActivity : FragmentActivity() {
     private val settingsDataStore: SettingsDataStore by inject()
     private val engineCallbacks: EngineCallbackDelivery by inject()
     private val conversationRequests: ConversationRequests by inject()
+    private val shareIntake: ShareIntake by inject()
 
     /** Android 13+: posting a notification needs the person's leave, asked at run time. */
     private val notificationPermission =
@@ -223,6 +231,11 @@ class MainActivity : FragmentActivity() {
      * screens that no longer exist; they are ignored, and the manifest no longer asks for them.
      */
     private fun handleIntent(intent: Intent?) {
+        // Another app shares files, photos, videos or a text into Eva (09/11/2026).
+        if (intent?.action == Intent.ACTION_SEND || intent?.action == Intent.ACTION_SEND_MULTIPLE) {
+            receiveShare(intent)
+            return
+        }
         // A tapped notification (a question, a reply ready): the shell opens its conversation.
         AndroidAttentionNotifier.conversationOf(intent)?.let { conversation ->
             conversationRequests.open(conversation)
@@ -241,6 +254,29 @@ class MainActivity : FragmentActivity() {
             engineCallbacks.deposer(uri.toString())
         } else {
             Logger.w { "Ignoring a link this app no longer handles: scheme=${uri.scheme}" }
+        }
+    }
+
+    /**
+     * The shared items are staged as the composer's picker stages them (a photo shrunk, a video or
+     * a large file kept for the deposit), off the main thread, then handed to the shell, which asks
+     * where they go: a new conversation or one of the recent ones. The content URIs the sender
+     * grants are read now for what travels in the message, and at send time for the deposit, as
+     * the picker's are.
+     */
+    private fun receiveShare(intent: Intent) {
+        val uris: List<Uri> = if (intent.action == Intent.ACTION_SEND_MULTIPLE) {
+            IntentCompat.getParcelableArrayListExtra(intent, Intent.EXTRA_STREAM, Uri::class.java).orEmpty()
+        } else {
+            listOfNotNull(IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri::class.java))
+        }
+        val text = intent.getStringExtra(Intent.EXTRA_TEXT)?.takeIf { it.isNotBlank() }
+        if (uris.isEmpty() && text == null) return
+        lifecycleScope.launch {
+            val staged = withContext(AppThreads.io) { stageSharedUris(this@MainActivity, uris.map { it.toString() }) }
+            if (staged.size < uris.size) Logger.w { "Share: ${uris.size - staged.size} item(s) could not be read" }
+            if (staged.isEmpty() && text == null) return@launch
+            shareIntake.offer(PendingShare(attachments = staged, text = text))
         }
     }
 

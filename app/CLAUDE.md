@@ -17,6 +17,9 @@ Single Activity. `MainActivity` is the sole entry point; `LibreChatApplication` 
   why the code comes back through the scheduler and a deep link). `handleIntent` hands it to
   `EngineCallbackDelivery`; anything else is logged and ignored. The launch intent is processed on a
   fresh start only; `onNewIntent` handles the rest.
+- **A share from another app** (09/11/2026): `ACTION_SEND` and `ACTION_SEND_MULTIPLE`, any type.
+  `receiveShare` stages the URIs off the main thread (`stageSharedUris`, the picker's own staging)
+  and offers them with the shared text to `ShareIntake`; the shell asks where they go.
 - A tapped notification carries its conversation in extras (`AndroidAttentionNotifier.conversationOf`),
   handed to `ConversationRequests`. Asks for `POST_NOTIFICATIONS` once on a fresh start (Android 13+,
   switch on), and again when the Settings switch is turned on.
