@@ -35,6 +35,23 @@ feature/tasks/        → the conversation (MissionChatScreen), Programmées (sc
 
 Most modules have their own `CLAUDE.md` with specific guidance.
 
+## One session at a time on this repository
+
+Raphaël's rule (09/11/2026): two sessions never change this repository at once; the one
+that arrives waits for the other to finish. The lock is held by the scheduler (its
+`verrou` tool), the one place every Claude Code session and every engine session reaches.
+
+1. **Before the first change** (branch, file, commit, PR, release): `verrou(depot=
+   "hobbitton-chat-android", action="prendre", qui=<this session's link>, motif=<what you
+   do>)`. Reading the repository does not need it.
+2. **Held by another session** (`"pris": false`): touch nothing in the repository. Call
+   `verrou(prendre)` again (each call waits 45 s) until you hold it, and tell Raphaël who
+   holds it and why. Meanwhile do what does not touch the repository.
+3. **While working**: taking it again renews it; take it again at every push. Without a
+   renewal for an hour, it expires.
+4. **At the end** (PR merged and released, or work dropped): `verrou(depot=
+   "hobbitton-chat-android", action="rendre", qui=<the same link>)`.
+
 ## One engine (D-077)
 
 - **One login**: the Authelia portal (PKCE), from `PortalSignInScreen` (`:feature:auth`). It starts
