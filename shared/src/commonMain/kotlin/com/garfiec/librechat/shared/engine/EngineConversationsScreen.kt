@@ -86,7 +86,13 @@ internal fun EngineConversationsScreen(
             onRefresh = onRefresh,
             modifier = Modifier.padding(padding).fillMaxSize().testTag("conversations_refresh"),
         ) {
-            ConversationList(state = state, onOpenChat = onOpenChat, onRetry = onRefresh, onLoadOlder = onLoadOlder, onDeleteChat = onDeleteChat)
+            ConversationList(
+                state = state,
+                onOpenChat = onOpenChat,
+                onRetry = onRefresh,
+                onLoadOlder = onLoadOlder,
+                onDeleteChat = onDeleteChat,
+            )
         }
     }
 }
