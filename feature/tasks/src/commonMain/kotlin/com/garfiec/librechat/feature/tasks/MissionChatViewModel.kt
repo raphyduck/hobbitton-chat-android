@@ -43,6 +43,8 @@ import com.garfiec.librechat.feature.tasks.util.QuestionDraft
 import com.garfiec.librechat.feature.tasks.util.SessionSpend
 import com.garfiec.librechat.feature.tasks.util.StagedAttachment
 import com.garfiec.librechat.feature.tasks.util.asPromptPart
+import com.garfiec.librechat.feature.tasks.util.delegatedFilesOf
+import com.garfiec.librechat.feature.tasks.util.delegationsToRead
 import com.garfiec.librechat.feature.tasks.util.depositedLine
 import com.garfiec.librechat.feature.tasks.util.knowsPart
 import com.garfiec.librechat.feature.tasks.util.lastAnswerSpeech
@@ -51,6 +53,7 @@ import com.garfiec.librechat.feature.tasks.util.previewPart
 import com.garfiec.librechat.feature.tasks.util.reduce
 import com.garfiec.librechat.feature.tasks.util.sessionSpend
 import com.garfiec.librechat.feature.tasks.util.speechText
+import com.garfiec.librechat.feature.tasks.util.withDelegatedFiles
 import com.garfiec.librechat.feature.tasks.util.withDepositedLines
 import com.garfiec.librechat.feature.tasks.util.withPendingQuestions
 import kotlinx.coroutines.CancellationException
@@ -60,7 +63,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -403,6 +408,7 @@ class MissionChatViewModel(
             loadHistory()
             watchOpening(sessionId)
             openStream()
+            watchDelegations()
             viewModelScope.launch {
                 val remembered = runCatching { withContext(ioDispatcher) { conversationModels?.modelOf(sessionId) } }.getOrNull()
                 if (remembered != null) _uiState.update { it.copy(rememberedModel = remembered) }
@@ -1371,6 +1377,42 @@ class MissionChatViewModel(
                 sendsInFlight--
                 _uiState.update { it.copy(sending = sendsInFlight > 0) }
             }
+        }
+    }
+
+    /** The sub-agents' sessions being read or read already, so each is asked of the engine once. */
+    private val delegationsRead = mutableSetOf<String>()
+
+    /**
+     * Reads what each delegation's session handed back (09/11/2026, Raphaël's capture: three
+     * documents the navigateur passed to the conversation, « sans erreur », and nothing on screen).
+     * A sub-agent runs in a session of its own and the engine's `task` returns its text alone, so a
+     * file it handed back (`fichiers_remettre_fichier`) sat on a tool part of that session, which the
+     * conversation never shows. Once a `task` ends, its session is read once (on IO, the sub-agent's
+     * transcript carries the files as `data:` URLs) and its files are grafted onto the `task` part,
+     * drawn under the fold like any tool's.
+     */
+    private fun watchDelegations() {
+        viewModelScope.launch {
+            _uiState.map { it.chat.delegationsToRead() }.distinctUntilChanged().collect { pending ->
+                pending.filter(delegationsRead::add).forEach(::readDelegatedFiles)
+            }
+        }
+    }
+
+    private fun readDelegatedFiles(delegation: String) {
+        viewModelScope.launch {
+            runCatching { withContext(ioDispatcher) { delegatedFilesOf(delegation, repository.history(delegation)) } }
+                .onSuccess { files ->
+                    if (files.isNotEmpty()) Logger.i(LOG_TAG) { "Delegation $delegation: ${files.size} file(s) handed back" }
+                    _uiState.update { it.copy(chat = it.chat.withDelegatedFiles(delegation, files)) }
+                }
+                .onFailure { error ->
+                    if (error is CancellationException) throw error
+                    // Asked again when another delegation ends.
+                    delegationsRead.remove(delegation)
+                    Logger.w(LOG_TAG) { "Delegation $delegation: files not read (${error.message})" }
+                }
         }
     }
 

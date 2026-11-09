@@ -337,7 +337,15 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   tariff as the engine's `cost`, so the figure is exact, sub-agents included). Under each answer, at
   the end of the action row, a small caption signs it « penseur · Opus 5.5 » (`signatureOf`,
   `PlatformRoles.roleOf`: a model is in one role; `SignatureCaption`), and a delegation's fold reads
-  « → éclaireur · DeepSeek Flash » (`activityLabel`, the `task` call's `subagent_type`). **Every
+  « → éclaireur · DeepSeek Flash » (`activityLabel`, the `task` call's `subagent_type`). **A file a
+  sub-agent handed back shows under its fold** (09/11/2026 evening, Raphaël's capture: three
+  documents the navigateur passed to the conversation « sans erreur », nothing on screen): a
+  delegation runs in a session of its own and the engine's `task` returns its text alone, so the
+  files sat on that session's tool parts. The `task` output opens with `<task id="ses_…">`
+  (`ChatPart.Tool.delegation`, `delegationOf`); once the call has ended the screen reads that
+  session once (`watchDelegations`, `delegationsToRead`, `repository.history`), takes its tools'
+  attachments (`delegatedFilesOf`) and grafts them onto the `task` part
+  (`MissionChatState.delegatedFiles`, `withDelegatedFiles`), drawn after the fold like any tool's. **Every
   part is signed** (08/11/2026 evening, Raphaël: « pour chaque message, chaque appel d'outil, chaque
   raisonnement, pas seulement pour la dernière réponse »): a drawn turn is several engine steps,
   each run on its own model, so `mergedAssistantRuns` keeps the model of each part's step
