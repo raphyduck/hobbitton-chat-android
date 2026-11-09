@@ -17,10 +17,18 @@ import com.garfiec.librechat.core.model.scheduler.RoleAccess
  *    mission simply launched with an empty toolbox and said so mid-run. Reported 30/08/2026. The
  *    catalogue comes from `moteur.py`'s `CONNECTEURS`, the same table the scheduler's own missions
  *    run on, so the two cannot drift.
- *  * the list **opens with a `*` deny**, then re-opens by name. A profile is a ceiling of
- *    capabilities and the checkboxes narrow it for this mission only — never widen it. Starting
- *    from « allow everything » and subtracting would make a forgotten connector a granted one.
- *    Order matters: the engine keeps the **last** rule that matches.
+ *  * the list **closes by name, never with `*`** (09/11/2026). It used to open with a `*` → deny,
+ *    then re-open by name. But a session fille, a sub-agent launched by `task`, inherits every
+ *    `deny` of its mother and reads it after its own profile (OpenCode, subagent-permissions.ts):
+ *    the inherited `*` → deny left the éclaireur and the navigateur with no tool at all, and they
+ *    wrote their calls as text (Raphaël's capture, 09/11/2026: four tries to like a song in
+ *    Navidrome, « l'appel à l'outil n'a pas été exécuté »). The profile already carries `*` → deny:
+ *    the session only needs to close, tool by tool, what the profile opens and the ticks leave out
+ *    (the shell first), and the fille inherits those closures, which are what should bound it as
+ *    much as its mother. A profile is a ceiling and the checkboxes narrow it, never widen it.
+ *    Order matters: the engine keeps the **last** rule that matches. The block opens with a
+ *    `task` → deny, the marker [standingBlock] reads the latest ruleset by; the sub-agents a role
+ *    opens are allowed after it, by name.
  *  * the catalogue's `socle` is granted **on top**. It is what a session gets besides its
  *    connectors (`todowrite`); dropping it builds rules that are incomplete, and silently so.
  *
@@ -54,7 +62,17 @@ fun permissionsFor(
         .filter { (_, grant) -> grant.direct }
         .filter { (name, _) -> access == null || access.annuaire || name != ANNUAIRE_CONNECTOR }
 
-    val rules = mutableListOf(EnginePermissionRule(permission = ANY_TOOL, action = ACTION_DENY))
+    val grantedTools = granted.flatMap { (_, grant) -> grant.outils }.toSet()
+    // The annuaire is never denied by a session rule: the profile refuses it to a role that lacks
+    // it, and a deny would be inherited by the sub-agents who do call it.
+    val annuaireTools = catalogue.connecteurs[ANNUAIRE_CONNECTOR]?.outils.orEmpty().toSet()
+    val rules = mutableListOf(EnginePermissionRule(permission = TASK_TOOL, action = ACTION_DENY))
+    catalogue.connecteurs.values
+        .filter { it.direct }
+        .flatMap { it.outils }
+        .distinct()
+        .filter { it !in grantedTools && it !in annuaireTools && it !in catalogue.socle && namesOneTool(it) }
+        .forEach { tool -> rules += EnginePermissionRule(permission = tool, action = ACTION_DENY) }
     catalogue.socle.forEach { (tool, action) ->
         if (namesOneTool(tool)) rules += EnginePermissionRule(permission = tool, action = action)
     }
@@ -68,7 +86,7 @@ fun permissionsFor(
         .filter(::namesOneTool)
         .forEach { tool -> rules += EnginePermissionRule(permission = tool, action = ACTION_ALLOW) }
     // A role that delegates opens its sub-agents by name; `task` stays closed to any other name
-    // by the profile's own `*` → deny, and a session that does not delegate writes nothing for it.
+    // by the block's opening deny, and a session that does not delegate opens none.
     access?.subAgents.orEmpty().forEach { name ->
         rules += EnginePermissionRule(permission = TASK_TOOL, pattern = name, action = ACTION_ALLOW)
     }
@@ -79,10 +97,28 @@ fun permissionsFor(
  * Whether the standing block of [rules] opens a sub-agent: the session is led by a role that
  * delegates (08/11/2026). Read back to rewrite the rules when the model sent changes role.
  */
-fun rulesDelegate(rules: List<EnginePermissionRule>): Boolean {
-    val lastBlock = rules.indexOfLast { it.permission == ANY_TOOL && it.action == ACTION_DENY }
-    return rules.drop(lastBlock + 1).any { it.permission == TASK_TOOL && it.action == ACTION_ALLOW }
-}
+fun rulesDelegate(rules: List<EnginePermissionRule>): Boolean =
+    standingBlock(rules).any { it.permission == TASK_TOOL && it.action == ACTION_ALLOW }
+
+/**
+ * The latest ruleset of an accumulated list: what follows its opening marker, a `task` → deny on
+ * every pattern (09/11/2026), or the `*` → deny the rulesets before that day opened with.
+ */
+private fun standingBlock(rules: List<EnginePermissionRule>): List<EnginePermissionRule> =
+    rules.drop(maxOf(lastWildcardDeny(rules), lastTaskDeny(rules)) + 1)
+
+private fun lastWildcardDeny(rules: List<EnginePermissionRule>): Int =
+    rules.indexOfLast { it.permission == ANY_TOOL && it.action == ACTION_DENY }
+
+private fun lastTaskDeny(rules: List<EnginePermissionRule>): Int =
+    rules.indexOfLast { it.permission == TASK_TOOL && it.pattern == ANY_TOOL && it.action == ACTION_DENY }
+
+/**
+ * Whether the standing ruleset still opens with a `*` → deny: written before 09/11/2026, it closes
+ * every sub-agent of the conversation ([permissionsFor]), and the next send rewrites it.
+ */
+fun rulesCloseSubAgents(rules: List<EnginePermissionRule>): Boolean =
+    lastWildcardDeny(rules) > lastTaskDeny(rules)
 
 /** A concrete tool name — not blank, no `*` or `?` — the only shape a catalogue pattern may take. */
 private fun namesOneTool(pattern: String): Boolean {
@@ -101,8 +137,8 @@ private fun namesOneTool(pattern: String): Boolean {
  * session — reading it that way, as this did when it shipped that morning, reported every connector
  * ever ticked, including any since unticked.
  *
- * So only the **last block** is read: the rules after the final `*` → `deny`, which is precisely
- * the ruleset the last `PATCH` sent.
+ * So only the **last block** is read ([standingBlock]): the rules after the final opening marker,
+ * which is precisely the ruleset the last `PATCH` sent.
  *
  * **This is the cautious reading, and deliberately so, because the engine's own rule is not
  * settled.** Two places in this project describe it and they disagree: the server's `moteur.py`
@@ -128,8 +164,7 @@ fun connectorsGranted(
     catalogue: ConnectorCatalogue,
     rules: List<EnginePermissionRule>,
 ): Set<String> {
-    val lastBlock = rules.indexOfLast { it.permission == ANY_TOOL && it.action == ACTION_DENY }
-    val standing = rules.drop(lastBlock + 1)
+    val standing = standingBlock(rules)
         .filter { it.action == ACTION_ALLOW }
         .map { it.permission }
         .toSet()
@@ -147,8 +182,8 @@ fun rulesPredate(
     catalogue: ConnectorCatalogue,
     rules: List<EnginePermissionRule>,
 ): Boolean {
-    val lastBlock = rules.indexOfLast { it.permission == ANY_TOOL && it.action == ACTION_DENY }
-    val standing = rules.drop(lastBlock + 1).filter { it.action == ACTION_ALLOW }.map { it.permission }.toSet()
+    if (rulesCloseSubAgents(rules)) return true
+    val standing = standingBlock(rules).filter { it.action == ACTION_ALLOW }.map { it.permission }.toSet()
     return connectorsGranted(catalogue, rules).any { name ->
         catalogue.connecteurs.getValue(name).outils.any { it !in standing }
     }
@@ -157,8 +192,9 @@ fun rulesPredate(
 /** The one rule action that grants. */
 private const val ACTION_ALLOW = "allow"
 
-/** The catch-all every ruleset opens with, and so the marker of where the last one begins. */
 private const val ACTION_DENY = "deny"
+
+/** The catch-all the rulesets before 09/11/2026 opened with; never written since, still read. */
 private const val ANY_TOOL = "*"
 
 /** The direct connector whose two tools are the annuaire's; the only one a role may be refused. */

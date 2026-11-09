@@ -85,7 +85,14 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   `planificateur_pieces_jointes` every older conversation read its `planificateur` as absent and the
   next rewrite stripped it whole. Rules a connector has outgrown read as `stale`
   (`rulesPredate`, `SessionScopeRead.stale`) and the first send rewrites them from the connectors
-  read back, at the titulaire's level too (`rulesStale`, `liftToTitularIfNeeded`).
+  read back, at the titulaire's level too (`rulesStale`, `liftToTitularIfNeeded`). **A ruleset
+  closes by name, never with `*`** (09/11/2026, Raphaël's capture: four tries to like a song in
+  Navidrome, the éclaireur's and the navigateur's calls written as text): a session fille inherits
+  every deny of its mother and reads it after its own profile, so the `*` → deny every ruleset
+  used to open with left the sub-agents without a tool. The block opens with a `task` → deny (the
+  marker `standingBlock` reads the latest ruleset by), closes each tool of a direct connector the
+  ticks leave out, never the annuaire, then allows by name; a ruleset still opening with `*` reads
+  as stale (`rulesCloseSubAgents`) and the next send rewrites it.
 - **Programmées** (ex Tasks tab): the scheduler's entries only, recurring then one-shot, each row
   opening its actions. Their runs are not listed there: they are conversations, named after their
   mission with a small clock (`EngineChatSummary.scheduled`). `classifySession` still leaves out a
