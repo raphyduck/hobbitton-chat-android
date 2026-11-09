@@ -28,7 +28,11 @@ The engine shell, and the Koin module list the application starts from. KMP libr
   rest, each by latest activity; pushed like Programmées (`EngineConversations`), pull to refresh.
   Its rows are the drawer's (`RecentChatItem`, an unread title in bold). Both lists read 200
   sessions at a time; « Plus anciennes » at their foot reads 200 more (`loadOlder`,
-  `EngineChatsState.more`, 21/10/2026: the lists had stopped at 200, a few days of runs).
+  `EngineChatsState.more`, 21/10/2026: the lists had stopped at 200, a few days of runs). A long
+  press on a row (09/11/2026) opens « Supprimer » with a confirmation (`RecentChatItem.onDelete`,
+  `DeleteChatDialog`); `EngineMainLayout` moves off the deleted conversation when it is the one on
+  screen, then `EngineShellViewModel.deleteChat` deletes it from the engine and the device and
+  drops its row from both lists; a refusal shows once (`chatDeletion`, `dismissDeletionFailure`).
 - `EngineDrawer` (Claude's layout since lot 3, 10/10/2026) — a search over the titles of every
   session the engine holds, accents folded (21/10/2026: `EngineShellViewModel.search`, a pause of
   300 ms, then `recentChats(query = …)`; the rows already drawn are filtered meanwhile), three short entries (new conversation, Conversations, Programmées), every session (the same as the Conversations page, a small clock on a run) as bare titles, the unread

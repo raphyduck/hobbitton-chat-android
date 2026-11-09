@@ -55,6 +55,8 @@ internal fun EngineConversationsScreen(
     onRefresh: () -> Unit,
     modifier: Modifier = Modifier,
     onLoadOlder: () -> Unit = {},
+    /** A long press on a title offers to delete the conversation (09/11/2026). */
+    onDeleteChat: ((EngineChatSummary) -> Unit)? = null,
 ) {
     Scaffold(
         modifier = modifier,
@@ -84,7 +86,13 @@ internal fun EngineConversationsScreen(
             onRefresh = onRefresh,
             modifier = Modifier.padding(padding).fillMaxSize().testTag("conversations_refresh"),
         ) {
-            ConversationList(state = state, onOpenChat = onOpenChat, onRetry = onRefresh, onLoadOlder = onLoadOlder)
+            ConversationList(
+                state = state,
+                onOpenChat = onOpenChat,
+                onRetry = onRefresh,
+                onLoadOlder = onLoadOlder,
+                onDeleteChat = onDeleteChat,
+            )
         }
     }
 }
@@ -95,6 +103,7 @@ private fun ConversationList(
     onOpenChat: (EngineChatSummary) -> Unit,
     onRetry: () -> Unit,
     onLoadOlder: () -> Unit,
+    onDeleteChat: ((EngineChatSummary) -> Unit)?,
 ) {
     // Read once per list: the ages of one drawing agree on what « now » is.
     val now = remember(state.chats) { Clock.System.now().toEpochMilliseconds() }
@@ -119,20 +128,38 @@ private fun ConversationList(
                 if (paused.isNotEmpty()) {
                     item(key = "header-paused") { RecentHeader(stringResource(Res.string.engine_conversations_paused)) }
                     items(paused, key = { it.sessionId }) { chat ->
-                        RecentChatItem(chat = chat, nowMillis = now, selected = false, onClick = { onOpenChat(chat) })
+                        RecentChatItem(
+                            chat = chat,
+                            nowMillis = now,
+                            selected = false,
+                            onClick = { onOpenChat(chat) },
+                            onDelete = onDeleteChat?.let { delete -> { delete(chat) } },
+                        )
                     }
                 }
                 if (unread.isNotEmpty()) {
                     item(key = "header-unread") { RecentHeader(stringResource(Res.string.engine_conversations_unread)) }
                     items(unread, key = { it.sessionId }) { chat ->
-                        RecentChatItem(chat = chat, nowMillis = now, selected = false, onClick = { onOpenChat(chat) })
+                        RecentChatItem(
+                            chat = chat,
+                            nowMillis = now,
+                            selected = false,
+                            onClick = { onOpenChat(chat) },
+                            onDelete = onDeleteChat?.let { delete -> { delete(chat) } },
+                        )
                     }
                     if (read.isNotEmpty()) {
                         item(key = "header-read") { RecentHeader(stringResource(Res.string.engine_conversations_read)) }
                     }
                 }
                 items(read, key = { it.sessionId }) { chat ->
-                    RecentChatItem(chat = chat, nowMillis = now, selected = false, onClick = { onOpenChat(chat) })
+                    RecentChatItem(
+                            chat = chat,
+                            nowMillis = now,
+                            selected = false,
+                            onClick = { onOpenChat(chat) },
+                            onDelete = onDeleteChat?.let { delete -> { delete(chat) } },
+                        )
                 }
                 if (state.more) {
                     item(key = "older") { LoadOlder(onLoadOlder) }

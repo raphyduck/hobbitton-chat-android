@@ -16,6 +16,7 @@ import com.garfiec.librechat.core.network.engine.EngineHttpException
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.timeout
+import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.patch
 import io.ktor.client.request.post
@@ -247,6 +248,15 @@ class AgentEngineApi(
     /** Stops a running session. The engine expects **no body**; sending one is a 400. */
     suspend fun abort(sessionId: String) {
         client.post { url { path("session/${sessionId.encodeURLPathPart()}/abort") } }.orThrow()
+    }
+
+    /**
+     * Deletes a session from the engine, its messages and its sub-agents' sessions with it
+     * (09/11/2026, the long press on a title): the classic `DELETE /session/{id}`. The engine
+     * answers `true`; a session already gone is a 404, which the caller reads as done.
+     */
+    suspend fun deleteSession(sessionId: String) {
+        client.delete { url { path("session/${sessionId.encodeURLPathPart()}") } }.orThrow()
     }
 
     /**

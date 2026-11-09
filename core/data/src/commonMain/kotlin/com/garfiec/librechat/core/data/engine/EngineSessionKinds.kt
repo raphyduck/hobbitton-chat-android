@@ -24,6 +24,9 @@ interface SessionKindStore {
 
     suspend fun recordAll(kinds: Map<String, EngineSessionKind>)
 
+    /** The kind of one session goes (09/11/2026): the conversation was deleted from the engine. */
+    suspend fun forget(sessionId: String) {}
+
     /** Forgets everything — part of signing out, with the rest of the local session caches. */
     suspend fun clear()
 }
@@ -49,6 +52,15 @@ class EngineSessionKinds(
                 val current = decode(prefs[KEY])
                 val merged = cappedMerge(current, kinds, CAPACITY)
                 prefs[KEY] = json.encodeToString(merged.mapValues { it.value.name })
+            }
+        }
+    }
+
+    override suspend fun forget(sessionId: String) {
+        withContext(ioDispatcher) {
+            dataStore.edit { prefs ->
+                val current = decode(prefs[KEY])
+                if (sessionId in current) prefs[KEY] = json.encodeToString((current - sessionId).mapValues { it.value.name })
             }
         }
     }

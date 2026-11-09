@@ -10,10 +10,13 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -33,6 +36,7 @@ import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import com.garfiec.librechat.core.data.datastore.ChatFontSize
 import com.garfiec.librechat.core.data.datastore.ThemeMode
+import com.garfiec.librechat.core.data.engine.EngineChatSummary
 import com.garfiec.librechat.core.data.engine.OpenConversation
 import com.garfiec.librechat.core.ui.components.PlatformBackHandler
 import com.garfiec.librechat.core.ui.theme.AppLocale
@@ -45,8 +49,12 @@ import com.garfiec.librechat.feature.tasks.share.PendingShare
 import com.garfiec.librechat.feature.tasks.share.ShareTarget
 import com.garfiec.librechat.shared.engine.lock.AppLockGate
 import com.garfiec.librechat.shared.engine.voice.EngineVoiceScreen
+import com.garfiec.librechat.shared.resources.Res
+import com.garfiec.librechat.shared.resources.engine_chat_delete_failed
+import com.garfiec.librechat.shared.resources.engine_chat_delete_failed_ok
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
@@ -81,6 +89,7 @@ fun EngineNavHost(
     val models by viewModel.models.collectAsStateWithLifecycle()
     val openRequest by viewModel.openRequest.collectAsStateWithLifecycle()
     val pendingShare by viewModel.pendingShare.collectAsStateWithLifecycle()
+    val chatDeletion by viewModel.chatDeletion.collectAsStateWithLifecycle()
     val identity by viewModel.identity.collectAsStateWithLifecycle()
 
     // Back in the foreground: a renewal refused while away has emptied the token store, and the
@@ -128,6 +137,9 @@ fun EngineNavHost(
                             pendingShare = pendingShare,
                             onAimShare = viewModel::aimShare,
                             onDismissShare = viewModel::dismissShare,
+                            chatDeletion = chatDeletion,
+                            onDeleteChat = viewModel::deleteChat,
+                            onDismissDeletionFailure = viewModel::dismissDeletionFailure,
                             onRefreshChats = viewModel::refreshChats,
                             onRefreshAllChats = viewModel::refreshAllChats,
                             onSearch = viewModel::search,
@@ -170,6 +182,9 @@ private fun EngineMainLayout(
     pendingShare: PendingShare?,
     onAimShare: (ShareTarget) -> Unit,
     onDismissShare: () -> Unit,
+    chatDeletion: ChatDeletion?,
+    onDeleteChat: (String) -> Unit,
+    onDismissDeletionFailure: () -> Unit,
     onRefreshChats: () -> Unit,
     onRefreshAllChats: () -> Unit,
     onSearch: (String) -> Unit,
@@ -212,6 +227,22 @@ private fun EngineMainLayout(
     val openDrawer: () -> Unit = { scope.launch { drawerState.open() } }
     val closeDrawer: () -> Unit = { scope.launch { drawerState.close() } }
     val activeChat = (navigator.currentRoute as? EngineChat)?.sessionId
+
+    // A long press on a title deletes the conversation (09/11/2026). The one on screen leaves the
+    // stack first, a blank conversation in its place, so no view model keeps reading a session gone.
+    val deleteChat: (EngineChatSummary) -> Unit = { chat ->
+        if (activeChat == chat.sessionId) navigator.newChat()
+        onDeleteChat(chat.sessionId)
+    }
+    if (chatDeletion?.failed == true) {
+        AlertDialog(
+            onDismissRequest = onDismissDeletionFailure,
+            text = { Text(stringResource(Res.string.engine_chat_delete_failed)) },
+            confirmButton = {
+                TextButton(onClick = onDismissDeletionFailure) { Text(stringResource(Res.string.engine_chat_delete_failed_ok)) }
+            },
+        )
+    }
 
     // What is on screen is read (16/10/2026): the conversation as it opens, and again as it is left,
     // so a reply that arrived while it was shown does not come back unread. Leaving the app counts
@@ -292,6 +323,7 @@ private fun EngineMainLayout(
                     search = search,
                     onSearch = onSearch,
                     onLoadOlder = onLoadOlder,
+                    onDeleteChat = deleteChat,
                 )
             }
         },
@@ -370,6 +402,7 @@ private fun EngineMainLayout(
                     onOpenChat = { chat -> navigator.openChat(chat.sessionId, chat.title) },
                     onRefresh = onRefreshAllChats,
                     onLoadOlder = onLoadOlder,
+                    onDeleteChat = deleteChat,
                 )
             }
             entry<EngineInstructions> {

@@ -45,6 +45,9 @@ interface ConversationReads {
     /** The conversation was on screen at [atMillis]: everything it said until then is read. */
     suspend fun markRead(sessionId: String, atMillis: Long)
 
+    /** The mark of one session goes (09/11/2026): the conversation was deleted from the engine. */
+    suspend fun forget(sessionId: String) {}
+
     /** Forgets everything — part of signing out, with the other local session caches. */
     suspend fun clear()
 }
@@ -75,6 +78,15 @@ class EngineConversationReads(
                 seen[sessionId] = maxOf(before ?: 0L, atMillis)
                 prefs[SEEN] = json.encodeToString(seen.entries.toList().takeLast(CAPACITY).associate { it.key to it.value })
                 if (prefs[FLOOR] == null) prefs[FLOOR] = now()
+            }
+        }
+    }
+
+    override suspend fun forget(sessionId: String) {
+        withContext(ioDispatcher) {
+            dataStore.edit { prefs ->
+                val seen = LinkedHashMap(decode(prefs[SEEN]))
+                if (seen.remove(sessionId) != null) prefs[SEEN] = json.encodeToString(seen.toMap())
             }
         }
     }

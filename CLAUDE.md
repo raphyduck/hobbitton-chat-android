@@ -119,6 +119,15 @@ Most modules have their own `CLAUDE.md` with specific guidance.
   it, and out of the drawer; the scheduler had opened it under a run's title, which named the
   mission while the run was dropped; `missionOf`, `listedTitle`, the session then recorded as a
   chat so the reading outlives the scheduler's last 200 runs).
+  **A conversation is deleted from its row** (09/11/2026, Raphaël: « supprimer une session par menu
+  contextuel et appui long sur titre dans les listes »): a long press on a title, in the drawer or
+  on the Conversations page, opens a menu with « Supprimer » and a confirmation naming the title
+  (`RecentChatItem.onDelete`); the engine's `DELETE /session/{id}` takes the messages and the
+  sub-agents' sessions with it (`EngineMissionRepository.deleteSession`, a 404 counted as done),
+  the device forgets its read mark, kind, cached tail and model pick (`forget` on each store), both
+  lists drop the row at once (`EngineShellViewModel.deleteChat`, `chatDeletion`), the notification
+  that announced it goes, and a deleted conversation on screen gives way to a blank one first. A
+  refusal keeps the row and says so. The share sheet's rows have no long press.
   A **discreet** mission (Raphaël's rule, 19/10/2026: the guet's lots crowded both lists) keeps its
   runs out of both, failed or not (`runHidden`, the scheduler's `discrete` on each mission, read off the missions themselves since 03/11/2026 and no longer off the last 200 runs, whose window left the lots of 31/10 showing as unread sessions; Raphaël: the flag decides, never the title alone; Raphaël,
   20/10/2026: the failing runs filled the drawer; a failure shows on its row under Programmées); its history stays under Programmées, whose actions sheet hides or shows it

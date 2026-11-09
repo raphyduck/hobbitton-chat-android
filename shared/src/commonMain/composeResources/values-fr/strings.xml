@@ -14,6 +14,12 @@
     <string name="engine_conversations_paused">En pause</string>
     <string name="engine_chat_unread">Non lue</string>
     <string name="engine_chat_paused">En pause : plafond de dépense atteint</string>
+    <string name="engine_chat_delete">Supprimer</string>
+    <string name="engine_chat_delete_title">Supprimer cette conversation ?</string>
+    <string name="engine_chat_delete_text">« %1$s » sera effacée du moteur, sur tous les appareils, avec les sessions de ses sous-agents.</string>
+    <string name="engine_chat_delete_cancel">Annuler</string>
+    <string name="engine_chat_delete_failed">La conversation n’a pas pu être supprimée.</string>
+    <string name="engine_chat_delete_failed_ok">OK</string>
     <string name="engine_drawer_settings">Réglages</string>
     <string name="engine_drawer_recent">Conversations récentes</string>
     <string name="engine_drawer_empty">Aucune conversation pour l'instant.</string>
