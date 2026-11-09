@@ -7,7 +7,6 @@ import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.datastore.ThemeDataStore
 import com.garfiec.librechat.core.data.engine.ConversationReads
 import com.garfiec.librechat.core.data.engine.ConversationRequests
-import com.garfiec.librechat.feature.tasks.share.ShareIntake
 import com.garfiec.librechat.core.data.engine.EngineAttentionWatcher
 import com.garfiec.librechat.core.data.engine.EngineMissionRepository
 import com.garfiec.librechat.core.data.engine.EngineSettingsStore
@@ -18,6 +17,7 @@ import com.garfiec.librechat.core.data.portal.PortalTasksSignIn
 import com.garfiec.librechat.core.data.pricing.ModelPriceSource
 import com.garfiec.librechat.core.data.scheduler.ChatBudgetSource
 import com.garfiec.librechat.core.network.engine.EngineTokenStore
+import com.garfiec.librechat.feature.tasks.share.ShareIntake
 import com.garfiec.librechat.shared.di.sharedKoinModules
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
