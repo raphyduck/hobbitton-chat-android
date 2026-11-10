@@ -75,7 +75,11 @@ that arrives waits for the other to finish. The lock is held by the scheduler (i
   shell, annuaire, scheduler, alerts: `directOffered`, their ticks becoming the session's rules
   through `directPerimeter`); what the annuaire serves (mail, messaging, browser, bank, SSH…) is
   never listed nor declared to the engine (D-073). The shell stays the one connector the scheduler
-  leaves on demand. One
+  leaves on demand. A **development session** the scheduler opened (10/11/2026, kit #258,
+  `planificateur_session_developpement`) is the exception: its `perimetre` read names its agent and
+  model (`profil` `code-general`, `modele` the coder's; `SessionScopeRead.agent`/`model`), and every
+  turn sent in it goes on them, nothing lifted nor rewritten, the chip naming the model
+  (`MissionChatUiState.sessionAgent`/`sessionModel`). One
   screen (`MissionChatScreen`), one route (`EngineChat`) for every session: a chat, a task of an
   earlier version, a scheduled run, whose follow-ups run on `chat` too. A session the scheduler
   recorded at another level (a run stands at `mission`, where `ssh-distant` is forbidden) is
