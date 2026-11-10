@@ -217,6 +217,7 @@ class PilotedModelTest {
         // Piloté: the request goes without a model, to the pilot in service, whatever the last turn ran on.
         coVerify { repository.sendMessage("ses_suivie", ASK_SAGE_PREFIX + "Rédige la relance", null, any()) }
     }
+
     @Test
     fun `a development session keeps its agent and its coder when the person answers in it`() {
         // 10/11/2026, Raphaël: an answer in a development session the scheduler opened went to

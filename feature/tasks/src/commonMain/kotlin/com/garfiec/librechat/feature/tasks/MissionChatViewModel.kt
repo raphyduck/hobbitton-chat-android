@@ -277,7 +277,7 @@ data class MissionChatUiState(
      * by its raw id: an unfamiliar model is worth showing.
      */
     val effectiveModel: EngineSelectableModel?
-        get() = model ?: sessionModel?.let { ref ->
+        get() = model ?: sessionModel?.takeIf { sessionAgent != null }?.let { ref ->
             models.firstOrNull { it.ref == ref }
                 ?: EngineSelectableModel(providerId = ref.providerId, modelId = ref.modelId, label = ref.modelId)
         } ?: rememberedModel?.let { ref ->
@@ -552,8 +552,11 @@ class MissionChatViewModel(
                             sessionLevel = it.sessionLevel ?: scope?.level,
                             rulesStale = scope?.stale == true && it.sessionLevel == null,
                             rulesMode = it.rulesMode ?: scope?.mode,
-                            sessionAgent = it.sessionAgent ?: scope?.agent,
-                            sessionModel = it.sessionModel ?: scope?.model,
+                            // The model comes with the agent only: a session the scheduler names no
+                            // agent for is a conversation, whatever else its read carries.
+                            sessionAgent = it.sessionAgent ?: scope?.agent?.takeIf { agent -> agent.isNotBlank() },
+                            sessionModel = it.sessionModel
+                                ?: scope?.model?.takeIf { scope.agent?.isNotBlank() == true },
                             connectorsError = null,
                         )
                     }
