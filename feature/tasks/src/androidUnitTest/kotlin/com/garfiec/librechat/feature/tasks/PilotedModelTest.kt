@@ -188,7 +188,7 @@ class PilotedModelTest {
     }
 
     @Test
-    fun `ask the savant puts the last request to the savant through the conversation's model`() {
+    fun `ask the savant puts the last request to the savant through the pilot of a piloted conversation`() {
         val ran = EngineModelRef("hobbitton-chat", "claude-opus-5-5")
         coEvery { repository.history("ses_suivie", any()) } returns listOf(
             EngineStreamEvent.MessageStarted("m1", "user"),
@@ -203,6 +203,7 @@ class PilotedModelTest {
         assertThat(vm.uiState.value.canAskSavant).isTrue()
         vm.askSavant()
 
-        coVerify { repository.sendMessage("ses_suivie", ASK_SAGE_PREFIX + "Rédige la relance", ran, any()) }
+        // Piloté: the request goes to the pilot in service, whatever the last turn ran on.
+        coVerify { repository.sendMessage("ses_suivie", ASK_SAGE_PREFIX + "Rédige la relance", flash.ref, any()) }
     }
 }

@@ -53,8 +53,9 @@ class SessionSpendTest {
 
         val spend = sessionSpend(parent, listOf(scout, savant), roles, ModelPrices.NONE)
 
-        assertEquals(listOf("claude-opus-5-5", "claude-fable-5-1", "deepseek-flash"), spend.lines.map { it.modelId })
-        val opusLine = spend.lines.first()
+        // The pilot's role first (10/11/2026, the éclaireur), then the penseur, then the savant.
+        assertEquals(listOf("deepseek-flash", "claude-opus-5-5", "claude-fable-5-1"), spend.lines.map { it.modelId })
+        val opusLine = spend.lines.first { it.modelId == "claude-opus-5-5" }
         assertEquals(PlatformRoles.THINKER, opusLine.role)
         assertEquals(2, opusLine.calls)
         assertEquals(3, opusLine.tools)
