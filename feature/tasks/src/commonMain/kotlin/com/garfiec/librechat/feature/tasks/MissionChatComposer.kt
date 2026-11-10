@@ -517,7 +517,7 @@ private fun ComposerChips(
         // Capped: the model's name is the longest thing on the row, and the connectors' label
         // beside it should stay in view. The provider is in the picker, not on the label.
         state.models.isNotEmpty() -> ComposerPill(
-            // « Piloté » (D-086) whenever the conversation runs on the platform's penseur: the
+            // « Piloté » (D-086) whenever the conversation runs on the platform's pilot: the
             // model's own name stays in the picker, one tap away, and off the row.
             label = if (state.showsPiloted) {
                 stringResource(Res.string.tasks_model_auto)

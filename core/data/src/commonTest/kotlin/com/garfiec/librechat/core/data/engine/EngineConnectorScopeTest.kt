@@ -42,25 +42,29 @@ class EngineConnectorScopeTest {
             listOf("eclaireur", "navigateur", "savant"),
             rules.filter { it.permission == "task" && it.action == "allow" }.map { it.pattern },
         )
-        assertTrue(rulesDelegate(rules))
+        assertEquals(setOf("eclaireur", "navigateur", "savant"), rulesSubAgents(rules))
         // The chip still reads the annuaire as the conversation's: its sub-agents reach it.
         assertEquals(setOf("memoire"), connectorsGranted(catalogue, rules))
     }
 
     @Test
-    fun `a role that calls the annuaire itself gets it and no sub-agent`() {
+    fun `the pilot calls the annuaire itself and consults the penseur, the navigateur and the savant`() {
+        // 10/11/2026 (Raphaël: one pilot): the éclaireur leads, with the annuaire AND sub-agents.
         val eclaireur = PlatformRoles.NONE.accessOf(PlatformRoles.SCOUT)
         val rules = permissionsFor(catalogue, listOf("memoire", "annuaire"), eclaireur)
 
         assertEquals(
-            listOf("todowrite", "question", "memoire_lire", "planificateur_annuaire_chercher", "planificateur_annuaire_appeler"),
+            listOf("todowrite", "question", "memoire_lire", "planificateur_annuaire_chercher", "planificateur_annuaire_appeler",
+                "task", "task", "task"),
             rules.filter { it.action == "allow" }.map { it.permission },
         )
-        assertFalse(rulesDelegate(rules))
+        assertEquals(setOf("penseur", "navigateur", "savant"), rulesSubAgents(rules))
         // The savant who leads opens the éclaireur and the navigateur, never itself; a model no
-        // list names is led as the penseur.
+        // list names is led as the pilot.
         assertEquals(listOf("eclaireur", "navigateur"), PlatformRoles.NONE.accessOf(PlatformRoles.SAVANT).subAgents)
-        assertEquals(PlatformRoles.NONE.accessOf(PlatformRoles.THINKER), PlatformRoles.NONE.accessOfModel(null))
+        assertEquals(PlatformRoles.NONE.accessOf(PlatformRoles.SCOUT), PlatformRoles.NONE.accessOfModel(null))
+        // A commis neither calls the annuaire nor delegates.
+        assertTrue(rulesSubAgents(permissionsFor(catalogue, listOf("memoire"), PlatformRoles.NONE.accessOf(PlatformRoles.CLERK))).isEmpty())
         // The server's table wins over the built-in one when it is published.
         val served = PlatformRoles(access = mapOf(PlatformRoles.SCOUT to RoleAccess(annuaire = false)))
         assertFalse(served.accessOf(PlatformRoles.SCOUT).annuaire)
@@ -93,7 +97,7 @@ class EngineConnectorScopeTest {
             EnginePermissionRule(permission = "task", pattern = "eclaireur", action = "allow"),
         )
         assertEquals(setOf("memoire"), connectorsGranted(withShell, before))
-        assertTrue(rulesDelegate(before))
+        assertEquals(setOf("eclaireur"), rulesSubAgents(before))
         assertTrue(rulesCloseSubAgents(before))
         assertTrue(rulesPredate(withShell, before))
         // Appended after it (PATCH accumulates), the new ruleset is the standing one.

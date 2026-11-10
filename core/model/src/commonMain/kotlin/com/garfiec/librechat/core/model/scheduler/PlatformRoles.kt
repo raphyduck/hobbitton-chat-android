@@ -10,17 +10,17 @@ import kotlinx.serialization.Serializable
  * table is the server's catalogue, rendered there, never the app's: which model thinks and which
  * one scouts is a deployment's choice, and a list hardcoded here would be wrong the day it changes.
  *
- * What the app does with it: a conversation on « Piloté » runs on the [thinker] (the penseur in
- * service, which delegates the plumbing to the éclaireur through the engine's sub-agents); the
- * picker offers the [savant] for a conversation that is all heavy reasoning; « Ask the savant » under an
- * answer exists when the server has one. Empty when the scheduler predates the route.
+ * What the app does with it: a conversation on « Piloté » runs on the [pilot] (10/11/2026,
+ * Raphaël: one pilot, the éclaireur in service, which does the plumbing itself and consults the
+ * penseur, the navigateur and the savant through the engine's sub-agents); the picker offers the
+ * [savant] for a conversation that is all heavy reasoning; « Ask the savant » under an answer
+ * exists when the server has one. Empty when the scheduler predates the route.
  */
 @Serializable
 data class PlatformRoles(
     @SerialName("roles") val roles: Map<String, RoleModels> = emptyMap(),
-    /** The roles a mission may be led by (`pilote`): penseur, eclaireur, savant. */
-    @SerialName("pilotes") val pilots: List<String> = emptyList(),
-    @SerialName("pilote_par_defaut") val defaultPilot: String = THINKER,
+    /** The role that leads every session (10/11/2026): the éclaireur. */
+    @SerialName("pilote") val pilotRole: String = SCOUT,
     /** The provider a conversation spends on (D-077): `hobbitton-chat`. */
     @SerialName("fournisseur_conversations") val conversationsProvider: String = "hobbitton-chat",
     /**
@@ -32,14 +32,13 @@ data class PlatformRoles(
     @SerialName("acces") val access: Map<String, RoleAccess> = emptyMap(),
 ) {
     /**
-     * The access of [role]: the server's table, else the built-in one, which says the same thing
-     * (the penseur and the savant delegate and never call the annuaire, the others call it and
-     * never delegate). A null or unknown role is led as the penseur: it delegates.
+     * The access of [role]: the server's table, else the built-in one, which says the same thing.
+     * A null or unknown role is led as the pilot, as the scheduler leads it (`role_du_passage`).
      */
     fun accessOf(role: String?): RoleAccess =
-        access[role ?: THINKER] ?: DEFAULT_ACCESS[role ?: THINKER] ?: DEFAULT_ACCESS.getValue(THINKER)
+        access[role ?: pilotRole] ?: DEFAULT_ACCESS[role ?: pilotRole] ?: DEFAULT_ACCESS.getValue(SCOUT)
 
-    /** The access of the role [ref] belongs to; a model no list names is led as the penseur. */
+    /** The access of the role [ref] belongs to; a model no list names is led as the pilot. */
     fun accessOfModel(ref: EngineModelRef?): RoleAccess = accessOf(ref?.let { roleOf(it.modelId) })
 
     /** The model id in service for [role], null when the role is unknown or empty. */
@@ -49,8 +48,8 @@ data class PlatformRoles(
     fun conversationModel(role: String): EngineModelRef? =
         inService(role)?.let { EngineModelRef(providerId = conversationsProvider, modelId = it) }
 
-    /** The penseur in service, what « Piloté » runs on; null without a table. */
-    val thinker: EngineModelRef? get() = conversationModel(THINKER)
+    /** The pilot in service, what « Piloté » runs on; null without a table. */
+    val pilot: EngineModelRef? get() = conversationModel(pilotRole)
 
     /** The savant in service, the strongest model, for heavy reasoning; null without a table. */
     val savant: EngineModelRef? get() = conversationModel(SAVANT)
@@ -62,7 +61,7 @@ data class PlatformRoles(
     fun roleOf(modelId: String): String? =
         roles.entries.firstOrNull { (_, models) -> models.models.any { it.equals(modelId, ignoreCase = true) } }?.key
 
-    /** The roles in the order the screen lists them: the pilots first, then the rest of the table. */
+    /** The roles in the order the screen lists them: the pilot first, then the rest of the table. */
     val ordered: List<String> get() = (ORDER + roles.keys).distinct().filter { it in roles }
 
     /** True when [ref] is the model in service of [role], whatever the provider it is named on. */
@@ -79,18 +78,15 @@ data class PlatformRoles(
         const val CLERK = "commis"
         const val READER = "lecteur"
 
-        /** The pilots a mission may name, in the order the screen shows them. */
-        val PILOTS = listOf(THINKER, SCOUT, SAVANT)
-
-        /** The whole table in reading order: who leads, who is consulted, who executes, the rest. */
-        val ORDER = listOf(THINKER, SAVANT, SCOUT, NAVIGATOR, CODER, CLERK, READER)
+        /** The whole table in reading order: who leads, who is consulted, the rest. */
+        val ORDER = listOf(SCOUT, THINKER, SAVANT, NAVIGATOR, CODER, CLERK, READER)
         val NONE = PlatformRoles()
 
-        /** The server's access table as of 08/11/2026, for a scheduler that does not publish it. */
+        /** The server's access table as of 10/11/2026, for a scheduler that does not publish it. */
         val DEFAULT_ACCESS: Map<String, RoleAccess> = mapOf(
+            SCOUT to RoleAccess(annuaire = true, subAgents = listOf(THINKER, NAVIGATOR, SAVANT)),
             THINKER to RoleAccess(annuaire = false, subAgents = listOf(SCOUT, NAVIGATOR, SAVANT)),
             SAVANT to RoleAccess(annuaire = false, subAgents = listOf(SCOUT, NAVIGATOR)),
-            SCOUT to RoleAccess(annuaire = true),
             NAVIGATOR to RoleAccess(annuaire = true, annuaireConnectors = listOf("bitwarden", "fichiers", "navigateur")),
             CODER to RoleAccess(annuaire = true),
             CLERK to RoleAccess(annuaire = false),
@@ -101,7 +97,7 @@ data class PlatformRoles(
 
 /**
  * What a role reaches (08/11/2026 evening): [annuaire] says whether its session calls the annuaire
- * itself (false for a role that delegates, whose sub-agents call it), [annuaireConnectors] the
+ * itself (false for the penseur and the savant, whose sub-agents call it), [annuaireConnectors] the
  * connectors it is bounded to when it does (null: its session's whole scope), [subAgents] the
  * sub-agents its session opens through `task`, by their conversation names.
  */

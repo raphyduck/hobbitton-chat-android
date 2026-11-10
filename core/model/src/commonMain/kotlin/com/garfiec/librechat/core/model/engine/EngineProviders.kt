@@ -67,15 +67,15 @@ data class EngineSelectableModel(
     val ref: EngineModelRef get() = EngineModelRef(providerId = providerId, modelId = modelId)
 
     /**
-     * True for [AUTO], « Piloté »: not a model, the request to run on the platform's penseur in
-     * service (D-086), whoever that is the day the conversation starts.
+     * True for [AUTO], « Piloté »: not a model, the request to run on the platform's pilot in
+     * service (D-086; the éclaireur since 10/11/2026), whoever that is the day the conversation starts.
      */
     val isAuto: Boolean get() = providerId.isEmpty() && modelId == AUTO_MODEL_ID
 
     companion object {
         /**
          * The id Settings store for « Piloté » (25/10/2026 « Auto », 08/11/2026 « Piloté », D-086 :
-         * the penseur in service, which delegates to the éclaireur): a word no provider uses. Never
+         * the pilot in service, the éclaireur since 10/11/2026): a word no provider uses. Never
          * sent to the engine — the conversation resolves it to a real model first. The id is kept
          * so a preference saved as « Auto » still reads.
          */

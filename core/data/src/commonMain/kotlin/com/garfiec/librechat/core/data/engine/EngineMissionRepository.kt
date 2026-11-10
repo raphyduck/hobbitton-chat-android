@@ -59,8 +59,8 @@ data class SessionScopeRead(
     val connectors: Set<String>,
     val level: String?,
     val stale: Boolean = false,
-    /** The rules open a sub-agent: the session is led by a role that delegates (08/11/2026). */
-    val delegates: Boolean = false,
+    /** The sub-agents the rules open, by name: which role they were written for (08/11/2026). */
+    val subAgents: Set<String> = emptySet(),
 )
 
 data class EngineChatSummary(
@@ -273,7 +273,7 @@ class EngineMissionRepository(
         }
         // A preference the deployment no longer lists falls back to the engine's: a turn sent to a
         // model the gateway dropped would only fail. « Piloté » (25/10/2026 « Auto », 08/11/2026
-        // D-086) is not in any list: the conversation resolves it to the platform's penseur when
+        // D-086) is not in any list: the conversation resolves it to the platform's pilot when
         // its first message is sent, and it is the default of a device that chose nothing.
         val preferredId = modelPreference?.modelId()
         val preferred = when (preferredId) {
@@ -824,12 +824,14 @@ class EngineMissionRepository(
         // direction a capability chip may err in.
         val scope = runCatching { scheduler.scope(sessionId) }.getOrNull()
         val scoped = scope?.connectors.orEmpty()
-        // A session led by a role that delegates carries no rule for the annuaire (its sub-agents
-        // call it, 08/11/2026): the chip still reads it as on, since the conversation reaches it.
-        val delegates = rulesDelegate(rules)
-        val viaSubAgents = if (delegates && ANNUAIRE_CONNECTOR in catalogue.connecteurs) setOf(ANNUAIRE_CONNECTOR) else emptySet()
+        // A session led by the penseur or the savant carries no rule for the annuaire (its
+        // sub-agents call it, 08/11/2026): the chip still reads it as on, since the conversation
+        // reaches it.
+        val subAgents = rulesSubAgents(rules)
+        val reachesAnnuaire = subAgents.isNotEmpty() && ANNUAIRE_CONNECTOR in catalogue.connecteurs
+        val viaSubAgents = if (reachesAnnuaire) setOf(ANNUAIRE_CONNECTOR) else emptySet()
         return SessionScopeRead(declared + viaSubAgents + scoped.filter { it in catalogue.connecteurs }, scope?.level,
-            stale = rulesPredate(catalogue, rules), delegates = delegates)
+            stale = rulesPredate(catalogue, rules), subAgents = subAgents)
     }
 
     /**

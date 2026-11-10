@@ -216,10 +216,6 @@
     <string name="tasks_mission_model">Modèle</string>
     <string name="tasks_mission_model_hint">Un identifiant de modèle de la passerelle. Vide : la mission suit le modèle en service du rôle qui la mène.</string>
     <string name="tasks_mission_model_pick">Choisir un modèle</string>
-    <string name="tasks_mission_pilot">Menée par</string>
-    <string name="tasks_mission_pilot_thinker">Le penseur</string>
-    <string name="tasks_mission_pilot_scout">L'éclaireur seul</string>
-    <string name="tasks_mission_pilot_savant">Le savant</string>
     <string name="tasks_role_thinker">penseur</string>
     <string name="tasks_role_scout">éclaireur</string>
     <string name="tasks_role_savant">savant</string>

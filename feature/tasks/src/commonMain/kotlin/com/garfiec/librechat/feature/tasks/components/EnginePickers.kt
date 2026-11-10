@@ -41,10 +41,10 @@ import com.garfiec.librechat.core.ui.resources.Res as CoreRes
  *
  * A sheet of radio rows, not a dropdown: the catalogue has more than five entries, which is the
  * same reason the connector list once stopped being inline checkboxes. Since D-086 (08/11/2026)
- * the choice is a choice of ROLE first: « Piloté » (the platform's penseur in service, who
- * delegates the plumbing to the éclaireur and consults the savant when a decision is heavy),
+ * the choice is a choice of ROLE first: « Piloté » (the platform's pilot in service, the éclaireur
+ * since 10/11/2026, who consults the penseur for judgment and the savant when a decision is heavy),
  * « Savant » (the strongest model, for a conversation that is all heavy reasoning), and only then
- * « another model », the exception. [piloted] is true when the conversation runs on the penseur
+ * « another model », the exception. [piloted] is true when the conversation runs on the pilot
  * (whatever row got it there); [savant] is null when the server names none.
  */
 @Composable
@@ -64,7 +64,7 @@ internal fun ModelPickerSheet(
             modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
         )
         // The role rows carry no price (Raphaël, 08/11/2026): « Piloté » cannot be priced, the
-        // penseur delegating to cheaper and dearer models as it goes, and a role is a choice of
+        // pilot consulting dearer models as it goes, and a role is a choice of
         // intelligence, not of tariff. Prices stay where they mean something, next to the models.
         ModelRow(
             label = stringResource(Res.string.tasks_model_auto_long),

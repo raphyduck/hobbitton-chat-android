@@ -156,12 +156,13 @@ data class MissionChatUiState(
      */
     val rulesStale: Boolean = false,
     /**
-     * Whether the session's rules open a sub-agent (08/11/2026 evening, access by role): true for a
-     * session led by a role that delegates (the penseur, the savant). Null while unknown. The
-     * first send rewrites the rules when the role of the model sent disagrees: a conversation
-     * opened before the table carried no `task` rule and never delegated.
+     * The sub-agents the session's rules open (08/11/2026 evening, access by role; a set since
+     * 10/11/2026): which role they were written for. Null while unknown. The first send rewrites
+     * the rules when the role of the model sent opens others: a conversation opened before the
+     * table carried no `task` rule and never delegated, and one written for the penseur opened the
+     * éclaireur and no annuaire, where the éclaireur that now leads opens the penseur and calls it.
      */
-    val rulesDelegate: Boolean? = null,
+    val rulesSubAgents: Set<String>? = null,
     /**
      * The scheduler holds this conversation in pause on a spending ceiling (07/11/2026): the
      * gateway refused its last step, and the scheduler resumes it by itself once the budget is
@@ -220,8 +221,9 @@ data class MissionChatUiState(
     val engineDefault: EngineSelectableModel? = null,
     /**
      * The platform's roles and their models (08/11/2026, D-086): what « Piloté » runs on (the
-     * penseur in service), the savant « Ask the savant » goes to; empty without a scheduler, and
-     * « Piloté » then leaves the model to the engine, whose chat agent is the penseur too.
+     * pilot in service, the éclaireur since 10/11/2026), the savant « Ask the savant » goes to;
+     * empty without a scheduler, and « Piloté » then leaves the model to the engine, whose chat
+     * agent runs on the pilot too.
      */
     val roles: PlatformRoles = PlatformRoles.NONE,
     /**
@@ -278,11 +280,11 @@ data class MissionChatUiState(
 
     /**
      * The chip reads « Piloté » (D-086): the pick is « Piloté », or the conversation runs on the
-     * penseur in service, which is what « Piloté » resolves to. The model's own name is one tap
+     * pilot in service, which is what « Piloté » resolves to. The model's own name is one tap
      * away in the picker; the chip does not push it forward.
      */
     val showsPiloted: Boolean
-        get() = effectiveModel?.let { it.isAuto || roles.isInService(PlatformRoles.THINKER, it.ref) } ?: true
+        get() = effectiveModel?.let { it.isAuto || roles.isInService(roles.pilotRole, it.ref) } ?: true
 
     /** The savant in service, as the picker offers it: named from the catalogue when it lists it. */
     val savantModel: EngineSelectableModel?
@@ -299,7 +301,7 @@ data class MissionChatUiState(
 
     /**
      * « Ask the savant » is offered under the last answer (D-086, in place of « redo stronger »): an
-     * answer is in, nothing runs, and the platform has a savant. The penseur stays the one who talks:
+     * answer is in, nothing runs, and the platform has a savant. The pilot stays the one who talks:
      * it puts the request to the savant as a sub-agent, with the dossier, and reports its opinion.
      */
     val canAskSavant: Boolean
@@ -538,7 +540,7 @@ class MissionChatViewModel(
                             // A lift done meanwhile (a send) outranks the level read before it.
                             sessionLevel = it.sessionLevel ?: scope?.level,
                             rulesStale = scope?.stale == true && it.sessionLevel == null,
-                            rulesDelegate = it.rulesDelegate ?: scope?.delegates,
+                            rulesSubAgents = it.rulesSubAgents ?: scope?.subAgents,
                             connectorsError = null,
                         )
                     }
@@ -603,7 +605,7 @@ class MissionChatViewModel(
             try {
                 val access = _uiState.value.roles.accessOfModel(resolveModel())
                 withContext(ioDispatcher) { repository.setConnectors(sessionId, after.toList(), access) }
-                _uiState.update { it.copy(sessionLevel = TITULAR_LEVEL, rulesDelegate = access.delegates) }
+                _uiState.update { it.copy(sessionLevel = TITULAR_LEVEL, rulesSubAgents = access.subAgents.toSet()) }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -1057,17 +1059,18 @@ class MissionChatViewModel(
         model: EngineModelRef? = null,
     ) {
         val known = state.enabledConnectors
-        // Access by role (08/11/2026 evening): the rules follow the role of the model sent. A role
-        // that delegates opens its sub-agents and never the annuaire; the others the reverse.
+        // Access by role (08/11/2026 evening): the rules follow the role of the model sent. The
+        // éclaireur, who leads (10/11/2026), calls the annuaire and opens the penseur, the
+        // navigateur and the savant; the penseur and the savant open theirs and never the annuaire.
         val wanted = state.roles.accessOfModel(model ?: resolveModel())
         if (state.sessionLevel == TITULAR_LEVEL) {
             // Already the titulaire's: rules the catalogue has outgrown, or written for another
             // role than the one now speaking, are rewritten from the connectors read back, never
             // from an unread list (26/10/2026).
-            val roleMoved = state.rulesDelegate != null && state.rulesDelegate != wanted.delegates
+            val roleMoved = state.rulesSubAgents != null && state.rulesSubAgents != wanted.subAgents.toSet()
             if ((state.rulesStale || roleMoved) && known != null) {
                 withContext(ioDispatcher) { repository.setConnectors(sessionId, known.toList(), wanted) }
-                _uiState.update { it.copy(rulesStale = false, rulesDelegate = wanted.delegates) }
+                _uiState.update { it.copy(rulesStale = false, rulesSubAgents = wanted.subAgents.toSet()) }
             }
             return
         }
@@ -1078,7 +1081,7 @@ class MissionChatViewModel(
             it.copy(
                 sessionLevel = TITULAR_LEVEL,
                 rulesStale = false,
-                rulesDelegate = if (known != null) wanted.delegates else it.rulesDelegate,
+                rulesSubAgents = if (known != null) wanted.subAgents.toSet() else it.rulesSubAgents,
             )
         }
     }
@@ -1334,21 +1337,22 @@ class MissionChatViewModel(
         val effective = _uiState.value.effectiveModel ?: return null
         if (!effective.isAuto) return effective.ref
         // « Piloté » (D-086, 08/11/2026 ; « Auto » from 25/10 read the first message through the
-        // scheduler's trieur and picked a tier): the conversation runs on the platform's penseur
-        // in service, who delegates the plumbing to the éclaireur and consults the savant when a
-        // decision is heavy. Every message of a piloted conversation goes to the penseur in
-        // service, whatever its last turn ran on (08/11/2026 evening, Raphaël: Piloté stays
-        // Piloté until he changes it). Without a roles table the message goes without a model,
-        // to the chat agent's own, the penseur too server side.
-        val thinker = _uiState.value.roles.thinker
-        if (thinker == null) {
+        // scheduler's trieur and picked a tier): the conversation runs on the platform's pilot in
+        // service, the éclaireur since 10/11/2026 (Raphaël: one pilot), who does the plumbing
+        // itself and consults the penseur for judgment and the savant when a decision is heavy.
+        // Every message of a piloted conversation goes to the pilot in service, whatever its last
+        // turn ran on (08/11/2026 evening, Raphaël: Piloté stays Piloté until he changes it).
+        // Without a roles table the message goes without a model, to the chat agent's own, the
+        // pilot too server side.
+        val pilot = _uiState.value.roles.pilot
+        if (pilot == null) {
             Logger.w(LOG_TAG) { "Piloté: no roles table, starting on the engine's default" }
         }
-        return thinker
+        return pilot
     }
 
     /**
-     * « Ask the savant » (D-086): the last request again, put to the savant through the penseur, who
+     * « Ask the savant » (D-086): the last request again, put to the savant through the pilot, who
      * gathers the dossier, asks one bounded question and reports the opinion. The conversation
      * keeps its model; the engine has the first answer in its history.
      */
@@ -1357,7 +1361,7 @@ class MissionChatViewModel(
         val sessionId = sessionId ?: return
         if (!state.canAskSavant) return
         val text = state.lastUserText ?: return
-        val model = state.effectiveModel?.takeUnless { it.isAuto }?.ref ?: state.roles.thinker
+        val model = state.effectiveModel?.takeUnless { it.isAuto }?.ref ?: state.roles.pilot
         _uiState.update { it.copy(sending = true, sendError = null) }
         sendsInFlight++
         awaitingReply = true
@@ -1535,6 +1539,6 @@ private const val CHAT_TITLE_LENGTH = 60
  * agent's prompts are French, and the message is for the model, not for the screen.
  */
 internal const val ASK_SAGE_PREFIX =
-    "Consulte le savant (sous-agent `savant`) sur ma dernière demande : fais rassembler par l'éclaireur le dossier " +
+    "Consulte le savant (sous-agent `savant`) sur ma dernière demande : rassemble le dossier " +
         "dont il a besoin, pose-lui une seule question précise avec les pièces et les chiffres, et rends-moi son " +
         "avis motivé tel quel, puis ce que tu en retiens :\n\n"
