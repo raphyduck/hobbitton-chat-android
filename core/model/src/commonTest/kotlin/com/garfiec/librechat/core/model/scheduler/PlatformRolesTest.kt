@@ -40,6 +40,20 @@ class PlatformRolesTest {
     }
 
     @Test
+    fun aModelInSeveralRolesSignsWhereItIsInService() {
+        val shared = Json { ignoreUnknownKeys = true }.decodeFromString(
+            PlatformRoles.serializer(),
+            """{"roles": {"penseur": {"en_service": "claude-opus-5-5", "modeles": ["claude-opus-5-5", "deepseek-flash"]},
+                          "commis": {"en_service": "deepseek-flash", "modeles": ["deepseek-flash"]},
+                          "eclaireur": {"en_service": "gpt-5.4-mini", "modeles": ["gpt-5.4-mini", "deepseek-flash"]}},
+                "pilote": "eclaireur"}""",
+        )
+        assertEquals(PlatformRoles.CLERK, shared.roleOf("deepseek-flash"), "in service as commis, a stand-in elsewhere")
+        assertEquals(PlatformRoles.THINKER, shared.roleOf("claude-opus-5-5"))
+        assertNull(shared.roleOf("inconnu"))
+    }
+
+    @Test
     fun aQualifiedModelSplitsIntoProviderAndId() {
         assertEquals(EngineModelRef("hobbitton-chat", "deepseek-v4-pro"), "hobbitton-chat/deepseek-v4-pro".asModelRef())
         assertNull("deepseek-v4-pro".asModelRef())

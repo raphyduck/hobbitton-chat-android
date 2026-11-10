@@ -40,11 +40,17 @@ data class PlatformRoles(
     val savant: EngineModelRef? get() = conversationModel(SAVANT)
 
     /**
-     * The role [modelId] belongs to, null when no list names it (08/11/2026): a model is in exactly
-     * one role (the server's rule), so the role a message ran under follows from its model alone.
+     * The role [modelId] signs under, null when no list names it. Since 10/11/2026 (Raphaël: the
+     * bench ranks every model in every role it passes) a model can be in several roles: a role
+     * where it is IN SERVICE comes before one where it only stands in, the pilot before the rest,
+     * then the reading order, as the scheduler's `role_du_modele` decides it.
      */
-    fun roleOf(modelId: String): String? =
-        roles.entries.firstOrNull { (_, models) -> models.models.any { it.equals(modelId, ignoreCase = true) } }?.key
+    fun roleOf(modelId: String): String? {
+        val naming = (listOf(pilotRole) + ordered).distinct().filter { role ->
+            roles[role]?.models?.any { it.equals(modelId, ignoreCase = true) } == true
+        }
+        return naming.firstOrNull { inService(it)?.equals(modelId, ignoreCase = true) == true } ?: naming.firstOrNull()
+    }
 
     /** The roles in the order the screen lists them: the pilot first, then the rest of the table. */
     val ordered: List<String> get() = (ORDER + roles.keys).distinct().filter { it in roles }

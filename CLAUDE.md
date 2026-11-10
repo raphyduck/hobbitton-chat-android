@@ -346,7 +346,7 @@ that arrives waits for the other to finish. The lock is held by the scheduler (i
   (`ChatTurn.Assistant.model/tokens/cost`, `MessageStarted.cost`; the kit renders each model's
   tariff as the engine's `cost`, so the figure is exact, sub-agents included). Under each answer, at
   the end of the action row, a small caption signs it « penseur · Opus 5.5 » (`signatureOf`,
-  `PlatformRoles.roleOf`: a model is in one role; `SignatureCaption`), and a delegation's fold reads
+  `PlatformRoles.roleOf`: since 10/11/2026 a model can be in several roles, the bench ranking it in each it passes, and it signs under the one where it is in service, the pilot first; `SignatureCaption`), and a delegation's fold reads
   « → éclaireur · DeepSeek Flash » (`activityLabel`, the `task` call's `subagent_type`). **A file a
   sub-agent handed back shows under its fold** (09/11/2026 evening, Raphaël's capture: three
   documents the navigateur passed to the conversation « sans erreur », nothing on screen): a
