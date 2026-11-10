@@ -60,10 +60,14 @@ class MissionChatLiftTest {
         Dispatchers.resetMain()
     }
 
-    private fun viewModel(level: String?, delegates: Boolean = true): MissionChatViewModel {
-        // Rules that delegate: what the penseur, who leads without a roles table, writes (08/11/2026).
+    private fun viewModel(
+        level: String?,
+        subAgents: Set<String> = PILOT_SUB_AGENTS,
+    ): MissionChatViewModel {
+        // By default the rules the pilot writes, the éclaireur who leads without a roles table
+        // (10/11/2026): the penseur, the navigateur and the savant.
         coEvery { repository.sessionScope("ses_run") } returns
-            SessionScopeRead(emptySet(), level, delegates = delegates)
+            SessionScopeRead(emptySet(), level, subAgents = subAgents)
         return MissionChatViewModel(
             sessionId = "ses_run",
             repository = repository,
@@ -132,15 +136,30 @@ class MissionChatLiftTest {
     @Test
     fun `rules written for another role than the one now speaking are rewritten once`() {
         // 08/11/2026 evening (accès par rôle) : a conversation opened before the app wrote `task`
-        // rules never delegated ; led by the penseur, its first send opens the sub-agents.
-        val vm = viewModel(level = TITULAR_LEVEL, delegates = false)
+        // rules never delegated ; led by the pilot, its first send opens the sub-agents.
+        val vm = viewModel(level = TITULAR_LEVEL, subAgents = emptySet())
         vm.onInputChange("bonjour")
         vm.send()
         vm.onInputChange("et ensuite")
         vm.send()
 
-        coVerify(exactly = 1) { repository.setConnectors("ses_run", any(), match { it.delegates }) }
+        coVerify(exactly = 1) {
+            repository.setConnectors("ses_run", any(), match { it.annuaire && it.subAgents.toSet() == PILOT_SUB_AGENTS })
+        }
         assertThat(vm.uiState.value.sessionLevel).isEqualTo(TITULAR_LEVEL)
+    }
+
+    @Test
+    fun `rules written for the penseur are rewritten for the eclaireur who now leads`() {
+        // 10/11/2026 (un seul pilote) : a « Piloté » conversation written for the penseur opened
+        // the éclaireur and no annuaire ; its next send opens the penseur and the annuaire.
+        val vm = viewModel(level = TITULAR_LEVEL, subAgents = setOf("eclaireur", "navigateur", "savant"))
+        vm.onInputChange("bonjour")
+        vm.send()
+
+        coVerify(exactly = 1) {
+            repository.setConnectors("ses_run", any(), match { it.annuaire && it.subAgents.toSet() == PILOT_SUB_AGENTS })
+        }
     }
 
     @Test
@@ -205,3 +224,5 @@ class MissionChatLiftTest {
         coVerify { repository.sendMessage("ses_run", "reprends les annonces", any(), any()) }
     }
 }
+
+private val PILOT_SUB_AGENTS = setOf("penseur", "navigateur", "savant")

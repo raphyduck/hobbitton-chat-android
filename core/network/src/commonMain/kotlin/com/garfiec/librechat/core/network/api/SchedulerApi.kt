@@ -292,7 +292,6 @@ class SchedulerApi(
             edits.runAt?.let { put("quand", it) }
             edits.prompt?.let { put("prompt", it) }
             edits.model?.let { put("modele", it) }
-            edits.pilot?.let { put("pilote", it) }
             edits.tokenBudget?.let { put("budget_tokens", it) }
             edits.timeoutSeconds?.let { put("timeout_s", it) }
             edits.toolCallCeiling?.let { put("plafond_appels", it) }
@@ -423,7 +422,7 @@ class SchedulerApi(
 
     /**
      * The platform's roles and their models: `GET /roles` (08/11/2026, D-086), a plain HTTP route
-     * like [identity]. What « Piloté » runs on, what the savant is, which pilots a mission may name.
+     * like [identity]. What « Piloté » runs on (the pilot), what the savant is.
      * Null on a scheduler from before the route (404).
      */
     suspend fun roles(): PlatformRoles? {

@@ -241,7 +241,7 @@ private fun TurnError(error: String) {
     }
 }
 
-/** « Ask the savant »: the person's last request, put to the platform's strongest model by the penseur. */
+/** « Ask the savant »: the person's last request, put to the platform's strongest model by the pilot. */
 @Composable
 private fun AskSavantButton(onClick: () -> Unit) {
     DisableSelection {

@@ -244,7 +244,7 @@ internal fun EngineSettingsScreen(
 }
 
 /**
- * The default model, « Piloté » first (the platform's penseur in service, D-086), then the
+ * The default model, « Piloté » first (the platform's pilot in service, D-086), then the
  * conversations' models for who wants one model for every new conversation. Picking closes the
  * dialog.
  */
@@ -265,9 +265,10 @@ private fun DefaultModelDialog(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 8.dp),
                 )
-                // « Piloté » (D-086, 08/11/2026 ; « Auto » from 25/10): the platform's penseur in
-                // service, who delegates to the éclaireur. The default of a device that chose
-                // nothing (null) reads the same; the engine's own default is the penseur too.
+                // « Piloté » (D-086, 08/11/2026 ; « Auto » from 25/10): the platform's pilot in
+                // service, the éclaireur since 10/11/2026, who consults the penseur. The default of
+                // a device that chose nothing (null) reads the same; the engine's own default is
+                // the pilot too.
                 ModelOption(
                     label = stringResource(Res.string.engine_settings_default_model_auto),
                     selected = state.defaultModelId == null || state.defaultModelId == EngineSelectableModel.AUTO_MODEL_ID,

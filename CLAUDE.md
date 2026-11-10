@@ -89,14 +89,16 @@ that arrives waits for the other to finish. The lock is held by the scheduler (i
   **Rules follow the role of the model sent** (08/11/2026 evening, Raphaël: « le verrou se fait
   par rôle »): `permissionsFor(catalogue, connectors, access)` takes the access of the role the
   model belongs to (`PlatformRoles.accessOfModel`, the scheduler's `GET /roles` `acces` table, the
-  same table built in when it is not served): a role that delegates (penseur, savant) gets one
-  `task` rule per sub-agent and NO rule for the annuaire, neither allow nor deny (the engine's
-  profile refuses it to the penseur, and a session deny would be inherited by the éclaireur who
-  calls it); a role that calls the annuaire itself (éclaireur, codeur) gets it and no sub-agent.
-  Before this the app wrote no `task` rule at all, so no conversation ever delegated. The rules
-  read back say whether they delegate (`rulesDelegate`, `SessionScopeRead.delegates`,
-  `MissionChatUiState.rulesDelegate`) and the first send rewrites them when the role of the model
-  sent disagrees (`liftToTitularIfNeeded`), which migrates every older conversation. A
+  same table built in when it is not served): the éclaireur, the one pilot since 10/11/2026 (kit
+  #245), gets the annuaire AND one `task` rule per sub-agent it consults (penseur, navigateur,
+  savant); the penseur and the savant, when their model is named, get their sub-agents and NO rule
+  for the annuaire, neither allow nor deny (the engine's profile refuses it, and a session deny
+  would be inherited by the éclaireur who calls it); the codeur gets the annuaire and no sub-agent.
+  Before 08/11 the app wrote no `task` rule at all, so no conversation ever delegated. The rules
+  read back say which sub-agents they open (`rulesSubAgents`, `SessionScopeRead.subAgents`,
+  `MissionChatUiState.rulesSubAgents`) and the first send rewrites them when the role of the model
+  sent opens others (`liftToTitularIfNeeded`), which migrates every older conversation, those
+  written for the penseur included. A
   connector is read as granted from ONE of its tools allowed (31/10/2026; before, every tool): rules
   are written once and the catalogue grows, so the day the scheduler gained
   `planificateur_pieces_jointes` every older conversation read its `planificateur` as absent and the
@@ -320,15 +322,16 @@ that arrives waits for the other to finish. The lock is held by the scheduler (i
   new conversation starts on, stored on the device (`SettingsDataStore.defaultChatModel`, a model id)
   and read by the repository's `models()` (`ModelPreference`) as `preselected`. **Piloté** is the
   rule (`EngineSelectableModel.AUTO`, id `auto` kept from the « Auto » of 25/10, never sent to the
-  engine; a device that chose nothing is on it): the conversation runs on the platform's **penseur**
-  in service, who delegates the plumbing to the éclaireur and consults the savant through the engine's
-  sub-agents (the scheduler opens `task` to every conversation), read from the scheduler's
-  `GET /roles` (`PlatformRoles`, `SchedulerRepository.roles()`, ten minutes); without a roles table
-  the message goes without a model, to the chat agent's own, the penseur too. The picker is a choice
+  engine; a device that chose nothing is on it): the conversation runs on the platform's **pilot**
+  in service, the **éclaireur** since 10/11/2026 (Raphaël: one pilot; until then the penseur), who
+  does the plumbing itself and consults the penseur for judgment (a decision, a message to a third
+  party, money committed) and the savant through the engine's sub-agents, read from the scheduler's
+  `GET /roles` (`PlatformRoles.pilot`, its `pilote`; `SchedulerRepository.roles()`, ten minutes);
+  without a roles table the message goes without a model, to the chat agent's own, the pilot too. The picker is a choice
   of role first (« Piloté », « Savant » for a conversation that is all heavy reasoning, then « Autre
   modèle », the exception; a price only next to a model, never next to a role: Raphaël, 08/11/2026,
   « Piloté » cannot be priced), and the composer's label reads « Piloté » whenever the conversation runs
-  on the penseur in service (`showsPiloted`); Settings offer « Piloté » and the models, a model the
+  on the pilot in service (`showsPiloted`); Settings offer « Piloté » and the models, a model the
   deployment no longer lists falling back to Piloté.
   Before D-086 « Auto » went through the scheduler's trieur and a ladder of tiers (`POST /palier`,
   `ModelTiers`, « Refaire plus fort »): gone. **A conversation's pick is what this device last
@@ -340,15 +343,15 @@ that arrives waits for the other to finish. The lock is held by the scheduler (i
   every send (`rememberPick`, `currentPick`), and `effectiveModel` reads the pick for the next
   message, then the recorded one, then the person's default; the model the last turn ran on never
   decides (the `chosenRunModel` of 27/10/2026 is gone), and a piloted conversation sends every
-  message to the penseur in service (`resolveModel`). The store's key changed that evening so that
+  message to the pilot in service (`resolveModel`). The store's key changed that evening so that
   every conversation recorded before falls back to « Piloté », as he asked. The engine keeps no model per session, and the last turn's model is
   whoever wrote it: a reminder played back by the scheduler, a relance posing its decision in its own
   conversation, ran on their own model, and the chip and the next message followed them. Under the
   last answer, « Demander au savant » (`askSavant`, `MissionChatUiState.canAskSavant`, shown when the
   platform has a savant) sends the last request again, prefixed (`ASK_SAGE_PREFIX`), on the
-  conversation's model: the penseur has the savant consulted as a sub-agent on a brief and reports its
-  opinion. A mission's screen says who leads it (« Menée par » : penseur, éclaireur seul, savant ;
-  `ScheduledMission.pilot`, the scheduler's `pilote`). **Who wrote what, and what it cost**
+  conversation's model: the pilot consults the savant as a sub-agent on a brief and reports its
+  opinion. Missions have no pilot of their own any more (10/11/2026: « Menée par » and
+  `ScheduledMission.pilot` are gone, every mission is led by the éclaireur). **Who wrote what, and what it cost**
   (08/11/2026, Raphaël): every assistant step carries its model, tokens and the engine's `cost`
   (`ChatTurn.Assistant.model/tokens/cost`, `MessageStarted.cost`; the kit renders each model's
   tariff as the engine's `cost`, so the figure is exact, sub-agents included). Under each answer, at

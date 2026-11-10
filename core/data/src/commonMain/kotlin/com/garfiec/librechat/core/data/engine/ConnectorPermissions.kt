@@ -94,11 +94,14 @@ fun permissionsFor(
 }
 
 /**
- * Whether the standing block of [rules] opens a sub-agent: the session is led by a role that
- * delegates (08/11/2026). Read back to rewrite the rules when the model sent changes role.
+ * The sub-agents the standing block of [rules] opens, by name (08/11/2026; a set since 10/11/2026):
+ * which role the rules were written for. Read back to rewrite the rules when the model sent changes
+ * role, and when the roles themselves moved: a conversation written for the penseur opened the
+ * éclaireur and no annuaire, and once the éclaireur leads it must open the penseur and the annuaire.
  */
-fun rulesDelegate(rules: List<EnginePermissionRule>): Boolean =
-    standingBlock(rules).any { it.permission == TASK_TOOL && it.action == ACTION_ALLOW }
+fun rulesSubAgents(rules: List<EnginePermissionRule>): Set<String> =
+    standingBlock(rules).filter { it.permission == TASK_TOOL && it.action == ACTION_ALLOW }
+        .map { it.pattern }.filter { it != ANY_TOOL }.toSet()
 
 /**
  * The latest ruleset of an accumulated list: what follows its opening marker, a `task` → deny on

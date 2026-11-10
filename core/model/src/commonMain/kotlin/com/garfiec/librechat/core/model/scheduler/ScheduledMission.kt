@@ -30,8 +30,6 @@ data class ScheduledMission(
      */
     @SerialName("outils_declares") val declaredTools: Int = 0,
     @SerialName("modele") val model: String? = null,
-    /** The role that leads the mission (D-086): « penseur » (default), « eclaireur » or « savant ». */
-    @SerialName("pilote") val pilot: String? = null,
     @SerialName("timeout_s") val timeoutSeconds: Int = 0,
     @SerialName("budget_tokens") val tokenBudget: Int = 0,
     @SerialName("plafond_appels") val toolCallCeiling: Int? = null,
@@ -59,7 +57,6 @@ data class MissionEdits(
     val runAt: String? = null,
     val prompt: String? = null,
     val model: String? = null,
-    val pilot: String? = null,
     val tokenBudget: Int? = null,
     val timeoutSeconds: Int? = null,
     val toolCallCeiling: Int? = null,
@@ -67,7 +64,7 @@ data class MissionEdits(
     val discreet: Boolean? = null,
 ) {
     val isEmpty: Boolean
-        get() = listOf(cron, runAt, prompt, model, pilot, tokenBudget, timeoutSeconds, toolCallCeiling, notifies, discreet)
+        get() = listOf(cron, runAt, prompt, model, tokenBudget, timeoutSeconds, toolCallCeiling, notifies, discreet)
             .all { it == null }
 }
 

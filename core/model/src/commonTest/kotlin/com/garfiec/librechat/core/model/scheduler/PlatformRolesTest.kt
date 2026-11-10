@@ -8,26 +8,38 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** The platform's roles (D-086): who thinks, who scouts, who is the savant, as `GET /roles` says. */
+/** The platform's roles (D-086): who leads, who thinks, who is the savant, as `GET /roles` says. */
 class PlatformRolesTest {
 
     private val roles = Json { ignoreUnknownKeys = true }.decodeFromString(
         PlatformRoles.serializer(),
         """{"roles": {"savant": {"en_service": "claude-fable-5-1", "modeles": ["claude-fable-5-1", "gpt-6-astra"]},
                       "penseur": {"en_service": "claude-opus-5-5", "modeles": ["claude-opus-5-5"]},
+                      "eclaireur": {"en_service": "deepseek-flash", "modeles": ["deepseek-flash"]},
                       "lecteur": {"en_service": null, "modeles": []}},
-            "pilotes": ["penseur", "eclaireur", "savant"], "pilote_par_defaut": "penseur",
+            "pilote": "eclaireur",
             "sous_agents": {"outil": "task", "conversation": ["eclaireur"], "mission": ["eclaireur-mission"]},
             "fournisseur_conversations": "hobbitton-chat"}""",
     )
 
     @Test
-    fun theThinkerAndTheSavantAreNamedOnTheConversationsProvider() {
-        assertEquals(EngineModelRef("hobbitton-chat", "claude-opus-5-5"), roles.thinker)
+    fun thePilotAndTheSavantAreNamedOnTheConversationsProvider() {
+        assertEquals(EngineModelRef("hobbitton-chat", "deepseek-flash"), roles.pilot)
         assertEquals(EngineModelRef("hobbitton-chat", "claude-fable-5-1"), roles.savant)
         assertNull(roles.conversationModel("lecteur"), "an empty role names no model")
         assertNull(roles.conversationModel("inconnu"))
-        assertNull(PlatformRoles.NONE.thinker)
+        assertNull(PlatformRoles.NONE.pilot)
+    }
+
+    @Test
+    fun theEclaireurLeadsWithTheAnnuaireAndConsultsThePenseur() {
+        // 10/11/2026, one pilot: the éclaireur calls the annuaire and opens the penseur, the
+        // navigateur and the savant; a model no list names is led as the pilot.
+        val scout = PlatformRoles.NONE.accessOf(null)
+        assertTrue(scout.annuaire)
+        assertEquals(listOf("penseur", "navigateur", "savant"), scout.subAgents)
+        assertEquals(scout, roles.accessOfModel(EngineModelRef("hobbitton-chat", "inconnu")))
+        assertFalse(roles.accessOfModel(EngineModelRef("hobbitton-chat", "claude-opus-5-5")).annuaire)
     }
 
     @Test

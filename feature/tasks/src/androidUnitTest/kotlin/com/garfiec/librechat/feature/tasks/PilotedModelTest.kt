@@ -30,8 +30,9 @@ import org.junit.Test
 
 /**
  * « Piloté » (08/11/2026, D-086 ; « Auto » du 25/10 lisait le premier message par un trieur et
- * choisissait un palier) : une conversation part sur le penseur en service de la plateforme et le
- * garde ; « Demander au savant » met la dernière demande au savant par le penseur.
+ * choisissait un palier) : une conversation part sur le pilote en service de la plateforme
+ * (l'éclaireur depuis le 10/11/2026) et le garde ; « Demander au savant » met la dernière demande
+ * au savant par le pilote.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class PilotedModelTest {
@@ -41,20 +42,20 @@ class PilotedModelTest {
     private val deepseek = EngineSelectableModel("hobbitton-chat", "deepseek-v4-pro", "DeepSeek V4 Pro")
     private val opus = EngineSelectableModel("hobbitton-chat", "claude-opus-5-5", "Claude Opus 5.5")
     private val fable = EngineSelectableModel("hobbitton-chat", "claude-fable-5-1", "Claude Fable 5.1")
+    private val flash = EngineSelectableModel("hobbitton-chat", "deepseek-flash", "DeepSeek Flash")
     private val roles = PlatformRoles(
         roles = mapOf(
             PlatformRoles.THINKER to RoleModels("claude-opus-5-5", listOf("claude-opus-5-5", "gpt-6.1-sol")),
             PlatformRoles.SAVANT to RoleModels("claude-fable-5-1", listOf("claude-fable-5-1")),
             PlatformRoles.SCOUT to RoleModels("deepseek-flash", listOf("deepseek-flash")),
         ),
-        pilots = PlatformRoles.PILOTS,
     )
 
     private val repository = mockk<EngineMissionRepository>(relaxed = true).also {
         // A relaxed mock would answer a mock tail: no conversation was kept unless a test says so.
         coEvery { it.cachedHistory(any()) } returns null
         coEvery { it.models() } returns EngineModelChoice(
-            models = listOf(deepseek, opus, fable),
+            models = listOf(deepseek, opus, fable, flash),
             preselected = EngineSelectableModel.AUTO,
             engineDefault = opus,
         )
@@ -91,7 +92,7 @@ class PilotedModelTest {
     )
 
     @Test
-    fun `a new conversation on Piloté starts on the thinker in service, and the chip still reads Piloté`() {
+    fun `a new conversation on Piloté starts on the pilot in service, and the chip still reads Piloté`() {
         val vm = viewModel()
         assertThat(vm.uiState.value.effectiveModel).isEqualTo(EngineSelectableModel.AUTO)
         assertThat(vm.uiState.value.showsPiloted).isTrue()
@@ -99,8 +100,8 @@ class PilotedModelTest {
         vm.onInputChange("Analyse ce devis")
         vm.send()
 
-        coVerify { repository.startChat(text = "Analyse ce devis", connectors = any(), model = opus.ref, files = any(), access = any()) }
-        // The conversation now runs on the thinker, which is what « Piloté » means: the chip does
+        coVerify { repository.startChat(text = "Analyse ce devis", connectors = any(), model = flash.ref, files = any(), access = any()) }
+        // The conversation now runs on the pilot, which is what « Piloté » means: the chip does
         // not switch to the model's name.
         assertThat(vm.uiState.value.rememberedModel).isEqualTo(EngineSelectableModel.AUTO.ref)
         assertThat(vm.uiState.value.showsPiloted).isTrue()
@@ -134,7 +135,7 @@ class PilotedModelTest {
 
         vm.onInputChange("Et ensuite ?")
         vm.send()
-        coVerify { repository.sendMessage("ses_suivie", "Et ensuite ?", opus.ref, any()) }
+        coVerify { repository.sendMessage("ses_suivie", "Et ensuite ?", flash.ref, any()) }
 
         vm.selectModel(deepseek)
         vm.onInputChange("Sur DeepSeek")
@@ -154,7 +155,7 @@ class PilotedModelTest {
         // on the engine's default; the conversation is not held to it.
         val sonnet = EngineSelectableModel("hobbitton-chat", "claude-sonnet-5-5", "Claude Sonnet 5.5")
         coEvery { repository.models() } returns EngineModelChoice(
-            models = listOf(deepseek, opus, sonnet),
+            models = listOf(deepseek, opus, sonnet, flash),
             preselected = EngineSelectableModel.AUTO,
             engineDefault = sonnet,
         )
@@ -170,7 +171,7 @@ class PilotedModelTest {
         vm.onInputChange("Et le point relais ?")
         vm.send()
 
-        coVerify { repository.sendMessage("ses_colis", "Et le point relais ?", opus.ref, any()) }
+        coVerify { repository.sendMessage("ses_colis", "Et le point relais ?", flash.ref, any()) }
     }
 
     @Test

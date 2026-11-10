@@ -216,10 +216,6 @@
     <string name="tasks_mission_model">Model</string>
     <string name="tasks_mission_model_hint">A model id of the gateway. Empty: the mission follows the model in service of the role that leads it.</string>
     <string name="tasks_mission_model_pick">Pick a model</string>
-    <string name="tasks_mission_pilot">Led by</string>
-    <string name="tasks_mission_pilot_thinker">The thinker</string>
-    <string name="tasks_mission_pilot_scout">The scout alone</string>
-    <string name="tasks_mission_pilot_savant">The savant</string>
     <string name="tasks_role_thinker">thinker</string>
     <string name="tasks_role_scout">scout</string>
     <string name="tasks_role_savant">savant</string>
