@@ -230,7 +230,19 @@ class SchedulerApi(
      * rules only carry the *direct* connectors; everything else is served by the annuaire, which
      * consults this record. Returns the list as recorded, so a caller can check it round-tripped.
      */
-    suspend fun setScope(sessionId: String, connectors: List<String>, level: String? = null): List<String> =
+    suspend fun setScope(
+        sessionId: String,
+        connectors: List<String>,
+        level: String? = null,
+        /**
+         * The conversation's mode (10/11/2026, Raphaël: the server defines the modes): `pilote`, or
+         * `provider/model`. With [directs], the scheduler writes the session's rules itself, those
+         * of the role that leads in that mode; without, the rules are left as they are.
+         */
+        mode: String? = null,
+        /** The DIRECT connectors ticked, the rules' input; null leaves the rules alone. */
+        directs: List<String>? = null,
+    ): List<String> =
         decode<SessionScope>(
             callTool("perimetre", buildJsonObject {
                 put("session", sessionId)
@@ -239,6 +251,8 @@ class SchedulerApi(
                 // from WHO speaks to it; `connecteurs` then only ticks what that level leaves on
                 // demand (the shell, for the titulaire).
                 level?.let { put("niveau", it) }
+                mode?.let { put("mode", it) }
+                directs?.let { list -> putJsonArray("directs") { list.forEach { add(it) } } }
             }),
             "perimetre",
         ).connectors.orEmpty()

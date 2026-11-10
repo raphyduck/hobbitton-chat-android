@@ -3,8 +3,6 @@ package com.garfiec.librechat.core.data.engine
 import com.garfiec.librechat.core.model.engine.EnginePermissionRule
 import com.garfiec.librechat.core.model.scheduler.ConnectorCatalogue
 import com.garfiec.librechat.core.model.scheduler.ConnectorGrant
-import com.garfiec.librechat.core.model.scheduler.PlatformRoles
-import com.garfiec.librechat.core.model.scheduler.RoleAccess
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -30,66 +28,17 @@ class EngineConnectorScopeTest {
     )
 
     @Test
-    fun `a role that delegates gets its sub-agents and no rule for the annuaire`() {
-        // 08/11/2026 evening (Raphaël: the lock is by role): the penseur never calls the annuaire,
-        // and a session deny would be inherited by the éclaireur who does; so nothing is written for
-        // it, and one `task` rule per sub-agent is.
-        val penseur = PlatformRoles.NONE.accessOf(PlatformRoles.THINKER)
-        val rules = permissionsFor(catalogue, listOf("memoire", "annuaire", "qonto"), penseur)
-
-        assertFalse(rules.any { it.permission.startsWith("planificateur_annuaire_") })
-        assertEquals(
-            listOf("eclaireur", "navigateur", "savant"),
-            rules.filter { it.permission == "task" && it.action == "allow" }.map { it.pattern },
-        )
-        assertEquals(setOf("eclaireur", "navigateur", "savant"), rulesSubAgents(rules))
-        // The chip still reads the annuaire as the conversation's: its sub-agents reach it.
-        assertEquals(setOf("memoire"), connectorsGranted(catalogue, rules))
-    }
-
-    @Test
-    fun `the pilot calls the annuaire itself and consults the penseur, the navigateur and the savant`() {
-        // 10/11/2026 (Raphaël: one pilot): the éclaireur leads, with the annuaire AND sub-agents.
-        val eclaireur = PlatformRoles.NONE.accessOf(PlatformRoles.SCOUT)
-        val rules = permissionsFor(catalogue, listOf("memoire", "annuaire"), eclaireur)
-
-        assertEquals(
-            listOf("todowrite", "question", "memoire_lire", "planificateur_annuaire_chercher", "planificateur_annuaire_appeler",
-                "task", "task", "task"),
-            rules.filter { it.action == "allow" }.map { it.permission },
-        )
-        assertEquals(setOf("penseur", "navigateur", "savant"), rulesSubAgents(rules))
-        // The savant who leads opens the éclaireur and the navigateur, never itself; a model no
-        // list names is led as the pilot.
-        assertEquals(listOf("eclaireur", "navigateur"), PlatformRoles.NONE.accessOf(PlatformRoles.SAVANT).subAgents)
-        assertEquals(PlatformRoles.NONE.accessOf(PlatformRoles.SCOUT), PlatformRoles.NONE.accessOfModel(null))
-        // A commis neither calls the annuaire nor delegates.
-        assertTrue(rulesSubAgents(permissionsFor(catalogue, listOf("memoire"), PlatformRoles.NONE.accessOf(PlatformRoles.CLERK))).isEmpty())
-        // The server's table wins over the built-in one when it is published.
-        val served = PlatformRoles(access = mapOf(PlatformRoles.SCOUT to RoleAccess(annuaire = false)))
-        assertFalse(served.accessOf(PlatformRoles.SCOUT).annuaire)
-    }
-
-    @Test
-    fun `a ruleset closes by name and never with a wildcard, so a sub-agent keeps its own tools`() {
-        // 09/11/2026 (Raphaël's capture): the fille inherits every deny of its mother and reads it
-        // after its profile; an inherited `*` → deny left the éclaireur with no tool at all.
+    fun `rules this app wrote, with a wildcard or by name, read back their connectors`() {
+        // Until 10/11/2026 the app wrote the rules itself: by name from 09/11, opening with `*`
+        // before. The conversations opened then still carry them until the first send has the
+        // scheduler rewrite them.
         val withShell = ConnectorCatalogue(
             connecteurs = catalogue.connecteurs + ("shell" to ConnectorGrant(outils = listOf("bash", "lsp"))),
             socle = catalogue.socle,
         )
-        val penseur = PlatformRoles.NONE.accessOf(PlatformRoles.THINKER)
-        val rules = permissionsFor(withShell, listOf("memoire"), penseur)
-
-        assertFalse(rules.any { it.permission == "*" })
-        assertEquals("task" to "deny", rules.first().let { it.permission to it.action })
-        // Closed by name: the shell the ticks left out; never the annuaire, never what is granted.
-        assertEquals(setOf("bash", "lsp"), rules.filter { it.action == "deny" && it.permission != "task" }.map { it.permission }.toSet())
+        val rules = legacyRules(withShell, listOf("memoire"))
         assertEquals(setOf("memoire"), connectorsGranted(withShell, rules))
-        assertFalse(rulesCloseSubAgents(rules))
-        assertFalse(rulesPredate(withShell, rules))
 
-        // A ruleset written before that day: read as before, and as stale, so the next send rewrites it.
         val before = listOf(
             EnginePermissionRule(permission = "*", action = "deny"),
             EnginePermissionRule(permission = "todowrite", action = "allow"),
@@ -97,22 +46,9 @@ class EngineConnectorScopeTest {
             EnginePermissionRule(permission = "task", pattern = "eclaireur", action = "allow"),
         )
         assertEquals(setOf("memoire"), connectorsGranted(withShell, before))
-        assertEquals(setOf("eclaireur"), rulesSubAgents(before))
-        assertTrue(rulesCloseSubAgents(before))
-        assertTrue(rulesPredate(withShell, before))
         // Appended after it (PATCH accumulates), the new ruleset is the standing one.
         val appended = before + rules
-        assertFalse(rulesCloseSubAgents(appended))
         assertEquals(setOf("memoire"), connectorsGranted(withShell, appended))
-    }
-
-    @Test
-    fun `only direct connectors become rules`() {
-        val rules = permissionsFor(catalogue, listOf("memoire", "qonto", "imap-envoi"))
-
-        val allowed = rules.filter { it.action == "allow" }.map { it.permission }
-        assertEquals(listOf("todowrite", "question", "memoire_lire"), allowed)
-        assertFalse(allowed.any { it.startsWith("qonto") || it.startsWith("imap") })
     }
 
     @Test
@@ -141,37 +77,9 @@ class EngineConnectorScopeTest {
 
     @Test
     fun `the rules read back name only the direct connectors`() {
-        val rules = permissionsFor(catalogue, listOf("memoire", "qonto"))
+        val rules = legacyRules(catalogue, listOf("memoire", "qonto"))
 
         assertEquals(setOf("memoire"), connectorsGranted(catalogue, rules))
-    }
-
-    @Test
-    fun `rules written before a connector gained a tool still read it as granted, and as stale`() {
-        // 30/10/2026 : le planificateur gagne pieces_jointes ; les conversations ouvertes avant
-        // lisaient leur planificateur absent et le perdaient tout entier à la relecture suivante.
-        val before = ConnectorCatalogue(
-            connecteurs = mapOf("annuaire" to ConnectorGrant(outils = listOf("planificateur_annuaire_chercher"))),
-        )
-        val rules = permissionsFor(before, listOf("annuaire"))
-
-        assertEquals(setOf("annuaire"), connectorsGranted(catalogue, rules))
-        assertTrue(rulesPredate(catalogue, rules))
-        assertFalse(rulesPredate(catalogue, permissionsFor(catalogue, listOf("annuaire"))))
-        assertTrue("planificateur_annuaire_appeler" in permissionsFor(catalogue, connectorsGranted(catalogue, rules).toList()).map { it.permission })
-    }
-
-    @Test
-    fun `a catalogue without the field declares everything ticked, as before D-071`() {
-        val old = ConnectorCatalogue(
-            connecteurs = mapOf("qonto" to ConnectorGrant(outils = listOf("qonto_qonto_list_transactions"))),
-        )
-
-        val allowed = permissionsFor(old, listOf("qonto"))
-            .filter { it.action == "allow" }
-            .map { it.permission }
-        assertEquals(listOf("question", "qonto_qonto_list_transactions"), allowed)
-        assertFalse(old.offered().single().tickedByDefault)
     }
 
     @Test

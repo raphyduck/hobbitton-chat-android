@@ -18,7 +18,6 @@ import com.garfiec.librechat.core.model.engine.EngineStreamEvent
 import com.garfiec.librechat.core.model.engine.engineHistoryEvents
 import com.garfiec.librechat.core.model.engine.isAuto
 import com.garfiec.librechat.core.model.scheduler.ConnectorCatalogue
-import com.garfiec.librechat.core.model.scheduler.RoleAccess
 import com.garfiec.librechat.core.model.scheduler.SchedulerRun
 import com.garfiec.librechat.core.network.api.AgentEngineApi
 import com.garfiec.librechat.core.network.api.SchedulerApi
@@ -50,17 +49,20 @@ import kotlin.time.Clock
  * answering right now. [unread]: it moved since this device last showed it, and, for a scheduled
  * run, it has something to say (16/10/2026, [ChatScope]).
  */
-/** What a session reaches, as the screen reads it: its connectors and the trust level recorded for it. */
 /**
- * What a live session carries: its connectors, the scheduler's level, and whether its rules predate
- * the catalogue ([rulesPredate]: a connector it grants gained a tool since they were written).
+ * What a live session carries: its connectors, the scheduler's level, the mode its rules were
+ * written for, and whether they are [stale]: written by this app itself, before the scheduler took
+ * the rules over (10/11/2026), so that the first send has the scheduler rewrite them.
  */
 data class SessionScopeRead(
     val connectors: Set<String>,
     val level: String?,
     val stale: Boolean = false,
-    /** The sub-agents the rules open, by name: which role they were written for (08/11/2026). */
-    val subAgents: Set<String> = emptySet(),
+    /**
+     * The mode the scheduler wrote the rules for (10/11/2026): `pilote` or `provider/model`; null
+     * for rules this app wrote itself before, which the first send has the scheduler rewrite.
+     */
+    val mode: String? = null,
 )
 
 data class EngineChatSummary(
@@ -514,9 +516,10 @@ class EngineMissionRepository(
      *  * the session stands at the titulaire's trust level (D-083, 22/10/2026): the scheduler,
      *    not the app, decides what it reaches through the annuaire. Of [connectors], only the
      *    shell still counts, the one thing that level leaves on demand. The level is recorded
-     *    before the first prompt (D-071; a recording that fails is a start that fails), and the
-     *    direct connectors the ticks name ([ConnectorCatalogue.directPerimeter]) become the session's rules
-     *    ([permissionsFor]);
+     *    before the first prompt (D-071; a recording that fails is a start that fails), and with
+     *    it the direct connectors the ticks name ([ConnectorCatalogue.directPerimeter]) and the
+     *    conversation's [mode]: the scheduler writes the session's rules from them (10/11/2026,
+     *    Raphaël: the server defines the modes, the app only says what the person chose);
      *  * the model comes from `hobbitton-chat` ([forChat]), which carries the conversations'
      *    budget (its default when none is named).
      *
@@ -531,8 +534,8 @@ class EngineMissionRepository(
         connectors: List<String>?,
         model: EngineModelRef? = null,
         files: List<EnginePromptPart> = emptyList(),
-        /** The access of the role [model] belongs to (08/11/2026): the rules follow it. */
-        access: RoleAccess? = null,
+        /** The conversation's mode, `pilote` or `provider/model`: the scheduler's rules follow it. */
+        mode: String = PILOTED_MODE,
     ): String {
         val catalogue = connectors()
         // D-083 (22/10/2026): the session stands at the titulaire's level and the scheduler
@@ -543,12 +546,14 @@ class EngineMissionRepository(
             CreateEngineSessionRequest(
                 agent = CHAT_AGENT,
                 title = text.trim().ifBlank { files.firstOrNull()?.filename.orEmpty() }.take(TITLE_LENGTH),
-                permission = permissionsFor(catalogue, catalogue.directPerimeter(connectors), access),
             ),
         )
         runCatching { kinds.record(session.id, EngineSessionKind.CHAT) }
             .onFailure { Logger.w(it) { "Could not record a new chat's kind" } }
-        scheduler.setScope(session.id, shellTick(shell), level = TITULAR_LEVEL)
+        scheduler.setScope(
+            session.id, shellTick(shell), level = TITULAR_LEVEL,
+            mode = mode, directs = catalogue.directPerimeter(connectors),
+        )
         api.prompt(
             sessionId = session.id,
             request = EnginePromptRequest(
@@ -563,16 +568,13 @@ class EngineMissionRepository(
     }
 
     /**
-     * The model a turn runs on: the one asked for, moved onto the conversations' provider, or that
-     * provider's own default. Named whenever the catalogue answers: an absent model would leave
-     * the choice to the engine, and the budget is not something to leave to it.
+     * The model a turn runs on: the one asked for, moved onto the conversations' provider; none for
+     * « Piloté » (10/11/2026, Raphaël: the server defines the modes), and the engine runs the turn
+     * on the `chat` agent's own model, which the catalogue renders as the pilot in service, on the
+     * conversations' provider and budget.
      */
-    private suspend fun chatModel(requested: EngineModelRef?): EngineModelRef? =
+    private fun chatModel(requested: EngineModelRef?): EngineModelRef? =
         requested?.takeUnless { it.isAuto }?.forChat()
-            // « Auto » left unresolved (no scheduler to ask) runs on the engine's own default.
-            ?: runCatching {
-                models().let { choice -> choice.preselected?.takeUnless { it.isAuto } ?: choice.engineDefault }?.ref
-            }.getOrNull()
 
     /**
      * The engine's providers, kept [CATALOGUE_TTL_MS] (26/10/2026 evening): every send asked the
@@ -798,10 +800,9 @@ class EngineMissionRepository(
      * from the New-mission sheet — opened its conversation labelled « No connector » while its own
      * transcript showed it reading mail. Reported 30/08/2026.
      *
-     * The reading is deliberately strict: a connector counts as granted only when **every** tool it
-     * declares is allowed. [permissionsFor] writes exactly that — one `allow` rule per tool — so a
-     * ruleset this app or the scheduler produced round-trips exactly; a hand-written one that opens
-     * half a connector reads as off, which understates rather than overstates what the session can do.
+     * Since 10/11/2026 the scheduler records the direct connectors it wrote the rules from and
+     * says them back; a session whose rules this app wrote before is read off its rules
+     * ([connectorsGranted]).
      */
     suspend fun sessionConnectors(sessionId: String): Set<String> = sessionScope(sessionId).connectors
 
@@ -815,8 +816,6 @@ class EngineMissionRepository(
      */
     suspend fun sessionScope(sessionId: String): SessionScopeRead {
         val catalogue = connectors()
-        val rules = api.session(sessionId).permission
-        val declared = connectorsGranted(catalogue, rules)
         // The annuaire's share of a session lives in the scheduler, not in the rules (D-071). A
         // session the app never recorded — the scheduler's own, or one launched before D-071 —
         // has no scope, and its chips show what its rules carry. A scheduler that cannot be
@@ -824,33 +823,34 @@ class EngineMissionRepository(
         // direction a capability chip may err in.
         val scope = runCatching { scheduler.scope(sessionId) }.getOrNull()
         val scoped = scope?.connectors.orEmpty()
-        // A session led by the penseur or the savant carries no rule for the annuaire (its
-        // sub-agents call it, 08/11/2026): the chip still reads it as on, since the conversation
-        // reaches it.
-        val subAgents = rulesSubAgents(rules)
-        val reachesAnnuaire = subAgents.isNotEmpty() && ANNUAIRE_CONNECTOR in catalogue.connecteurs
-        val viaSubAgents = if (reachesAnnuaire) setOf(ANNUAIRE_CONNECTOR) else emptySet()
-        return SessionScopeRead(declared + viaSubAgents + scoped.filter { it in catalogue.connecteurs }, scope?.level,
-            stale = rulesPredate(catalogue, rules), subAgents = subAgents)
+        // Rules the scheduler wrote (10/11/2026) are read from what it recorded, the direct
+        // connectors ticked: its rules are in its own order, which this app does not parse, and a
+        // mode that leads without the annuaire carries no rule for it while the ticks still name it.
+        // Rules this app wrote before are read back as they always were, and the first send has
+        // the scheduler rewrite them ([SessionScopeRead.mode] null).
+        val directs = scope?.directs
+        val declared = directs?.filter { it in catalogue.connecteurs }?.toSet()
+            ?: connectorsGranted(catalogue, api.session(sessionId).permission)
+        return SessionScopeRead(declared + scoped.filter { it in catalogue.connecteurs }, scope?.level,
+            stale = directs == null, mode = scope?.mode.takeIf { directs != null })
     }
 
     /**
-     * Re-grants a **live** session at the titulaire's level, replacing its whole ruleset with the
-     * direct connectors [connectors] ticks (24/10/2026; the shell among them is also what the
-     * scheduler is asked for, D-083). A scheduled run opened from the app is lifted to the
+     * Re-grants a **live** session at the titulaire's level: the scheduler writes its rules from the
+     * direct connectors [connectors] ticks and the conversation's [mode] (24/10/2026; 10/11/2026,
+     * the server defines the modes; the shell among them is also what the scheduler is asked for,
+     * D-083). A scheduled run opened from the app is lifted to the
      * titulaire's level by it: the person is now the one speaking to it.
      */
-    suspend fun setConnectors(sessionId: String, connectors: List<String>, access: RoleAccess? = null) {
-        // The scope first (D-071): if recording it fails, nothing has changed and the caller hears
-        // it; recording it after the rules would leave a session whose direct tools moved while
-        // the annuaire still serves yesterday's list.
+    suspend fun setConnectors(sessionId: String, connectors: List<String>, mode: String = PILOTED_MODE) {
+        // The scheduler records the scope and writes the rules in one call (10/11/2026): the
+        // shell is what the titulaire's level asks for, the direct connectors ticked and the mode
+        // are what it builds the rules from. Never autonomous: someone is looking at the screen.
         val shell = SHELL_CONNECTOR in connectors
-        scheduler.setScope(sessionId, shellTick(shell), level = TITULAR_LEVEL)
-        // Never autonomous here: someone is looking at the screen, which is the whole premise of
-        // §4.2's ban — an approval prompt nobody answers is not a safeguard, but one they *do*
-        // answer is exactly the supervision the rule asks for.
-        val catalogue = connectors()
-        api.setPermissions(sessionId, permissionsFor(catalogue, catalogue.directPerimeter(connectors), access))
+        scheduler.setScope(
+            sessionId, shellTick(shell), level = TITULAR_LEVEL,
+            mode = mode, directs = connectors().directPerimeter(connectors),
+        )
     }
 
     /**
@@ -871,9 +871,6 @@ class EngineMissionRepository(
 
     private companion object {
         const val TITLE_LENGTH = 60
-
-        /** The direct connector the annuaire's two tools belong to. */
-        const val ANNUAIRE_CONNECTOR = "annuaire"
 
         /** The engine's answer about a question that is no longer pending. */
         const val HTTP_NOT_FOUND = 404

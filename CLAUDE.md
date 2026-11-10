@@ -86,32 +86,20 @@ that arrives waits for the other to finish. The lock is held by the scheduler (i
   the kit's review; `liftToTitularIfNeeded`). The
   lift rewrites the rules only from connectors the screen read; unread, it records the level alone
   (`liftToTitular`) and the chip offers a retry (26/10/2026: an empty list stripped every tool).
-  **Rules follow the role of the model sent** (08/11/2026 evening, Raphaël: « le verrou se fait
-  par rôle »): `permissionsFor(catalogue, connectors, access)` takes the access of the role the
-  model belongs to (`PlatformRoles.accessOfModel`, the scheduler's `GET /roles` `acces` table, the
-  same table built in when it is not served): the éclaireur, the one pilot since 10/11/2026 (kit
-  #245), gets the annuaire AND one `task` rule per sub-agent it consults (penseur, navigateur,
-  savant); the penseur and the savant, when their model is named, get their sub-agents and NO rule
-  for the annuaire, neither allow nor deny (the engine's profile refuses it, and a session deny
-  would be inherited by the éclaireur who calls it); the codeur gets the annuaire and no sub-agent.
-  Before 08/11 the app wrote no `task` rule at all, so no conversation ever delegated. The rules
-  read back say which sub-agents they open (`rulesSubAgents`, `SessionScopeRead.subAgents`,
-  `MissionChatUiState.rulesSubAgents`) and the first send rewrites them when the role of the model
-  sent opens others (`liftToTitularIfNeeded`), which migrates every older conversation, those
-  written for the penseur included. A
-  connector is read as granted from ONE of its tools allowed (31/10/2026; before, every tool): rules
-  are written once and the catalogue grows, so the day the scheduler gained
-  `planificateur_pieces_jointes` every older conversation read its `planificateur` as absent and the
-  next rewrite stripped it whole. Rules a connector has outgrown read as `stale`
-  (`rulesPredate`, `SessionScopeRead.stale`) and the first send rewrites them from the connectors
-  read back, at the titulaire's level too (`rulesStale`, `liftToTitularIfNeeded`). **A ruleset
-  closes by name, never with `*`** (09/11/2026, Raphaël's capture: four tries to like a song in
-  Navidrome, the éclaireur's and the navigateur's calls written as text): a session fille inherits
-  every deny of its mother and reads it after its own profile, so the `*` → deny every ruleset
-  used to open with left the sub-agents without a tool. The block opens with a `task` → deny (the
-  marker `standingBlock` reads the latest ruleset by), closes each tool of a direct connector the
-  ticks leave out, never the annuaire, then allows by name; a ruleset still opening with `*` reads
-  as stale (`rulesCloseSubAgents`) and the next send rewrites it.
+  **The server defines the modes** (10/11/2026, Raphaël: « c'est l'application qui choisit ce que
+  définit un mode… ce serait mieux que ce soit le moteur »). The app says what the person chose,
+  the mode (`pilote`, or the `provider/model` of « Autre modèle », `conversationMode`) and the
+  direct connectors ticked, through the scheduler's `perimetre(mode, directs)`
+  (`SchedulerApi.setScope`), and the scheduler writes the session's rules, those of the role that
+  leads in that mode (annuaire, sub-agents), and records both; the read gives them back
+  (`SessionScope.mode`/`directs`, `SessionScopeRead.mode`, `MissionChatUiState.rulesMode`). In
+  « Piloté » no model goes with the message: the engine runs it on the `chat` agent's own, which
+  the catalogue renders as the pilot in service. The first send has the scheduler rewrite rules
+  written for another mode (`liftToTitularIfNeeded`), and rules this app wrote itself from
+  26/09 to 10/11/2026 (no mode recorded: `stale`), whose connectors are still read off them
+  (`connectorsGranted`); `permissionsFor`, the roles' access table (`RoleAccess`, `DEFAULT_ACCESS`)
+  and the rewrite on a change of role are gone. Rules accumulate and the last match wins: the
+  scheduler writes nothing when the end of the rules in place is already its own.
 - **Programmées** (ex Tasks tab): the scheduler's entries only, recurring then one-shot, each row
   opening its actions. Their runs are not listed there: they are conversations, named after their
   mission with a small clock (`EngineChatSummary.scheduled`). `classifySession` still leaves out a
@@ -277,8 +265,8 @@ that arrives waits for the other to finish. The lock is held by the scheduler (i
   The conversation shows it as a form in place of the composer (`MissionQuestionForm`, options,
   multiple choice, a free answer), and reads `GET /question` at opening so a question asked before
   the screen opened is not missed. The server opens the tool to the `chat` profile (and `mission`);
-  the app grants it on every session it builds rules for (`permissionsFor`), the scheduler's
-  autonomous missions never get it. The form folds (07/11/2026, Raphaël: a long exposé hid the
+  the scheduler grants it on every conversation it writes the rules of from the app's mode
+  (`perimetre(mode, directs)`), its autonomous missions never get it. The form folds (07/11/2026, Raphaël: a long exposé hid the
   conversation it asked about): a chevron reduces it to one bar in the composer's place, the
   transcript takes the room, a tap on the bar reopens it with its draft (`collapsed`, kept per
   question id with `rememberSaveable`; a new question opens unfolded). Nothing is said to the engine.
@@ -327,8 +315,9 @@ that arrives waits for the other to finish. The lock is held by the scheduler (i
   in service, the **éclaireur** since 10/11/2026 (Raphaël: one pilot; until then the penseur), who
   does the plumbing itself and consults the penseur for judgment (a decision, a message to a third
   party, money committed) and the savant through the engine's sub-agents, read from the scheduler's
-  `GET /roles` (`PlatformRoles.pilot`, its `pilote`; `SchedulerRepository.roles()`, ten minutes);
-  without a roles table the message goes without a model, to the chat agent's own, the pilot too. The picker is a choice
+  `GET /roles` (`PlatformRoles.pilot`, its `pilote`; `SchedulerRepository.roles()`, ten minutes),
+  for the labels; the message itself goes without a model since 10/11/2026, to the chat agent's
+  own, which the server renders as the pilot. The picker is a choice
   of role first (« Piloté », « Savant » for a conversation that is all heavy reasoning, then « Autre
   modèle », the exception; a price only next to a model, never next to a role: Raphaël, 08/11/2026,
   « Piloté » cannot be priced), and the composer's label reads « Piloté » whenever the conversation runs
@@ -344,7 +333,7 @@ that arrives waits for the other to finish. The lock is held by the scheduler (i
   every send (`rememberPick`, `currentPick`), and `effectiveModel` reads the pick for the next
   message, then the recorded one, then the person's default; the model the last turn ran on never
   decides (the `chosenRunModel` of 27/10/2026 is gone), and a piloted conversation sends every
-  message to the pilot in service (`resolveModel`). The store's key changed that evening so that
+  message without a model, to the pilot in service (`resolveModel`). The store's key changed that evening so that
   every conversation recorded before falls back to « Piloté », as he asked. The engine keeps no model per session, and the last turn's model is
   whoever wrote it: a reminder played back by the scheduler, a relance posing its decision in its own
   conversation, ran on their own model, and the chip and the next message followed them. Under the

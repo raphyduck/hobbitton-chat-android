@@ -10,9 +10,11 @@ import kotlinx.serialization.Serializable
  * table is the server's catalogue, rendered there, never the app's: which model thinks and which
  * one scouts is a deployment's choice, and a list hardcoded here would be wrong the day it changes.
  *
- * What the app does with it: a conversation on « Piloté » runs on the [pilot] (10/11/2026,
- * Raphaël: one pilot, the éclaireur in service, which does the plumbing itself and consults the
- * penseur, the navigateur and the savant through the engine's sub-agents); the picker offers the
+ * What the app does with it: it names who wrote what (the signatures, the spend) and says
+ * « Piloté » for a conversation on the [pilot] (10/11/2026, Raphaël: one pilot, the éclaireur in
+ * service, which consults the penseur, the navigateur and the savant through the engine's
+ * sub-agents). What a mode means, its model and its rules, is the server's (10/11/2026: the app
+ * sends no model in « Piloté » and the scheduler writes the rules); the picker offers the
  * [savant] for a conversation that is all heavy reasoning; « Ask the savant » under an answer
  * exists when the server has one. Empty when the scheduler predates the route.
  */
@@ -23,24 +25,7 @@ data class PlatformRoles(
     @SerialName("pilote") val pilotRole: String = SCOUT,
     /** The provider a conversation spends on (D-077): `hobbitton-chat`. */
     @SerialName("fournisseur_conversations") val conversationsProvider: String = "hobbitton-chat",
-    /**
-     * What each role may reach (08/11/2026 evening, Raphaël: « le verrou se fait par rôle »): whether
-     * it calls the annuaire itself and which sub-agents its session opens. The server's table; the
-     * app writes a conversation's rules from the role of the model it sends. Empty when the
-     * scheduler predates it: [accessOf] then falls back to the same table, hardcoded.
-     */
-    @SerialName("acces") val access: Map<String, RoleAccess> = emptyMap(),
 ) {
-    /**
-     * The access of [role]: the server's table, else the built-in one, which says the same thing.
-     * A null or unknown role is led as the pilot, as the scheduler leads it (`role_du_passage`).
-     */
-    fun accessOf(role: String?): RoleAccess =
-        access[role ?: pilotRole] ?: DEFAULT_ACCESS[role ?: pilotRole] ?: DEFAULT_ACCESS.getValue(SCOUT)
-
-    /** The access of the role [ref] belongs to; a model no list names is led as the pilot. */
-    fun accessOfModel(ref: EngineModelRef?): RoleAccess = accessOf(ref?.let { roleOf(it.modelId) })
-
     /** The model id in service for [role], null when the role is unknown or empty. */
     fun inService(role: String): String? = roles[role]?.inService?.takeIf { it.isNotBlank() }
 
@@ -81,34 +66,7 @@ data class PlatformRoles(
         /** The whole table in reading order: who leads, who is consulted, the rest. */
         val ORDER = listOf(SCOUT, THINKER, SAVANT, NAVIGATOR, CODER, CLERK, READER)
         val NONE = PlatformRoles()
-
-        /** The server's access table as of 10/11/2026, for a scheduler that does not publish it. */
-        val DEFAULT_ACCESS: Map<String, RoleAccess> = mapOf(
-            SCOUT to RoleAccess(annuaire = true, subAgents = listOf(THINKER, NAVIGATOR, SAVANT)),
-            THINKER to RoleAccess(annuaire = false, subAgents = listOf(SCOUT, NAVIGATOR, SAVANT)),
-            SAVANT to RoleAccess(annuaire = false, subAgents = listOf(SCOUT, NAVIGATOR)),
-            NAVIGATOR to RoleAccess(annuaire = true, annuaireConnectors = listOf("bitwarden", "fichiers", "navigateur")),
-            CODER to RoleAccess(annuaire = true),
-            CLERK to RoleAccess(annuaire = false),
-            READER to RoleAccess(annuaire = false),
-        )
     }
-}
-
-/**
- * What a role reaches (08/11/2026 evening): [annuaire] says whether its session calls the annuaire
- * itself (false for the penseur and the savant, whose sub-agents call it), [annuaireConnectors] the
- * connectors it is bounded to when it does (null: its session's whole scope), [subAgents] the
- * sub-agents its session opens through `task`, by their conversation names.
- */
-@Serializable
-data class RoleAccess(
-    @SerialName("annuaire") val annuaire: Boolean = true,
-    @SerialName("connecteurs_annuaire") val annuaireConnectors: List<String>? = null,
-    @SerialName("sous_agents") val subAgents: List<String> = emptyList(),
-) {
-    /** True when the role leads by delegating: its session opens sub-agents. */
-    val delegates: Boolean get() = subAgents.isNotEmpty()
 }
 
 /** One role's models: the one in service and the whole ordered list (replacements, bench candidates). */
