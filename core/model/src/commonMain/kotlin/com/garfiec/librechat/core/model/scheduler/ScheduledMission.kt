@@ -114,6 +114,11 @@ data class PausedSession(
     @SerialName("depuis") val since: String? = null,
     /** The gateway's own refusal, summarised. */
     @SerialName("motif") val reason: String? = null,
+    /**
+     * The spending window that is full (10/11/2026, Raphaël: say whether it is the day's, the
+     * week's or the 30 days' ceiling): `1d`, `7d`, `30d`, or null when the refusal names none.
+     */
+    @SerialName("fenetre") val window: String? = null,
     /** The mission whose run this is, or null for a conversation. */
     val mission: String? = null,
     /** `pause` while waiting, `reprise` once the resume order left and is being confirmed. */

@@ -71,8 +71,10 @@ class SchedulerApiTest {
             respond(
                 content = envelope(
                     """[{"session":"ses_chat","depuis":"2026-11-07T12:00:00+00:00",""" +
-                        """"motif":"ExceededBudget: Key over 1d budget","mission":null,"cle":"chat","etat":"pause","reprises":2},""" +
-                        """{"session":"ses_run","depuis":"2026-11-07T12:05:00+00:00","motif":"Budget has been exceeded",""" +
+                        """"motif":"ExceededBudget: Key over 1d budget","fenetre":"1d",""" +
+                        """"mission":null,"cle":"chat","etat":"pause","reprises":2},""" +
+                        """{"session":"ses_run","depuis":"2026-11-07T12:05:00+00:00",""" +
+                        """"motif":"Budget has been exceeded","fenetre":"30d",""" +
                         """"mission":"brief-crypto","cle":"agent","etat":"reprise","reprises":0}]""",
                 ),
                 headers = jsonHeaders(),
@@ -84,6 +86,9 @@ class SchedulerApiTest {
         assertThat(paused.map { it.session }).containsExactly("ses_chat", "ses_run").inOrder()
         assertThat(paused[0].mission).isNull()
         assertThat(paused[0].attempts).isEqualTo(2)
+        // 10/11/2026: which ceiling is full, for the line above the composer.
+        assertThat(paused[0].window).isEqualTo("1d")
+        assertThat(paused[1].window).isEqualTo("30d")
         assertThat(paused[1].mission).isEqualTo("brief-crypto")
         assertThat(paused[1].state).isEqualTo("reprise")
     }

@@ -89,6 +89,10 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_hands_free_needs_phon
 import com.garfiec.librechat.feature.tasks.resources.tasks_listening
 import com.garfiec.librechat.feature.tasks.resources.tasks_model_auto
 import com.garfiec.librechat.feature.tasks.resources.tasks_model_default_short
+import com.garfiec.librechat.feature.tasks.resources.tasks_paused_any
+import com.garfiec.librechat.feature.tasks.resources.tasks_paused_day
+import com.garfiec.librechat.feature.tasks.resources.tasks_paused_month
+import com.garfiec.librechat.feature.tasks.resources.tasks_paused_week
 import com.garfiec.librechat.feature.tasks.resources.tasks_recording
 import com.garfiec.librechat.feature.tasks.resources.tasks_speaking
 import com.garfiec.librechat.feature.tasks.resources.tasks_stop
@@ -190,10 +194,20 @@ internal fun MissionChatInput(
         }
         state.paused?.let { pause ->
             // The scheduler holds the conversation on a spending ceiling (07/11/2026): it resumes
-            // by itself once the budget is back; say so, and let a tap ask again.
+            // by itself once the budget is back; say so, which ceiling is full (10/11/2026,
+            // Raphaël: the day's, the week's or the 30 days'), and let a tap ask again.
+            val ceiling = stringResource(
+                when (pause.window) {
+                    "1d" -> Res.string.tasks_paused_day
+                    "7d" -> Res.string.tasks_paused_week
+                    "30d" -> Res.string.tasks_paused_month
+                    else -> Res.string.tasks_paused_any
+                },
+            )
             ComposerNotice(
                 text = stringResource(
                     if (pause.mission != null) Res.string.tasks_chat_paused_mission else Res.string.tasks_chat_paused,
+                    ceiling,
                 ),
                 onDismiss = onRecheckPause,
                 color = MaterialTheme.colorScheme.tertiary,
