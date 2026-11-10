@@ -71,8 +71,10 @@ class SchedulerApiTest {
             respond(
                 content = envelope(
                     """[{"session":"ses_chat","depuis":"2026-11-07T12:00:00+00:00",""" +
-                        """"motif":"ExceededBudget: Key over 1d budget","fenetre":"1d","mission":null,"cle":"chat","etat":"pause","reprises":2},""" +
-                        """{"session":"ses_run","depuis":"2026-11-07T12:05:00+00:00","motif":"Budget has been exceeded","fenetre":"30d",""" +
+                        """"motif":"ExceededBudget: Key over 1d budget","fenetre":"1d",""" +
+                        """"mission":null,"cle":"chat","etat":"pause","reprises":2},""" +
+                        """{"session":"ses_run","depuis":"2026-11-07T12:05:00+00:00",""" +
+                        """"motif":"Budget has been exceeded","fenetre":"30d",""" +
                         """"mission":"brief-crypto","cle":"agent","etat":"reprise","reprises":0}]""",
                 ),
                 headers = jsonHeaders(),
