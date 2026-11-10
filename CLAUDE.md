@@ -314,7 +314,8 @@ that arrives waits for the other to finish. The lock is held by the scheduler (i
   `pauses` too) marks the session (`EngineChatSummary.paused`): a pause mark on its row, a
   « En pause » group first in the drawer (`RecentDay.PAUSED`) and on the Conversations page
   (`inboxOrder`), and a line above the composer (`MissionChatUiState.paused`, read with the
-  catalogue and on a refresh; a tap asks again).
+  catalogue and on a refresh; a tap asks again) that names the full ceiling (10/11/2026, Raphaël:
+  the day's, the week's or the 30 days'; the scheduler's `fenetre`, `PausedSession.window`).
 - **Global instructions** (`GlobalProfile`, sent as `system` on every chat and task turn) are edited
   from Settings → Instructions (`EngineInstructionsScreen`) and stored on the device
   (`GlobalProfileStore`, `device:` keys).
