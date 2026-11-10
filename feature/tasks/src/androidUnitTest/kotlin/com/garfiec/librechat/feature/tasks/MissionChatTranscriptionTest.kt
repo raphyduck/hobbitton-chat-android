@@ -123,7 +123,7 @@ class MissionChatTranscriptionTest {
                 connectors = any(),
                 model = any(),
                 files = emptyList(),
-                access = any(),
+                mode = any(),
             )
         }
         assertThat(vm.uiState.value.audioNotes).isEmpty()

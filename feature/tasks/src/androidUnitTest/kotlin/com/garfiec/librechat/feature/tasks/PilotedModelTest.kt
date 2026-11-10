@@ -4,6 +4,7 @@ import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.engine.AudioTranscriber
 import com.garfiec.librechat.core.data.engine.EngineMissionRepository
 import com.garfiec.librechat.core.data.engine.EngineModelChoice
+import com.garfiec.librechat.core.data.engine.PILOTED_MODE
 import com.garfiec.librechat.core.data.engine.TranscriptionOutcome
 import com.garfiec.librechat.core.data.scheduler.SchedulerRepository
 import com.garfiec.librechat.core.model.engine.EngineModelRef
@@ -31,7 +32,8 @@ import org.junit.Test
 /**
  * « Piloté » (08/11/2026, D-086 ; « Auto » du 25/10 lisait le premier message par un trieur et
  * choisissait un palier) : une conversation part sur le pilote en service de la plateforme
- * (l'éclaireur depuis le 10/11/2026) et le garde ; « Demander au savant » met la dernière demande
+ * (l'éclaireur depuis le 10/11/2026) et le garde, sans qu'Eva nomme de modèle depuis le
+ * 10/11/2026 (le serveur définit les modes : le moteur prend celui de l'agent `chat`) ; « Demander au savant » met la dernière demande
  * au savant par le pilote.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -92,7 +94,7 @@ class PilotedModelTest {
     )
 
     @Test
-    fun `a new conversation on Piloté starts on the pilot in service, and the chip still reads Piloté`() {
+    fun `a new conversation on Piloté goes without a model, in the pilot's mode, and the chip reads Piloté`() {
         val vm = viewModel()
         assertThat(vm.uiState.value.effectiveModel).isEqualTo(EngineSelectableModel.AUTO)
         assertThat(vm.uiState.value.showsPiloted).isTrue()
@@ -100,22 +102,25 @@ class PilotedModelTest {
         vm.onInputChange("Analyse ce devis")
         vm.send()
 
-        coVerify { repository.startChat(text = "Analyse ce devis", connectors = any(), model = flash.ref, files = any(), access = any()) }
-        // The conversation now runs on the pilot, which is what « Piloté » means: the chip does
-        // not switch to the model's name.
+        // 10/11/2026 (le serveur définit les modes) : no model, the engine runs the chat agent's own,
+        // the pilot in service; the scheduler writes the rules of the pilot's mode.
+        coVerify {
+            repository.startChat(text = "Analyse ce devis", connectors = any(), model = null, files = any(), mode = PILOTED_MODE)
+        }
+        // The chip does not switch to the model's name.
         assertThat(vm.uiState.value.rememberedModel).isEqualTo(EngineSelectableModel.AUTO.ref)
         assertThat(vm.uiState.value.showsPiloted).isTrue()
     }
 
     @Test
-    fun `without a roles table the message goes without a model, to the engine's own default`() {
+    fun `without a roles table the message goes without a model too, and no savant is offered`() {
         coEvery { scheduler.roles() } returns null
         val vm = viewModel()
 
         vm.onInputChange("Bonjour")
         vm.send()
 
-        coVerify { repository.startChat(text = "Bonjour", connectors = any(), model = null, files = any(), access = any()) }
+        coVerify { repository.startChat(text = "Bonjour", connectors = any(), model = null, files = any(), mode = PILOTED_MODE) }
         assertThat(vm.uiState.value.canAskSavant).isFalse()
     }
 
@@ -135,7 +140,7 @@ class PilotedModelTest {
 
         vm.onInputChange("Et ensuite ?")
         vm.send()
-        coVerify { repository.sendMessage("ses_suivie", "Et ensuite ?", flash.ref, any()) }
+        coVerify { repository.sendMessage("ses_suivie", "Et ensuite ?", null, any()) }
 
         vm.selectModel(deepseek)
         vm.onInputChange("Sur DeepSeek")
@@ -171,7 +176,7 @@ class PilotedModelTest {
         vm.onInputChange("Et le point relais ?")
         vm.send()
 
-        coVerify { repository.sendMessage("ses_colis", "Et le point relais ?", flash.ref, any()) }
+        coVerify { repository.sendMessage("ses_colis", "Et le point relais ?", null, any()) }
     }
 
     @Test
@@ -184,7 +189,12 @@ class PilotedModelTest {
         vm.onInputChange("Faut-il vendre la SCPI ?")
         vm.send()
 
-        coVerify { repository.startChat(text = "Faut-il vendre la SCPI ?", connectors = any(), model = fable.ref, files = any(), access = any()) }
+        coVerify {
+            repository.startChat(
+                text = "Faut-il vendre la SCPI ?", connectors = any(), model = fable.ref, files = any(),
+                mode = "hobbitton-chat/${fable.ref.modelId}",
+            )
+        }
     }
 
     @Test
@@ -203,7 +213,7 @@ class PilotedModelTest {
         assertThat(vm.uiState.value.canAskSavant).isTrue()
         vm.askSavant()
 
-        // Piloté: the request goes to the pilot in service, whatever the last turn ran on.
-        coVerify { repository.sendMessage("ses_suivie", ASK_SAGE_PREFIX + "Rédige la relance", flash.ref, any()) }
+        // Piloté: the request goes without a model, to the pilot in service, whatever the last turn ran on.
+        coVerify { repository.sendMessage("ses_suivie", ASK_SAGE_PREFIX + "Rédige la relance", null, any()) }
     }
 }

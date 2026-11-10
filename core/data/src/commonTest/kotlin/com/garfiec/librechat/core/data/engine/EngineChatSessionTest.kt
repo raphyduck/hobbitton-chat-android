@@ -125,39 +125,39 @@ class EngineChatSessionTest {
     }
 
     @Test
-    fun `its rules open every direct connector, and the shell only when asked for`() = runTest {
+    fun `the scheduler writes its rules from the mode and the direct connectors, the app writes none`() = runTest {
+        // 10/11/2026 (Raphaël: the server defines the modes): the session is created without rules,
+        // and `perimetre` carries the mode and the direct connectors ticked, before the first prompt.
         testMissionRepository(engine()).startChat("Bonjour", connectors = null)
 
-        val allowed = allowedOn(bodyOf(isPost("/session")))
-        assertTrue("memoire_lire" in allowed)
-        assertTrue("planificateur_lister" in allowed)
-        assertTrue("bash" !in allowed)
-        // The annuaire serves `banque`: never in the model's tool list (D-071).
-        assertTrue("banque_soldes" !in allowed)
+        assertTrue("permission" !in bodyOf(isPost("/session")))
+        var arguments = scopeArguments()
+        assertEquals("pilote", arguments["mode"]!!.jsonPrimitive.content)
+        // No ticks: every direct connector but the shell; the annuaire's `banque` never (D-071).
+        assertEquals(listOf("memoire", "planificateur", "web"), arguments["directs"]!!.jsonArray.map { it.jsonPrimitive.content })
 
         sent.clear()
-        testMissionRepository(engine()).startChat("Bonjour", connectors = listOf("shell"))
-        assertTrue("bash" in allowedOn(bodyOf(isPost("/session"))))
-        // Ticks choose among the direct connectors (24/10/2026): one unticked stays closed.
-        assertTrue("planificateur_lister" !in allowedOn(bodyOf(isPost("/session"))))
-        val scope = sent.last { "\"perimetre\"" in ((it.body as? TextContent)?.text ?: "") }
-        val arguments = librechatJson.parseToJsonElement((scope.body as TextContent).text)
-            .jsonObject["params"]!!.jsonObject["arguments"]!!.jsonObject
+        testMissionRepository(engine()).startChat(
+            "Bonjour", connectors = listOf("shell", "banque"), mode = "hobbitton-chat/claude-opus-5-5",
+        )
+        arguments = scopeArguments()
+        assertEquals("hobbitton-chat/claude-opus-5-5", arguments["mode"]!!.jsonPrimitive.content)
+        // Ticks choose among the direct connectors (24/10/2026): one unticked stays out.
+        assertEquals(listOf("shell"), arguments["directs"]!!.jsonArray.map { it.jsonPrimitive.content })
         assertEquals(listOf("shell"), arguments["connecteurs"]!!.jsonArray.map { it.jsonPrimitive.content })
     }
 
-    private fun allowedOn(session: JsonObject): List<String> = session["permission"]!!.jsonArray
-        .map { it.jsonObject }
-        .filter { it["action"]?.jsonPrimitive?.content == "allow" }
-        .map { it["permission"]!!.jsonPrimitive.content }
+    private fun scopeArguments(): JsonObject {
+        val scope = sent.last { "\"perimetre\"" in ((it.body as? TextContent)?.text ?: "") }
+        return librechatJson.parseToJsonElement((scope.body as TextContent).text)
+            .jsonObject["params"]!!.jsonObject["arguments"]!!.jsonObject
+    }
 
     @Test
-    fun `its model comes from the chat provider, the provider's default when none is named`() = runTest {
+    fun `on Piloté the prompt names no model, and the engine runs the chat agent's own`() = runTest {
         testMissionRepository(engine()).startChat("Bonjour", connectors = emptyList())
 
-        val model = bodyOf(isPost("/session/ses_chat/prompt_async"))["model"]!!.jsonObject
-        assertEquals("hobbitton-chat", model["providerID"]?.jsonPrimitive?.content)
-        assertEquals("claude-sonnet-5", model["modelID"]?.jsonPrimitive?.content)
+        assertTrue("model" !in bodyOf(isPost("/session/ses_chat/prompt_async")))
     }
 
     @Test
@@ -213,11 +213,10 @@ class EngineChatSessionTest {
     }
 
     @Test
-    fun `a turn without a picked model names the chat provider's default`() = runTest {
+    fun `a turn on Piloté names no model, the chat agent's own runs it`() = runTest {
         testMissionRepository(engine()).sendMessage(sessionId = "ses_task", text = "Go ssh")
 
-        val model = bodyOf(isPost("/session/ses_task/message"))["model"]!!.jsonObject
-        assertEquals("hobbitton-chat", model["providerID"]?.jsonPrimitive?.content)
+        assertTrue("model" !in bodyOf(isPost("/session/ses_task/message")))
     }
 
     @Test

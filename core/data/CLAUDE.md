@@ -63,9 +63,12 @@ Since 12/10/2026 chats and tasks are one conversation, as on Claude.ai.
   is recorded before the first prompt (D-071), the shell ticked when `connectors` holds it
   (`SHELL_CONNECTOR`, the one thing that level leaves on demand). Of `connectors`, the engine's
   **direct** ones (`directPerimeter`, 24/10/2026: the app chooses among those only, `directOffered`)
-  become the session's rules (`permissionsFor`); null ticks open every direct connector but the
-  shell. The session's kind is recorded locally before anything can fail. `setConnectors` re-grants
-  a live session the same way, and `sessionScope` reads back its connectors and recorded level.
+  go to the scheduler with the conversation's mode (`perimetre(mode, directs)`, 10/11/2026: the
+  server defines the modes), which writes the session's rules; null ticks open every direct
+  connector but the shell. The session's kind is recorded locally before anything can fail.
+  `setConnectors` re-grants a live session the same way, and `sessionScope` reads back its
+  connectors, level and mode (`connectorsGranted` off the rules of a session this app wrote itself
+  before 10/11/2026, read as `stale`).
 - **`recentChats(scope, limit, query, maxAgeMillis)`**: `ChatScope.MANUAL` (the drawer) leaves the scheduler's runs out
   before any transcript is read; `ChatScope.ALL` (the Conversations page) keeps them, named after
   their mission (`scheduledMissionName`) and marked `scheduled`, sorted paused first (07/11/2026:
@@ -99,8 +102,8 @@ Since 12/10/2026 chats and tasks are one conversation, as on Claude.ai.
 - **`models()`**: the conversations' provider only; `preselected` is the person's default
   (`ModelPreference`, Settings' `SettingsDataStore.defaultChatModel`) while the list still has it,
   « Piloté » (`EngineSelectableModel.AUTO`) otherwise and for a device that chose nothing (D-086,
-  08/11/2026); `engineDefault` is kept for the conversation to tell a fallback nobody chose. A turn
-  sent without a model runs on the chat agent's own (`chatModel`).
+  08/11/2026); `engineDefault` is kept for the conversation to tell a fallback nobody chose. A turn on « Piloté » is sent without a model and runs on the chat agent's own, the pilot in
+  service (`chatModel`, 10/11/2026).
 - **`SchedulerRepository.roles()`** (D-086): the platform's roles and their models in service
   (`GET /roles`, `PlatformRoles`), kept ten minutes, forgotten at sign-out; what « Piloté » runs on
   and whether there is a savant to ask. Replaces the tiers and the trieur (`/palier`).

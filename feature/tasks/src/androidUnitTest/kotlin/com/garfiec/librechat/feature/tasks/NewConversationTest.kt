@@ -93,7 +93,7 @@ class NewConversationTest {
                 connectors = match { it.toSet() == setOf("memoire", "nas", "shell") },
                 model = null,
                 files = match { files -> files.single().filename == "recu.jpg" },
-                access = any(),
+                mode = any(),
             )
         }
         assertThat(vm.uiState.value.started?.sessionId).isEqualTo("ses_nouvelle")

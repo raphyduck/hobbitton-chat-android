@@ -2,6 +2,7 @@ package com.garfiec.librechat.feature.tasks
 
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.engine.EngineMissionRepository
+import com.garfiec.librechat.core.data.engine.PILOTED_MODE
 import com.garfiec.librechat.core.data.engine.SessionScopeRead
 import com.garfiec.librechat.core.data.engine.TITULAR_LEVEL
 import com.garfiec.librechat.core.data.engine.TranscriptionOutcome
@@ -62,12 +63,11 @@ class MissionChatLiftTest {
 
     private fun viewModel(
         level: String?,
-        subAgents: Set<String> = PILOT_SUB_AGENTS,
+        mode: String? = PILOTED_MODE,
     ): MissionChatViewModel {
-        // By default the rules the pilot writes, the éclaireur who leads without a roles table
-        // (10/11/2026): the penseur, the navigateur and the savant.
+        // By default rules the scheduler wrote for « Piloté » (10/11/2026: the server defines the modes).
         coEvery { repository.sessionScope("ses_run") } returns
-            SessionScopeRead(emptySet(), level, subAgents = subAgents)
+            SessionScopeRead(emptySet(), level, mode = mode)
         return MissionChatViewModel(
             sessionId = "ses_run",
             repository = repository,
@@ -134,38 +134,23 @@ class MissionChatLiftTest {
     }
 
     @Test
-    fun `rules written for another role than the one now speaking are rewritten once`() {
-        // 08/11/2026 evening (accès par rôle) : a conversation opened before the app wrote `task`
-        // rules never delegated ; led by the pilot, its first send opens the sub-agents.
-        val vm = viewModel(level = TITULAR_LEVEL, subAgents = emptySet())
+    fun `rules written for another mode than the one now speaking are rewritten once, by the scheduler`() {
+        // 10/11/2026 (le serveur définit les modes) : a conversation whose rules were written for
+        // another model is told to the scheduler in its mode now, « Piloté », once.
+        val vm = viewModel(level = TITULAR_LEVEL, mode = "hobbitton-chat/claude-opus-5-5")
         vm.onInputChange("bonjour")
         vm.send()
         vm.onInputChange("et ensuite")
         vm.send()
 
-        coVerify(exactly = 1) {
-            repository.setConnectors("ses_run", any(), match { it.annuaire && it.subAgents.toSet() == PILOT_SUB_AGENTS })
-        }
+        coVerify(exactly = 1) { repository.setConnectors("ses_run", any(), PILOTED_MODE) }
         assertThat(vm.uiState.value.sessionLevel).isEqualTo(TITULAR_LEVEL)
     }
 
     @Test
-    fun `rules written for the penseur are rewritten for the eclaireur who now leads`() {
-        // 10/11/2026 (un seul pilote) : a « Piloté » conversation written for the penseur opened
-        // the éclaireur and no annuaire ; its next send opens the penseur and the annuaire.
-        val vm = viewModel(level = TITULAR_LEVEL, subAgents = setOf("eclaireur", "navigateur", "savant"))
-        vm.onInputChange("bonjour")
-        vm.send()
-
-        coVerify(exactly = 1) {
-            repository.setConnectors("ses_run", any(), match { it.annuaire && it.subAgents.toSet() == PILOT_SUB_AGENTS })
-        }
-    }
-
-    @Test
-    fun `a conversation whose rules predate the catalogue is regranted once at the titulaire's level`() {
-        // 31/10/2026 : ouverte avant que le planificateur gagne pieces_jointes, une conversation
-        // gardait la liste d'outils de sa création pour de bon.
+    fun `rules this app wrote itself are rewritten once by the scheduler at the titulaire's level`() {
+        // 10/11/2026 : a conversation opened before carries the app's own rules (no mode recorded,
+        // read as stale); its first send has the scheduler write them, which migrates it.
         coEvery { repository.sessionScope("ses_run") } returns
             SessionScopeRead(setOf("annuaire"), TITULAR_LEVEL, stale = true)
         val vm = MissionChatViewModel(
@@ -183,7 +168,7 @@ class MissionChatLiftTest {
         vm.send()
 
         coVerifyOrder {
-            repository.setConnectors("ses_run", listOf("annuaire"), any())
+            repository.setConnectors("ses_run", listOf("annuaire"), PILOTED_MODE)
             repository.sendMessage("ses_run", "envoie les photos", any(), any())
             repository.sendMessage("ses_run", "merci", any(), any())
         }
@@ -224,5 +209,3 @@ class MissionChatLiftTest {
         coVerify { repository.sendMessage("ses_run", "reprends les annonces", any(), any()) }
     }
 }
-
-private val PILOT_SUB_AGENTS = setOf("penseur", "navigateur", "savant")

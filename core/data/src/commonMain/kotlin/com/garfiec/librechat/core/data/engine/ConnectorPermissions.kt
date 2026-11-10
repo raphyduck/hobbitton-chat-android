@@ -1,107 +1,18 @@
 package com.garfiec.librechat.core.data.engine
 
-import co.touchlab.kermit.Logger
+import com.garfiec.librechat.core.model.engine.EngineModelRef
 import com.garfiec.librechat.core.model.engine.EnginePermissionRule
+import com.garfiec.librechat.core.model.engine.isAuto
 import com.garfiec.librechat.core.model.scheduler.ConnectorCatalogue
-import com.garfiec.librechat.core.model.scheduler.RoleAccess
 
-/**
- * What the mission is allowed to touch, built from the scheduler's own catalogue.
- *
- * Three rules, and the first is why this function takes a [catalogue] instead of holding a table:
- *
- *  * **nothing is copied.** This module used to carry its own map of four connectors — out of the
- *    platform's nineteen — and for `fichiers` it named tools that do not exist (`read`, `write`,
- *    `edit`, `glob`, `grep`, `list`, where the engine offers `fichiers_list_roots`,
- *    `fichiers_read_text`…). A rule allowing a tool nobody serves is accepted in silence, so the
- *    mission simply launched with an empty toolbox and said so mid-run. Reported 30/08/2026. The
- *    catalogue comes from `moteur.py`'s `CONNECTEURS`, the same table the scheduler's own missions
- *    run on, so the two cannot drift.
- *  * the list **closes by name, never with `*`** (09/11/2026). It used to open with a `*` → deny,
- *    then re-open by name. But a session fille, a sub-agent launched by `task`, inherits every
- *    `deny` of its mother and reads it after its own profile (OpenCode, subagent-permissions.ts):
- *    the inherited `*` → deny left the éclaireur and the navigateur with no tool at all, and they
- *    wrote their calls as text (Raphaël's capture, 09/11/2026: four tries to like a song in
- *    Navidrome, « l'appel à l'outil n'a pas été exécuté »). The profile already carries `*` → deny:
- *    the session only needs to close, tool by tool, what the profile opens and the ticks leave out
- *    (the shell first), and the fille inherits those closures, which are what should bound it as
- *    much as its mother. A profile is a ceiling and the checkboxes narrow it, never widen it.
- *    Order matters: the engine keeps the **last** rule that matches. The block opens with a
- *    `task` → deny, the marker [standingBlock] reads the latest ruleset by; the sub-agents a role
- *    opens are allowed after it, by name.
- *  * the catalogue's `socle` is granted **on top**. It is what a session gets besides its
- *    connectors (`todowrite`); dropping it builds rules that are incomplete, and silently so.
- *
- * **Interactive, always** (26/09/2026): every mission this app builds rules for is one somebody is
- * watching, so the catalogue's `refusedWhenAutonomous` is not read here. The autonomous missions are
- * the scheduler's, and their rules are built server-side, not by this function.
- *
- * One guard the catalogue does not get to override (review C11, 26/09/2026): a pattern is taken
- * only when it names one tool. `*`, an empty string or anything carrying a wildcard, from a
- * connector's `outils` or from the `socle`, would re-open everything the opening `*` → `deny` just
- * closed while the screen still showed only the ticked connectors. Such a pattern is logged and
- * skipped; it is a fault in the scheduler's table, not a grant.
+/*
+ * The session's rules are the scheduler's (10/11/2026, Raphaël: « c'est le serveur qui définit
+ * les modes »): the app tells `perimetre` the conversation's mode and the direct connectors ticked
+ * ([directPerimeter]), and the scheduler writes the rules of the role that leads in that mode. The
+ * app wrote them itself from 26/09 to 10/11/2026 (`permissionsFor`, with a table of the roles'
+ * access copied from the server); the conversations opened then still carry those rules, which
+ * are only READ here, for the chip, until the first send has the scheduler rewrite them.
  */
-fun permissionsFor(
-    catalogue: ConnectorCatalogue,
-    connectors: List<String>,
-    /**
-     * The access of the role that leads the session (08/11/2026 evening, access by role): a role
-     * that does not call the annuaire gets no rule for it, neither allow nor deny — the agent's
-     * profile refuses it, and a session deny would be inherited by the sub-agents who do call it;
-     * a role that delegates gets one `task` rule per sub-agent. Null: the rules as before the table.
-     */
-    access: RoleAccess? = null,
-): List<EnginePermissionRule> {
-    val granted = connectors
-        .mapNotNull { name -> catalogue.connecteurs[name]?.let { name to it } }
-        // Only the direct connectors become rules (D-071). The rest is the annuaire's, which reads
-        // the scope the app records for the session; declaring it here would put its whole
-        // catalogue in front of the model on every turn — the very cost the annuaire exists to
-        // avoid.
-        .filter { (_, grant) -> grant.direct }
-        .filter { (name, _) -> access == null || access.annuaire || name != ANNUAIRE_CONNECTOR }
-
-    val grantedTools = granted.flatMap { (_, grant) -> grant.outils }.toSet()
-    // The annuaire is never denied by a session rule: the profile refuses it to a role that lacks
-    // it, and a deny would be inherited by the sub-agents who do call it.
-    val annuaireTools = catalogue.connecteurs[ANNUAIRE_CONNECTOR]?.outils.orEmpty().toSet()
-    val rules = mutableListOf(EnginePermissionRule(permission = TASK_TOOL, action = ACTION_DENY))
-    catalogue.connecteurs.values
-        .filter { it.direct }
-        .flatMap { it.outils }
-        .distinct()
-        .filter { it !in grantedTools && it !in annuaireTools && it !in catalogue.socle && namesOneTool(it) }
-        .forEach { tool -> rules += EnginePermissionRule(permission = tool, action = ACTION_DENY) }
-    catalogue.socle.forEach { (tool, action) ->
-        if (namesOneTool(tool)) rules += EnginePermissionRule(permission = tool, action = action)
-    }
-    // The agent may ask the person (03/10/2026): somebody is watching every session this app builds
-    // rules for, and the form answers. Not the catalogue's socle, which the scheduler's autonomous
-    // missions also receive: a question nobody answers blocks a turn for good. The profile (`chat`,
-    // `mission`) opens it server side; this rule keeps the session from closing it again.
-    rules += EnginePermissionRule(permission = QUESTION_TOOL, action = ACTION_ALLOW)
-    granted.flatMap { (_, grant) -> grant.outils }
-        .distinct()
-        .filter(::namesOneTool)
-        .forEach { tool -> rules += EnginePermissionRule(permission = tool, action = ACTION_ALLOW) }
-    // A role that delegates opens its sub-agents by name; `task` stays closed to any other name
-    // by the block's opening deny, and a session that does not delegate opens none.
-    access?.subAgents.orEmpty().forEach { name ->
-        rules += EnginePermissionRule(permission = TASK_TOOL, pattern = name, action = ACTION_ALLOW)
-    }
-    return rules
-}
-
-/**
- * The sub-agents the standing block of [rules] opens, by name (08/11/2026; a set since 10/11/2026):
- * which role the rules were written for. Read back to rewrite the rules when the model sent changes
- * role, and when the roles themselves moved: a conversation written for the penseur opened the
- * éclaireur and no annuaire, and once the éclaireur leads it must open the penseur and the annuaire.
- */
-fun rulesSubAgents(rules: List<EnginePermissionRule>): Set<String> =
-    standingBlock(rules).filter { it.permission == TASK_TOOL && it.action == ACTION_ALLOW }
-        .map { it.pattern }.filter { it != ANY_TOOL }.toSet()
 
 /**
  * The latest ruleset of an accumulated list: what follows its opening marker, a `task` → deny on
@@ -117,21 +28,7 @@ private fun lastTaskDeny(rules: List<EnginePermissionRule>): Int =
     rules.indexOfLast { it.permission == TASK_TOOL && it.pattern == ANY_TOOL && it.action == ACTION_DENY }
 
 /**
- * Whether the standing ruleset still opens with a `*` → deny: written before 09/11/2026, it closes
- * every sub-agent of the conversation ([permissionsFor]), and the next send rewrites it.
- */
-fun rulesCloseSubAgents(rules: List<EnginePermissionRule>): Boolean =
-    lastWildcardDeny(rules) > lastTaskDeny(rules)
-
-/** A concrete tool name — not blank, no `*` or `?` — the only shape a catalogue pattern may take. */
-private fun namesOneTool(pattern: String): Boolean {
-    val concrete = pattern.isNotBlank() && '*' !in pattern && '?' !in pattern
-    if (!concrete) Logger.w { "permissionsFor: ignored a catalogue pattern that is not one tool name" }
-    return concrete
-}
-
-/**
- * [permissionsFor] read backwards: which connectors a ruleset actually grants.
+ * Which connectors a ruleset this app wrote before 10/11/2026 actually grants.
  *
  * **The ruleset accumulates.** `PATCH /session/{id}` appends its rules; it does not replace them.
  * Measured 31/08/2026 on a live mission: **1 016 rules in 21 blocks**, each block a whole ruleset
@@ -159,7 +56,7 @@ private fun namesOneTool(pattern: String): Boolean {
  * read its `planificateur` as absent, and the next rewrite of its rules (the lift to the titulaire's
  * level, a tick) stripped the whole connector, the new tool with it (Raphaël, 31/10/2026: « cette
  * conversation n'en a pas »). The tools a ruleset predates are never named in it, so they cannot
- * count against it; [rulesPredate] tells when they are missing, and the screen repairs the rules.
+ * count against it.
  *
  * `ask` and `deny` are not grants. A connector that declares no tool is never on.
  */
@@ -176,22 +73,6 @@ fun connectorsGranted(
         .keys
 }
 
-/**
- * Whether the standing block of [rules] misses a tool of a connector it grants: the catalogue
- * gained tools since the rules were written. A session in that state offers the model yesterday's
- * list; [permissionsFor] from the connectors read back writes today's.
- */
-fun rulesPredate(
-    catalogue: ConnectorCatalogue,
-    rules: List<EnginePermissionRule>,
-): Boolean {
-    if (rulesCloseSubAgents(rules)) return true
-    val standing = standingBlock(rules).filter { it.action == ACTION_ALLOW }.map { it.permission }.toSet()
-    return connectorsGranted(catalogue, rules).any { name ->
-        catalogue.connecteurs.getValue(name).outils.any { it !in standing }
-    }
-}
-
 /** The one rule action that grants. */
 private const val ACTION_ALLOW = "allow"
 
@@ -200,14 +81,8 @@ private const val ACTION_DENY = "deny"
 /** The catch-all the rulesets before 09/11/2026 opened with; never written since, still read. */
 private const val ANY_TOOL = "*"
 
-/** The direct connector whose two tools are the annuaire's; the only one a role may be refused. */
-private const val ANNUAIRE_CONNECTOR = "annuaire"
-
 /** The engine's delegation tool; its rules name a sub-agent in their pattern. */
 private const val TASK_TOOL = "task"
-
-/** OpenCode's tool for asking the person a question, answered by the conversation's form. */
-private const val QUESTION_TOOL = "question"
 
 /**
  * The connectors this catalogue offers a mission, in the order the picker should show them.
@@ -235,6 +110,20 @@ fun ConnectorCatalogue.offered(): List<ConnectorOption> =
  * in through the portal. The scheduler, not the app, decides what that level reaches.
  */
 const val TITULAR_LEVEL = "titulaire"
+
+/**
+ * The mode of a conversation on « Piloté » (10/11/2026, Raphaël: the server defines the modes):
+ * the scheduler writes the rules of the role that leads in it, and the engine runs it on the `chat`
+ * agent's own model, the pilot in service. No model goes with its messages.
+ */
+const val PILOTED_MODE = "pilote"
+
+/**
+ * The mode the scheduler is told a conversation runs in: [PILOTED_MODE] without a model (or on
+ * « Piloté »'s reference), else the model as `provider/model`, whose role the scheduler knows.
+ */
+fun conversationMode(model: EngineModelRef?): String =
+    model?.takeUnless { it.isAuto }?.let { "${it.providerId}/${it.modelId}" } ?: PILOTED_MODE
 
 /** The one connector the titulaire's level leaves on demand: the shell inherits everything. */
 const val SHELL_CONNECTOR = "shell"

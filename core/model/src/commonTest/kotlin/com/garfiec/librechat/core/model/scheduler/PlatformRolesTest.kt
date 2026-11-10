@@ -32,17 +32,6 @@ class PlatformRolesTest {
     }
 
     @Test
-    fun theEclaireurLeadsWithTheAnnuaireAndConsultsThePenseur() {
-        // 10/11/2026, one pilot: the éclaireur calls the annuaire and opens the penseur, the
-        // navigateur and the savant; a model no list names is led as the pilot.
-        val scout = PlatformRoles.NONE.accessOf(null)
-        assertTrue(scout.annuaire)
-        assertEquals(listOf("penseur", "navigateur", "savant"), scout.subAgents)
-        assertEquals(scout, roles.accessOfModel(EngineModelRef("hobbitton-chat", "inconnu")))
-        assertFalse(roles.accessOfModel(EngineModelRef("hobbitton-chat", "claude-opus-5-5")).annuaire)
-    }
-
-    @Test
     fun aModelIsRecognisedAsInServiceWhateverItsProvider() {
         assertTrue(roles.isInService(PlatformRoles.THINKER, EngineModelRef("hobbitton-gateway", "claude-opus-5-5")))
         assertTrue(roles.isInService(PlatformRoles.THINKER, EngineModelRef("hobbitton-chat", "Claude-Opus-5-5")))

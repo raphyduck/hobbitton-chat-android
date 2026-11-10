@@ -10,9 +10,10 @@ import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 /**
- * What the tab is allowed to grant a mission, and what it is allowed to claim about one.
+ * What the screen claims about a conversation whose rules this app wrote itself, before the
+ * scheduler took the rules over (10/11/2026): its connectors, read back from the standing block.
  */
-class PermissionsForTest {
+class LegacyRulesReadTest {
 
     /**
      * A stand-in for what the scheduler serves. Deliberately holds the *real* tool names — the app's
@@ -34,113 +35,17 @@ class PermissionsForTest {
     )
 
     @Test
-    fun `the rule list opens with a task deny and closes the rest by name, never with a wildcard`() {
-        val rules = permissionsFor(catalogue, listOf("memoire"))
-
-        // A profile is a ceiling; the checkboxes narrow it for this mission only. Closing by name
-        // (09/11/2026): a session fille inherits every deny of its mother, and an inherited `*`
-        // left the sub-agents without a tool.
-        assertEquals("task" to "deny", rules.first().let { it.permission to it.action })
-        assertTrue(rules.none { it.permission == "*" })
-        val denied = rules.filter { it.action == "deny" }.map { it.permission }.toSet()
-        assertEquals(
-            setOf("task", "memoire_journaliser", "memoire_ecrire", "fichiers_list_roots", "fichiers_read_text", "bash", "lsp"),
-            denied,
-        )
-    }
-
-    @Test
-    fun `a ticked connector opens exactly its own patterns`() {
-        val rules = permissionsFor(catalogue, listOf("memoire"))
-        val allowed = rules.filter { it.action == "allow" }.map { it.permission }
-
-        assertTrue(allowed.containsAll(listOf("memoire_lire", "memoire_rechercher")))
-        // Exactly the catalogue's names — not a paraphrase of them.
-        assertEquals(catalogue.connecteurs.getValue("memoire").outils.toSet(),
-            allowed.toSet() - catalogue.socle.keys - "question")
-        // Reading memory is not writing to it: the two are separate connectors on the server side
-        // and must stay separate here, or ticking « memory » would hand out write access.
-        assertTrue(allowed.none { it.startsWith("memoire_ecrire") })
-    }
-
-    @Test
-    fun `shell is available to an interactive mission`() {
-        val rules = permissionsFor(catalogue, listOf("shell"))
-
-        // `refusedWhenAutonomous` is the scheduler's business: every mission this app builds rules
-        // for is watched, so the flag must not take shell away from it.
-        assertTrue(rules.any { it.permission == "bash" && it.action == "allow" })
-    }
-
-    @Test
-    fun `an unknown connector grants nothing rather than everything`() {
-        val rules = permissionsFor(catalogue, listOf("connecteur-invente"))
-
-        // A typo, a renamed connector, a newer server: none of them may end up widening access.
-        assertEquals(listOf("todowrite", "question"), rules.filter { it.action == "allow" }.map { it.permission })
-        assertTrue(catalogue.connecteurs.values.flatMap { it.outils }.all { tool -> rules.any { it.permission == tool && it.action == "deny" } })
-    }
-
-    @Test
-    fun `no connectors at all is a mission that can only talk`() {
-        val rules = permissionsFor(catalogue, emptyList())
-
-        // Every direct tool closed by name, plus the socle the engine grants every session on top
-        // of its connectors. Dropping the socle builds incomplete rules, and silently.
-        assertEquals(listOf("todowrite", "question"), rules.filter { it.action == "allow" }.map { it.permission })
-        assertTrue(catalogue.connecteurs.values.flatMap { it.outils }.all { tool -> rules.any { it.permission == tool && it.action == "deny" } })
-    }
-
-    @Test
-    fun `every session the app builds may ask the person a question`() {
-        val rules = permissionsFor(catalogue, listOf("memoire"))
-
-        // Somebody watches every session built here, and the form answers it. The scheduler's
-        // autonomous missions build their rules server side, without it.
-        assertTrue(rules.any { it.permission == "question" && it.action == "allow" })
-        assertEquals(setOf("memoire"), connectorsGranted(catalogue, rules))
-    }
-
-    @Test
-    fun `the same pattern reached twice is granted once`() {
-        val rules = permissionsFor(catalogue, listOf("memoire", "memoire"))
-
-        assertEquals(rules.size, rules.distinctBy { it.permission }.size)
-    }
-
-    /**
-     * A catalogue pattern that is not one tool name grants nothing (review C11): a wildcard from a
-     * connector or from the socle would re-open everything the opening deny just closed while the
-     * screen still showed only the ticked connectors.
-     */
-    @Test
-    fun `a wildcard from the catalogue is not a grant`() {
-        val loose = ConnectorCatalogue(
-            connecteurs = mapOf(
-                "tout" to ConnectorGrant(outils = listOf("*", "memoire_*", "fichiers_?", "", " ", "memoire_lire")),
-            ),
-            socle = mapOf("*" to "allow", "todo*" to "allow", "todowrite" to "allow"),
-        )
-
-        val rules = permissionsFor(loose, listOf("tout"))
-        val allowed = rules.filter { it.action == "allow" }.map { it.permission }
-
-        assertEquals(listOf("todowrite", "question", "memoire_lire"), allowed)
-        // No rule names `*`, not even to close: a closing wildcard would be inherited by the sub-agents.
-        assertEquals(0, rules.count { '*' in it.permission || '?' in it.permission })
-    }
-    @Test
     fun `what a session was granted is read back from the rules it carries`() {
         // The round trip is the contract: what the sheet ticked is what the chip must report, or
         // the conversation says « No connector » over a mission that is reading mail.
-        val rules = permissionsFor(catalogue, listOf("memoire", "fichiers"))
+        val rules = legacyRules(catalogue, listOf("memoire", "fichiers"))
 
         assertEquals(setOf("memoire", "fichiers"), connectorsGranted(catalogue, rules))
     }
 
     @Test
     fun `a session granted nothing reads as nothing`() {
-        val rules = permissionsFor(catalogue, emptyList())
+        val rules = legacyRules(catalogue, emptyList())
 
         assertEquals(emptySet(), connectorsGranted(catalogue, rules))
     }
@@ -151,11 +56,10 @@ class PermissionsForTest {
         // chip never overstated. But rules are written once and the catalogue grows: a connector
         // that gained a tool read as absent in every older session, and the next rewrite stripped
         // it whole (pieces_jointes, 30/10/2026). The tools a ruleset predates are never named in
-        // it; they cannot count against it. What they say instead is that the rules are stale.
+        // it; they cannot count against it. The first send has the scheduler rewrite them whole.
         val rules = listOf(EnginePermissionRule(permission = "bash", action = "allow"))
 
         assertEquals(setOf("shell"), connectorsGranted(catalogue, rules))
-        assertTrue(rulesPredate(catalogue, rules))
     }
 
     @Test
@@ -174,16 +78,16 @@ class PermissionsForTest {
         // Mesuré le 31/08/2026 : `PATCH /session/{id}` EMPILE ses règles. Une session vivante en
         // portait 1 016, en 21 blocs. Chercher un `allow` n'importe où rendait « accordé » tout
         // connecteur jamais coché — c'est ce que faisait la première version, livrée le matin même.
-        val rules = permissionsFor(catalogue, listOf("memoire", "fichiers")) +
-            permissionsFor(catalogue, listOf("memoire"))
+        val rules = legacyRules(catalogue, listOf("memoire", "fichiers")) +
+            legacyRules(catalogue, listOf("memoire"))
 
         assertEquals(setOf("memoire"), connectorsGranted(catalogue, rules))
     }
 
     @Test
     fun `the last block counts whether it narrows or widens`() {
-        val rules = permissionsFor(catalogue, listOf("memoire")) +
-            permissionsFor(catalogue, listOf("memoire", "fichiers"))
+        val rules = legacyRules(catalogue, listOf("memoire")) +
+            legacyRules(catalogue, listOf("memoire", "fichiers"))
 
         assertEquals(setOf("memoire", "fichiers"), connectorsGranted(catalogue, rules))
     }

@@ -91,4 +91,14 @@ data class SessionScope(
      */
     @SerialName("niveau")
     val level: String? = null,
+    /**
+     * The conversation's mode the scheduler wrote the rules for (10/11/2026, Raphaël: the server
+     * defines the modes): `pilote`, or the `provider/model` of « another model »; null for a
+     * session whose rules this app wrote itself, before.
+     */
+    @SerialName("mode")
+    val mode: String? = null,
+    /** The direct connectors ticked, which the scheduler wrote the rules from; null as [mode]. */
+    @SerialName("directs")
+    val directs: List<String>? = null,
 )

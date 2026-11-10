@@ -15,6 +15,7 @@ import com.garfiec.librechat.core.data.engine.EngineMissionRepository
 import com.garfiec.librechat.core.data.engine.OpenConversation
 import com.garfiec.librechat.core.data.engine.TITULAR_LEVEL
 import com.garfiec.librechat.core.data.engine.TranscriptionOutcome
+import com.garfiec.librechat.core.data.engine.conversationMode
 import com.garfiec.librechat.core.data.engine.engineFailureKind
 import com.garfiec.librechat.core.data.engine.offered
 import com.garfiec.librechat.core.data.pricing.ModelPriceCache
@@ -156,13 +157,12 @@ data class MissionChatUiState(
      */
     val rulesStale: Boolean = false,
     /**
-     * The sub-agents the session's rules open (08/11/2026 evening, access by role; a set since
-     * 10/11/2026): which role they were written for. Null while unknown. The first send rewrites
-     * the rules when the role of the model sent opens others: a conversation opened before the
-     * table carried no `task` rule and never delegated, and one written for the penseur opened the
-     * éclaireur and no annuaire, where the éclaireur that now leads opens the penseur and calls it.
+     * The mode the scheduler wrote the session's rules for (10/11/2026, Raphaël: the server defines
+     * the modes), `pilote` or `provider/model`; null while unknown. The first send has the
+     * scheduler rewrite them when the conversation now runs in another mode; rules this app wrote
+     * itself, before, read as [rulesStale] and are rewritten the same way.
      */
-    val rulesSubAgents: Set<String>? = null,
+    val rulesMode: String? = null,
     /**
      * The scheduler holds this conversation in pause on a spending ceiling (07/11/2026): the
      * gateway refused its last step, and the scheduler resumes it by itself once the budget is
@@ -540,7 +540,7 @@ class MissionChatViewModel(
                             // A lift done meanwhile (a send) outranks the level read before it.
                             sessionLevel = it.sessionLevel ?: scope?.level,
                             rulesStale = scope?.stale == true && it.sessionLevel == null,
-                            rulesSubAgents = it.rulesSubAgents ?: scope?.subAgents,
+                            rulesMode = it.rulesMode ?: scope?.mode,
                             connectorsError = null,
                         )
                     }
@@ -603,9 +603,9 @@ class MissionChatViewModel(
         val sessionId = sessionId ?: return
         viewModelScope.launch {
             try {
-                val access = _uiState.value.roles.accessOfModel(resolveModel())
-                withContext(ioDispatcher) { repository.setConnectors(sessionId, after.toList(), access) }
-                _uiState.update { it.copy(sessionLevel = TITULAR_LEVEL, rulesSubAgents = access.subAgents.toSet()) }
+                val mode = conversationMode(resolveModel())
+                withContext(ioDispatcher) { repository.setConnectors(sessionId, after.toList(), mode) }
+                _uiState.update { it.copy(sessionLevel = TITULAR_LEVEL, rulesStale = false, rulesMode = mode) }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -1059,18 +1059,18 @@ class MissionChatViewModel(
         model: EngineModelRef? = null,
     ) {
         val known = state.enabledConnectors
-        // Access by role (08/11/2026 evening): the rules follow the role of the model sent. The
-        // éclaireur, who leads (10/11/2026), calls the annuaire and opens the penseur, the
-        // navigateur and the savant; the penseur and the savant open theirs and never the annuaire.
-        val wanted = state.roles.accessOfModel(model ?: resolveModel())
+        // The rules follow the conversation's mode, and the scheduler writes them (10/11/2026,
+        // Raphaël: the server defines the modes): « Piloté », or the model of « another model »,
+        // whose role the scheduler knows. The app only says which mode and which ticks.
+        val wanted = conversationMode(model ?: resolveModel())
         if (state.sessionLevel == TITULAR_LEVEL) {
-            // Already the titulaire's: rules the catalogue has outgrown, or written for another
-            // role than the one now speaking, are rewritten from the connectors read back, never
+            // Already the titulaire's: rules this app wrote itself before, or written for another
+            // mode than the one now speaking, are rewritten from the connectors read back, never
             // from an unread list (26/10/2026).
-            val roleMoved = state.rulesSubAgents != null && state.rulesSubAgents != wanted.subAgents.toSet()
-            if ((state.rulesStale || roleMoved) && known != null) {
+            val modeMoved = state.rulesMode != null && state.rulesMode != wanted
+            if ((state.rulesStale || modeMoved) && known != null) {
                 withContext(ioDispatcher) { repository.setConnectors(sessionId, known.toList(), wanted) }
-                _uiState.update { it.copy(rulesStale = false, rulesSubAgents = wanted.subAgents.toSet()) }
+                _uiState.update { it.copy(rulesStale = false, rulesMode = wanted) }
             }
             return
         }
@@ -1081,7 +1081,7 @@ class MissionChatViewModel(
             it.copy(
                 sessionLevel = TITULAR_LEVEL,
                 rulesStale = false,
-                rulesSubAgents = if (known != null) wanted.subAgents.toSet() else it.rulesSubAgents,
+                rulesMode = if (known != null) wanted else it.rulesMode,
             )
         }
     }
@@ -1255,7 +1255,7 @@ class MissionChatViewModel(
                         connectors = staged.enabledConnectors?.toList(),
                         model = model,
                         files = outgoing.files,
-                        access = staged.roles.accessOfModel(model),
+                        mode = conversationMode(model),
                     )
                 }
                 currentPick()?.let { rememberPick(created, it) }
@@ -1325,31 +1325,18 @@ class MissionChatViewModel(
 
     /**
      * The model the next message names: what the chip shows — the pick, else the model this device
-     * last sent the conversation with, else the model the last turn ran on, else the conversations'
-     * provider default.
+     * last sent the conversation with, else the person's default. A conversation switched to
+     * another model went back to the default as soon as the app restarted and forgot the pick
+     * (Raphaël, 03/10/2026), so a model chosen is sent with every message.
      *
-     * Never nothing: the engine does not keep a session's model, and a message without one runs on
-     * the **agent's** model. A conversation switched to another model went back to the default as
-     * soon as the app restarted and forgot the pick (Raphaël, 03/10/2026). The last turn's model is
-     * the session's model, and it is sent as such.
+     * None for « Piloté » (D-086; 10/11/2026, Raphaël: the server defines the modes): the message
+     * goes without a model and the engine runs it on the `chat` agent's own, which the catalogue
+     * renders as the pilot in service (the éclaireur, who does the plumbing and consults the
+     * penseur and the savant). Every message of a piloted conversation goes so, whatever its last
+     * turn ran on (08/11/2026 evening: Piloté stays Piloté until he changes it).
      */
-    private suspend fun resolveModel(): EngineModelRef? {
-        val effective = _uiState.value.effectiveModel ?: return null
-        if (!effective.isAuto) return effective.ref
-        // « Piloté » (D-086, 08/11/2026 ; « Auto » from 25/10 read the first message through the
-        // scheduler's trieur and picked a tier): the conversation runs on the platform's pilot in
-        // service, the éclaireur since 10/11/2026 (Raphaël: one pilot), who does the plumbing
-        // itself and consults the penseur for judgment and the savant when a decision is heavy.
-        // Every message of a piloted conversation goes to the pilot in service, whatever its last
-        // turn ran on (08/11/2026 evening, Raphaël: Piloté stays Piloté until he changes it).
-        // Without a roles table the message goes without a model, to the chat agent's own, the
-        // pilot too server side.
-        val pilot = _uiState.value.roles.pilot
-        if (pilot == null) {
-            Logger.w(LOG_TAG) { "Piloté: no roles table, starting on the engine's default" }
-        }
-        return pilot
-    }
+    private fun resolveModel(): EngineModelRef? =
+        _uiState.value.effectiveModel?.takeUnless { it.isAuto }?.ref
 
     /**
      * « Ask the savant » (D-086): the last request again, put to the savant through the pilot, who
@@ -1361,7 +1348,7 @@ class MissionChatViewModel(
         val sessionId = sessionId ?: return
         if (!state.canAskSavant) return
         val text = state.lastUserText ?: return
-        val model = state.effectiveModel?.takeUnless { it.isAuto }?.ref ?: state.roles.pilot
+        val model = state.effectiveModel?.takeUnless { it.isAuto }?.ref
         _uiState.update { it.copy(sending = true, sendError = null) }
         sendsInFlight++
         awaitingReply = true
