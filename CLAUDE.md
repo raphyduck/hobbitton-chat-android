@@ -334,7 +334,7 @@ that arrives waits for the other to finish. The lock is held by the scheduler (i
   message, then the recorded one, then the person's default; the model the last turn ran on never
   decides (the `chosenRunModel` of 27/10/2026 is gone), and a piloted conversation sends every
   message without a model, to the pilot in service (`resolveModel`). The store's key changed that evening so that
-  every conversation recorded before falls back to « Piloté », as he asked. The engine keeps no model per session, and the last turn's model is
+  every conversation recorded before falls back to « Piloté », as he asked; it changed again on 10/11/2026 (Raphaël: every conversation in progress on « Piloté », the éclaireur leading), and the scheduler resumes a conversation on its recorded mode's model too (kit #255). The engine keeps no model per session, and the last turn's model is
   whoever wrote it: a reminder played back by the scheduler, a relance posing its decision in its own
   conversation, ran on their own model, and the chip and the next message followed them. Under the
   last answer, « Demander au savant » (`askSavant`, `MissionChatUiState.canAskSavant`, shown when the

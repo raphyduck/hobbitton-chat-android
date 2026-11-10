@@ -22,6 +22,9 @@ import kotlinx.serialization.json.Json
  * stays in « Piloté » at every answer (08/11/2026 evening, Raphaël), so the pilotage itself is
  * what is kept, never the model it resolved to that day. The key changed the same evening: every
  * conversation recorded before falls back to the person's default, « Piloté », as he asked.
+ * It changed again on 10/11/2026 (Raphaël: « toutes les sessions en cours doivent prendre par
+ * défaut le fonctionnement piloté avec comme pilote l'éclaireur »): a conversation picked on the
+ * penseur or another model since then returns to « Piloté » too.
  */
 interface ConversationModelStore {
     suspend fun modelOf(sessionId: String): EngineModelRef?
@@ -78,7 +81,7 @@ class EngineConversationModels(
         raw?.let { runCatching { json.decodeFromString<Map<String, EngineModelRef>>(it) }.getOrNull() }.orEmpty()
 
     private companion object {
-        val KEY = stringPreferencesKey("engine_conversation_picks")
+        val KEY = stringPreferencesKey("engine_conversation_picks_v3")
 
         /** As many as the session kinds: months of conversations, a few tens of kilobytes. */
         const val CAPACITY = 1_000
