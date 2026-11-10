@@ -5,6 +5,7 @@ import com.garfiec.librechat.core.data.engine.AudioTranscriber
 import com.garfiec.librechat.core.data.engine.EngineMissionRepository
 import com.garfiec.librechat.core.data.engine.EngineModelChoice
 import com.garfiec.librechat.core.data.engine.PILOTED_MODE
+import com.garfiec.librechat.core.data.engine.SessionScopeRead
 import com.garfiec.librechat.core.data.engine.TranscriptionOutcome
 import com.garfiec.librechat.core.data.scheduler.SchedulerRepository
 import com.garfiec.librechat.core.model.engine.EngineModelRef
@@ -215,5 +216,29 @@ class PilotedModelTest {
 
         // Piloté: the request goes without a model, to the pilot in service, whatever the last turn ran on.
         coVerify { repository.sendMessage("ses_suivie", ASK_SAGE_PREFIX + "Rédige la relance", null, any()) }
+    }
+    @Test
+    fun `a development session keeps its agent and its coder when the person answers in it`() {
+        // 10/11/2026, Raphaël: an answer in a development session the scheduler opened went to
+        // the pilot on `chat`, and the session was no longer one. The scheduler says its agent and
+        // its model; every turn goes on them, with nothing lifted nor rewritten.
+        val coder = EngineModelRef("hobbitton-chat", "kimi-k2.7-code")
+        coEvery { repository.history("ses_dev", any()) } returns listOf(
+            EngineStreamEvent.MessageStarted("m1", "user"),
+        )
+        every { repository.events("ses_dev") } returns flowOf()
+        coEvery { repository.sessionScope("ses_dev") } returns SessionScopeRead(
+            connectors = emptySet(), level = "titulaire", mode = "developpement",
+            agent = "code-general", model = coder,
+        )
+        val vm = viewModel(sessionId = "ses_dev")
+        assertThat(vm.uiState.value.sessionAgent).isEqualTo("code-general")
+        assertThat(vm.uiState.value.showsPiloted).isFalse()
+
+        vm.onInputChange("Continue")
+        vm.send()
+
+        coVerify { repository.sendMessage("ses_dev", "Continue", coder, any(), "code-general") }
+        coVerify(exactly = 0) { repository.setConnectors(any(), any(), any()) }
     }
 }

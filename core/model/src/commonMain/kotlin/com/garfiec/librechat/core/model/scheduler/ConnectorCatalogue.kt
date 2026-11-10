@@ -101,4 +101,14 @@ data class SessionScope(
     /** The direct connectors ticked, which the scheduler wrote the rules from; null as [mode]. */
     @SerialName("directs")
     val directs: List<String>? = null,
+    /**
+     * The engine agent the session runs on when it is not a conversation's `chat` (10/11/2026: a
+     * development session the scheduler opened runs on `code-general`, led by the coder); null for
+     * every conversation. Every turn the person sends in it goes on that agent and [model].
+     */
+    @SerialName("profil")
+    val profile: String? = null,
+    /** `provider/model` the turns of a session with a [profile] go on; null otherwise. */
+    @SerialName("modele")
+    val model: String? = null,
 )

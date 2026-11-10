@@ -63,6 +63,13 @@ data class SessionScopeRead(
      * for rules this app wrote itself before, which the first send has the scheduler rewrite.
      */
     val mode: String? = null,
+    /**
+     * The agent and the model the scheduler set the session on, when it is not a conversation
+     * (10/11/2026: a development session runs on `code-general`, led by the coder); null for a
+     * conversation, whose turns go on `chat` and the person's pick.
+     */
+    val agent: String? = null,
+    val model: EngineModelRef? = null,
 )
 
 data class EngineChatSummary(
@@ -760,6 +767,11 @@ class EngineMissionRepository(
         text: String,
         model: EngineModelRef? = null,
         files: List<EnginePromptPart> = emptyList(),
+        /**
+         * `chat` for a conversation; the agent the scheduler set a development session on
+         * ([SessionScopeRead.agent], 10/11/2026), which keeps its profile when the person answers.
+         */
+        agent: String = CHAT_AGENT,
     ): List<EngineStreamEvent> {
         // EVERY turn names its agent and its provider. A turn that names no agent does NOT stay on
         // the session's: the engine runs it on its default (a task's follow-up ran on `build`, with
@@ -775,7 +787,7 @@ class EngineMissionRepository(
                     model = chatModel(model),
                     files = files,
                     system = instructions(),
-                    agent = CHAT_AGENT,
+                    agent = agent,
                 ),
             ),
         )
@@ -832,7 +844,9 @@ class EngineMissionRepository(
         val declared = directs?.filter { it in catalogue.connecteurs }?.toSet()
             ?: connectorsGranted(catalogue, api.session(sessionId).permission)
         return SessionScopeRead(declared + scoped.filter { it in catalogue.connecteurs }, scope?.level,
-            stale = directs == null, mode = scope?.mode.takeIf { directs != null })
+            stale = directs == null, mode = scope?.mode.takeIf { directs != null },
+            agent = scope?.profile?.takeIf { it.isNotBlank() },
+            model = scope?.model?.let(::modelRefOf))
     }
 
     /**
@@ -922,3 +936,10 @@ class EngineMissionRepository(
 
 /** How long the lists' reads serve the next page and the search before they are read again. */
 const val RECENT_LIST_REUSE_MS = 30_000L
+
+/** `provider/model` as the scheduler writes it, or null when it is not that shape. */
+internal fun modelRefOf(value: String): EngineModelRef? {
+    val provider = value.substringBefore('/', "")
+    val model = value.substringAfter('/', "")
+    return if (provider.isNotBlank() && model.isNotBlank()) EngineModelRef(provider, model) else null
+}

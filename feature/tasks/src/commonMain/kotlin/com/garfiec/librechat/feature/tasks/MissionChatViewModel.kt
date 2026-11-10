@@ -9,6 +9,7 @@ import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.engine.AttachmentUploader
 import com.garfiec.librechat.core.data.engine.AttentionSignals
 import com.garfiec.librechat.core.data.engine.AudioTranscriber
+import com.garfiec.librechat.core.data.engine.CHAT_AGENT
 import com.garfiec.librechat.core.data.engine.ConnectorOption
 import com.garfiec.librechat.core.data.engine.ConversationModelStore
 import com.garfiec.librechat.core.data.engine.EngineMissionRepository
@@ -164,6 +165,13 @@ data class MissionChatUiState(
      */
     val rulesMode: String? = null,
     /**
+     * The agent and the model the scheduler set a development session on (10/11/2026, Raphaël:
+     * a development session keeps its profile and its coder when he answers in it), null for a
+     * conversation. Every turn sent in such a session goes on them, and the chip names the model.
+     */
+    val sessionAgent: String? = null,
+    val sessionModel: EngineModelRef? = null,
+    /**
      * The scheduler holds this conversation in pause on a spending ceiling (07/11/2026): the
      * gateway refused its last step, and the scheduler resumes it by itself once the budget is
      * back (or at once when the ceilings are raised in Settings). Said above the composer.
@@ -269,7 +277,10 @@ data class MissionChatUiState(
      * by its raw id: an unfamiliar model is worth showing.
      */
     val effectiveModel: EngineSelectableModel?
-        get() = model ?: rememberedModel?.let { ref ->
+        get() = model ?: sessionModel?.let { ref ->
+            models.firstOrNull { it.ref == ref }
+                ?: EngineSelectableModel(providerId = ref.providerId, modelId = ref.modelId, label = ref.modelId)
+        } ?: rememberedModel?.let { ref ->
             if (ref.isAuto) {
                 EngineSelectableModel.AUTO
             } else {
@@ -541,6 +552,8 @@ class MissionChatViewModel(
                             sessionLevel = it.sessionLevel ?: scope?.level,
                             rulesStale = scope?.stale == true && it.sessionLevel == null,
                             rulesMode = it.rulesMode ?: scope?.mode,
+                            sessionAgent = it.sessionAgent ?: scope?.agent,
+                            sessionModel = it.sessionModel ?: scope?.model,
                             connectorsError = null,
                         )
                     }
@@ -1187,10 +1200,15 @@ class MissionChatViewModel(
             try {
                 val pick = currentPick()
                 val model = resolveModel()
-                liftToTitularIfNeeded(sessionId, staged, model)
+                // A development session (10/11/2026) keeps the agent and the rules the scheduler
+                // gave it: nothing to lift nor to rewrite, and no pick to remember for it.
+                val agent = staged.sessionAgent
+                if (agent == null) {
+                    liftToTitularIfNeeded(sessionId, staged, model)
+                    pick?.let { rememberPick(sessionId, it) }
+                }
                 // The answer streams in over the feed while this call is in flight; what it returns is
                 // the finished turn, folded in to reconcile anything the feed missed.
-                pick?.let { rememberPick(sessionId, it) }
                 val settled = withContext(ioDispatcher) {
                     val outgoing = deposit(sessionId, text, attachments)
                     repository.sendMessage(
@@ -1198,6 +1216,7 @@ class MissionChatViewModel(
                         outgoing.text,
                         model,
                         files = outgoing.files,
+                        agent = agent ?: CHAT_AGENT,
                     )
                 }
                 _uiState.update { current ->
