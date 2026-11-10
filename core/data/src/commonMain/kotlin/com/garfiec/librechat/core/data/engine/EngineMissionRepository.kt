@@ -828,7 +828,8 @@ class EngineMissionRepository(
         // sub-agents call it, 08/11/2026): the chip still reads it as on, since the conversation
         // reaches it.
         val subAgents = rulesSubAgents(rules)
-        val viaSubAgents = if (subAgents.isNotEmpty() && ANNUAIRE_CONNECTOR in catalogue.connecteurs) setOf(ANNUAIRE_CONNECTOR) else emptySet()
+        val reachesAnnuaire = subAgents.isNotEmpty() && ANNUAIRE_CONNECTOR in catalogue.connecteurs
+        val viaSubAgents = if (reachesAnnuaire) setOf(ANNUAIRE_CONNECTOR) else emptySet()
         return SessionScopeRead(declared + viaSubAgents + scoped.filter { it in catalogue.connecteurs }, scope?.level,
             stale = rulesPredate(catalogue, rules), subAgents = subAgents)
     }
