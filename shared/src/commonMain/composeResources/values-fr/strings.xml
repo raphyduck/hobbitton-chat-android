@@ -92,7 +92,7 @@
     <string name="engine_settings_default_model_hint">Celui sur lequel démarre une nouvelle conversation. Piloté est la règle ; un modèle nommé ici est l'exception, et le composeur peut toujours en choisir un autre pour une conversation.</string>
     <string name="engine_settings_default_model_unavailable">Les modèles n'ont pas pu être lus. Réessayez dans un instant.</string>
     <string name="engine_budget_title">Plafonds de dépense</string>
-    <string name="engine_budget_hint">Ce que les conversations peuvent dépenser sur la plateforme avant de s'arrêter. Les missions programmées ont leurs propres plafonds.</string>
+    <string name="engine_budget_hint">Ce que la plateforme peut dépenser avant de se mettre en pause : conversations et missions programmées ensemble. Seul l'agent vocal reste hors plafond, pour toujours pouvoir répondre.</string>
     <string name="engine_budget_day">Par jour</string>
     <string name="engine_budget_week">Par semaine</string>
     <string name="engine_budget_month">Sur 30 jours</string>
