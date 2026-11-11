@@ -92,7 +92,7 @@
     <string name="engine_settings_default_model_hint">What a new conversation starts on. Piloted is the rule; a model named here is the exception, and the composer can still pick another for one conversation.</string>
     <string name="engine_settings_default_model_unavailable">The models could not be read. Try again in a moment.</string>
     <string name="engine_budget_title">Spending limits</string>
-    <string name="engine_budget_hint">What conversations may spend on the platform before they stop. Scheduled missions have limits of their own.</string>
+    <string name="engine_budget_hint">What the platform may spend before it pauses: conversations and scheduled missions together. Only the voice agent stays outside the limits, so that it can always answer.</string>
     <string name="engine_budget_day">Per day</string>
     <string name="engine_budget_week">Per week</string>
     <string name="engine_budget_month">Over 30 days</string>

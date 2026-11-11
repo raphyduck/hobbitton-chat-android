@@ -65,7 +65,7 @@ that arrives waits for the other to finish. The lock is held by the scheduler (i
   ntfy: a decision to make, a question asked; `sessionOfConversationLink`).
 - **One kind of conversation** (D-082, 12/10/2026, as on Claude.ai): chats and tasks are fused.
   Every conversation is a session on agent `chat` whose model always comes from provider
-  `hobbitton-chat` (the conversations' budget; the scheduled missions spend on the gateway's key).
+  `hobbitton-chat` (the gateway's one capped key since 11/11/2026, the scheduled missions' too).
   The server's `chat` profile carries what the tasks' did (shell, local files, pages). The
   scheduler decides what a session reaches through the annuaire from WHO speaks to it (D-083,
   22/10/2026, Raphaël's rule), and every session this app starts stands at the titulaire's level
@@ -318,9 +318,12 @@ that arrives waits for the other to finish. The lock is held by the scheduler (i
   Off with the Settings switch. Its own notice is as discreet as Android allows (Raphaël,
   19/10/2026: keep the stream, no Firebase): lowest channel, no badge or sound, hidden on the lock
   screen, dismissable, and never posted again while the service runs.
-- **Spending ceilings** (Settings → Plafonds de dépense, 12/10/2026): the conversations' key per
-  day, per week and over 30 days, read and set through the scheduler's `/plafonds`
-  (`EngineBudgetScreen`). The scheduled missions' key is not set from here.
+- **Spending ceilings** (Settings → Plafonds de dépense, 12/10/2026): the gateway's one capped key
+  per day, per week and over 30 days, read and set through the scheduler's `/plafonds`
+  (`EngineBudgetScreen`). Since 11/11/2026 (Raphaël: « les limites que j'inscris dans
+  l'application Android se rapportent aux deux clés »; kit #274) it covers everything the app, the
+  engine and the scheduler start, the scheduled missions included; only the master key (health
+  check) and the voice agent's own key stay uncapped, and the usage page counts them all.
   **A session out of budget waits, it is not cut** (07/11/2026, Raphaël's rule; kit #211): the
   scheduler holds every session the gateway refused on a ceiling in pause and resumes it by itself
   once the budget is back (a conversation by a synthetic « continue », a run in its own session),
