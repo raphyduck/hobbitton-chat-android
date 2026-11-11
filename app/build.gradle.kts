@@ -38,6 +38,20 @@ android {
     buildFeatures {
         buildConfig = true
     }
+
+    // sherpa-onnx ships its native libraries for four ABIs, some 30 MB each: the dictation's
+    // model (671 MB) only makes sense on a 64-bit phone, so the 32-bit ones stay out (11/11/2026).
+    // x86_64 stays for the emulator. A phone without them is not offered the model (`SpeechModelStore.supported`).
+    packaging {
+        jniLibs {
+            excludes += listOf(
+                "lib/armeabi-v7a/libonnxruntime.so",
+                "lib/armeabi-v7a/libsherpa-onnx-*.so",
+                "lib/x86/libonnxruntime.so",
+                "lib/x86/libsherpa-onnx-*.so",
+            )
+        }
+    }
 }
 
 dependencies {

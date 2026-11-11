@@ -33,6 +33,8 @@ import com.garfiec.librechat.core.data.portal.PortalTasksSignIn
 import com.garfiec.librechat.core.data.pricing.ModelPriceSource
 import com.garfiec.librechat.core.data.scheduler.ChatBudgetSource
 import com.garfiec.librechat.core.data.scheduler.SchedulerRepository
+import com.garfiec.librechat.core.data.speech.AndroidSpeechModelStore
+import com.garfiec.librechat.core.data.speech.SpeechModelStore
 import com.garfiec.librechat.core.network.api.AgentEngineApi
 import com.garfiec.librechat.core.network.api.SchedulerApi
 import com.garfiec.librechat.core.network.client.CleartextGuardPlugin
@@ -83,6 +85,9 @@ val engineModule: Module = module {
         AttentionSignals(notifier = get(), preference = AttentionPreference { settings.attentionSound.first() })
     }
     single { ConversationRequests() }
+
+    // The dictation model the phone runs itself (11/11/2026): its download, its check, its files.
+    single<SpeechModelStore> { AndroidSpeechModelStore(androidContext()) }
 
     // The tails of the conversations this device opened (26/10/2026), gzip files in the app's
     // cache directory: shown at once on reopening, refreshed only when the session has moved.

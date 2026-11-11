@@ -27,6 +27,7 @@ import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Fingerprint
+import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.NotificationsActive
@@ -36,6 +37,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
@@ -65,6 +67,10 @@ import com.garfiec.librechat.core.data.datastore.ChatFontSize
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.datastore.ThemeMode
 import com.garfiec.librechat.core.data.lock.AppLock
+import com.garfiec.librechat.core.data.speech.ParakeetModel
+import com.garfiec.librechat.core.data.speech.SpeechModelFailure
+import com.garfiec.librechat.core.data.speech.SpeechModelState
+import com.garfiec.librechat.core.data.speech.SpeechModelStore
 import com.garfiec.librechat.core.model.engine.EngineSelectableModel
 import com.garfiec.librechat.core.network.engine.EngineAccess
 import com.garfiec.librechat.core.ui.components.SectionDivider
@@ -118,6 +124,19 @@ import com.garfiec.librechat.shared.resources.engine_settings_scheduler
 import com.garfiec.librechat.shared.resources.engine_settings_sign_out
 import com.garfiec.librechat.shared.resources.engine_settings_sign_out_confirm
 import com.garfiec.librechat.shared.resources.engine_settings_sign_out_hint
+import com.garfiec.librechat.shared.resources.engine_settings_speech_model
+import com.garfiec.librechat.shared.resources.engine_settings_speech_model_absent
+import com.garfiec.librechat.shared.resources.engine_settings_speech_model_cancel
+import com.garfiec.librechat.shared.resources.engine_settings_speech_model_delete
+import com.garfiec.librechat.shared.resources.engine_settings_speech_model_download
+import com.garfiec.librechat.shared.resources.engine_settings_speech_model_downloading
+import com.garfiec.librechat.shared.resources.engine_settings_speech_model_failed_corrupt
+import com.garfiec.librechat.shared.resources.engine_settings_speech_model_failed_network
+import com.garfiec.librechat.shared.resources.engine_settings_speech_model_failed_storage
+import com.garfiec.librechat.shared.resources.engine_settings_speech_model_ready
+import com.garfiec.librechat.shared.resources.engine_settings_speech_model_retry
+import com.garfiec.librechat.shared.resources.engine_settings_speech_model_verifying
+import com.garfiec.librechat.shared.resources.engine_settings_speech_model_waiting
 import com.garfiec.librechat.shared.resources.engine_settings_text_size
 import com.garfiec.librechat.shared.resources.engine_settings_theme
 import com.garfiec.librechat.shared.resources.engine_settings_title
@@ -131,6 +150,7 @@ import com.garfiec.librechat.shared.resources.engine_theme_system
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
+import org.koin.mp.KoinPlatform
 
 /** What the settings screen shows. */
 data class EngineSettingsUiState(
@@ -185,6 +205,8 @@ internal fun EngineSettingsScreen(
     onShareDiagnostics: () -> Unit = {},
     /** The lock's section (28/10/2026); the screen captures pass its stateless content. */
     lockSection: @Composable () -> Unit = { LockSection() },
+    /** The dictation model's row (11/11/2026); the screen captures leave it out. */
+    speechModelSection: @Composable () -> Unit = { SpeechModelSection() },
 ) {
     var confirmSignOut by rememberSaveable { mutableStateOf(false) }
     var pickModel by rememberSaveable { mutableStateOf(false) }
@@ -220,6 +242,7 @@ internal fun EngineSettingsScreen(
             onShareDiagnostics = onShareDiagnostics,
             onSignOut = { confirmSignOut = true },
             lockSection = lockSection,
+            speechModelSection = speechModelSection,
         )
         if (pickModel) {
             DefaultModelDialog(
@@ -347,6 +370,7 @@ private fun SettingsBody(
     onShareDiagnostics: () -> Unit,
     onSignOut: () -> Unit,
     lockSection: @Composable () -> Unit,
+    speechModelSection: @Composable () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -415,6 +439,7 @@ private fun SettingsBody(
                 onCheckedChange = onLocalDictation,
                 modifier = Modifier.testTag("settings_local_dictation"),
             )
+            speechModelSection()
         }
         Spacer(Modifier.height(GROUP_GAP))
 
@@ -546,6 +571,85 @@ private fun AccountHeader(account: DrawerAccount) {
         }
     }
 }
+
+/**
+ * The dictation model the phone runs itself (11/11/2026, Raphaël: « On va tout faire sur le
+ * téléphone »): Parakeet, downloaded once over Wi-Fi, then the phone's dictation goes through it.
+ * Absent from a phone that cannot run it, and wherever the engine's graph is not started.
+ */
+@Composable
+private fun SpeechModelSection() {
+    val store = remember { runCatching { KoinPlatform.getKoinOrNull()?.getOrNull<SpeechModelStore>() }.getOrNull() }
+    if (store == null || !store.supported) return
+    val state by store.state.collectAsState()
+    SectionDivider()
+    SpeechModelRow(state = state, onDownload = store::download, onCancel = store::cancel, onDelete = store::delete)
+}
+
+/** The model's row: what it is, where its download stands, and the one action that fits. */
+@Composable
+internal fun SpeechModelRow(
+    state: SpeechModelState,
+    onDownload: () -> Unit,
+    onCancel: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    val total = megabytes(ParakeetModel.TOTAL_BYTES)
+    val supporting = when (state) {
+        SpeechModelState.Absent -> stringResource(Res.string.engine_settings_speech_model_absent, total)
+        is SpeechModelState.Downloading -> stringResource(
+            if (state.waitingForWifi) {
+                Res.string.engine_settings_speech_model_waiting
+            } else {
+                Res.string.engine_settings_speech_model_downloading
+            },
+            megabytes(state.done),
+            megabytes(state.total),
+        )
+        SpeechModelState.Verifying -> stringResource(Res.string.engine_settings_speech_model_verifying)
+        is SpeechModelState.Ready -> stringResource(Res.string.engine_settings_speech_model_ready, total)
+        is SpeechModelState.Failed -> when (state.failure) {
+            SpeechModelFailure.NETWORK -> stringResource(Res.string.engine_settings_speech_model_failed_network)
+            SpeechModelFailure.STORAGE -> stringResource(Res.string.engine_settings_speech_model_failed_storage, total)
+            SpeechModelFailure.CORRUPT -> stringResource(Res.string.engine_settings_speech_model_failed_corrupt)
+        }
+    }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 4.dp)
+            .testTag("settings_speech_model"),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Icon(Icons.Outlined.GraphicEq, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            RowText(stringResource(Res.string.engine_settings_speech_model), supporting, Modifier.weight(1f))
+        }
+        if (state is SpeechModelState.Downloading) {
+            LinearProgressIndicator(
+                progress = { state.fraction },
+                modifier = Modifier.fillMaxWidth().padding(start = 40.dp, end = 8.dp),
+            )
+        }
+        val action = when (state) {
+            SpeechModelState.Absent -> Res.string.engine_settings_speech_model_download to onDownload
+            is SpeechModelState.Downloading -> Res.string.engine_settings_speech_model_cancel to onCancel
+            SpeechModelState.Verifying -> null
+            is SpeechModelState.Ready -> Res.string.engine_settings_speech_model_delete to onDelete
+            is SpeechModelState.Failed -> Res.string.engine_settings_speech_model_retry to onDownload
+        }
+        if (action != null) {
+            TextButton(onClick = action.second, modifier = Modifier.align(Alignment.End)) {
+                Text(stringResource(action.first))
+            }
+        } else {
+            Spacer(Modifier.height(8.dp))
+        }
+    }
+}
+
+/** Bytes as whole megabytes, as the download's sizes are read. */
+private fun megabytes(bytes: Long): Int = (bytes / 1_000_000L).toInt()
 
 @Composable
 private fun LockSection(viewModel: AppLockViewModel = koinViewModel()) {

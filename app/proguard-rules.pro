@@ -21,3 +21,7 @@
 # LibreChat-era dependencies; since D-079 nothing brings them, and R8 stops on the
 # missing classes. Nothing reads them at runtime.
 -dontwarn com.google.errorprone.annotations.**
+
+# sherpa-onnx (11/11/2026, the dictation heard on the phone): its native code reads the config
+# classes' fields and builds the results through JNI, by name.
+-keep class com.k2fsa.sherpa.onnx.** { *; }

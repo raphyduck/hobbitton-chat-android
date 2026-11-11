@@ -21,6 +21,13 @@ The engine's and the portal's data layer, and the app's preferences.
   five tries, a delay on a monotonic clock, `isTooSimple`) over `AppLockStore`;
   `AndroidAppLockStore` (androidMain) keeps a salted PBKDF2 hash in its own encrypted file
   (`eva_lock`). Both bound in `engineModule`.
+- **`speech/`** (11/11/2026): the dictation model the phone runs itself, Parakeet TDT 0.6B v3 and
+  Silero's voice detector (`ParakeetModel`: each file's pinned URL, size and SHA-256), its
+  `SpeechModelState` and `SpeechModelStore` (download, cancel, delete; `downloadState` reads the
+  files' downloads). `AndroidSpeechModelStore` (androidMain, bound in `engineModule`) downloads
+  through the DownloadManager over Wi-Fi only into the external files directory as `.part`, hashes
+  each file once all are down, renames them and writes a `ready` mark; it follows a download again
+  at the next start (its ids in `eva_speech_model`).
 - **`legacy/`** — `LegacyLibreChatCleanup`: removes, once, what LibreChat left on an upgraded
   device (below).
 - **`di/`** — `dataModule` (+ `dataPlatformModule`, `hobbittonDataModule`) and `engineModule`

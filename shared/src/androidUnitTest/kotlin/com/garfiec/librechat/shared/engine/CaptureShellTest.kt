@@ -14,8 +14,10 @@ import com.garfiec.librechat.core.data.engine.EngineChatSummary
 import com.garfiec.librechat.core.data.engine.EngineSessionKind
 import com.garfiec.librechat.core.data.engine.inboxOrder
 import com.garfiec.librechat.core.data.lock.LockState
+import com.garfiec.librechat.core.data.speech.SpeechModelState
 import com.garfiec.librechat.core.model.scheduler.ChatBudget
 import com.garfiec.librechat.core.network.engine.EngineAccess
+import com.garfiec.librechat.core.ui.components.SectionDivider
 import com.garfiec.librechat.core.ui.theme.LibreChatTheme
 import com.garfiec.librechat.shared.engine.lock.AppLockUiState
 import com.garfiec.librechat.shared.engine.lock.CodeEntry
@@ -120,6 +122,10 @@ private fun Settings() {
                 onFingerprint = {},
                 onDelay = {},
             )
+        },
+        speechModelSection = {
+            SectionDivider()
+            SpeechModelRow(state = SpeechModelState.Absent, onDownload = {}, onCancel = {}, onDelete = {})
         },
     )
 }

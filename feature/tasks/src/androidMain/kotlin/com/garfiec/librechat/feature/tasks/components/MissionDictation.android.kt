@@ -23,6 +23,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,16 +37,21 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import com.garfiec.librechat.core.common.di.AppThreads
 import com.garfiec.librechat.core.data.engine.TranscriptionFailure
 import com.garfiec.librechat.core.data.engine.TranscriptionOutcome
+import com.garfiec.librechat.core.data.speech.SpeechModelState
+import com.garfiec.librechat.core.data.speech.SpeechModelStore
 import java.io.File
 import java.io.IOException
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.koin.mp.KoinPlatform
 
 /**
- * Two ways behind one two-state button: the phone's own speech recognition ([PhoneDictation]),
- * when [onDevice] asks for it and the phone has one, else a MediaRecorder whose take goes to the
- * scheduler. The recorder's blocking calls (prepare/start/stop and the file read) run on the IO
- * dispatcher; the recognizer lives on the main thread, as it must.
+ * Three ways behind one two-state button, when [onDevice] asks for the phone: Parakeet on the
+ * phone ([ParakeetDictation], 11/11/2026) once Settings → Dictée has downloaded its model, else
+ * the phone's own speech recognition ([PhoneDictation]) where it has one; otherwise a
+ * MediaRecorder whose take goes to the scheduler. The recorder's blocking calls (prepare/start/stop
+ * and the file read) run on the IO dispatcher; the recognizer lives on the main thread, as it must.
  */
 @Composable
 internal actual fun rememberMissionDictation(
@@ -65,6 +71,11 @@ internal actual fun rememberMissionDictation(
     var heard by remember { mutableStateOf("") }
     // The phone has no French yet: the scheduler hears this screen's dictations meanwhile.
     var serverOnly by remember { mutableStateOf(false) }
+    // The model Settings downloaded; absent, the phone's recognizer hears as before.
+    val models = remember { runCatching { KoinPlatform.getKoinOrNull()?.getOrNull<SpeechModelStore>() }.getOrNull() }
+    val noModel = remember { MutableStateFlow<SpeechModelState>(SpeechModelState.Absent) }
+    val model by (models?.state ?: noModel).collectAsState()
+    var parakeet by remember { mutableStateOf<ParakeetDictation?>(null) }
     val phone = remember {
         PhoneDictation(
             context = context,
@@ -90,11 +101,27 @@ internal actual fun rememberMissionDictation(
         onDispose {
             recorder.discard()
             phone.release()
+            parakeet?.release()
         }
     }
 
     val begin: () -> Unit = {
-        if (onDevice && !serverOnly && PhoneDictation.available(context)) {
+        val ready = model as? SpeechModelState.Ready
+        if (onDevice && ready != null) {
+            val fresh = ParakeetDictation(
+                paths = ready.paths,
+                onPartial = { heard = it },
+                onHeard = { heardNow(it) },
+                onEnd = { error ->
+                    listening = false
+                    heard = ""
+                    parakeet = null
+                    if (error != null) failedNow(TranscriptionOutcome.Failed(TranscriptionFailure.DEVICE))
+                },
+            )
+            listening = fresh.start()
+            parakeet = fresh.takeIf { listening }
+        } else if (onDevice && !serverOnly && PhoneDictation.available(context)) {
             listening = phone.start()
         } else {
             scope.launch {
@@ -109,7 +136,7 @@ internal actual fun rememberMissionDictation(
     val toggle: () -> Unit = {
         when {
             // The last words still come, then the end: the button stays on stop until they have.
-            listening -> phone.stop()
+            listening -> parakeet?.stop() ?: phone.stop()
             recording -> {
                 recording = false
                 scope.launch {
