@@ -236,6 +236,22 @@ that arrives waits for the other to finish. The lock is held by the scheduler (i
   Whisper large-v3 then Cohere Transcribe on the platform's GPU), and so do audio files. A
   dictation lands in the composer and is never sent on its own; an audio file leaves with the
   message as a quoted transcription.
+  **Parakeet on the phone** (11/11/2026, Raphaël: Android's recognizer heard French far worse than
+  Claude's app, « On va tout faire sur le téléphone »): Settings → Dictée downloads NVIDIA's Parakeet
+  TDT 0.6B v3 (25 European languages, French included; the sherpa-onnx project's int8 export,
+  Hugging Face `csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8` pinned to one revision) and
+  the Silero voice detector, 671 MB, once, through Android's DownloadManager over Wi-Fi only, each
+  file checked against its SHA-256 (`ParakeetModel`, `SpeechModelStore`, `AndroidSpeechModelStore`,
+  `:core:data` `speech/`; under the app's external files directory, kept at sign-out: nothing
+  personal). Once there, the phone's dictation goes through it (`ParakeetDictation`, `:feature:tasks`
+  androidMain), on any Android version: an `AudioRecord` read into a queue, Silero cutting the take
+  at each pause of 0,6 s (25 s at most a stretch), each stretch decoded by sherpa-onnx's
+  `OfflineRecognizer` (punctuated, capitalised) and handed to the composer, the stretch still spoken
+  decoded every 1,2 s for the line under the box; the model stays loaded three idle minutes
+  (`ParakeetEngine`). Without it, Android's recognizer as above. sherpa-onnx 2.0.1 is the AAR of
+  its GitHub release (an `ivy` repository in `settings.gradle.kts`), its classes kept from R8
+  (`proguard-rules.pro`), its 32-bit libraries left out of the APK: a 32-bit phone is not offered
+  the model (`SpeechModelStore.supported`).
 - **Videos and large files** (06/11/2026, Raphaël: « il faut pouvoir ajouter des vidéos également »;
   a leak video he sent never reached the agent: past 16 MB the picker silently staged nothing). A
   photo still rides in the message as a base64 part. A video, whatever its size, and any other file
