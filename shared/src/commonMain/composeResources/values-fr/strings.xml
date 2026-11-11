@@ -31,6 +31,7 @@
     <string name="engine_drawer_load_older">Plus anciennes</string>
     <string name="engine_drawer_account">Compte et réglages</string>
     <string name="engine_chat_running">En cours</string>
+    <string name="engine_chat_awaiting_answer">Attend votre réponse</string>
     <string name="engine_settings_title">Réglages</string>
     <string name="engine_settings_back">Retour</string>
     <string name="engine_settings_theme">Thème</string>

@@ -86,6 +86,12 @@ data class EngineChatSummary(
      * lists, with a pause mark, so one sees at a glance what waits on the budget.
      */
     val paused: Boolean = false,
+    /**
+     * The session's agent asked the person a question and waits for the answer (11/11/2026,
+     * Raphaël: the running dot did not tell a session to open from one to leave running). The
+     * engine's pending questions, read with the list; its dot takes another colour.
+     */
+    val awaitingAnswer: Boolean = false,
 )
 
 /**
@@ -399,6 +405,7 @@ class EngineMissionRepository(
                     scheduled = row.mission != null,
                     unread = moved && runUnread(row.mission, row.run),
                     paused = session.id in paused,
+                    awaitingAnswer = session.id in snapshot.asking,
                 )
             }
         }
@@ -433,6 +440,8 @@ class EngineMissionRepository(
         val discreetMissions: Set<String> = emptySet(),
         // The sessions the scheduler holds in pause on a spending ceiling (07/11/2026).
         val paused: Set<String> = emptySet(),
+        // The sessions whose agent waits on a question to the person (11/11/2026).
+        val asking: Set<String> = emptySet(),
     )
 
     private var listSnapshot: ListSnapshot? = null
@@ -449,6 +458,9 @@ class EngineMissionRepository(
             val runs = async { if (scope == ChatScope.ALL) latestRuns() else emptyMap() }
             val discreet = async { if (scope == ChatScope.ALL) discreetMissionNames() else emptySet() }
             val paused = async { pausedSessionIds() }
+            val asking = async {
+                runCatching { api.pendingQuestions().map { it.sessionId }.toSet() }.getOrDefault(emptySet())
+            }
             val sessions = async {
                 api.sessions().sortedByDescending { it.time?.updated ?: it.time?.created ?: Long.MIN_VALUE }
             }
@@ -461,6 +473,7 @@ class EngineMissionRepository(
                 sessions = sessions.await(),
                 discreetMissions = discreet.await(),
                 paused = paused.await(),
+                asking = asking.await(),
             )
         }.also { listSnapshot = it }
     }

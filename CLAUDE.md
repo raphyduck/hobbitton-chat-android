@@ -112,7 +112,10 @@ that arrives waits for the other to finish. The lock is held by the scheduler (i
   from 16/10 the drawer had left the scheduler's runs out). The Conversations page
   (`EngineConversationsScreen`, an entry of the drawer) lists every session, unread first, then by
   latest activity (`inboxOrder`); the drawer shows the same read (`ChatScope.ALL`) by latest
-  activity under day headers, a run with its small clock. Both read 200 sessions at a time,
+  activity under day headers, a run with its small clock. A session at work carries a brick dot,
+  one whose agent waits on a question to the person an amber one, a little larger (11/11/2026,
+  Raphaël: « distinguer ce que je dois ouvrir de ce que je dois laisser tourner »; the engine's
+  `GET /question` read with the list, `EngineChatSummary.awaitingAnswer`). Both read 200 sessions at a time,
   « Plus anciennes » reads more, and the drawer's search covers every session, accents folded
   (21/10/2026).
   Unread = moved since this device last showed it (`ConversationReads`), or since the scheduler
@@ -308,6 +311,10 @@ that arrives waits for the other to finish. The lock is held by the scheduler (i
   (`GET /notifications` → `PushChannel`), keeps the topic's JSON stream open and resumes after the
   last message shown. `parsePushLine` reads a message, `shouldNotifyPush` keeps it quiet when the app
   is on screen or when the in-app watcher (`attentionWatcherRunning`) already rings that question.
+  An SSH request a session made through the annuaire and that waits for the person's passkey
+  (11/11/2026, kit #273: the scheduler pushes it, tag `ssh`, `PushKind.SSH`) is notified even with
+  the app on screen, on the decisions' channel, and its tap opens the SSH connector's approval
+  page in the browser (`PushMessage.link`, an `https:` link only), gone after an hour.
   Off with the Settings switch. Its own notice is as discreet as Android allows (Raphaël,
   19/10/2026: keep the stream, no Firebase): lowest channel, no badge or sound, hidden on the lock
   screen, dismissable, and never posted again while the service runs.

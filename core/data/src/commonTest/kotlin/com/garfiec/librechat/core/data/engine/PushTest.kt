@@ -43,4 +43,19 @@ class PushTest {
         assertTrue(shouldNotifyPush(PushKind.DECISION, appInForeground = false, watcherRunning = true))
         assertTrue(shouldNotifyPush(PushKind.QUESTION, appInForeground = false, watcherRunning = false))
     }
+
+    /** 11/11/2026: a session SSH waiting on the passkey; the tap opens the approval page. */
+    @Test
+    fun `an ssh request waiting for approval opens its page, even with the app on screen`() {
+        val line = """{"id":"s1","event":"message","title":"Session SSH en attente","message":"À approuver : déployer",""" +
+            """"tags":["bell","ssh"],"click":"https://mcpssh.example.com/pending"}"""
+        val message = parsePushLine(line)!!
+        assertEquals(PushKind.SSH, message.kind)
+        assertEquals("https://mcpssh.example.com/pending", message.link)
+        assertNull(message.sessionId)
+        assertTrue(shouldNotifyPush(PushKind.SSH, appInForeground = true, watcherRunning = true))
+        // Only an https link is ever opened.
+        val odd = parsePushLine("""{"id":"s2","event":"message","tags":["ssh"],"click":"intent://x"}""")!!
+        assertNull(odd.link)
+    }
 }

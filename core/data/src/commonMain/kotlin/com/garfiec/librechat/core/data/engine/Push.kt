@@ -19,9 +19,19 @@ data class PushMessage(
     /** The conversation to open, from the notification's link; null when it names none. */
     val sessionId: String?,
     val kind: PushKind,
+    /**
+     * The page a tap opens instead of a conversation (11/11/2026: [PushKind.SSH], the approval
+     * page of a session SSH waiting on the person); an `https:` link only, else null.
+     */
+    val link: String? = null,
 )
 
-enum class PushKind { DECISION, QUESTION, OTHER }
+/**
+ * [SSH] (11/11/2026, Raphaël: « il ne m'informe jamais qu'il y a une session en attente »): a
+ * session asked for SSH through the annuaire and waits for the person's approval, which is given
+ * on the SSH connector's own page, with the passkey.
+ */
+enum class PushKind { DECISION, QUESTION, SSH, OTHER }
 
 private val ntfyJson = Json { ignoreUnknownKeys = true }
 
@@ -38,14 +48,17 @@ fun parsePushLine(line: String): PushMessage? {
     val kind = when {
         "decision" in tags -> PushKind.DECISION
         "question" in tags -> PushKind.QUESTION
+        "ssh" in tags -> PushKind.SSH
         else -> PushKind.OTHER
     }
+    val click = frame.text("click")
     return PushMessage(
         id = id,
         title = frame.text("title").orEmpty(),
         text = frame.text("message").orEmpty(),
-        sessionId = frame.text("click")?.let(::sessionOfConversationUri),
+        sessionId = click?.let(::sessionOfConversationUri),
         kind = kind,
+        link = click?.takeIf { it.startsWith("https://") && it.none(Char::isWhitespace) },
     )
 }
 
@@ -64,6 +77,8 @@ fun sessionOfConversationUri(uri: String): String? {
  * following the engine: it notifies that question itself, and the person would hear it twice.
  */
 fun shouldNotifyPush(kind: PushKind, appInForeground: Boolean, watcherRunning: Boolean): Boolean = when {
+    // Nothing in the app says an SSH approval waits: the notification goes even on screen.
+    kind == PushKind.SSH -> true
     appInForeground -> false
     kind == PushKind.QUESTION && watcherRunning -> false
     else -> true
