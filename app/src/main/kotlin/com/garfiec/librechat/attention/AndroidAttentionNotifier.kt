@@ -10,6 +10,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.AudioAttributes
 import android.media.RingtoneManager
+import android.net.Uri
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -102,6 +103,21 @@ class AndroidAttentionNotifier(private val context: Context) : AttentionNotifier
      * questions' channel, a decision on its own.
      */
     fun showPush(message: PushMessage) {
+        if (message.kind == PushKind.SSH) {
+            // A session SSH waiting on the passkey (11/11/2026): the tap opens the approval page in
+            // the browser, where the passkey works; gone after the hour the request lives.
+            val link = message.link ?: return
+            post(
+                id = "p:${message.id}".hashCode(),
+                channel = CHANNEL_DECISIONS,
+                title = message.title.ifBlank { context.getString(R.string.attention_ssh_waiting) },
+                text = message.text,
+                conversation = null,
+                page = link,
+                timeoutMillis = SSH_REQUEST_LIFETIME_MS,
+            )
+            return
+        }
         val conversation = message.sessionId?.let { OpenConversation(it, title = null) }
         post(
             id = message.sessionId?.let(::pushId) ?: "p:${message.id}".hashCode(),
@@ -128,7 +144,15 @@ class AndroidAttentionNotifier(private val context: Context) : AttentionNotifier
         read.filter { it in notified }.forEach(::dismissConversation)
     }
 
-    private fun post(id: Int, channel: String, title: String, text: String, conversation: OpenConversation?) {
+    private fun post(
+        id: Int,
+        channel: String,
+        title: String,
+        text: String,
+        conversation: OpenConversation?,
+        page: String? = null,
+        timeoutMillis: Long? = null,
+    ) {
         if (!canPost()) return
         // On a locked phone, only that something waits (26/10/2026): a question quotes the mail or
         // the amount it is about, and Android's default shows a notification's whole text there.
@@ -147,7 +171,8 @@ class AndroidAttentionNotifier(private val context: Context) : AttentionNotifier
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
             .setPublicVersion(public)
             .setAutoCancel(true)
-            .setContentIntent(openIntent(id, conversation))
+            .setContentIntent(page?.let { pageIntent(id, it) } ?: openIntent(id, conversation))
+            .apply { timeoutMillis?.let { setTimeoutAfter(it) } }
             .build()
         try {
             manager.notify(id, notification)
@@ -180,6 +205,14 @@ class AndroidAttentionNotifier(private val context: Context) : AttentionNotifier
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
     }
+
+    /** A web page, in the browser: the SSH approval's, whose passkey only the browser holds. */
+    private fun pageIntent(id: Int, page: String): PendingIntent = PendingIntent.getActivity(
+        context,
+        id,
+        Intent(Intent.ACTION_VIEW, Uri.parse(page)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+    )
 
     private fun createChannels() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
@@ -232,6 +265,9 @@ class AndroidAttentionNotifier(private val context: Context) : AttentionNotifier
         private const val CHANNEL_QUESTIONS = "butler_questions"
         private const val CHANNEL_REPLIES = "butler_replies"
         private const val CHANNEL_DECISIONS = "butler_decisions"
+
+        /** How long the SSH connector keeps a request waiting: its notification goes with it. */
+        private const val SSH_REQUEST_LIFETIME_MS = 60 * 60_000L
 
         /**
          * The conversation a notification's intent names, or null for any other intent. The

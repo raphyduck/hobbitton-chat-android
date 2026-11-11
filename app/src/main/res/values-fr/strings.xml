@@ -14,6 +14,7 @@
     <string name="push_channel_listening">Notifications poussées</string>
     <string name="push_channel_listening_hint">Garde ouverte la connexion qui apporte les notifications d’Eva.</string>
     <string name="attention_question">Eva a une question</string>
+    <string name="attention_ssh_waiting">Une session SSH attend votre approbation</string>
     <string name="attention_question_in">Question · %1$s</string>
     <string name="attention_question_hint">Eva attend votre réponse.</string>
     <string name="attention_reply_ready">Réponse prête</string>

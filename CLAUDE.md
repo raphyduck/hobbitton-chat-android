@@ -311,6 +311,10 @@ that arrives waits for the other to finish. The lock is held by the scheduler (i
   (`GET /notifications` → `PushChannel`), keeps the topic's JSON stream open and resumes after the
   last message shown. `parsePushLine` reads a message, `shouldNotifyPush` keeps it quiet when the app
   is on screen or when the in-app watcher (`attentionWatcherRunning`) already rings that question.
+  An SSH request a session made through the annuaire and that waits for the person's passkey
+  (11/11/2026, kit #273: the scheduler pushes it, tag `ssh`, `PushKind.SSH`) is notified even with
+  the app on screen, on the decisions' channel, and its tap opens the SSH connector's approval
+  page in the browser (`PushMessage.link`, an `https:` link only), gone after an hour.
   Off with the Settings switch. Its own notice is as discreet as Android allows (Raphaël,
   19/10/2026: keep the stream, no Firebase): lowest channel, no badge or sound, hidden on the lock
   screen, dismissable, and never posted again while the service runs.

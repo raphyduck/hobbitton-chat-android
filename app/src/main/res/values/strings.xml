@@ -16,6 +16,7 @@
     <string name="push_channel_listening">Push notifications</string>
     <string name="push_channel_listening_hint">Keeps the connection that brings Eva’s notifications.</string>
     <string name="attention_question">Eva has a question</string>
+    <string name="attention_ssh_waiting">An SSH session is waiting for your approval</string>
     <string name="attention_question_in">Question · %1$s</string>
     <string name="attention_question_hint">Eva is waiting for your answer.</string>
     <string name="attention_reply_ready">Reply ready</string>
