@@ -458,7 +458,9 @@ class EngineMissionRepository(
             val runs = async { if (scope == ChatScope.ALL) latestRuns() else emptyMap() }
             val discreet = async { if (scope == ChatScope.ALL) discreetMissionNames() else emptySet() }
             val paused = async { pausedSessionIds() }
-            val asking = async { runCatching { api.pendingQuestions().map { it.sessionId }.toSet() }.getOrDefault(emptySet()) }
+            val asking = async {
+                runCatching { api.pendingQuestions().map { it.sessionId }.toSet() }.getOrDefault(emptySet())
+            }
             val sessions = async {
                 api.sessions().sortedByDescending { it.time?.updated ?: it.time?.created ?: Long.MIN_VALUE }
             }
