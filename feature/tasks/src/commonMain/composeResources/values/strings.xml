@@ -44,7 +44,11 @@
     <string name="usage_title">Usage</string>
     <string name="usage_not_configured">No scheduler configured</string>
     <string name="usage_not_configured_hint">Sign out, then sign in again with the scheduler address.</string>
-    <string name="tasks_spend_header">Spend, last 7 days</string>
+    <string name="tasks_spend_header">Spend</string>
+    <string name="tasks_spend_unavailable">No report for this period: the gateway did not answer.</string>
+    <string name="usage_period_today">Today</string>
+    <string name="usage_period_week">7 days</string>
+    <string name="usage_period_month">30 days</string>
     <string name="tasks_spend_total">%1$s over %2$s tokens</string>
     <string name="tasks_spend_total_partial">at least %1$s over %2$s tokens</string>
     <string name="tasks_spend_unpriced">no price</string>

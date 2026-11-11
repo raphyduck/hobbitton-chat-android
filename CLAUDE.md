@@ -308,6 +308,11 @@ that arrives waits for the other to finish. The lock is held by the scheduler (i
   (`inboxOrder`), and a line above the composer (`MissionChatUiState.paused`, read with the
   catalogue and on a refresh; a tap asks again) that names the full ceiling (10/11/2026, Raphaël:
   the day's, the week's or the 30 days'; the scheduler's `fenetre`, `PausedSession.window`).
+  **The usage page** (Settings → Usage, `UsageScreen`) reads the spend over three windows together
+  (11/11/2026, Raphaël: « sur 7 jours, mais également sur 24 heures et sur 30 jours »): the
+  scheduler's `consommation(jours=1, 7, 30)`, a segmented « Aujourd'hui · 7 jours · 30 jours »
+  switching between them (`UsagePeriod`, the week first). The gateway counts by calendar day, so the
+  shortest is today since midnight, not a sliding 24 hours. A window whose read failed says so.
 - **Global instructions** (`GlobalProfile`, sent as `system` on every chat and task turn) are edited
   from Settings → Instructions (`EngineInstructionsScreen`) and stored on the device
   (`GlobalProfileStore`, `device:` keys).

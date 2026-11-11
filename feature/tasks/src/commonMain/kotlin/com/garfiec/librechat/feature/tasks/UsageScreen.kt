@@ -17,6 +17,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -56,6 +59,10 @@ import com.garfiec.librechat.feature.tasks.resources.tasks_spend_total_partial
 import com.garfiec.librechat.feature.tasks.resources.tasks_spend_unit_price
 import com.garfiec.librechat.feature.tasks.resources.tasks_spend_unpriced
 import com.garfiec.librechat.feature.tasks.resources.tasks_spend_unpriced_note
+import com.garfiec.librechat.feature.tasks.resources.tasks_spend_unavailable
+import com.garfiec.librechat.feature.tasks.resources.usage_period_month
+import com.garfiec.librechat.feature.tasks.resources.usage_period_today
+import com.garfiec.librechat.feature.tasks.resources.usage_period_week
 import com.garfiec.librechat.feature.tasks.resources.usage_not_configured
 import com.garfiec.librechat.feature.tasks.resources.usage_not_configured_hint
 import com.garfiec.librechat.feature.tasks.resources.usage_title
@@ -68,7 +75,7 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
- * The week's spend and the providers' health — under Settings, as Claude keeps its usage.
+ * The spend over a day, a week or 30 days, and the providers' health — under Settings, as Claude keeps its usage.
  *
  * Both sections are the ones that led the Tasks tab until 24/09/2026, moved unchanged: the spend
  * still refuses to print a misleading zero, the provider check still waits for a press because it
@@ -114,9 +121,25 @@ fun UsageScreen(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    state.consumption?.let { report ->
+                    if (state.consumptions.isNotEmpty()) {
                         item(key = "spend-header") { UsageSectionHeader(stringResource(Res.string.tasks_spend_header)) }
-                        item(key = "spend-section") { SpendSection(report) }
+                        item(key = "spend-period") {
+                            PeriodPicker(selected = state.period, onPick = viewModel::selectPeriod)
+                        }
+                        item(key = "spend-section") {
+                            val report = state.consumption
+                            if (report != null) {
+                                SpendSection(report)
+                            } else {
+                                // This window's read failed while another's landed: say so rather
+                                // than draw an empty card, which would read as « nothing spent ».
+                                Text(
+                                    stringResource(Res.string.tasks_spend_unavailable),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
                     }
                     if (state.schedulerConfigured) {
                         item(key = "providers-header") {
@@ -133,6 +156,36 @@ fun UsageScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+/** Aujourd'hui, 7 jours, 30 jours: the three reports are already read, a tap only switches. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PeriodPicker(selected: UsagePeriod, onPick: (UsagePeriod) -> Unit) {
+    val periods = UsagePeriod.entries
+    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+        periods.forEachIndexed { index, period ->
+            SegmentedButton(
+                selected = period == selected,
+                onClick = { onPick(period) },
+                shape = SegmentedButtonDefaults.itemShape(index = index, count = periods.size),
+                icon = {},
+                label = {
+                    Text(
+                        stringResource(
+                            when (period) {
+                                UsagePeriod.TODAY -> Res.string.usage_period_today
+                                UsagePeriod.WEEK -> Res.string.usage_period_week
+                                UsagePeriod.MONTH -> Res.string.usage_period_month
+                            },
+                        ),
+                        maxLines = 1,
+                        softWrap = false,
+                    )
+                },
+            )
         }
     }
 }
@@ -264,7 +317,7 @@ private fun ProviderRow(provider: Provider) {
 }
 
 /**
- * The week's spend, by model.
+ * The spend of the window on screen, by model.
  *
  * Three states share this list and must not be confusable, which is the whole reason this screen
  * exists in the form it does:
