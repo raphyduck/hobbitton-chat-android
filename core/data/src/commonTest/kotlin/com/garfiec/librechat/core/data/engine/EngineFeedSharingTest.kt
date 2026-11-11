@@ -14,6 +14,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeout
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -28,14 +30,20 @@ import kotlin.test.assertEquals
  */
 class EngineFeedSharingTest {
 
-    /** Un transport qui compte ses ouvertures et ne rend jamais la main. */
+    /**
+     * Un transport qui compte ses ouvertures et ne rend jamais la main. Le compte se prend sous un
+     * verrou : deux ouvertures simultanées sur le répartiteur réel perdaient un `++` (11/11/2026,
+     * la CI comptait 1 ouverture au lieu de 2 et attendait jusqu'au délai).
+     */
     private class TransportCompteur : EngineEventTransport {
+        private val compte = Mutex()
+
         @Volatile
         var ouvertures = 0
             private set
 
         override fun stream(): Flow<ByteArray> = flow {
-            ouvertures++
+            compte.withLock { ouvertures++ }
             awaitCancellation()
         }
     }

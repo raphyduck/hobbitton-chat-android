@@ -44,7 +44,11 @@
     <string name="usage_title">Utilisation</string>
     <string name="usage_not_configured">Aucun planificateur configuré</string>
     <string name="usage_not_configured_hint">Déconnectez-vous, puis reconnectez-vous avec l'adresse du planificateur.</string>
-    <string name="tasks_spend_header">Dépense, 7 derniers jours</string>
+    <string name="tasks_spend_header">Dépense</string>
+    <string name="tasks_spend_unavailable">Pas de relevé pour cette période : la passerelle n'a pas répondu.</string>
+    <string name="usage_period_today">Aujourd'hui</string>
+    <string name="usage_period_week">7 jours</string>
+    <string name="usage_period_month">30 jours</string>
     <string name="tasks_spend_total">%1$s pour %2$s jetons</string>
     <string name="tasks_spend_total_partial">au moins %1$s pour %2$s jetons</string>
     <string name="tasks_spend_unpriced">non tarifé</string>
