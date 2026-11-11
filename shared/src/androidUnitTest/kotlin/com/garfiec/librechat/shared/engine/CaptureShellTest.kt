@@ -175,6 +175,7 @@ private const val HOUR = 3_600_000L
 private val CHATS = listOf(
     EngineChatSummary("c1", "Résumé des e-mails du matin", NOW - 5 * 60_000, running = true),
     EngineChatSummary("c2", "Agenda de la semaine", NOW - 3 * HOUR, running = false, unread = true),
+    EngineChatSummary("q1", "Devis du maçon", NOW - 20 * 60_000, running = true, unread = true, awaitingAnswer = true),
     EngineChatSummary("r1", "Point mails matin", NOW - 4 * HOUR, running = false, kind = EngineSessionKind.TASK, scheduled = true),
     EngineChatSummary("r2", "Suivi dossiers ouverts", NOW - 20 * 60_000, running = false, kind = EngineSessionKind.TASK, scheduled = true),
     EngineChatSummary("r3", "Guet reponses", NOW - 50 * 60_000, running = false, kind = EngineSessionKind.TASK, scheduled = true, unread = true),

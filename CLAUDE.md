@@ -112,7 +112,10 @@ that arrives waits for the other to finish. The lock is held by the scheduler (i
   from 16/10 the drawer had left the scheduler's runs out). The Conversations page
   (`EngineConversationsScreen`, an entry of the drawer) lists every session, unread first, then by
   latest activity (`inboxOrder`); the drawer shows the same read (`ChatScope.ALL`) by latest
-  activity under day headers, a run with its small clock. Both read 200 sessions at a time,
+  activity under day headers, a run with its small clock. A session at work carries a brick dot,
+  one whose agent waits on a question to the person an amber one, a little larger (11/11/2026,
+  Raphaël: « distinguer ce que je dois ouvrir de ce que je dois laisser tourner »; the engine's
+  `GET /question` read with the list, `EngineChatSummary.awaitingAnswer`). Both read 200 sessions at a time,
   « Plus anciennes » reads more, and the drawer's search covers every session, accents folded
   (21/10/2026).
   Unread = moved since this device last showed it (`ConversationReads`), or since the scheduler

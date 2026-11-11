@@ -37,6 +37,9 @@ class EngineChatSessionTest {
     private var runsJson = "[]"
     private var serverReadsJson = "{}"
 
+    /** The questions the engine waits on (`GET /question`). */
+    private var questionsJson = "[]"
+
     private val providersJson = """
         {
           "providers": [
@@ -72,6 +75,7 @@ class EngineChatSessionTest {
             }
             path == "/config/providers" -> providersJson
             path == "/session/status" -> "{}"
+            path == "/question" -> questionsJson
             path == "/session" && request.method == HttpMethod.Get -> sessionsJson
             path == "/session" -> """{"id":"ses_chat","title":"Bonjour"}"""
             path.endsWith("/message") && request.method == HttpMethod.Get ->
@@ -252,6 +256,21 @@ class EngineChatSessionTest {
         // What was learned from a transcript is kept, so it is never read again.
         assertEquals(EngineSessionKind.CHAT, kinds.recorded["ses_other"])
         assertEquals(EngineSessionKind.TASK, kinds.recorded["ses_mission"])
+    }
+
+    /** 11/11/2026, Raphaël: a session waiting on his answer is told from one simply running. */
+    @Test
+    fun `a session whose agent asked a question waits for the answer`() = runTest {
+        sessionsJson = """[
+            {"id":"ses_asks","title":"Une question","time":{"updated":400}},
+            {"id":"ses_works","title":"Au travail","time":{"updated":300}}
+        ]"""
+        questionsJson = """[{"id":"que_1","sessionID":"ses_asks","questions":[]}]"""
+        val kinds = InMemorySessionKinds(mapOf("ses_asks" to EngineSessionKind.CHAT, "ses_works" to EngineSessionKind.CHAT))
+
+        val chats = testMissionRepository(engine(), kinds = kinds).recentChats(ChatScope.ALL)
+
+        assertEquals(setOf("ses_asks"), chats.filter { it.awaitingAnswer }.map { it.sessionId }.toSet())
     }
 
     @Test

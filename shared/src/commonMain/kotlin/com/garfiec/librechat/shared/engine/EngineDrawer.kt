@@ -68,6 +68,7 @@ import com.garfiec.librechat.shared.resources.Res
 import com.garfiec.librechat.shared.resources.engine_age_days
 import com.garfiec.librechat.shared.resources.engine_age_hours
 import com.garfiec.librechat.shared.resources.engine_age_minutes
+import com.garfiec.librechat.shared.resources.engine_chat_awaiting_answer
 import com.garfiec.librechat.shared.resources.engine_chat_delete
 import com.garfiec.librechat.shared.resources.engine_chat_delete_cancel
 import com.garfiec.librechat.shared.resources.engine_chat_delete_text
@@ -478,7 +479,17 @@ private fun RowScope.RecentChatRowContent(chat: EngineChatSummary, nowMillis: Lo
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
-    if (chat.running) {
+    if (chat.awaitingAnswer) {
+        // A question waits for the person (11/11/2026, Raphaël: « distinguer ce que je dois ouvrir
+        // de ce que je dois laisser tourner »): amber and a little larger, never the running brick.
+        val awaiting = stringResource(Res.string.engine_chat_awaiting_answer)
+        Box(
+            Modifier
+                .size(8.dp)
+                .background(AwaitingAnswerColor, CircleShape)
+                .semantics { contentDescription = awaiting },
+        )
+    } else if (chat.running) {
         val running = stringResource(Res.string.engine_chat_running)
         Box(
             Modifier
@@ -596,3 +607,6 @@ private val SearchShape = RoundedCornerShape(12.dp)
 private const val MILLIS_PER_MINUTE = 60_000L
 private const val MINUTES_PER_HOUR = 60L
 private const val MINUTES_PER_DAY = 24 * 60L
+
+/** The dot of a session waiting on the person's answer: an amber that reads on both themes. */
+private val AwaitingAnswerColor = Color(0xFFE0A100)
