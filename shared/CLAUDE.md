@@ -24,8 +24,9 @@ The engine shell, and the Koin module list the application starts from. KMP libr
   left grey for good). A store lives while its entry is on the stack or drawn; `shellContentKey`
   names the entries as `NavDisplay` does (a conversation by its push, `EngineChat.entryKey`).
   Cleared when the shell leaves (sign-out), kept across an activity recreation.
-- `EngineConversationsScreen` (16/10/2026): every session, the unread under « Non lues », then the
-  rest, each by latest activity; pushed like Programmées (`EngineConversations`), pull to refresh.
+- `EngineConversationsScreen` (16/10/2026): every session, under « À suivre » the unread, then those
+  waiting on the person, then those at work (13/11/2026), then « En pause », then the rest, each by
+  latest activity (`inboxOrder`); pushed like Programmées (`EngineConversations`), pull to refresh.
   Its rows are the drawer's (`RecentChatItem`, an unread title in bold). Both lists read 200
   sessions at a time; « Plus anciennes » at their foot reads 200 more (`loadOlder`,
   `EngineChatsState.more`, 21/10/2026: the lists had stopped at 200, a few days of runs). A long
@@ -35,8 +36,8 @@ The engine shell, and the Koin module list the application starts from. KMP libr
   drops its row from both lists; a refusal shows once (`chatDeletion`, `dismissDeletionFailure`).
 - `EngineDrawer` (Claude's layout since lot 3, 10/10/2026) — a search over the titles of every
   session the engine holds, accents folded (21/10/2026: `EngineShellViewModel.search`, a pause of
-  300 ms, then `recentChats(query = …)`; the rows already drawn are filtered meanwhile), three short entries (new conversation, Conversations, Programmées), every session (the same as the Conversations page, a small clock on a run) as bare titles, the unread
-  first under « Non lues » (20/10/2026), the rest under day headers (Today / Yesterday / Previous 7 days / Older, in the phone's time zone: `groupRecent` in
+  300 ms, then `recentChats(query = …)`; the rows already drawn are filtered meanwhile), three short entries (new conversation, Conversations, Programmées), every session (the same as the Conversations page, a small clock on a run) as bare titles, « À suivre »
+  first (the unread, the waiting, those at work; 13/11/2026), then « En pause », the rest under day headers (Today / Yesterday / Previous 7 days / Older, in the phone's time zone: `groupRecent` in
   `RecentGrouping.kt`, the offset from `localUtcOffsetMillis`, actual in `androidMain`), an unread title in bold,
   a dot of the accent while one answers, an amber dot, a little larger, while its agent waits on a
   question to the person (11/11/2026, `EngineChatSummary.awaitingAnswer`, the engine's

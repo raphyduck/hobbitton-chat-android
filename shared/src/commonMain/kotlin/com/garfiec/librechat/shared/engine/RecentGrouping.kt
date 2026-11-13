@@ -1,13 +1,15 @@
 package com.garfiec.librechat.shared.engine
 
 import com.garfiec.librechat.core.data.engine.EngineChatSummary
+import com.garfiec.librechat.core.data.engine.inboxOrder
+import com.garfiec.librechat.core.data.engine.needsAttention
 
 /**
- * The drawer's headers over the recent conversations, in the order they are shown: the unread
- * first, whatever their day (Raphaël's rule, 20/10/2026, as on the Conversations page), then the
- * rest by day.
+ * The drawer's headers over the recent conversations, in the order they are shown: « À suivre »
+ * first, whatever their day (13/11/2026, Raphaël: the unread, then those waiting on him, then
+ * those at work, in one group), then the paused, then the rest by day.
  */
-internal enum class RecentDay { PAUSED, UNREAD, TODAY, YESTERDAY, PREVIOUS_WEEK, OLDER }
+internal enum class RecentDay { ATTENTION, PAUSED, TODAY, YESTERDAY, PREVIOUS_WEEK, OLDER }
 
 /** One header and the conversations under it, in the order the list gave them. */
 internal data class RecentGroup(val day: RecentDay, val chats: List<EngineChatSummary>)
@@ -38,18 +40,19 @@ internal fun recentDay(
 }
 
 /**
- * The conversations under their headers, the paused first (07/11/2026: what waits on the budget),
- * then the unread; empty headers are left out.
+ * The conversations under their headers, in the lists' order (`inboxOrder`: under « À suivre »
+ * the unread, then the waiting, then those at work; the latest activity first in each); empty
+ * headers are left out.
  */
 internal fun groupRecent(
     chats: List<EngineChatSummary>,
     nowMillis: Long,
     utcOffsetMillis: (epochMillis: Long) -> Long,
 ): List<RecentGroup> {
-    val byDay = chats.groupBy {
+    val byDay = inboxOrder(chats).groupBy {
         when {
+            needsAttention(it) -> RecentDay.ATTENTION
             it.paused -> RecentDay.PAUSED
-            it.unread -> RecentDay.UNREAD
             else -> recentDay(it.lastActivityMillis, nowMillis, utcOffsetMillis)
         }
     }

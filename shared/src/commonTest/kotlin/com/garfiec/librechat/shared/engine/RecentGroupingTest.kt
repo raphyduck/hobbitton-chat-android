@@ -5,8 +5,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * The drawer's day headers: counted between local midnights, in the phone's time zone, with the
- * conversations kept in the order the list gave them.
+ * The drawer's headers: « À suivre », « En pause », then the days, counted between local
+ * midnights in the phone's time zone; the latest activity first under each.
  */
 class RecentGroupingTest {
 
@@ -82,24 +82,35 @@ class RecentGroupingTest {
 
         val groups = groupRecent(chats, now, paris)
 
-        assertEquals(listOf(RecentDay.UNREAD, RecentDay.TODAY), groups.map { it.day })
-        assertEquals(listOf("b", "c"), groups.first().chats.map { it.sessionId })
+        assertEquals(listOf(RecentDay.ATTENTION, RecentDay.TODAY), groups.map { it.day })
+        assertEquals(listOf("c", "b"), groups.first().chats.map { it.sessionId })
     }
 
-    /** 07/11/2026: what waits on the budget comes before everything, unread or not. */
+    /**
+     * 13/11/2026, Raphaël: « non lu, puis attente humain, puis en cours », in one group, then the
+     * paused, then the rest; the latest activity first in each.
+     */
     @Test
-    fun thePausedComeBeforeTheUnread() {
+    fun theUnreadThenTheWaitingThenTheRunningThenThePaused() {
         val chats = listOf(
-            chat("a", now - HOUR),
-            chat("b", now - 3 * DAY).copy(unread = true),
-            chat("c", now - 2 * HOUR).copy(paused = true, unread = true),
-            chat("d", now - 5 * DAY).copy(paused = true),
+            chat("read", now - HOUR),
+            chat("running", now - 10 * MINUTE).copy(running = true),
+            chat("waiting-old", now - 2 * DAY).copy(awaitingAnswer = true, running = true),
+            chat("waiting", now - 5 * MINUTE).copy(awaitingAnswer = true, running = true),
+            chat("unread", now - 3 * DAY).copy(unread = true, awaitingAnswer = true),
+            chat("paused", now - 2 * MINUTE).copy(paused = true),
+            chat("paused-unread", now - 5 * DAY).copy(paused = true, unread = true),
         )
 
         val groups = groupRecent(chats, now, paris)
 
-        assertEquals(listOf(RecentDay.PAUSED, RecentDay.UNREAD, RecentDay.TODAY), groups.map { it.day })
-        assertEquals(listOf("c", "d"), groups.first().chats.map { it.sessionId })
+        assertEquals(listOf(RecentDay.ATTENTION, RecentDay.PAUSED, RecentDay.TODAY), groups.map { it.day })
+        assertEquals(
+            listOf("unread", "paused-unread", "waiting", "waiting-old", "running"),
+            groups[0].chats.map { it.sessionId },
+        )
+        assertEquals(listOf("paused"), groups[1].chats.map { it.sessionId })
+        assertEquals(listOf("read"), groups[2].chats.map { it.sessionId })
     }
 
     @Test

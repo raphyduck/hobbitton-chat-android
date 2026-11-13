@@ -9,7 +9,7 @@
     <string name="engine_share_cancel">Cancel</string>
     <string name="engine_drawer_tasks">Scheduled</string>
     <string name="engine_drawer_conversations">Conversations</string>
-    <string name="engine_conversations_unread">Unread</string>
+    <string name="engine_conversations_attention">To follow</string>
     <string name="engine_conversations_read">Read</string>
     <string name="engine_conversations_paused">Paused</string>
     <string name="engine_chat_unread">Unread</string>

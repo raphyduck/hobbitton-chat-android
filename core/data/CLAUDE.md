@@ -78,9 +78,10 @@ Since 12/10/2026 chats and tasks are one conversation, as on Claude.ai.
   before 10/11/2026, read as `stale`).
 - **`recentChats(scope, limit, query, maxAgeMillis)`**: `ChatScope.MANUAL` (the drawer) leaves the scheduler's runs out
   before any transcript is read; `ChatScope.ALL` (the Conversations page) keeps them, named after
-  their mission (`scheduledMissionName`) and marked `scheduled`, sorted paused first (07/11/2026:
-  `paused`, the sessions the scheduler holds on a spending ceiling, `SchedulerApi.pausedSessions`,
-  read with the snapshot), then unread (`inboxOrder`).
+  their mission (`scheduledMissionName`) and marked `scheduled`, sorted by `inboxOrder` (13/11/2026):
+  the unread, then those waiting on a question, then those at work, then the paused (the sessions
+  the scheduler holds on a spending ceiling, `SchedulerApi.pausedSessions`, read with the
+  snapshot), then the rest, the latest activity first in each (`attentionRank`).
   `unread` comes from `ConversationReads` (`EngineConversationReads`: when each session was last
   shown here, and a floor so a first launch marks nothing; cleared at sign-out), merged with the
   scheduler's own read marks (`SchedulerApi.serverReads`, its `conversations_lues` tool, 22/10/2026:
