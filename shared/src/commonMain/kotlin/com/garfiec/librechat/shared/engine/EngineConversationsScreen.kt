@@ -25,10 +25,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.garfiec.librechat.core.data.engine.EngineChatSummary
+import com.garfiec.librechat.core.data.engine.inboxOrder
+import com.garfiec.librechat.core.data.engine.needsAttention
 import com.garfiec.librechat.shared.resources.Res
+import com.garfiec.librechat.shared.resources.engine_conversations_attention
 import com.garfiec.librechat.shared.resources.engine_conversations_paused
 import com.garfiec.librechat.shared.resources.engine_conversations_read
-import com.garfiec.librechat.shared.resources.engine_conversations_unread
 import com.garfiec.librechat.shared.resources.engine_drawer_conversations
 import com.garfiec.librechat.shared.resources.engine_drawer_empty
 import com.garfiec.librechat.shared.resources.engine_drawer_failed
@@ -39,10 +41,10 @@ import org.jetbrains.compose.resources.stringResource
 import kotlin.time.Clock
 
 /**
- * Every conversation (16/10/2026), the scheduler's runs included, where the drawer keeps only the
- * ones the person started: the unread first, then the rest, each half by latest activity
- * (`inboxOrder`). A run counts as unread only when it had something to say, so a mission that
- * passes every half hour and finds nothing stays out of the top. Pushed over the conversation,
+ * Every conversation (16/10/2026), the scheduler's runs included: « À suivre » first (the unread,
+ * then those whose agent waits on the person, then those at work), then the paused, then the rest,
+ * each by latest activity (`inboxOrder`, 13/11/2026). A run counts as unread only when it had
+ * something to say, so a mission that passes every half hour and finds nothing stays out of the top. Pushed over the conversation,
  * like Programmées; pull down to read it again.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -107,9 +109,11 @@ private fun ConversationList(
 ) {
     // Read once per list: the ages of one drawing agree on what « now » is.
     val now = remember(state.chats) { Clock.System.now().toEpochMilliseconds() }
-    // Three parts (07/11/2026): what waits on the budget, what moved, the rest.
-    val (paused, rest) = remember(state.chats) { state.chats.partition { it.paused } }
-    val (unread, read) = remember(rest) { rest.partition { it.unread } }
+    // Three parts (13/11/2026, Raphaël): « À suivre » (the unread, then those waiting on him, then
+    // those at work), then what waits on the budget, then the rest; `inboxOrder` within each.
+    val ordered = remember(state.chats) { inboxOrder(state.chats) }
+    val (attention, others) = remember(ordered) { ordered.partition { needsAttention(it) } }
+    val (paused, read) = remember(others) { others.partition { it.paused } }
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         when {
             state.chats.isEmpty() && state.loading -> items(PLACEHOLDER_ROWS) { PlaceholderRow() }
@@ -125,6 +129,18 @@ private fun ConversationList(
             }
             state.chats.isEmpty() -> item { QuietLine(stringResource(Res.string.engine_drawer_empty)) }
             else -> {
+                if (attention.isNotEmpty()) {
+                    item(key = "header-attention") { RecentHeader(stringResource(Res.string.engine_conversations_attention)) }
+                    items(attention, key = { it.sessionId }) { chat ->
+                        RecentChatItem(
+                            chat = chat,
+                            nowMillis = now,
+                            selected = false,
+                            onClick = { onOpenChat(chat) },
+                            onDelete = onDeleteChat?.let { delete -> { delete(chat) } },
+                        )
+                    }
+                }
                 if (paused.isNotEmpty()) {
                     item(key = "header-paused") { RecentHeader(stringResource(Res.string.engine_conversations_paused)) }
                     items(paused, key = { it.sessionId }) { chat ->
@@ -137,20 +153,8 @@ private fun ConversationList(
                         )
                     }
                 }
-                if (unread.isNotEmpty()) {
-                    item(key = "header-unread") { RecentHeader(stringResource(Res.string.engine_conversations_unread)) }
-                    items(unread, key = { it.sessionId }) { chat ->
-                        RecentChatItem(
-                            chat = chat,
-                            nowMillis = now,
-                            selected = false,
-                            onClick = { onOpenChat(chat) },
-                            onDelete = onDeleteChat?.let { delete -> { delete(chat) } },
-                        )
-                    }
-                    if (read.isNotEmpty()) {
-                        item(key = "header-read") { RecentHeader(stringResource(Res.string.engine_conversations_read)) }
-                    }
+                if (read.isNotEmpty() && (attention.isNotEmpty() || paused.isNotEmpty())) {
+                    item(key = "header-read") { RecentHeader(stringResource(Res.string.engine_conversations_read)) }
                 }
                 items(read, key = { it.sessionId }) { chat ->
                     RecentChatItem(

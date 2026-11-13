@@ -110,9 +110,12 @@ that arrives waits for the other to finish. The lock is held by the scheduler (i
   session that has said nothing yet.
 - **Drawer and Conversations** (Raphaël's rule, 19/10/2026: the two lists show the same sessions;
   from 16/10 the drawer had left the scheduler's runs out). The Conversations page
-  (`EngineConversationsScreen`, an entry of the drawer) lists every session, unread first, then by
-  latest activity (`inboxOrder`); the drawer shows the same read (`ChatScope.ALL`) by latest
-  activity under day headers, a run with its small clock. A session at work carries a brick dot,
+  (`EngineConversationsScreen`, an entry of the drawer) lists every session and the drawer shows the
+  same read (`ChatScope.ALL`), in one order (13/11/2026, Raphaël: « non lu, puis attente humain,
+  puis en cours, puis reste », the paused after those at work): under « À suivre » the unread, then
+  the ones waiting on a question to him, then the ones at work (`attentionRank`, `needsAttention`),
+  then « En pause », then the rest (the drawer's day headers), the latest activity first in each
+  (`inboxOrder`, the engine's `time.updated`), a run with its small clock. A session at work carries a brick dot,
   one whose agent waits on a question to the person an amber one, a little larger (11/11/2026,
   Raphaël: « distinguer ce que je dois ouvrir de ce que je dois laisser tourner »; the engine's
   `GET /question` read with the list, `EngineChatSummary.awaitingAnswer`). Both read 200 sessions at a time,
@@ -330,8 +333,8 @@ that arrives waits for the other to finish. The lock is held by the scheduler (i
   at once when the ceilings are raised here (`POST /plafonds`). The app shows what waits: the
   scheduler's `pauses_plafond` (`SchedulerApi.pausedSessions`, `PausedSession`; `etat` carries
   `pauses` too) marks the session (`EngineChatSummary.paused`): a pause mark on its row, a
-  « En pause » group first in the drawer (`RecentDay.PAUSED`) and on the Conversations page
-  (`inboxOrder`), and a line above the composer (`MissionChatUiState.paused`, read with the
+  « En pause » group after « À suivre » in the drawer (`RecentDay.PAUSED`) and on the Conversations
+  page (`inboxOrder`), and a line above the composer (`MissionChatUiState.paused`, read with the
   catalogue and on a refresh; a tap asks again) that names the full ceiling (10/11/2026, Raphaël:
   the day's, the week's or the 30 days'; the scheduler's `fenetre`, `PausedSession.window`).
   **The usage page** (Settings → Usage, `UsageScreen`) reads the spend over three windows together

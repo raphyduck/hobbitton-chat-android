@@ -106,13 +106,32 @@ data class EngineChatSummary(
 enum class ChatScope { MANUAL, ALL }
 
 /**
- * The Conversations page's order: the paused first (07/11/2026, they wait on the budget), then the
- * unread, then the most recently active, in each part.
+ * Where a conversation stands in the lists (13/11/2026, Raphaël: « non lu, puis attente humain,
+ * puis en cours, puis reste », the paused after those at work): the unread, then the ones whose
+ * agent waits on a question to the person (the amber dot), then the ones at work (the brick dot),
+ * then the paused on a spending ceiling, then the rest. A conversation takes the first that holds.
+ */
+fun attentionRank(chat: EngineChatSummary): Int = when {
+    chat.unread -> 0
+    chat.awaitingAnswer -> 1
+    chat.running -> 2
+    chat.paused -> 3
+    else -> 4
+}
+
+/** The ranks the lists gather under one header « À suivre » (13/11/2026): unread, waiting, at work. */
+const val ATTENTION_RANKS = 2
+
+/** Whether the conversation goes under « À suivre ». */
+fun needsAttention(chat: EngineChatSummary): Boolean = attentionRank(chat) <= ATTENTION_RANKS
+
+/**
+ * The lists' order ([attentionRank]), then the latest activity first in each rank: the engine's
+ * `time.updated`, which moves with every message, never the session's creation.
  */
 fun inboxOrder(chats: List<EngineChatSummary>): List<EngineChatSummary> =
     chats.sortedWith(
-        compareByDescending<EngineChatSummary> { it.paused }
-            .thenByDescending { it.unread }
+        compareBy<EngineChatSummary> { attentionRank(it) }
             .thenByDescending { it.lastActivityMillis ?: Long.MIN_VALUE },
     )
 
