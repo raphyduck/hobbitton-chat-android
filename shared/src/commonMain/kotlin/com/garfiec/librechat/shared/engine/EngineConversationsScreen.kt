@@ -28,9 +28,9 @@ import com.garfiec.librechat.core.data.engine.EngineChatSummary
 import com.garfiec.librechat.core.data.engine.inboxOrder
 import com.garfiec.librechat.core.data.engine.needsAttention
 import com.garfiec.librechat.shared.resources.Res
+import com.garfiec.librechat.shared.resources.engine_conversations_attention
 import com.garfiec.librechat.shared.resources.engine_conversations_paused
 import com.garfiec.librechat.shared.resources.engine_conversations_read
-import com.garfiec.librechat.shared.resources.engine_conversations_attention
 import com.garfiec.librechat.shared.resources.engine_drawer_conversations
 import com.garfiec.librechat.shared.resources.engine_drawer_empty
 import com.garfiec.librechat.shared.resources.engine_drawer_failed
@@ -43,8 +43,8 @@ import kotlin.time.Clock
 /**
  * Every conversation (16/10/2026), the scheduler's runs included: « À suivre » first (the unread,
  * then those whose agent waits on the person, then those at work), then the paused, then the rest,
- * each by latest activity (`inboxOrder`, 13/11/2026). A run counts as unread only when it had something to say, so a mission that
- * passes every half hour and finds nothing stays out of the top. Pushed over the conversation,
+ * each by latest activity (`inboxOrder`, 13/11/2026). A run counts as unread only when it had
+ * something to say, so a mission that passes every half hour and finds nothing stays out of the top. Pushed over the conversation,
  * like Programmées; pull down to read it again.
  */
 @OptIn(ExperimentalMaterial3Api::class)
