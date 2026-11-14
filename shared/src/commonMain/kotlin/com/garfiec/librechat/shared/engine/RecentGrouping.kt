@@ -9,7 +9,7 @@ import com.garfiec.librechat.core.data.engine.needsAttention
  * first, whatever their day (13/11/2026, Raphaël: the unread, then those waiting on him, then
  * those at work, in one group), then the paused, then the rest by day.
  */
-internal enum class RecentDay { ATTENTION, PAUSED, TODAY, YESTERDAY, PREVIOUS_WEEK, OLDER }
+internal enum class RecentDay { IN_TITLE, IN_MESSAGES, ATTENTION, PAUSED, TODAY, YESTERDAY, PREVIOUS_WEEK, OLDER }
 
 /** One header and the conversations under it, in the order the list gave them. */
 internal data class RecentGroup(val day: RecentDay, val chats: List<EngineChatSummary>)
@@ -58,6 +58,27 @@ internal fun groupRecent(
     }
     return RecentDay.entries.mapNotNull { day -> byDay[day]?.let { RecentGroup(day, it) } }
 }
+
+/**
+ * A search's results under two headers (14/11/2026, Raphaël: tell what the title matched from
+ * what the messages did): « Dans le titre » first, then « Dans les messages », the latest activity
+ * first in each. A row the search has not placed yet (the rows already drawn, filtered on their
+ * title until the answer lands) goes under the title.
+ */
+internal fun groupSearch(chats: List<EngineChatSummary>): List<RecentGroup> {
+    val (inTitle, inMessages) = searchOrder(chats).partition { it.match?.inTitle != false }
+    return listOfNotNull(
+        inTitle.takeIf { it.isNotEmpty() }?.let { RecentGroup(RecentDay.IN_TITLE, it) },
+        inMessages.takeIf { it.isNotEmpty() }?.let { RecentGroup(RecentDay.IN_MESSAGES, it) },
+    )
+}
+
+/** The title's matches, then the messages', the latest activity first in each. */
+internal fun searchOrder(chats: List<EngineChatSummary>): List<EngineChatSummary> =
+    chats.sortedWith(
+        compareBy<EngineChatSummary> { it.match?.inTitle == false }
+            .thenByDescending { it.lastActivityMillis ?: Long.MIN_VALUE },
+    )
 
 /** The phone's time zone offset from UTC at [epochMillis], daylight saving included. */
 internal expect fun localUtcOffsetMillis(epochMillis: Long): Long

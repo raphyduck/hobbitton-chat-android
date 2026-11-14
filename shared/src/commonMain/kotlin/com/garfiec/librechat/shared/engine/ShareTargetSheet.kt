@@ -68,7 +68,7 @@ internal fun ShareTargetSheet(
     val listed = remember(chats, search, query) {
         when {
             query.isBlank() -> chats.chats
-            search != null -> search.chats
+            search != null -> searchOrder(search.chats)
             else -> chats.chats.filter { it.title.contains(query, ignoreCase = true) }
         }
     }

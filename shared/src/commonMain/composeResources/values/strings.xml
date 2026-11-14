@@ -28,6 +28,10 @@
     <string name="engine_drawer_search">Search</string>
     <string name="engine_drawer_no_match">No conversation matches.</string>
     <string name="engine_drawer_searching">Searching every conversation…</string>
+    <string name="engine_search_in_title">In the title</string>
+    <string name="engine_search_in_messages">In the messages</string>
+    <string name="engine_search_by_person">You</string>
+    <string name="engine_search_by_agent">Eva</string>
     <string name="engine_drawer_load_older">Older conversations</string>
     <string name="engine_drawer_account">Account and settings</string>
     <string name="engine_chat_running">Running</string>
