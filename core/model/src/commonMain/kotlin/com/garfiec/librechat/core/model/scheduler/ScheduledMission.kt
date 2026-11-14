@@ -126,3 +126,26 @@ data class PausedSession(
     /** How many resume attempts the gateway refused since. */
     @SerialName("reprises") val attempts: Int = 0,
 )
+
+/**
+ * A session the scheduler's search found (14/11/2026, Raphaël: « la recherche des sessions [doit]
+ * pouvoir se faire sur le contenu aussi … avec une manière de distinguer les résultats qui ont été
+ * trouvés par le titre et par les contenus »). The scheduler keeps a full-text index of what the
+ * person and the agent wrote (no tool output, no reasoning); its `chercher_conversations` tool
+ * says where each session matched and, when its messages did, gives the latest one's excerpt with
+ * the words found between [EXCERPT_MARK_START] and [EXCERPT_MARK_END].
+ */
+@Serializable
+data class ConversationHit(
+    val session: String,
+    @SerialName("titre") val title: String = "",
+    @SerialName("dans_titre") val inTitle: Boolean = false,
+    @SerialName("dans_messages") val inMessages: Boolean = false,
+    @SerialName("extrait") val excerpt: String? = null,
+    /** `user` (the person) or `assistant` (the agent): who wrote the excerpt. */
+    val role: String? = null,
+    @SerialName("quand_ms") val atMillis: Long? = null,
+)
+
+const val EXCERPT_MARK_START = "⟦"
+const val EXCERPT_MARK_END = "⟧"

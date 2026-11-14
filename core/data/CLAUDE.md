@@ -103,7 +103,10 @@ Since 12/10/2026 chats and tasks are one conversation, as on Claude.ai.
   ten unknown sessions are read per refresh, their last two messages only (`CLASSIFICATION_TAIL`,
   26/10/2026: a transcript weighs up to megabytes), and each verdict recorded (forty for a search).
   `query` (21/10/2026) keeps only the sessions whose title matches, over every session the engine
-  lists, accents folded (`foldForSearch` / `matchesSearch`, `SearchFold.kt`); `limit` is the page;
+  lists, accents folded (`foldForSearch` / `matchesSearch`, `SearchFold.kt`), or, since 14/11/2026,
+  whose messages do (the scheduler's index, `SchedulerApi.searchConversations`, read beside the
+  snapshot; each row's `match` says where, a messages' match with its excerpt; such a session is a
+  chat without a classification read); `limit` is the page;
   `maxAgeMillis` reuses the last read of the statuses, read marks, runs and sessions (`ListSnapshot`,
   read together on IO; `RECENT_LIST_REUSE_MS` for the next page and the search, 26/10/2026 evening).
   Cleared at sign-out.

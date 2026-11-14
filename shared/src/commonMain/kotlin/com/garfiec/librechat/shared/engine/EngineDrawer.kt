@@ -57,11 +57,15 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.garfiec.librechat.core.data.engine.EngineChatSummary
+import com.garfiec.librechat.core.data.engine.SearchMatch
 import com.garfiec.librechat.core.data.engine.matchesSearch
 import com.garfiec.librechat.core.ui.input.ChatInputDefaults
 import com.garfiec.librechat.shared.resources.Res
@@ -97,6 +101,10 @@ import com.garfiec.librechat.shared.resources.engine_drawer_tasks
 import com.garfiec.librechat.shared.resources.engine_drawer_today
 import com.garfiec.librechat.shared.resources.engine_drawer_voice
 import com.garfiec.librechat.shared.resources.engine_drawer_yesterday
+import com.garfiec.librechat.shared.resources.engine_search_by_agent
+import com.garfiec.librechat.shared.resources.engine_search_by_person
+import com.garfiec.librechat.shared.resources.engine_search_in_messages
+import com.garfiec.librechat.shared.resources.engine_search_in_title
 import org.jetbrains.compose.resources.stringResource
 import kotlin.time.Clock
 
@@ -286,7 +294,9 @@ private fun RecentChats(
             else -> state.chats.filter { it.title.matchesSearch(query) }
         }
     }
-    val groups = remember(shown, now) { groupRecent(shown, now, ::localUtcOffsetMillis) }
+    val groups = remember(shown, now, searching) {
+        if (searching) groupSearch(shown) else groupRecent(shown, now, ::localUtcOffsetMillis)
+    }
     LazyColumn(modifier = modifier.fillMaxWidth()) {
         when {
             // Loading first: a retry after a failure shows the placeholders, not the stale error.
@@ -411,18 +421,22 @@ internal fun RecentChatItem(
                 )
             }
         }
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RowShape)
                 .background(fill, RowShape)
                 .combinedClickable(onClick = onClick, onLongClick = onDelete?.let { { menuShown = true } })
-                .heightIn(min = ROW_HEIGHT)
                 .padding(horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            RecentChatRowContent(chat, nowMillis)
+            Row(
+                modifier = Modifier.fillMaxWidth().heightIn(min = ROW_HEIGHT),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                RecentChatRowContent(chat, nowMillis)
+            }
+            chat.match?.excerpt?.let { excerpt -> SearchExcerpt(chat.match, excerpt, nowMillis) }
         }
     }
 }
@@ -442,6 +456,40 @@ private fun DeleteChatDialog(title: String, onConfirm: () -> Unit, onDismiss: ()
         dismissButton = {
             TextButton(onClick = onDismiss) { Text(stringResource(Res.string.engine_chat_delete_cancel)) }
         },
+    )
+}
+
+/**
+ * Under a row the search found in its messages (14/11/2026): who wrote the latest message that
+ * matched, how long ago, and its words around what was found, the found words in bold.
+ */
+@Composable
+private fun SearchExcerpt(match: SearchMatch, excerpt: String, nowMillis: Long) {
+    val author = stringResource(
+        if (match.byPerson) Res.string.engine_search_by_person else Res.string.engine_search_by_agent,
+    )
+    val age = match.atMillis?.takeIf { it > 0 }?.let { recentAge(it, nowMillis) }
+    val found = MaterialTheme.colorScheme.onSurface
+    val text = remember(excerpt, author, age, found) {
+        buildAnnotatedString {
+            append(listOfNotNull(author, age).joinToString(" · "))
+            append(" · ")
+            excerptSpans(excerpt).forEach { (span, marked) ->
+                if (marked) {
+                    withStyle(SpanStyle(fontWeight = FontWeight.SemiBold, color = found)) { append(span) }
+                } else {
+                    append(span)
+                }
+            }
+        }
+    }
+    Text(
+        text,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        maxLines = 2,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier.padding(bottom = 8.dp).testTag("search_excerpt"),
     )
 }
 
@@ -580,6 +628,8 @@ internal fun PlaceholderRow() {
 }
 
 private fun RecentDay.label() = when (this) {
+    RecentDay.IN_TITLE -> Res.string.engine_search_in_title
+    RecentDay.IN_MESSAGES -> Res.string.engine_search_in_messages
     RecentDay.ATTENTION -> Res.string.engine_conversations_attention
     RecentDay.PAUSED -> Res.string.engine_conversations_paused
     RecentDay.TODAY -> Res.string.engine_drawer_today

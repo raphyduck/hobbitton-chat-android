@@ -18,6 +18,7 @@ import com.garfiec.librechat.core.model.engine.EngineStreamEvent
 import com.garfiec.librechat.core.model.engine.engineHistoryEvents
 import com.garfiec.librechat.core.model.engine.isAuto
 import com.garfiec.librechat.core.model.scheduler.ConnectorCatalogue
+import com.garfiec.librechat.core.model.scheduler.ConversationHit
 import com.garfiec.librechat.core.model.scheduler.SchedulerRun
 import com.garfiec.librechat.core.network.api.AgentEngineApi
 import com.garfiec.librechat.core.network.api.SchedulerApi
@@ -92,6 +93,23 @@ data class EngineChatSummary(
      * engine's pending questions, read with the list; its dot takes another colour.
      */
     val awaitingAnswer: Boolean = false,
+    /** Where a search found the session (14/11/2026); null outside a search. */
+    val match: SearchMatch? = null,
+)
+
+/**
+ * Where a search found a session (14/11/2026, Raphaël: the search covers the content too, and
+ * tells what was found by the title from what was found in the messages). [inTitle] is the title
+ * the lists show ([matchesSearch]); [inMessages] the scheduler's full-text index, with the latest
+ * message that matched: its [excerpt] (the words found between `⟦` and `⟧`), whether the person
+ * wrote it ([byPerson]) and when ([atMillis]).
+ */
+data class SearchMatch(
+    val inTitle: Boolean,
+    val inMessages: Boolean = false,
+    val excerpt: String? = null,
+    val byPerson: Boolean = false,
+    val atMillis: Long? = null,
 )
 
 /**
@@ -346,6 +364,8 @@ class EngineMissionRepository(
         // zero, and everything is read again.
         maxAgeMillis: Long = 0,
     ): List<EngineChatSummary> = withContext(ioDispatcher) {
+        // The content (14/11/2026): the scheduler's index, read beside the snapshot.
+        val contentSearch = if (query.isNotBlank()) async { contentHits(query) } else null
         val snapshot = listSnapshot(scope, maxAgeMillis)
         val statuses = snapshot.statuses
         val paused = snapshot.paused
@@ -356,6 +376,7 @@ class EngineMissionRepository(
         val discreetMissions = snapshot.discreetMissions +
             runs.values.filter { it.discreet }.mapNotNull { it.mission }
         val searching = query.isNotBlank()
+        val hits = contentSearch?.await().orEmpty()
         val readBudget = if (searching) MAX_SEARCH_CLASSIFICATION_READS else MAX_CLASSIFICATION_READS
         var classified = 0
         val learned = mutableMapOf<String, EngineSessionKind>()
@@ -384,17 +405,22 @@ class EngineMissionRepository(
                 }
                 val title = listedTitle(session.id, session.title, mission)
                 // Before any transcript is read: a run never costs the drawer one, nor does a session
-                // the search does not name.
+                // the search does not name, by its title or in its messages.
+                val inMessages = hits[session.id]?.takeIf { it.inMessages }
+                val match = if (searching) SearchMatch(inTitle = title.matchesSearch(query)).with(inMessages) else null
                 val left = (mission != null && scope == ChatScope.MANUAL) ||
                     runHidden(mission, discreetMissions) ||
-                    (searching && !title.matchesSearch(query))
+                    (match != null && !match.inTitle && !match.inMessages)
                 if (left) continue
+                // A session whose messages matched has said something: a chat unless known otherwise,
+                // without a read.
                 val kind = classifySession(session.title, recordedKind ?: learned[session.id], messages = null)
+                    ?: EngineSessionKind.CHAT.takeIf { inMessages != null }
                 if (kind == null) {
                     if (classified >= readBudget) continue
                     classified++
                 }
-                rows += ChatRow(session, title, mission, run, kind)
+                rows += ChatRow(session, title, mission, run, kind, match)
             }
             val unknown = rows.filter { it.kind == null }
             coroutineScope {
@@ -425,6 +451,7 @@ class EngineMissionRepository(
                     unread = moved && runUnread(row.mission, row.run),
                     paused = session.id in paused,
                     awaitingAnswer = session.id in snapshot.asking,
+                    match = row.match,
                 )
             }
         }
@@ -439,6 +466,7 @@ class EngineMissionRepository(
         val mission: String?,
         val run: SchedulerRun?,
         var kind: EngineSessionKind?,
+        val match: SearchMatch? = null,
     )
 
     /**
@@ -531,6 +559,15 @@ class EngineMissionRepository(
         runCatching { scheduler.state().missions.filter { it.discreet }.map { it.name }.toSet() }
             .onFailure { Logger.w(it) { "Conversations: the scheduler's missions are unavailable" } }
             .getOrDefault(emptySet())
+
+    /**
+     * The sessions whose messages hold the words (14/11/2026), by id; none when the scheduler does
+     * not answer, and the search falls back to the titles.
+     */
+    private suspend fun contentHits(query: String): Map<String, ConversationHit> =
+        runCatching { scheduler.searchConversations(query).associateBy { it.session } }
+            .onFailure { Logger.w(it) { "Search: the scheduler's index is unavailable, titles only" } }
+            .getOrDefault(emptyMap())
 
     private suspend fun pausedSessionIds(): Set<String> =
         runCatching { scheduler.pausedSessions().map { it.session }.toSet() }
@@ -975,3 +1012,10 @@ internal fun modelRefOf(value: String): EngineModelRef? {
     val model = value.substringAfter('/', "")
     return if (provider.isNotBlank() && model.isNotBlank()) EngineModelRef(provider, model) else null
 }
+
+private fun SearchMatch.with(hit: ConversationHit?): SearchMatch =
+    if (hit == null) {
+        this
+    } else {
+        copy(inMessages = true, excerpt = hit.excerpt, byPerson = hit.role == "user", atMillis = hit.atMillis)
+    }

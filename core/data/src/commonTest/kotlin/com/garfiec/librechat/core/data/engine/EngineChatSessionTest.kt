@@ -36,6 +36,7 @@ class EngineChatSessionTest {
     /** What the scheduler's `historique(json_brut=True)` answers. */
     private var runsJson = "[]"
     private var serverReadsJson = "{}"
+    private var contentHitsJson = "[]"
 
     /** The questions the engine waits on (`GET /question`). */
     private var questionsJson = "[]"
@@ -69,6 +70,7 @@ class EngineChatSessionTest {
                     "\"perimetre\"" in text -> toolFrame("""{"session":"ses_chat","connecteurs":[],"enregistre":true}""")
                     "\"historique\"" in text -> toolFrame(runsJson)
                     "\"conversations_lues\"" in text -> toolFrame(serverReadsJson)
+                    "\"chercher_conversations\"" in text -> toolFrame(contentHitsJson)
                     "\"marquer_lue\"" in text -> toolFrame("""{"session":"ses_reply","lue_jusqu_a":600}""")
                     else -> catalogueFrame()
                 }
@@ -309,6 +311,37 @@ class EngineChatSessionTest {
             listOf("ses_old"),
             repository.recentChats(scope = ChatScope.ALL, limit = 2, query = "energie DU pic").map { it.sessionId },
         )
+    }
+
+    @Test
+    fun `a search finds the messages too, and says where each session matched`() = runTest {
+        // 14/11/2026, Raphaël: the search covers the content, and tells the title from the messages.
+        sessionsJson = """[
+            {"id":"ses_title","title":"Devis Kandbaz","time":{"updated":900}},
+            {"id":"ses_body","title":"Point sur la cuisine","time":{"updated":800}},
+            {"id":"ses_both","title":"Le devis du plombier","time":{"updated":700}},
+            {"id":"ses_none","title":"Niveau d'huile","time":{"updated":600}}
+        ]"""
+        contentHitsJson = """[
+            {"session":"ses_body","titre":"Point sur la cuisine","dans_titre":false,"dans_messages":true,
+             "extrait":"Le ⟦devis⟧ Kandbaz est à 1 240 €","role":"assistant","quand_ms":790},
+            {"session":"ses_both","titre":"Le devis du plombier","dans_titre":true,"dans_messages":true,
+             "extrait":"Envoie le ⟦devis⟧","role":"user","quand_ms":690}
+        ]"""
+        // ses_body has never been classified: a session whose messages matched said something.
+        val kinds = InMemorySessionKinds(mapOf("ses_title" to EngineSessionKind.CHAT, "ses_both" to EngineSessionKind.CHAT))
+
+        val found = testMissionRepository(engine(), kinds = kinds)
+            .recentChats(scope = ChatScope.ALL, query = "devis")
+            .associateBy { it.sessionId }
+
+        assertEquals(setOf("ses_title", "ses_body", "ses_both"), found.keys)
+        assertEquals(SearchMatch(inTitle = true), found.getValue("ses_title").match)
+        val body = checkNotNull(found.getValue("ses_body").match)
+        assertTrue(!body.inTitle && body.inMessages && !body.byPerson)
+        assertEquals("Le ⟦devis⟧ Kandbaz est à 1 240 €", body.excerpt)
+        val both = checkNotNull(found.getValue("ses_both").match)
+        assertTrue(both.inTitle && both.inMessages && both.byPerson && both.atMillis == 690L)
     }
 
     @Test

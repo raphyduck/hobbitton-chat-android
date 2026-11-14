@@ -120,7 +120,16 @@ that arrives waits for the other to finish. The lock is held by the scheduler (i
   Raphaël: « distinguer ce que je dois ouvrir de ce que je dois laisser tourner »; the engine's
   `GET /question` read with the list, `EngineChatSummary.awaitingAnswer`). Both read 200 sessions at a time,
   « Plus anciennes » reads more, and the drawer's search covers every session, accents folded
-  (21/10/2026).
+  (21/10/2026), **their messages too** (14/11/2026, Raphaël: « la recherche des sessions [doit]
+  pouvoir se faire sur le contenu aussi … avec une manière de distinguer les résultats qui ont été
+  trouvés par le titre et par les contenus »): the scheduler keeps a full-text index of what the
+  person and the agent wrote, scheduled runs included (kit #291, `chercher_conversations`,
+  `SchedulerApi.searchConversations`), read beside the list at every search; each row carries
+  where it matched (`EngineChatSummary.match`, `SearchMatch`), the results go under « Dans le
+  titre » then « Dans les messages » (`groupSearch`, `searchOrder`, the latest activity first in
+  each), and a row found in its messages shows who wrote the latest one that matched, when, and
+  its words, the found ones in bold (`SearchExcerpt`, `excerptSpans`). A scheduler that does not
+  answer leaves the titles alone.
   Unread = moved since this device last showed it (`ConversationReads`), or since the scheduler
   marked it read (22/10/2026: its unread mission withdrew a question a reply had made moot,
   `retirer_question`, read back through `conversations_lues`; since 27/10/2026 evening also a

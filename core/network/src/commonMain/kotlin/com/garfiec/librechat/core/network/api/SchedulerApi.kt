@@ -3,6 +3,7 @@ package com.garfiec.librechat.core.network.api
 import com.garfiec.librechat.core.model.scheduler.ChatBudget
 import com.garfiec.librechat.core.model.scheduler.ConnectorCatalogue
 import com.garfiec.librechat.core.model.scheduler.Consumption
+import com.garfiec.librechat.core.model.scheduler.ConversationHit
 import com.garfiec.librechat.core.model.scheduler.MissionEdits
 import com.garfiec.librechat.core.model.scheduler.ModelPrices
 import com.garfiec.librechat.core.model.scheduler.PausedSession
@@ -154,6 +155,25 @@ class SchedulerApi(
             throw EngineHttpException(HTTP_OK, "conversations_lues", "$UNEXPECTED_ANSWER: ${e.message}", e)
         } catch (e: IllegalArgumentException) {
             throw EngineHttpException(HTTP_OK, "conversations_lues", "$UNEXPECTED_ANSWER: ${e.message}", e)
+        }
+    }
+
+    /**
+     * The sessions whose title or messages hold every word of [text] (14/11/2026), the scheduler's
+     * full-text index over every conversation, scheduled runs included, latest activity first.
+     * A failure is raised like [pausedSessions]'.
+     */
+    suspend fun searchConversations(text: String, limit: Int = SEARCH_LIMIT): List<ConversationHit> {
+        val payload = callTool(
+            "chercher_conversations",
+            buildJsonObject { put("texte", text); put("limite", limit) },
+        )
+        return try {
+            json.decodeFromString(payload)
+        } catch (e: SerializationException) {
+            throw EngineHttpException(HTTP_OK, "chercher_conversations", "$UNEXPECTED_ANSWER: ${e.message}", e)
+        } catch (e: IllegalArgumentException) {
+            throw EngineHttpException(HTTP_OK, "chercher_conversations", "$UNEXPECTED_ANSWER: ${e.message}", e)
         }
     }
 
@@ -584,6 +604,9 @@ class SchedulerApi(
 
         /** The scheduler's own ceiling on one `historique` read. */
         const val RUNS_READ = 200
+
+        /** The search's page: the scheduler's tool gives 500 at most. */
+        const val SEARCH_LIMIT = 200
         const val UNEXPECTED_ANSWER = "unexpected answer from the scheduler"
 
         /** Twenty-five megabytes of speech is a long file; the server takes its time on it. */
