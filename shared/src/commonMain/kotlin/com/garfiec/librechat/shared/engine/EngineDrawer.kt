@@ -436,7 +436,9 @@ internal fun RecentChatItem(
             ) {
                 RecentChatRowContent(chat, nowMillis)
             }
-            chat.match?.excerpt?.let { excerpt -> SearchExcerpt(chat.match, excerpt, nowMillis) }
+            chat.match?.let { match ->
+                match.excerpt?.let { excerpt -> SearchExcerpt(match, excerpt, nowMillis) }
+            }
         }
     }
 }

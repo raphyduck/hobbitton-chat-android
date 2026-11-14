@@ -407,7 +407,7 @@ class EngineMissionRepository(
                 // Before any transcript is read: a run never costs the drawer one, nor does a session
                 // the search does not name, by its title or in its messages.
                 val inMessages = hits[session.id]?.takeIf { it.inMessages }
-                val match = if (searching) SearchMatch(inTitle = title.matchesSearch(query)).with(inMessages) else null
+                val match = if (searching) SearchMatch(inTitle = title.matchesSearch(query)).withMessages(inMessages) else null
                 val left = (mission != null && scope == ChatScope.MANUAL) ||
                     runHidden(mission, discreetMissions) ||
                     (match != null && !match.inTitle && !match.inMessages)
@@ -1013,7 +1013,7 @@ internal fun modelRefOf(value: String): EngineModelRef? {
     return if (provider.isNotBlank() && model.isNotBlank()) EngineModelRef(provider, model) else null
 }
 
-private fun SearchMatch.with(hit: ConversationHit?): SearchMatch =
+private fun SearchMatch.withMessages(hit: ConversationHit?): SearchMatch =
     if (hit == null) {
         this
     } else {
