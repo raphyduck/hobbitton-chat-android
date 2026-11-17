@@ -25,6 +25,7 @@ import com.garfiec.librechat.core.model.engine.EngineModelRef
 import com.garfiec.librechat.core.model.engine.EngineSelectableModel
 import com.garfiec.librechat.core.model.scheduler.PlatformRoles
 import com.garfiec.librechat.feature.tasks.resources.Res
+import com.garfiec.librechat.feature.tasks.resources.tasks_role_architect
 import com.garfiec.librechat.feature.tasks.resources.tasks_role_clerk
 import com.garfiec.librechat.feature.tasks.resources.tasks_role_coder
 import com.garfiec.librechat.feature.tasks.resources.tasks_role_navigator
@@ -66,6 +67,7 @@ internal fun roleLabel(role: String?): String = when (role) {
     PlatformRoles.SCOUT -> stringResource(Res.string.tasks_role_scout)
     PlatformRoles.SAVANT -> stringResource(Res.string.tasks_role_savant)
     PlatformRoles.NAVIGATOR -> stringResource(Res.string.tasks_role_navigator)
+    PlatformRoles.ARCHITECT -> stringResource(Res.string.tasks_role_architect)
     PlatformRoles.CODER -> stringResource(Res.string.tasks_role_coder)
     PlatformRoles.CLERK -> stringResource(Res.string.tasks_role_clerk)
     PlatformRoles.READER -> stringResource(Res.string.tasks_role_reader)

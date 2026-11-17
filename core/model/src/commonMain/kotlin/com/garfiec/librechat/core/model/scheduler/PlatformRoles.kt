@@ -65,12 +65,18 @@ data class PlatformRoles(
         const val SAVANT = "savant"
 
         const val NAVIGATOR = "navigateur"
+
+        /**
+         * Plans and reviews a development session's code, the coder executing (17/11/2026, kit
+         * #340, Raphaël: two roles, not two fixed models).
+         */
+        const val ARCHITECT = "architecte"
         const val CODER = "codeur"
         const val CLERK = "commis"
         const val READER = "lecteur"
 
         /** The whole table in reading order: who leads, who is consulted, the rest. */
-        val ORDER = listOf(SCOUT, THINKER, SAVANT, NAVIGATOR, CODER, CLERK, READER)
+        val ORDER = listOf(SCOUT, THINKER, SAVANT, NAVIGATOR, ARCHITECT, CODER, CLERK, READER)
         val NONE = PlatformRoles()
     }
 }

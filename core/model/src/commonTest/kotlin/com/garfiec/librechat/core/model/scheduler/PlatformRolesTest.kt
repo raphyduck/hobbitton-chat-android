@@ -54,6 +54,20 @@ class PlatformRolesTest {
     }
 
     @Test
+    fun theArchitectIsListedBeforeTheCoderItPlansFor() {
+        val development = Json { ignoreUnknownKeys = true }.decodeFromString(
+            PlatformRoles.serializer(),
+            """{"roles": {"codeur": {"en_service": "claude-haiku-5-5", "modeles": ["claude-haiku-5-5", "claude-opus-5-5"]},
+                          "architecte": {"en_service": "claude-opus-5-5", "modeles": ["claude-opus-5-5", "claude-haiku-5-5"]},
+                          "eclaireur": {"en_service": "deepseek-flash", "modeles": ["deepseek-flash"]}},
+                "pilote": "eclaireur"}""",
+        )
+        assertEquals(listOf(PlatformRoles.SCOUT, PlatformRoles.ARCHITECT, PlatformRoles.CODER), development.ordered)
+        assertEquals(PlatformRoles.ARCHITECT, development.roleOf("claude-opus-5-5"), "in service as architect, a stand-in as coder")
+        assertEquals(PlatformRoles.CODER, development.roleOf("claude-haiku-5-5"))
+    }
+
+    @Test
     fun aQualifiedModelSplitsIntoProviderAndId() {
         assertEquals(EngineModelRef("hobbitton-chat", "deepseek-v4-pro"), "hobbitton-chat/deepseek-v4-pro".asModelRef())
         assertNull("deepseek-v4-pro".asModelRef())
