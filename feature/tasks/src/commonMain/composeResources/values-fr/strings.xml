@@ -228,6 +228,7 @@
     <string name="tasks_role_scout">éclaireur</string>
     <string name="tasks_role_savant">savant</string>
     <string name="tasks_role_navigator">navigateur</string>
+    <string name="tasks_role_architect">architecte</string>
     <string name="tasks_role_coder">codeur</string>
     <string name="tasks_role_clerk">commis</string>
     <string name="tasks_role_reader">lecteur</string>

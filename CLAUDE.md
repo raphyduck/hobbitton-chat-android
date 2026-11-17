@@ -77,7 +77,9 @@ that arrives waits for the other to finish. The lock is held by the scheduler (i
   never listed nor declared to the engine (D-073). The shell stays the one connector the scheduler
   leaves on demand. A **development session** the scheduler opened (10/11/2026, kit #258,
   `planificateur_session_developpement`) is the exception: its `perimetre` read names its agent and
-  model (`profil` `code-general`, `modele` the coder's; `SessionScopeRead.agent`/`model`), and every
+  model (`profil` `code-general`, `modele` the architect's since 17/11/2026, kit #340: the architect
+  plans and reviews, the coder executes, two roles of the table, `PlatformRoles.ARCHITECT` before
+  `CODER`; `SessionScopeRead.agent`/`model`), and every
   turn sent in it goes on them, nothing lifted nor rewritten, the chip naming the model
   (`MissionChatUiState.sessionAgent`/`sessionModel`). One
   screen (`MissionChatScreen`), one route (`EngineChat`) for every session: a chat, a task of an
