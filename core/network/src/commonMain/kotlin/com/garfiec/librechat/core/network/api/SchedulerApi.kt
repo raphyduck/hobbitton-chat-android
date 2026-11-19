@@ -109,13 +109,14 @@ class SchedulerApi(
         answer["erreur"]?.let { reason ->
             throw EngineHttpException(HTTP_OK, tool, reason.asStringOrNull() ?: reason.toString())
         }
-        return try {
-            json.decodeFromString(payload)
-        } catch (e: SerializationException) {
-            throw EngineHttpException(HTTP_OK, tool, "$UNEXPECTED_ANSWER: ${e.message}", e)
-        } catch (e: IllegalArgumentException) {
-            throw EngineHttpException(HTTP_OK, tool, "$UNEXPECTED_ANSWER: ${e.message}", e)
-        }
+        return decodeTool(tool, payload)
+    }
+
+    /** The tool's JSON as [T]; anything else is the scheduler's failure (SerializationException is an IllegalArgumentException). */
+    private inline fun <reified T> decodeTool(tool: String, payload: String): T = try {
+        json.decodeFromString(payload)
+    } catch (e: IllegalArgumentException) {
+        throw EngineHttpException(HTTP_OK, tool, "$UNEXPECTED_ANSWER: ${e.message}", e)
     }
 
     /**
@@ -133,13 +134,7 @@ class SchedulerApi(
         payload.asJsonObjectOrNull()?.get("erreur")?.let { reason ->
             throw EngineHttpException(HTTP_OK, "historique", reason.asStringOrNull() ?: reason.toString())
         }
-        return try {
-            json.decodeFromString(payload)
-        } catch (e: SerializationException) {
-            throw EngineHttpException(HTTP_OK, "historique", "$UNEXPECTED_ANSWER: ${e.message}", e)
-        } catch (e: IllegalArgumentException) {
-            throw EngineHttpException(HTTP_OK, "historique", "$UNEXPECTED_ANSWER: ${e.message}", e)
-        }
+        return decodeTool("historique", payload)
     }
 
     /**
@@ -149,13 +144,7 @@ class SchedulerApi(
      */
     suspend fun serverReads(): Map<String, Long> {
         val payload = callTool("conversations_lues", buildJsonObject {})
-        return try {
-            json.decodeFromString(payload)
-        } catch (e: SerializationException) {
-            throw EngineHttpException(HTTP_OK, "conversations_lues", "$UNEXPECTED_ANSWER: ${e.message}", e)
-        } catch (e: IllegalArgumentException) {
-            throw EngineHttpException(HTTP_OK, "conversations_lues", "$UNEXPECTED_ANSWER: ${e.message}", e)
-        }
+        return decodeTool("conversations_lues", payload)
     }
 
     /**
@@ -168,13 +157,7 @@ class SchedulerApi(
             "chercher_conversations",
             buildJsonObject { put("texte", text); put("limite", limit) },
         )
-        return try {
-            json.decodeFromString(payload)
-        } catch (e: SerializationException) {
-            throw EngineHttpException(HTTP_OK, "chercher_conversations", "$UNEXPECTED_ANSWER: ${e.message}", e)
-        } catch (e: IllegalArgumentException) {
-            throw EngineHttpException(HTTP_OK, "chercher_conversations", "$UNEXPECTED_ANSWER: ${e.message}", e)
-        }
+        return decodeTool("chercher_conversations", payload)
     }
 
     /**
@@ -188,13 +171,7 @@ class SchedulerApi(
         payload.asJsonObjectOrNull()?.get("erreur")?.let { reason ->
             throw EngineHttpException(HTTP_OK, "pauses_plafond", reason.asStringOrNull() ?: reason.toString())
         }
-        return try {
-            json.decodeFromString(payload)
-        } catch (e: SerializationException) {
-            throw EngineHttpException(HTTP_OK, "pauses_plafond", "$UNEXPECTED_ANSWER: ${e.message}", e)
-        } catch (e: IllegalArgumentException) {
-            throw EngineHttpException(HTTP_OK, "pauses_plafond", "$UNEXPECTED_ANSWER: ${e.message}", e)
-        }
+        return decodeTool("pauses_plafond", payload)
     }
 
     /**
