@@ -50,6 +50,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -581,7 +582,7 @@ private fun AccountHeader(account: DrawerAccount) {
 private fun SpeechModelSection() {
     val store = remember { runCatching { KoinPlatform.getKoinOrNull()?.getOrNull<SpeechModelStore>() }.getOrNull() }
     if (store == null || !store.supported) return
-    val state by store.state.collectAsState()
+    val state by store.state.collectAsStateWithLifecycle()
     SectionDivider()
     SpeechModelRow(state = state, onDownload = store::download, onCancel = store::cancel, onDelete = store::delete)
 }

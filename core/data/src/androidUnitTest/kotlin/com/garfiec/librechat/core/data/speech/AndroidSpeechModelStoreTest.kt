@@ -4,6 +4,10 @@ import android.app.DownloadManager
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runTest
 
 /** What the DownloadManager says, read as the model's download; and the files' hash. */
 class AndroidSpeechModelStoreTest {
@@ -25,5 +29,26 @@ class AndroidSpeechModelStoreTest {
         } finally {
             file.delete()
         }
+    }
+
+    /** E1 (19/11/2026): the poll is a second while the state is watched, 30 s otherwise. */
+    @Test
+    fun `a watched state is polled every second`() = runTest {
+        awaitNextPoll(MutableStateFlow(1))
+        assertEquals(1_000L, currentTime)
+    }
+
+    @Test
+    fun `an unwatched state is polled every 30 seconds`() = runTest {
+        awaitNextPoll(MutableStateFlow(0))
+        assertEquals(30_000L, currentTime)
+    }
+
+    @Test
+    fun `a watcher arriving cuts the idle pause short`() = runTest {
+        val watchers = MutableStateFlow(0)
+        launch { delay(5_000); watchers.value = 1 }
+        awaitNextPoll(watchers)
+        assertEquals(5_000L, currentTime)
     }
 }

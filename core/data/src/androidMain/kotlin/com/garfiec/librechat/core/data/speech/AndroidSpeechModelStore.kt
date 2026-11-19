@@ -13,11 +13,21 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
+
+/**
+ * The pause between two reads of the DownloadManager: a second while someone watches the state,
+ * else up to [idleMs], cut short the moment a watcher arrives (E1, 19/11/2026).
+ */
+internal suspend fun awaitNextPoll(watchers: StateFlow<Int>, watchedMs: Long = 1_000L, idleMs: Long = 30_000L) {
+    if (watchers.value > 0) delay(watchedMs) else withTimeoutOrNull(idleMs) { watchers.first { it > 0 } }
+}
 
 /**
  * [SpeechModelStore] over Android's DownloadManager (11/11/2026): the 671 MB come down in the
@@ -29,7 +39,8 @@ import kotlinx.coroutines.launch
  *
  * The download ids live in a small preferences file, so a download the app was killed during is
  * followed again at the next start. The state is read off the DownloadManager every second while a
- * download runs, on the app's IO threads.
+ * download runs while its state is watched, every 30 s otherwise (E1, 19/11/2026), on the app's IO
+ * threads.
  */
 class AndroidSpeechModelStore(context: Context) : SpeechModelStore {
     private val app = context.applicationContext
@@ -118,7 +129,7 @@ class AndroidSpeechModelStore(context: Context) : SpeechModelStore {
                     }
                     else -> _state.value = now
                 }
-                delay(POLL_MS)
+                awaitNextPoll(_state.subscriptionCount)
             }
         }
     }
@@ -195,7 +206,6 @@ class AndroidSpeechModelStore(context: Context) : SpeechModelStore {
         const val KEY_IDS = "download_ids"
         const val PART = ".part"
         const val READY_MARK = "ready"
-        const val POLL_MS = 1_000L
         const val SPACE_MARGIN_BYTES = 100L * 1024 * 1024
         const val DOWNLOAD_TITLE = "Eva · modèle de dictée"
     }

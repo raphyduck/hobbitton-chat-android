@@ -23,7 +23,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -74,7 +74,7 @@ internal actual fun rememberMissionDictation(
     // The model Settings downloaded; absent, the phone's recognizer hears as before.
     val models = remember { runCatching { KoinPlatform.getKoinOrNull()?.getOrNull<SpeechModelStore>() }.getOrNull() }
     val noModel = remember { MutableStateFlow<SpeechModelState>(SpeechModelState.Absent) }
-    val model by (models?.state ?: noModel).collectAsState()
+    val model by (models?.state ?: noModel).collectAsStateWithLifecycle()
     var parakeet by remember { mutableStateOf<ParakeetDictation?>(null) }
     val phone = remember {
         PhoneDictation(
