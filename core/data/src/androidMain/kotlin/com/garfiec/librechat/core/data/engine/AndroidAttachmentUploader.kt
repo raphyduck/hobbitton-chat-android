@@ -2,6 +2,7 @@ package com.garfiec.librechat.core.data.engine
 
 import android.content.ContentResolver
 import android.net.Uri
+import com.garfiec.librechat.core.common.network.CleartextPolicy
 import com.garfiec.librechat.core.data.hexDigest
 import com.garfiec.librechat.core.network.api.SchedulerApi
 import java.io.IOException
@@ -37,17 +38,21 @@ class AndroidAttachmentUploader(
     }
 
     private fun put(url: String, mime: String, sizeBytes: Long, uri: Uri) {
+        // Off the Ktor clients and their cleartext guard: the same rule by hand, as PushService does.
+        if (!CleartextPolicy.isPermitted(url)) throw IOException("upload refused: cleartext to a public host")
         val digest = MessageDigest.getInstance("SHA-256")
         val connection = (URL(url).openConnection() as HttpURLConnection).apply {
             requestMethod = "PUT"
             doOutput = true
+            // A redirection is not followed: the ticket's URL is the only one the bytes go to.
+            instanceFollowRedirects = false
             connectTimeout = CONNECT_TIMEOUT_MS
             readTimeout = READ_TIMEOUT_MS
             setRequestProperty("Content-Type", mime.ifBlank { "application/octet-stream" })
             setFixedLengthStreamingMode(sizeBytes)
         }
         try {
-            val input = resolver.openInputStream(uri) ?: throw IOException("attachment unreadable: $uri")
+            val input = resolver.openInputStream(uri) ?: throw IOException("attachment unreadable")
             input.use { source ->
                 connection.outputStream.use { sink ->
                     val buffer = ByteArray(BUFFER_BYTES)
