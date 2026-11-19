@@ -35,13 +35,13 @@ class AndroidSpeechModelStoreTest {
     @Test
     fun `a watched state is polled every second`() = runTest {
         awaitNextPoll(MutableStateFlow(1))
-        assertEquals(1_000L, currentTime)
+        assertEquals(1_000L, testScheduler.currentTime)
     }
 
     @Test
     fun `an unwatched state is polled every 30 seconds`() = runTest {
         awaitNextPoll(MutableStateFlow(0))
-        assertEquals(30_000L, currentTime)
+        assertEquals(30_000L, testScheduler.currentTime)
     }
 
     @Test
@@ -49,6 +49,6 @@ class AndroidSpeechModelStoreTest {
         val watchers = MutableStateFlow(0)
         launch { delay(5_000); watchers.value = 1 }
         awaitNextPoll(watchers)
-        assertEquals(5_000L, currentTime)
+        assertEquals(5_000L, testScheduler.currentTime)
     }
 }
