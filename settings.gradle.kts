@@ -19,8 +19,7 @@ dependencyResolutionManagement {
         }
         // sherpa-onnx's Android library (11/11/2026, the dictation heard on the phone): published
         // only as a release asset of the project's GitHub repository, pinned by version, and the
-        // only module this repository serves. Its SHA-256 is enforced by gradle/verification-metadata.xml:
-        // a new version needs its digest there too (S3, 19/11/2026).
+        // only module this repository serves.
         ivy {
             name = "sherpa-onnx releases"
             url = uri("https://github.com/k2-fsa/sherpa-onnx/releases/download")
