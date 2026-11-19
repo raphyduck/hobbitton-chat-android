@@ -97,4 +97,11 @@ class CleartextPolicyTest {
         assertFalse(CleartextPolicy.isPrivateHost("192.168.1.256"))
         assertFalse(CleartextPolicy.isPrivateHost("10.0.0.1.5"))
     }
+
+    @Test
+    fun `the host a screen shows has no port and no scheme`() {
+        assertEquals("agent.hobbitton.at", CleartextPolicy.hostOf("https://agent.hobbitton.at/"))
+        assertEquals("192.168.1.20", CleartextPolicy.hostOf("http://192.168.1.20:3080/"))
+        assertEquals(null, CleartextPolicy.hostOf("agent.example.com"))
+    }
 }

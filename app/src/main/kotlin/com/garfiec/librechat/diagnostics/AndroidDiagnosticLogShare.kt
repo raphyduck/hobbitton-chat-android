@@ -3,6 +3,7 @@ package com.garfiec.librechat.diagnostics
 import android.content.Context
 import android.content.Intent
 import androidx.core.content.FileProvider
+import com.garfiec.librechat.core.common.AppCache
 import com.garfiec.librechat.core.common.di.AppThreads
 import com.garfiec.librechat.core.logging.DiagnosticLogRepository
 import com.garfiec.librechat.core.logging.DiagnosticLogShare
@@ -22,7 +23,7 @@ class AndroidDiagnosticLogShare(
 
     override suspend fun share() {
         val file = withContext(AppThreads.io) {
-            val directory = File(context.cacheDir, ATTACHMENTS_DIR).apply { mkdirs() }
+            val directory = File(context.cacheDir, AppCache.ATTACHMENTS_DIR).apply { mkdirs() }
             File(directory, FILE_NAME).apply { writeText(repository.exportText()) }
         }
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", file)
@@ -36,7 +37,6 @@ class AndroidDiagnosticLogShare(
     }
 
     private companion object {
-        const val ATTACHMENTS_DIR = "attachments"
         const val FILE_NAME = "eva-diagnostic.jsonl"
     }
 }

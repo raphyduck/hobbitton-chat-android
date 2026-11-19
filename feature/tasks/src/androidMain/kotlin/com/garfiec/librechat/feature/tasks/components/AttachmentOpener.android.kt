@@ -10,6 +10,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.FileProvider
 import co.touchlab.kermit.Logger
+import com.garfiec.librechat.core.common.AppCache
 import com.garfiec.librechat.core.common.di.AppThreads
 import com.garfiec.librechat.feature.tasks.util.ChatPart
 import java.io.File
@@ -49,7 +50,7 @@ internal actual fun rememberAttachmentOpener(): ((ChatPart.Attachment) -> Unit)?
 private fun cached(context: Context, attachment: ChatPart.Attachment): File {
     val base64 = attachment.dataUrl.substringAfter("base64,", missingDelimiterValue = "")
     require(base64.isNotEmpty()) { "not a base64 data URL" }
-    val directory = File(context.cacheDir, ATTACHMENTS_DIR).apply { mkdirs() }
+    val directory = File(context.cacheDir, AppCache.ATTACHMENTS_DIR).apply { mkdirs() }
     return File(directory, fileName(attachment)).apply { writeBytes(Base64.Mime.decode(base64)) }
 }
 
@@ -73,5 +74,3 @@ private fun fileName(attachment: ChatPart.Attachment): String {
     val extension = MimeTypeMap.getSingleton().getExtensionFromMimeType(attachment.mime) ?: "bin"
     return "piece-${attachment.id.hashCode().toUInt()}.$extension"
 }
-
-private const val ATTACHMENTS_DIR = "attachments"

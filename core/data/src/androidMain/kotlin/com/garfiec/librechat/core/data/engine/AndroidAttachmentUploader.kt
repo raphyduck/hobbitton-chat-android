@@ -2,6 +2,7 @@ package com.garfiec.librechat.core.data.engine
 
 import android.content.ContentResolver
 import android.net.Uri
+import com.garfiec.librechat.core.data.hexDigest
 import com.garfiec.librechat.core.network.api.SchedulerApi
 import java.io.IOException
 import java.net.HttpURLConnection
@@ -61,7 +62,7 @@ class AndroidAttachmentUploader(
             val code = connection.responseCode
             if (code !in HTTP_OK_RANGE) throw IOException("upload refused: HTTP $code")
             val answer = connection.inputStream.bufferedReader().use { it.readText() }
-            val expected = digest.digest().joinToString("") { "%02x".format(it) }
+            val expected = digest.hexDigest()
             // The server answers with the sha256 of what it wrote: a mismatch is a corrupt copy.
             if ("sha256" in answer && expected !in answer) throw IOException("upload corrupted: digest differs")
         } finally {

@@ -6,6 +6,7 @@ import android.net.Uri
 import android.os.Build
 import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.common.di.AppThreads
+import com.garfiec.librechat.core.data.hexDigest
 import java.io.File
 import java.security.MessageDigest
 import kotlinx.coroutines.CoroutineScope
@@ -231,5 +232,5 @@ internal fun sha256(file: File): String {
             digest.update(buffer, 0, read)
         }
     }
-    return digest.digest().joinToString("") { "%02x".format(it) }
+    return digest.hexDigest()
 }

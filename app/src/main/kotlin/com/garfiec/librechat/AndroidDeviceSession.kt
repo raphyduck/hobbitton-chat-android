@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import co.touchlab.kermit.Logger
 import coil3.SingletonImageLoader
+import com.garfiec.librechat.core.common.AppCache
 import com.garfiec.librechat.core.common.di.AppThreads
 import com.garfiec.librechat.core.data.engine.DeviceSession
 import com.garfiec.librechat.core.logging.DiagnosticLogRepository
@@ -28,7 +29,7 @@ class AndroidDeviceSession(
     override suspend fun onSignedOut() = withContext(AppThreads.io) {
         runCatching { context.stopService(Intent(context, PushService::class.java)) }
             .onFailure { Logger.w(it) { "Sign-out: the push service could not be stopped" } }
-        runCatching { File(context.cacheDir, ATTACHMENTS_DIR).deleteRecursively() }
+        runCatching { File(context.cacheDir, AppCache.ATTACHMENTS_DIR).deleteRecursively() }
             .onFailure { Logger.w(it) { "Sign-out: the opened attachments could not be deleted" } }
         runCatching {
             SingletonImageLoader.get(context).let { loader ->
@@ -39,10 +40,5 @@ class AndroidDeviceSession(
         runCatching { diagnostics.clear() }
             .onFailure { Logger.w(it) { "Sign-out: the diagnostic log could not be cleared" } }
         Unit
-    }
-
-    private companion object {
-        /** Where `AttachmentOpener` and `AndroidDiagnosticLogShare` write. */
-        const val ATTACHMENTS_DIR = "attachments"
     }
 }

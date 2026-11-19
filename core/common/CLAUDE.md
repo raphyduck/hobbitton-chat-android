@@ -23,7 +23,10 @@ dependency.
   one list, the others at once, in order (the conversation's deltas, 26/10/2026).
 - **ConnectivityObserver**: wraps Android's `ConnectivityManager.NetworkCallback`; drives the
   offline banner.
-- **CleartextPolicy**: which `http://` hosts are private enough to talk to in the clear.
+- **CleartextPolicy**: which `http://` hosts are private enough to talk to in the clear; `hostOf`
+  is the host a screen shows (no port, no scheme).
+- **AppCache** (`AppCache.ATTACHMENTS_DIR`): the cache directory the FileProvider serves, named once;
+  `attachment_paths.xml` repeats it and `AttachmentPathsTest` (`:app`) checks the two agree.
 - **AppInfo**: version name/code and git SHA (baked into `BuildConfig`) for the startup header.
 
 ## Rules
