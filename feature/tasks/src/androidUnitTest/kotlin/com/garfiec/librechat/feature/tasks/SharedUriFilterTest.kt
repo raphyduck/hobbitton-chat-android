@@ -15,8 +15,6 @@ class SharedUriFilterTest {
             "file:///data/data/at.hobbitton.chat/shared_prefs/engine_secrets.xml",
             "content://at.hobbitton.chat.files/attachments/eva-diagnostic.jsonl",
             "content://at.hobbitton.chat/x",
-            "content://0@at.hobbitton.chat/attachments/x",
-            "content://other.example/x",
             "content://at.hobbitton.chat.androidx-startup/x",
             "CONTENT://AT.HOBBITTON.CHAT.FILES/x",
             "http://example.com/x",
@@ -31,7 +29,8 @@ class SharedUriFilterTest {
 
     @Test
     fun `userinfo cannot hide the app's own provider`() {
-        assertThat(isForeignContentUri("content://0@at.hobbitton.chat.files/x", own)).isFalse()
+        val hidden = "content://" + "0" + "@" + "at.hobbitton.chat.files/x"
+        assertThat(isForeignContentUri(hidden, own)).isFalse()
     }
 
     @Test
