@@ -31,6 +31,7 @@ kotlin {
             // The dictation heard on the phone by Parakeet (11/11/2026): sherpa-onnx's recognizer
             // and voice detector, over its own ONNX Runtime. The AAR of the GitHub release
             // (settings.gradle.kts), 2.0.1, SHA-256 a8d09d1d32f3eb8520482c6d3d43fae674681c5b050385967c70a3c2c9bf0ee7.
+            // Its SHA-256 is enforced by gradle/verification-metadata.xml: a new version needs its digest there too.
             implementation("com.k2fsa.sherpa.onnx:sherpa-onnx:2.0.1@aar")
         }
         commonTest.dependencies {

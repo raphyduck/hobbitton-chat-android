@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<verification-metadata xmlns="https://schema.gradle.org/dependency-verification"
+                       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                       xsi:schemaLocation="https://schema.gradle.org/dependency-verification https://schema.gradle.org/dependency-verification/dependency-verification-1.3.xsd">
+   <configuration>
+      <verify-metadata>false</verify-metadata>
+      <verify-signatures>false</verify-signatures>
+      <trusted-artifacts>
+         <trust group="^(?!com[.]k2fsa[.]sherpa[.]onnx$).*$" regex="true"
+                reason="Only sherpa-onnx (a GitHub release asset, not a Maven repository) is pinned; every other artifact is trusted (S3, 19/11/2026)"/>
+      </trusted-artifacts>
+   </configuration>
+   <components>
+      <component group="com.k2fsa.sherpa.onnx" name="sherpa-onnx" version="2.0.1">
+         <artifact name="sherpa-onnx-2.0.1.aar">
+            <sha256 value="a8d09d1d32f3eb8520482c6d3d43fae674681c5b050385967c70a3c2c9bf0ee7"
+                    origin="GitHub release v2.0.1 asset digest, measured 19/11/2026"/>
+         </artifact>
+      </component>
+   </components>
+</verification-metadata>
