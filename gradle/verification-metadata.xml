@@ -13,7 +13,7 @@
    <components>
       <component group="com.k2fsa.sherpa.onnx" name="sherpa-onnx" version="2.0.1">
          <artifact name="sherpa-onnx-2.0.1.aar">
-            <sha256 value="a8d09d1d32f3eb8520482c6d3d43fae674681c5b050385967c70a3c2c9bf0ee8"
+            <sha256 value="a8d09d1d32f3eb8520482c6d3d43fae674681c5b050385967c70a3c2c9bf0ee7"
                     origin="GitHub release v2.0.1 asset digest, measured 19/11/2026"/>
          </artifact>
       </component>
