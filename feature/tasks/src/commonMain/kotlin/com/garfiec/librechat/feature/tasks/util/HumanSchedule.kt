@@ -27,6 +27,10 @@ data class ScheduleWords(
     val hourlyBetween: String,
     /** « Toutes les heures ». */
     val hourly: String,
+    /** « %1$s, une semaine sur deux »: a schedule, then its every-other-week cadence. */
+    val everyOtherWeek: String,
+    /** « %1$s, toutes les %2$s semaines »: a schedule, then the number of weeks between runs. */
+    val everyNWeeks: String,
     /** « %1$s %2$s %3$s à %4$s »: short day, day of month, short month, time. */
     val date: String,
     /** « et » / « and ». */
@@ -34,13 +38,38 @@ data class ScheduleWords(
 )
 
 /**
- * A five-field cron as a person says it (19/10/2026: the Programmées page showed « 0 7 * * 1-5 »),
- * or null when the shape is not one of the common ones, in which case the caller shows the cron.
+ * A cron as a person says it (19/10/2026: the Programmées page showed « 0 7 * * 1-5 »), or null
+ * when the shape is not one of the common ones, in which case the caller shows the cron.
  * A `CRON_TZ=…` prefix is read past.
+ *
+ * Five fields, and the scheduler's optional sixth (17/11/2026, kit): the ISO week, with a step
+ * of two for every other week, as in « 2-53/2 ». 19/11/2026, Raphaël: « je ne vois pas celle qui
+ * tourne toutes les 2 semaines le jeudi »: the two code reviews were listed as
+ * « 13 2 * * 4 2-53/2 », a line nobody recognises; they now read « Chaque jeudi à 2 h 13, une
+ * semaine sur deux ».
  */
 fun humanCron(cron: String, words: ScheduleWords): String? {
     val fields = cron.trim().split(Regex("\\s+")).dropWhile { it.startsWith("CRON_TZ=") }
-    if (fields.size != CRON_FIELDS) return null
+    val schedule = if (fields.size in CRON_FIELDS..CRON_FIELDS + 1) fiveFields(fields.take(CRON_FIELDS), words) else null
+    return when {
+        schedule == null || fields.size == CRON_FIELDS -> schedule
+        else -> everyWeeks(schedule, fields[CRON_FIELDS], words)
+    }
+}
+
+/** [schedule] with the cadence its week field gives: every week, one in two, one in n; null for any other shape. */
+private fun everyWeeks(schedule: String, weeks: String, words: ScheduleWords): String? {
+    // A star is every week; a step (over all weeks or a range) is one week in n, whichever it starts on.
+    val every = if (weeks == "*") 1 else WEEK_STEP.matchEntire(weeks)?.groupValues?.get(1)?.toIntOrNull()
+    return when {
+        every == null -> null
+        every < 2 -> schedule
+        every == 2 -> words.everyOtherWeek.fill(schedule)
+        else -> words.everyNWeeks.fill(schedule, every.toString())
+    }
+}
+
+private fun fiveFields(fields: List<String>, words: ScheduleWords): String? {
     val minute = fields[0]
     val hour = fields[1]
     val dayOfMonth = fields[2]
@@ -107,4 +136,5 @@ private fun String.fill(vararg values: String): String =
     values.foldIndexed(this) { index, text, value -> text.replace("%${index + 1}\$s", value) }
 
 private const val CRON_FIELDS = 5
+private val WEEK_STEP = Regex("""(?:\*|\d{1,2}-\d{1,2})/(\d{1,2})""")
 private val ISO_DATE_TIME = Regex("""^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})""")
