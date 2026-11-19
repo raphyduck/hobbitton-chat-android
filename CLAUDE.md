@@ -290,7 +290,8 @@ that arrives waits for the other to finish. The lock is held by the scheduler (i
   `MainActivity.receiveShare` stages the content URIs off the main thread exactly as the composer's
   picker does (`stageSharedUris`, `:feature:tasks` androidMain: a photo shrunk, a video or a large
   file kept for the deposit with its first frame) and offers them, with `EXTRA_TEXT`, to
-  `ShareIntake` (`:feature:tasks` `share/`, a Koin single). The shell shows `ShareTargetSheet`
+  `ShareIntake` (`:feature:tasks` `share/`, a Koin single). Only another app's `content://` URIs
+  are staged (`isForeignContentUri`, 19/11/2026): no `file://`, none of this app's own providers. The shell shows `ShareTargetSheet`
   (`:shared`) while the share has no target: « Nouvelle conversation » first, then the drawer's
   recent conversations with its search; the pick aims the share (`ShareTarget.NewConversation` or
   `Conversation(id)`) and opens that conversation as the root. The view model whose session matches
@@ -428,7 +429,8 @@ that arrives waits for the other to finish. The lock is held by the scheduler (i
   the portal (`revokeAndForget`, RFC 7009), deletes the opened attachments, the image cache and the
   diagnostic log (`DeviceSession`, `AndroidDeviceSession`). The OAuth mailbox is armed with the
   tour's `state` and ignores a link with another. A copy to the clipboard is marked sensitive. The
-  push stream refuses cleartext to a public host and follows no redirection. **Out of sight, the
+  push stream refuses cleartext to a public host and follows no redirection, and so does the
+  deposit's upload (`AndroidAttachmentUploader`, S2, 19/11/2026). **Out of sight, the
   phone keeps one connection**, the push stream (26/10/2026 evening, lot 2 of the review): the
   engine's feed closes when the app leaves the foreground (`EngineShellViewModel.pauseAttention`
   at the shell's ON_STOP, `recheck` at ON_START resumes the watch, which re-reads the pending
