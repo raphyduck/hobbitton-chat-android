@@ -118,7 +118,7 @@ import org.jetbrains.compose.resources.stringResource
  *
  * Shape, fill and border come from `:core:ui`'s [ChatInputDefaults], so this box and the question
  * form cannot drift apart in the colours they share. The model and connectors write straight through
- * to the engine (`model` on the message, `PATCH /session/{id}` for the rules): controls, not
+ * to the engine (`model` on the message, the scheduler's `perimetre` for the rules): controls, not
  * decoration.
  */
 @Composable

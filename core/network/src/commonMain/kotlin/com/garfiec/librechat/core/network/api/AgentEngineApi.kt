@@ -3,14 +3,12 @@ package com.garfiec.librechat.core.network.api
 import com.garfiec.librechat.core.model.engine.CreateEngineSessionRequest
 import com.garfiec.librechat.core.model.engine.EngineMessage
 import com.garfiec.librechat.core.model.engine.EngineModelRef
-import com.garfiec.librechat.core.model.engine.EnginePermissionRule
 import com.garfiec.librechat.core.model.engine.EnginePromptPart
 import com.garfiec.librechat.core.model.engine.EnginePromptRequest
 import com.garfiec.librechat.core.model.engine.EngineProviderCatalogue
 import com.garfiec.librechat.core.model.engine.EngineQuestionReply
 import com.garfiec.librechat.core.model.engine.EngineQuestionRequest
 import com.garfiec.librechat.core.model.engine.EngineSession
-import com.garfiec.librechat.core.model.engine.EngineSessionPatch
 import com.garfiec.librechat.core.model.engine.EngineSessionStatus
 import com.garfiec.librechat.core.network.engine.EngineHttpException
 import io.ktor.client.HttpClient
@@ -18,7 +16,6 @@ import io.ktor.client.call.body
 import io.ktor.client.plugins.timeout
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
-import io.ktor.client.request.patch
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
@@ -165,35 +162,6 @@ class AgentEngineApi(
                 ),
             )
         }.decoded()
-
-    /**
-     * Changes what a **live** session is allowed to touch.
-     *
-     * `PATCH /session/{id}` takes a whole `PermissionRuleset` and **appends** it — it does not
-     * replace what the session already carries. Measured 31/08/2026 on a live mission: 1 016 rules
-     * in 21 stacked blocks, one per call, and the list grows without bound over a long-lived
-     * session. **Whether unticking actually revokes is therefore unverified**: a narrower block
-     * omits the tool rather than denying it, so the answer hangs on which rule the engine keeps —
-     * the last that matches, or the most specific — and this project asserts both in different
-     * places. Settling it needs a measurement nobody has made: revoke a tool, then call it. Until
-     * then a reader takes only the last block (`connectorsGranted`), which errs towards reporting
-     * less than the session may hold.
-     *
-     * That the engine accepts this at all is what lets the conversation offer connector chips:
-     * permissions are not frozen at creation, and a session that was launched with memory alone can
-     * be handed the mail connector without being restarted and losing its transcript. The other
-     * face of the same coin, seen the same day: a mission the scheduler had capped at 14 tools was
-     * carrying 112 by the time someone had finished ticking boxes in front of it.
-     *
-     * The rules are the caller's to build, from the scheduler's catalogue — this class copies no
-     * tool table of its own.
-     */
-    suspend fun setPermissions(sessionId: String, rules: List<EnginePermissionRule>) {
-        client.patch {
-            url { path("session/${sessionId.encodeURLPathPart()}") }
-            setBody(EngineSessionPatch(permission = rules))
-        }.orThrow()
-    }
 
     /**
      * Every active session at once, keyed by id — there is no per-session route. A session **absent
