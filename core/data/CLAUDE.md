@@ -27,7 +27,9 @@ The engine's and the portal's data layer, and the app's preferences.
   files' downloads). `AndroidSpeechModelStore` (androidMain, bound in `engineModule`) downloads
   through the DownloadManager over Wi-Fi only into the external files directory as `.part`, hashes
   each file once all are down, renames them and writes a `ready` mark; it follows a download again
-  at the next start (its ids in `eva_speech_model`).
+  at the next start (its ids in `eva_speech_model`). The DownloadManager is polled every second
+  while the state is watched (screens collect it with the lifecycle), every 30 s otherwise
+  (`awaitNextPoll`, E1, 19/11/2026): a download's end can then be noticed up to 30 s late.
 - **`legacy/`** — `LegacyLibreChatCleanup`: removes, once, what LibreChat left on an upgraded
   device (below).
 - **`di/`** — `dataModule` (+ `dataPlatformModule`, `hobbittonDataModule`) and `engineModule`

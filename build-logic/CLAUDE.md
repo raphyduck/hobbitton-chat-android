@@ -46,3 +46,5 @@ build.gradle.kts files. Use `libs.` accessors (e.g., `libs.koin.android`, `libs.
 Feature modules use `id("librechat.kmp.feature")`, which auto-applies library, compose, koin,
 serialization, and Nav 3. They only need to add feature-specific dependencies.
 Feature modules depend on `:core:*` only, never on other feature modules.
+
+- Repositories (`settings.gradle.kts`): jitpack serves only `com.github.davidliu` (LiveKit's audioswitch), by a content filter (S3, 19/11/2026); a new group from it needs a new `includeGroup`.

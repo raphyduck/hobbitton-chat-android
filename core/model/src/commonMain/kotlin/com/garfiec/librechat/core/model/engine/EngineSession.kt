@@ -71,8 +71,9 @@ data class EnginePermissionRule(
     // each rule as `{permission, pattern, action}` and rejects the whole request with a bare 400
     // `{"_tag":"BadRequest"}` when `pattern` is absent (verified against the live engine 28/08/2026).
     // The app's Json is `encodeDefaults = false`, so without this annotation the default `"*"` is
-    // dropped and EVERY mission launch fails — permissionsFor always emits at least the deny-all rule
-    // with the default pattern, so createSession never once succeeded from the app.
+    // dropped and EVERY mission launch fails — the rules this app wrote (it wrote them until 10/11/2026;
+    // it only reads them now) carried at least the deny-all rule with the default pattern, so
+    // createSession never once succeeded from the app.
     @EncodeDefault(EncodeDefault.Mode.ALWAYS) val pattern: String = "*",
     val action: String,
 )

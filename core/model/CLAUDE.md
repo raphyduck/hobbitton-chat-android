@@ -5,7 +5,7 @@
 ## What This Module Provides
 
 - **`engine/`** — the OpenCode engine's wire models: sessions (`EngineSession`,
-  `CreateEngineSessionRequest`, `EngineSessionPatch`, `EnginePermissionRule`), messages and parts
+  `CreateEngineSessionRequest`, `EnginePermissionRule`), messages and parts
   (`EngineMessage`, `EnginePart`, `EngineTokens`), prompts (`EnginePromptRequest`,
   `EnginePromptPart`, `EngineModelRef`), the provider catalogue (`EngineProviderCatalogue`,
   `EngineSelectableModel`), the live feed (`EngineStreamEvent`, `engineHistoryEvents`), a

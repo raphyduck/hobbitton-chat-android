@@ -9,7 +9,7 @@ import com.garfiec.librechat.core.model.scheduler.ConnectorCatalogue
  * The session's rules are the scheduler's (10/11/2026, Raphaël: « c'est le serveur qui définit
  * les modes »): the app tells `perimetre` the conversation's mode and the direct connectors ticked
  * ([directPerimeter]), and the scheduler writes the rules of the role that leads in that mode. The
- * app wrote them itself from 26/09 to 10/11/2026 (`permissionsFor`, with a table of the roles'
+ * app wrote them itself from 26/09 to 10/11/2026 (with a table of the roles'
  * access copied from the server); the conversations opened then still carry those rules, which
  * are only READ here, for the chip, until the first send has the scheduler rewrite them.
  */

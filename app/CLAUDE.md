@@ -38,7 +38,8 @@ Single Activity. `MainActivity` is the sole entry point; `LibreChatApplication` 
   variables: the sign-in starts on them. It also binds `DiagnosticLogShare` (20/10/2026):
   `diagnostics/AndroidDiagnosticLogShare`, the diagnostic log written to the cache's `attachments/`
   and handed to the share sheet (`ACTION_SEND`, the conversation files' FileProvider), from
-  Settings → Plateforme.
+  Settings → Plateforme. Since 19/11/2026 (S1) it cannot be shared into Eva itself: Eva's share
+  refuses its own `<package>.files` provider, so the log goes to another app only.
 - `attention/`: `AndroidAttentionNotifier` (the notification sound, the « Questions » and
   « Replies » channels, the notification that opens a conversation) and `attentionModule`. The
   channels' ids keep their `butler_` prefix: renamed, Android would drop the settings set on them.

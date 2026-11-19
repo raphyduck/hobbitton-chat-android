@@ -39,6 +39,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.garfiec.librechat.core.common.network.CleartextPolicy
 import com.garfiec.librechat.core.data.engine.EngineAddressField
 import com.garfiec.librechat.core.ui.components.EvaMark
 import com.garfiec.librechat.core.ui.components.PlatformBackHandler
@@ -232,7 +233,7 @@ private fun SignInControls(
         if (state.prefilled && !state.addressesShown) {
             // Where the button leads, and the way out for someone whose platform is another.
             Spacer(Modifier.height(12.dp))
-            hostOf(state.baseUrl)?.let { host ->
+            CleartextPolicy.hostOf(state.baseUrl)?.let { host ->
                 Text(
                     text = stringResource(Res.string.portal_platform, host),
                     style = MaterialTheme.typography.bodySmall,
@@ -297,13 +298,6 @@ private fun AddressField(
         modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp).testTag(tag),
     )
 }
-
-/** « agent.example.com » out of « https://agent.example.com/ »: what the screen says of the platform. */
-internal fun hostOf(url: String): String? = url
-    .trim()
-    .substringAfter("://", url.trim())
-    .substringBefore('/')
-    .takeIf { it.isNotBlank() }
 
 /**
  * The web view of the sign-in, over the whole screen while a round trip is open.

@@ -34,6 +34,7 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
+import com.garfiec.librechat.core.common.network.CleartextPolicy
 import com.garfiec.librechat.core.data.datastore.ChatFontSize
 import com.garfiec.librechat.core.data.datastore.ThemeMode
 import com.garfiec.librechat.core.data.engine.EngineChatSummary
@@ -113,7 +114,7 @@ fun EngineNavHost(
                     true -> AppLockGate(onSignOut = viewModel::signOut) {
                         val account = DrawerAccount(
                             name = identity?.nom?.takeIf { it.isNotBlank() } ?: identity?.prenom?.takeIf { it.isNotBlank() },
-                            host = addresses?.baseUrl?.let(::hostOf),
+                            host = addresses?.baseUrl?.let(CleartextPolicy::hostOf),
                         )
                         EngineMainLayout(
                             chats = chats,
@@ -418,13 +419,6 @@ private fun EngineMainLayout(
         )
     }
 }
-
-/** « agent.hobbitton.at » out of « https://agent.hobbitton.at/ »: what the drawer's foot shows of the platform. */
-private fun hostOf(baseUrl: String): String? = baseUrl
-    .trim()
-    .substringAfter("://", baseUrl.trim())
-    .substringBefore('/')
-    .takeIf { it.isNotBlank() }
 
 private const val PUSH_MS = 220
 private const val PUSH_FRACTION = 8

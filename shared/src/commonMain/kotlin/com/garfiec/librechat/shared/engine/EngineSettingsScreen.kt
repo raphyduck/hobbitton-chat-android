@@ -63,6 +63,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.garfiec.librechat.core.data.datastore.ChatFontSize
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.datastore.ThemeMode
@@ -581,7 +582,7 @@ private fun AccountHeader(account: DrawerAccount) {
 private fun SpeechModelSection() {
     val store = remember { runCatching { KoinPlatform.getKoinOrNull()?.getOrNull<SpeechModelStore>() }.getOrNull() }
     if (store == null || !store.supported) return
-    val state by store.state.collectAsState()
+    val state by store.state.collectAsStateWithLifecycle()
     SectionDivider()
     SpeechModelRow(state = state, onDownload = store::download, onCancel = store::cancel, onDelete = store::delete)
 }
