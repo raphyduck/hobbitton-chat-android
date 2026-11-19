@@ -16,7 +16,7 @@ data class ScheduledMission(
     @SerialName("nom") val name: String,
     @SerialName("profil") val profile: String,
     @SerialName("active") val enabled: Boolean,
-    /** Five-field crontab, or null for a one-shot — [runAt] carries the date then. */
+    /** Five-field crontab (plus the scheduler's optional sixth, the ISO week), or null for a one-shot: [runAt] carries the date then. */
     @SerialName("cron") val cron: String? = null,
     @SerialName("quand") val runAt: String? = null,
     @SerialName("fuseau") val timeZone: String = "",

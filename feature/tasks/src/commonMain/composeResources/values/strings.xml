@@ -131,7 +131,7 @@
     <string name="tasks_scheduled_recurring">Recurring</string>
     <string name="tasks_scheduled_once">One-shot</string>
     <string name="tasks_scheduled_cron">Schedule (cron)</string>
-    <string name="tasks_scheduled_cron_hint">Five fields, like a crontab: “0 5 * * *” is every day at 5am.</string>
+    <string name="tasks_scheduled_cron_hint">Five fields, like a crontab: “0 5 * * *” is every day at 5am. A sixth one, the week: “0 5 * * 4 */2” is every other Thursday.</string>
     <string name="tasks_scheduled_runat">Date and time</string>
     <string name="tasks_scheduled_runat_hint">ISO 8601, e.g. “2027-01-15T09:00”. It fires once, then suspends itself.</string>
     <string name="tasks_scheduled_timezone">Read in %1$s — the task's time zone, not this phone's.</string>
@@ -187,6 +187,8 @@
     <string name="tasks_cron_monthly">On day %1$s of each month at %2$s</string>
     <string name="tasks_cron_hourly_between">Every hour from %1$s to %2$s</string>
     <string name="tasks_cron_hourly">Every hour</string>
+    <string name="tasks_cron_every_other_week">%1$s, every other week</string>
+    <string name="tasks_cron_every_n_weeks">%1$s, every %2$s weeks</string>
     <string name="tasks_date">%1$s %2$s %3$s, %4$s</string>
     <string name="tasks_and">and</string>
     <string name="tasks_context">Context</string>

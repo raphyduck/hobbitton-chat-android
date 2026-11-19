@@ -54,6 +54,8 @@ import com.garfiec.librechat.feature.tasks.resources.Res
 import com.garfiec.librechat.feature.tasks.resources.tasks_and
 import com.garfiec.librechat.feature.tasks.resources.tasks_cancel
 import com.garfiec.librechat.feature.tasks.resources.tasks_cron_daily
+import com.garfiec.librechat.feature.tasks.resources.tasks_cron_every_n_weeks
+import com.garfiec.librechat.feature.tasks.resources.tasks_cron_every_other_week
 import com.garfiec.librechat.feature.tasks.resources.tasks_cron_hourly
 import com.garfiec.librechat.feature.tasks.resources.tasks_cron_hourly_between
 import com.garfiec.librechat.feature.tasks.resources.tasks_cron_monthly
@@ -255,6 +257,8 @@ internal fun scheduleWords(): ScheduleWords = ScheduleWords(
     monthly = stringResource(Res.string.tasks_cron_monthly),
     hourlyBetween = stringResource(Res.string.tasks_cron_hourly_between),
     hourly = stringResource(Res.string.tasks_cron_hourly),
+    everyOtherWeek = stringResource(Res.string.tasks_cron_every_other_week),
+    everyNWeeks = stringResource(Res.string.tasks_cron_every_n_weeks),
     date = stringResource(Res.string.tasks_date),
     and = stringResource(Res.string.tasks_and),
 )

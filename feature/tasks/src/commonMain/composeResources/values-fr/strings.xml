@@ -131,7 +131,7 @@
     <string name="tasks_scheduled_recurring">Récurrente</string>
     <string name="tasks_scheduled_once">Ponctuelle</string>
     <string name="tasks_scheduled_cron">Horaire (cron)</string>
-    <string name="tasks_scheduled_cron_hint">Cinq champs, comme une crontab : « 0 5 * * * » = tous les jours à 5 h.</string>
+    <string name="tasks_scheduled_cron_hint">Cinq champs, comme une crontab : « 0 5 * * * » = tous les jours à 5 h. Un sixième, la semaine : « 0 5 * * 4 */2 » = un jeudi sur deux.</string>
     <string name="tasks_scheduled_runat">Date et heure</string>
     <string name="tasks_scheduled_runat_hint">ISO 8601, ex. « 2027-01-15T09:00 ». Elle part une fois, puis se désactive.</string>
     <string name="tasks_scheduled_timezone">Lue dans %1$s — le fuseau de la tâche, pas celui du téléphone.</string>
@@ -187,6 +187,8 @@
     <string name="tasks_cron_monthly">Le %1$s de chaque mois à %2$s</string>
     <string name="tasks_cron_hourly_between">Toutes les heures de %1$s à %2$s</string>
     <string name="tasks_cron_hourly">Toutes les heures</string>
+    <string name="tasks_cron_every_other_week">%1$s, une semaine sur deux</string>
+    <string name="tasks_cron_every_n_weeks">%1$s, toutes les %2$s semaines</string>
     <string name="tasks_date">%1$s %2$s %3$s à %4$s</string>
     <string name="tasks_and">et</string>
     <string name="tasks_context">Contexte</string>

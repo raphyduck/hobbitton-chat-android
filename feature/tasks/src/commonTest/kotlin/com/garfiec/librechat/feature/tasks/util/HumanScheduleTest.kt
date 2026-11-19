@@ -19,6 +19,8 @@ class HumanScheduleTest {
         monthly = "Le %1\$s de chaque mois à %2\$s",
         hourlyBetween = "Toutes les heures de %1\$s à %2\$s",
         hourly = "Toutes les heures",
+        everyOtherWeek = "%1\$s, une semaine sur deux",
+        everyNWeeks = "%1\$s, toutes les %2\$s semaines",
         date = "%1\$s %2\$s %3\$s à %4\$s",
         and = "et",
     )
@@ -34,6 +36,20 @@ class HumanScheduleTest {
         assertEquals("Le 1 de chaque mois à 6 h", humanCron("0 6 1 * *", fr))
         assertEquals("Toutes les heures de 8 h à 20 h", humanCron("0 8-20 * * *", fr))
         assertEquals("Toutes les heures", humanCron("0 * * * *", fr))
+    }
+
+    @Test
+    fun `the scheduler's sixth field says the weeks`() {
+        // 19/11/2026: the two code reviews, one Thursday in two, were listed as their raw cron.
+        assertEquals("Chaque jeudi à 2 h 13, une semaine sur deux", humanCron("13 2 * * 4 2-53/2", fr))
+        assertEquals("Chaque jeudi à 3 h 43, une semaine sur deux", humanCron("43 3 * * 4 */2", fr))
+        assertEquals("Tous les jours à 7 h, toutes les 4 semaines", humanCron("0 7 * * * */4", fr))
+        assertEquals("Chaque lundi à 9 h", humanCron("0 9 * * 1 *", fr))
+        assertEquals("Chaque lundi à 9 h", humanCron("CRON_TZ=Europe/Paris 0 9 * * 1 */1", fr))
+        // A list of weeks, or a schedule the five fields do not say: the caller shows the cron.
+        assertNull(humanCron("0 9 * * 1 1,5,9", fr))
+        assertNull(humanCron("*/15 * * * * */2", fr))
+        assertNull(humanCron("0 9 * * 1 */2 2026", fr))
     }
 
     @Test
