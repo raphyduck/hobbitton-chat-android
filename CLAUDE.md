@@ -258,7 +258,7 @@ that arrives waits for the other to finish. The lock is held by the scheduler (i
   TDT 0.6B v3 (25 European languages, French included; the sherpa-onnx project's int8 export,
   Hugging Face `csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8` pinned to one revision) and
   the Silero voice detector, 671 MB, once, through Android's DownloadManager over Wi-Fi only, each
-  file checked against its SHA-256 (`ParakeetModel`, `SpeechModelStore`, `AndroidSpeechModelStore`,
+  file checked against its SHA-256 (`SpeechModels`, `SpeechModelStore`, `AndroidSpeechModelStore`,
   `:core:data` `speech/`; under the app's external files directory, kept at sign-out: nothing
   personal). Once there, the phone's dictation goes through it (`ParakeetDictation`, `:feature:tasks`
   androidMain), on any Android version: an `AudioRecord` read into a queue, Silero cutting the take
@@ -269,6 +269,22 @@ that arrives waits for the other to finish. The lock is held by the scheduler (i
   its GitHub release (an `ivy` repository in `settings.gradle.kts`), its classes kept from R8
   (`proguard-rules.pro`), its 32-bit libraries left out of the APK: a 32-bit phone is not offered
   the model (`SpeechModelStore.supported`).
+  **Three models to compare** (20/11/2026, Raphaël: Parakeet « mélange anglais et français
+  allègrement de manière à ce que ça soit incompréhensible », then « essaie Canary … Ajoute le
+  Canary Flash et pas Flash et je testerai »). Parakeet v3 guesses the language of each stretch
+  and has no setting to fix it. NVIDIA's Canary models take the language heard and the language
+  written: both French here (`DICTATION_LANGUAGE`), so the text is French whatever was said
+  (English speech comes out translated). Settings → Dictée lists the three (`SpeechModels`:
+  Parakeet 671 MB, Canary 180M Flash 208 MB from the sherpa-onnx project's export, Canary 1B v2
+  1,39 GB from a community export, `bnoordhuis/canary-1b-v2-sherpa-onnx-nl-int8`, neither NVIDIA
+  nor k2-fsa publishing one; each pinned to a revision and SHA-256), a store per model
+  (`AndroidSpeechModelStore(context, model)`), and the installed ones carry a radio button: the
+  dictation goes through the chosen one, the one last asked for by default
+  (`SpeechModelLibrary`, `activeSpeechModel`). `ParakeetEngine` reads a Canary through
+  sherpa-onnx's `OfflineCanaryModelConfig` (128 mel bins, `srcLang` = `tgtLang` = `fr`). The
+  composer reads the model at the tap (`library.active()`), no collector: v2026.11.35 had bound
+  it to the entry's lifecycle. The journal names who heard each dictation (tag `Dictation`), each
+  model's load time and each sentence's decoding time (`ParakeetDictation`), never the words.
 - **Videos and large files** (06/11/2026, Raphaël: « il faut pouvoir ajouter des vidéos également »;
   a leak video he sent never reached the agent: past 16 MB the picker silently staged nothing). A
   photo still rides in the message as a base64 part. A video, whatever its size, and any other file

@@ -7,8 +7,10 @@ import android.media.MediaRecorder
 import android.os.Handler
 import android.os.Looper
 import co.touchlab.kermit.Logger
+import com.garfiec.librechat.core.data.speech.SpeechModelKind
 import com.garfiec.librechat.core.data.speech.SpeechModelPaths
 import com.k2fsa.sherpa.onnx.FeatureConfig
+import com.k2fsa.sherpa.onnx.OfflineCanaryModelConfig
 import com.k2fsa.sherpa.onnx.OfflineModelConfig
 import com.k2fsa.sherpa.onnx.OfflineRecognizer
 import com.k2fsa.sherpa.onnx.OfflineRecognizerConfig
@@ -23,7 +25,8 @@ import java.util.concurrent.TimeUnit
  * The dictation heard by Parakeet TDT 0.6B v3 on the phone itself (11/11/2026, Raphaël: « On va
  * tout faire sur le téléphone »; Android's own recognizer heard French far worse than Claude's
  * app). The model is the one Settings → Dictée downloaded ([SpeechModelPaths]); nothing leaves the
- * device.
+ * device. Since 20/11/2026 it is the model the person chose there, Parakeet or one of NVIDIA's
+ * Canary, which are told to hear and write French ([ParakeetEngine]); the class kept its name.
  *
  * Three hands: a mic thread reads an [AudioRecord] (16 kHz mono, the speech-recognition source)
  * from tap to tap into a queue, never blocked by the decoding; a worker thread feeds the queue to
@@ -164,7 +167,7 @@ internal class ParakeetDictation(
             while (!vad.empty()) {
                 val segment = vad.front()
                 vad.pop()
-                deliverHeard(decode(recognizer, segment.samples))
+                deliverHeard(decodeTimed(recognizer, segment.samples))
                 heardOne = true
             }
             if (heardOne) {
@@ -182,8 +185,18 @@ internal class ParakeetDictation(
         while (!vad.empty()) {
             val segment = vad.front()
             vad.pop()
-            deliverHeard(decode(recognizer, segment.samples))
+            deliverHeard(decodeTimed(recognizer, segment.samples))
         }
+    }
+
+    /** A sentence's decoding, with its time in the journal: how the model keeps up on this phone. */
+    private fun decodeTimed(recognizer: OfflineRecognizer, samples: FloatArray): String {
+        val started = System.currentTimeMillis()
+        val text = decode(recognizer, samples)
+        Logger.i(tag = TAG) {
+            "${paths.model.name}: ${samples.size * 1000L / SAMPLE_RATE} ms of speech read in ${System.currentTimeMillis() - started} ms"
+        }
+        return text
     }
 
     private fun decode(recognizer: OfflineRecognizer, samples: FloatArray): String {
@@ -260,9 +273,12 @@ internal class ParakeetDictation(
 }
 
 /**
- * The recognizer, one per process: loading Parakeet takes a few seconds and some 700 MB, so it is
- * kept between dictations and let go once none has run for [IDLE_MS]. Its calls run on the
- * dictation's worker thread.
+ * The recognizer, one per process: loading a model takes a few seconds and about its files' size
+ * in memory, so it is kept between dictations and let go once none has run for [IDLE_MS], or when
+ * another model is asked for. Its calls run on the dictation's worker thread.
+ *
+ * A Canary model (20/11/2026) is given the language it hears and the one it writes, both the
+ * dictation's ([DICTATION_LANGUAGE]): it never switches to English on its own as Parakeet does.
  */
 internal object ParakeetEngine {
     private const val IDLE_MS = 3 * 60_000L
@@ -282,7 +298,7 @@ internal object ParakeetEngine {
             loaded?.second?.release()
             val started = System.currentTimeMillis()
             val recognizer = OfflineRecognizer(null, config(paths))
-            Logger.i(tag = "ParakeetDictation") { "Parakeet loaded in ${System.currentTimeMillis() - started} ms" }
+            Logger.i(tag = "ParakeetDictation") { "${paths.model.name} loaded in ${System.currentTimeMillis() - started} ms" }
             loaded = paths to recognizer
             recognizer
         }
@@ -293,18 +309,39 @@ internal object ParakeetEngine {
         main.postDelayed(dropIdle, IDLE_MS)
     }
 
-    private fun config(paths: SpeechModelPaths) = OfflineRecognizerConfig(
-        featConfig = FeatureConfig(sampleRate = 16_000, featureDim = 80),
-        modelConfig = OfflineModelConfig(
-            transducer = OfflineTransducerModelConfig(
-                encoder = paths.encoder,
-                decoder = paths.decoder,
-                joiner = paths.joiner,
-            ),
-            tokens = paths.tokens,
-            modelType = "nemo_transducer",
-            numThreads = Runtime.getRuntime().availableProcessors().coerceIn(2, 4),
-        ),
-        decodingMethod = "greedy_search",
-    )
+    private fun config(paths: SpeechModelPaths): OfflineRecognizerConfig {
+        val threads = Runtime.getRuntime().availableProcessors().coerceIn(2, 4)
+        val language = DICTATION_LANGUAGE.substringBefore('-')
+        return when (paths.model.kind) {
+            SpeechModelKind.TRANSDUCER -> OfflineRecognizerConfig(
+                featConfig = FeatureConfig(sampleRate = 16_000, featureDim = 80),
+                modelConfig = OfflineModelConfig(
+                    transducer = OfflineTransducerModelConfig(
+                        encoder = paths.encoder,
+                        decoder = paths.decoder,
+                        joiner = checkNotNull(paths.joiner) { "a transducer has a joiner" },
+                    ),
+                    tokens = paths.tokens,
+                    modelType = "nemo_transducer",
+                    numThreads = threads,
+                ),
+                decodingMethod = "greedy_search",
+            )
+            SpeechModelKind.CANARY -> OfflineRecognizerConfig(
+                featConfig = FeatureConfig(sampleRate = 16_000, featureDim = 128),
+                modelConfig = OfflineModelConfig(
+                    canary = OfflineCanaryModelConfig(
+                        encoder = paths.encoder,
+                        decoder = paths.decoder,
+                        srcLang = language,
+                        tgtLang = language,
+                        usePnc = true,
+                    ),
+                    tokens = paths.tokens,
+                    numThreads = threads,
+                ),
+                decodingMethod = "greedy_search",
+            )
+        }
+    }
 }
