@@ -15,6 +15,7 @@ import com.garfiec.librechat.core.data.engine.EngineSessionKind
 import com.garfiec.librechat.core.data.engine.inboxOrder
 import com.garfiec.librechat.core.data.lock.LockState
 import com.garfiec.librechat.core.data.speech.SpeechModelState
+import com.garfiec.librechat.core.data.speech.SpeechModels
 import com.garfiec.librechat.core.model.scheduler.ChatBudget
 import com.garfiec.librechat.core.network.engine.EngineAccess
 import com.garfiec.librechat.core.ui.components.SectionDivider
@@ -125,7 +126,15 @@ private fun Settings() {
         },
         speechModelSection = {
             SectionDivider()
-            SpeechModelRow(state = SpeechModelState.Absent, onDownload = {}, onCancel = {}, onDelete = {})
+            SpeechModelRow(
+                model = SpeechModels.PARAKEET,
+                state = SpeechModelState.Absent,
+                active = false,
+                onChoose = {},
+                onDownload = {},
+                onCancel = {},
+                onDelete = {},
+            )
         },
     )
 }

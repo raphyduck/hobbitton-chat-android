@@ -21,15 +21,21 @@ The engine's and the portal's data layer, and the app's preferences.
   five tries, a delay on a monotonic clock, `isTooSimple`) over `AppLockStore`;
   `AndroidAppLockStore` (androidMain) keeps a salted PBKDF2 hash in its own encrypted file
   (`eva_lock`). Both bound in `engineModule`.
-- **`speech/`** (11/11/2026): the dictation model the phone runs itself, Parakeet TDT 0.6B v3 and
-  Silero's voice detector (`ParakeetModel`: each file's pinned URL, size and SHA-256), its
-  `SpeechModelState` and `SpeechModelStore` (download, cancel, delete; `downloadState` reads the
-  files' downloads). `AndroidSpeechModelStore` (androidMain, bound in `engineModule`) downloads
-  through the DownloadManager over Wi-Fi only into the external files directory as `.part`, hashes
-  each file once all are down, renames them and writes a `ready` mark; it follows a download again
-  at the next start (its ids in `eva_speech_model`). The DownloadManager is polled every second
-  while the state is watched (screens collect it with the lifecycle), every 30 s otherwise
-  (`awaitNextPoll`, E1, 19/11/2026): a download's end can then be noticed up to 30 s late.
+- **`speech/`** (11/11/2026; three models since 20/11/2026): the dictation models the phone runs
+  itself, each with Silero's voice detector (`SpeechModels`: Parakeet TDT 0.6B v3, Canary 180M
+  Flash, Canary 1B v2; `SpeechModel`: its `kind`, transducer or Canary, and each file's pinned
+  URL, size and SHA-256), their `SpeechModelState` and one `SpeechModelStore` per model (download,
+  cancel, delete; `downloadState` reads the files' downloads). `SpeechModelLibrary` holds the
+  stores and the person's choice; `active()` / `activeSpeechModel` give the installed model the
+  dictation goes through (the chosen one, else the first installed). `AndroidSpeechModelStore`
+  (androidMain, one per model in `androidSpeechModelLibrary`, bound in `engineModule`) downloads
+  through the DownloadManager over Wi-Fi only into the model's directory under the external files
+  directory as `.part`, hashes each file once all are down, renames them and writes a `ready`
+  mark; it follows a download again at the next start (its ids in `eva_speech_model`, a key per
+  model, Parakeet's the one of before; the choice under `chosen`). The DownloadManager is polled
+  every second while the state is watched, every 30 s otherwise (`awaitNextPoll`, E1,
+  19/11/2026): a download's end can then be noticed up to 30 s late. Settings collect the states
+  for as long as the page is composed, the composer reads the model at the tap.
 - **`legacy/`** — `LegacyLibreChatCleanup`: removes, once, what LibreChat left on an upgraded
   device (below).
 - **`di/`** — `dataModule` (+ `dataPlatformModule`, `hobbittonDataModule`) and `engineModule`

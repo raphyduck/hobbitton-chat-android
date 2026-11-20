@@ -23,7 +23,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -34,21 +33,21 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import co.touchlab.kermit.Logger
 import com.garfiec.librechat.core.common.di.AppThreads
 import com.garfiec.librechat.core.data.engine.TranscriptionFailure
 import com.garfiec.librechat.core.data.engine.TranscriptionOutcome
-import com.garfiec.librechat.core.data.speech.SpeechModelState
-import com.garfiec.librechat.core.data.speech.SpeechModelStore
+import com.garfiec.librechat.core.data.speech.SpeechModelLibrary
 import java.io.File
 import java.io.IOException
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.koin.mp.KoinPlatform
 
 /**
- * Three ways behind one two-state button, when [onDevice] asks for the phone: Parakeet on the
- * phone ([ParakeetDictation], 11/11/2026) once Settings → Dictée has downloaded its model, else
+ * Three ways behind one two-state button, when [onDevice] asks for the phone: a model run on the
+ * phone ([ParakeetDictation], 11/11/2026; Parakeet or a Canary, the one chosen in Settings →
+ * Dictée, 20/11/2026) once one is downloaded, else
  * the phone's own speech recognition ([PhoneDictation]) where it has one; otherwise a
  * MediaRecorder whose take goes to the scheduler. The recorder's blocking calls (prepare/start/stop
  * and the file read) run on the IO dispatcher; the recognizer lives on the main thread, as it must.
@@ -71,10 +70,10 @@ internal actual fun rememberMissionDictation(
     var heard by remember { mutableStateOf("") }
     // The phone has no French yet: the scheduler hears this screen's dictations meanwhile.
     var serverOnly by remember { mutableStateOf(false) }
-    // The model Settings downloaded; absent, the phone's recognizer hears as before.
-    val models = remember { runCatching { KoinPlatform.getKoinOrNull()?.getOrNull<SpeechModelStore>() }.getOrNull() }
-    val noModel = remember { MutableStateFlow<SpeechModelState>(SpeechModelState.Absent) }
-    val model by (models?.state ?: noModel).collectAsStateWithLifecycle()
+    // The models Settings downloaded; none, the phone's recognizer hears as before. The one in
+    // use is read at the tap (20/11/2026), not collected: a collector bound to this entry's
+    // lifecycle could keep the « absent » the store is born with.
+    val models = remember { runCatching { KoinPlatform.getKoinOrNull()?.getOrNull<SpeechModelLibrary>() }.getOrNull() }
     var parakeet by remember { mutableStateOf<ParakeetDictation?>(null) }
     val phone = remember {
         PhoneDictation(
@@ -106,10 +105,11 @@ internal actual fun rememberMissionDictation(
     }
 
     val begin: () -> Unit = {
-        val ready = model as? SpeechModelState.Ready
-        if (onDevice && ready != null) {
+        val installed = models?.active()
+        if (onDevice && installed != null) {
+            Logger.i(tag = DICTATION_TAG) { "Dictation heard on the phone by ${installed.model.name}" }
             val fresh = ParakeetDictation(
-                paths = ready.paths,
+                paths = installed,
                 onPartial = { heard = it },
                 onHeard = { heardNow(it) },
                 onEnd = { error ->
@@ -122,8 +122,10 @@ internal actual fun rememberMissionDictation(
             listening = fresh.start()
             parakeet = fresh.takeIf { listening }
         } else if (onDevice && !serverOnly && PhoneDictation.available(context)) {
+            Logger.i(tag = DICTATION_TAG) { "Dictation heard on the phone by Android's recognizer: no model installed" }
             listening = phone.start()
         } else {
+            Logger.i(tag = DICTATION_TAG) { "Dictation recorded for the scheduler (on the phone: $onDevice)" }
             scope.launch {
                 recording = withContext(AppThreads.io) { recorder.begin() }
             }
@@ -613,7 +615,8 @@ private const val ENCODING_BIT_RATE = 32_000
 private const val DICTATION_NAME = "dictee"
 
 /** Eva is spoken to in French; the scheduler's transcription, which guesses, is the way out. */
-private const val DICTATION_LANGUAGE = "fr-FR"
+internal const val DICTATION_LANGUAGE = "fr-FR"
+private const val DICTATION_TAG = "Dictation"
 
 /** How much of the take the mic keeps for a recognizer that has to be started again. */
 private const val TAKE_KEPT_NANOS = 30_000_000_000L

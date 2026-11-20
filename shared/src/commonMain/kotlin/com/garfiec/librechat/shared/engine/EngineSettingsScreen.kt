@@ -68,10 +68,12 @@ import com.garfiec.librechat.core.data.datastore.ChatFontSize
 import com.garfiec.librechat.core.data.datastore.SettingsDataStore
 import com.garfiec.librechat.core.data.datastore.ThemeMode
 import com.garfiec.librechat.core.data.lock.AppLock
-import com.garfiec.librechat.core.data.speech.ParakeetModel
+import com.garfiec.librechat.core.data.speech.SpeechModel
 import com.garfiec.librechat.core.data.speech.SpeechModelFailure
+import com.garfiec.librechat.core.data.speech.SpeechModelLibrary
 import com.garfiec.librechat.core.data.speech.SpeechModelState
-import com.garfiec.librechat.core.data.speech.SpeechModelStore
+import com.garfiec.librechat.core.data.speech.SpeechModels
+import com.garfiec.librechat.core.data.speech.activeSpeechModel
 import com.garfiec.librechat.core.model.engine.EngineSelectableModel
 import com.garfiec.librechat.core.network.engine.EngineAccess
 import com.garfiec.librechat.core.ui.components.SectionDivider
@@ -125,8 +127,9 @@ import com.garfiec.librechat.shared.resources.engine_settings_scheduler
 import com.garfiec.librechat.shared.resources.engine_settings_sign_out
 import com.garfiec.librechat.shared.resources.engine_settings_sign_out_confirm
 import com.garfiec.librechat.shared.resources.engine_settings_sign_out_hint
-import com.garfiec.librechat.shared.resources.engine_settings_speech_model
 import com.garfiec.librechat.shared.resources.engine_settings_speech_model_absent
+import com.garfiec.librechat.shared.resources.engine_settings_speech_model_canary_flash
+import com.garfiec.librechat.shared.resources.engine_settings_speech_model_canary_v2
 import com.garfiec.librechat.shared.resources.engine_settings_speech_model_cancel
 import com.garfiec.librechat.shared.resources.engine_settings_speech_model_delete
 import com.garfiec.librechat.shared.resources.engine_settings_speech_model_download
@@ -135,6 +138,7 @@ import com.garfiec.librechat.shared.resources.engine_settings_speech_model_faile
 import com.garfiec.librechat.shared.resources.engine_settings_speech_model_failed_network
 import com.garfiec.librechat.shared.resources.engine_settings_speech_model_failed_storage
 import com.garfiec.librechat.shared.resources.engine_settings_speech_model_ready
+import com.garfiec.librechat.shared.resources.engine_settings_speech_model_ready_idle
 import com.garfiec.librechat.shared.resources.engine_settings_speech_model_retry
 import com.garfiec.librechat.shared.resources.engine_settings_speech_model_verifying
 import com.garfiec.librechat.shared.resources.engine_settings_speech_model_waiting
@@ -206,7 +210,7 @@ internal fun EngineSettingsScreen(
     onShareDiagnostics: () -> Unit = {},
     /** The lock's section (28/10/2026); the screen captures pass its stateless content. */
     lockSection: @Composable () -> Unit = { LockSection() },
-    /** The dictation model's row (11/11/2026); the screen captures leave it out. */
+    /** The dictation models' rows (11/11/2026); the screen captures leave them out. */
     speechModelSection: @Composable () -> Unit = { SpeechModelSection() },
 ) {
     var confirmSignOut by rememberSaveable { mutableStateOf(false) }
@@ -574,30 +578,57 @@ private fun AccountHeader(account: DrawerAccount) {
 }
 
 /**
- * The dictation model the phone runs itself (11/11/2026, Raphaël: « On va tout faire sur le
- * téléphone »): Parakeet, downloaded once over Wi-Fi, then the phone's dictation goes through it.
- * Absent from a phone that cannot run it, and wherever the engine's graph is not started.
+ * The dictation models the phone runs itself (11/11/2026, Raphaël: « On va tout faire sur le
+ * téléphone »): each downloaded once over Wi-Fi, then the phone's dictation goes through the one
+ * chosen here (20/11/2026: Parakeet and two Canary to compare; the one just asked for is the
+ * choice, a tap on an installed one changes it). Absent from a phone that cannot run them, and
+ * wherever the engine's graph is not started.
+ *
+ * The states are collected for as long as the page is composed, not through this entry's
+ * lifecycle: Navigation 3 can hold an entry below the state a lifecycle-bound collector waits
+ * for, and the rows would keep the « absent » a store is born with.
  */
 @Composable
 private fun SpeechModelSection() {
-    val store = remember { runCatching { KoinPlatform.getKoinOrNull()?.getOrNull<SpeechModelStore>() }.getOrNull() }
-    if (store == null || !store.supported) return
-    val state by store.state.collectAsStateWithLifecycle()
-    SectionDivider()
-    SpeechModelRow(state = state, onDownload = store::download, onCancel = store::cancel, onDelete = store::delete)
+    val library = remember { runCatching { KoinPlatform.getKoinOrNull()?.getOrNull<SpeechModelLibrary>() }.getOrNull() }
+    if (library == null || !library.supported) return
+    val chosen by library.chosen.collectAsState()
+    val states = library.stores.map { it.state.collectAsState().value }
+    val active = activeSpeechModel(chosen, states)?.model?.id
+    library.stores.forEachIndexed { index, store ->
+        SectionDivider()
+        SpeechModelRow(
+            model = store.model,
+            state = states[index],
+            active = store.model.id == active,
+            onChoose = { library.choose(store.model.id) },
+            onDownload = {
+                library.choose(store.model.id)
+                store.download()
+            },
+            onCancel = store::cancel,
+            onDelete = store::delete,
+        )
+    }
 }
 
-/** The model's row: what it is, where its download stands, and the one action that fits. */
+/**
+ * A model's row: what it is, where its download stands, and the one action that fits. Installed,
+ * it carries a radio button: the dictation goes through the [active] one.
+ */
 @Composable
 internal fun SpeechModelRow(
+    model: SpeechModel,
     state: SpeechModelState,
+    active: Boolean,
+    onChoose: () -> Unit,
     onDownload: () -> Unit,
     onCancel: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    val total = megabytes(ParakeetModel.TOTAL_BYTES)
+    val total = megabytes(model.totalBytes)
     val supporting = when (state) {
-        SpeechModelState.Absent -> stringResource(Res.string.engine_settings_speech_model_absent, total)
+        SpeechModelState.Absent -> stringResource(model.blurb(), total)
         is SpeechModelState.Downloading -> stringResource(
             if (state.waitingForWifi) {
                 Res.string.engine_settings_speech_model_waiting
@@ -608,23 +639,39 @@ internal fun SpeechModelRow(
             megabytes(state.total),
         )
         SpeechModelState.Verifying -> stringResource(Res.string.engine_settings_speech_model_verifying)
-        is SpeechModelState.Ready -> stringResource(Res.string.engine_settings_speech_model_ready, total)
+        is SpeechModelState.Ready -> stringResource(
+            if (active) Res.string.engine_settings_speech_model_ready else Res.string.engine_settings_speech_model_ready_idle,
+            total,
+        )
         is SpeechModelState.Failed -> when (state.failure) {
             SpeechModelFailure.NETWORK -> stringResource(Res.string.engine_settings_speech_model_failed_network)
             SpeechModelFailure.STORAGE -> stringResource(Res.string.engine_settings_speech_model_failed_storage, total)
             SpeechModelFailure.CORRUPT -> stringResource(Res.string.engine_settings_speech_model_failed_corrupt)
         }
     }
+    val installed = state is SpeechModelState.Ready
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 4.dp)
-            .testTag("settings_speech_model"),
+            .testTag("settings_speech_model_${model.id}"),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            Icon(Icons.Outlined.GraphicEq, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-            RowText(stringResource(Res.string.engine_settings_speech_model), supporting, Modifier.weight(1f))
+        Row(
+            modifier = if (installed) {
+                Modifier.fillMaxWidth().selectable(selected = active, onClick = onChoose, role = Role.RadioButton)
+            } else {
+                Modifier.fillMaxWidth()
+            },
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            if (installed) {
+                RadioButton(selected = active, onClick = null)
+            } else {
+                Icon(Icons.Outlined.GraphicEq, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            RowText(model.name, supporting, Modifier.weight(1f))
         }
         if (state is SpeechModelState.Downloading) {
             LinearProgressIndicator(
@@ -647,6 +694,13 @@ internal fun SpeechModelRow(
             Spacer(Modifier.height(8.dp))
         }
     }
+}
+
+/** What a model is, in a line, before it is downloaded. */
+private fun SpeechModel.blurb(): StringResource = when (id) {
+    SpeechModels.CANARY_FLASH.id -> Res.string.engine_settings_speech_model_canary_flash
+    SpeechModels.CANARY_V2.id -> Res.string.engine_settings_speech_model_canary_v2
+    else -> Res.string.engine_settings_speech_model_absent
 }
 
 /** Bytes as whole megabytes, as the download's sizes are read. */
