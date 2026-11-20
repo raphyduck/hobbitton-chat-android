@@ -290,12 +290,14 @@ data class MissionChatUiState(
         } ?: defaultModel
 
     /**
-     * The chip reads « Piloté » (D-086): the pick is « Piloté », or the conversation runs on the
-     * pilot in service, which is what « Piloté » resolves to. The model's own name is one tap
-     * away in the picker; the chip does not push it forward.
+     * The chip reads « Piloté » (D-086) when the pick is « Piloté », and only then. A model picked
+     * by hand is named, in the chip and in the picker, even when it is the pilot in service
+     * (20/11/2026, Raphaël: « je ne peux pas choisir un autre modèle que piloté »; he had picked
+     * DeepSeek Flash, the éclaireur of that day, the message went on it in that model's mode, and
+     * the chip and the picker's tick stayed on « Piloté » as if the tap had done nothing).
      */
     val showsPiloted: Boolean
-        get() = effectiveModel?.let { it.isAuto || roles.isInService(roles.pilotRole, it.ref) } ?: true
+        get() = effectiveModel?.isAuto ?: true
 
     /** The savant in service, as the picker offers it: named from the catalogue when it lists it. */
     val savantModel: EngineSelectableModel?

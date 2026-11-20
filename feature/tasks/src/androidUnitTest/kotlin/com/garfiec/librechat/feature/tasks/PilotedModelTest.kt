@@ -199,6 +199,32 @@ class PilotedModelTest {
     }
 
     @Test
+    fun `the pilot's own model picked by hand is named, not shown as Piloté`() {
+        // 20/11/2026, Raphaël: « je ne peux pas choisir un autre modèle que piloté ». He had picked
+        // DeepSeek Flash, the éclaireur in service: the message went on it, in that model's mode,
+        // while the chip and the picker's tick stayed on « Piloté ».
+        val vm = viewModel()
+        vm.selectModel(flash)
+        assertThat(vm.uiState.value.effectiveModel).isEqualTo(flash)
+        assertThat(vm.uiState.value.showsPiloted).isFalse()
+
+        vm.onInputChange("Sur Flash")
+        vm.send()
+
+        coVerify {
+            repository.startChat(
+                text = "Sur Flash", connectors = any(), model = flash.ref, files = any(),
+                mode = "hobbitton-chat/${flash.ref.modelId}",
+            )
+        }
+        assertThat(vm.uiState.value.rememberedModel).isEqualTo(flash.ref)
+        assertThat(vm.uiState.value.showsPiloted).isFalse()
+        // Back to « Piloté » when that is picked.
+        vm.selectModel(EngineSelectableModel.AUTO)
+        assertThat(vm.uiState.value.showsPiloted).isTrue()
+    }
+
+    @Test
     fun `ask the savant puts the last request to the savant through the pilot of a piloted conversation`() {
         val ran = EngineModelRef("hobbitton-chat", "claude-opus-5-5")
         coEvery { repository.history("ses_suivie", any()) } returns listOf(
