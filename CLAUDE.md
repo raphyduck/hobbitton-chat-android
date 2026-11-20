@@ -370,8 +370,10 @@ that arrives waits for the other to finish. The lock is held by the scheduler (i
   own, which the server renders as the pilot. The picker is a choice
   of role first (« Piloté », « Savant » for a conversation that is all heavy reasoning, then « Autre
   modèle », the exception; a price only next to a model, never next to a role: Raphaël, 08/11/2026,
-  « Piloté » cannot be priced), and the composer's label reads « Piloté » whenever the conversation runs
-  on the pilot in service (`showsPiloted`); Settings offer « Piloté » and the models, a model the
+  « Piloté » cannot be priced), and the composer's label reads « Piloté » when the pick is « Piloté »
+  (`showsPiloted`; since 20/11/2026 a model picked by hand is named and ticked in the picker even
+  when it is the pilot in service, Raphaël: « je ne peux pas choisir un autre modèle que piloté »,
+  DeepSeek Flash picked and shown as « Piloté »); Settings offer « Piloté » and the models, a model the
   deployment no longer lists falling back to Piloté.
   Before D-086 « Auto » went through the scheduler's trieur and a ladder of tiers (`POST /palier`,
   `ModelTiers`, « Refaire plus fort »): gone. **A conversation's pick is what this device last

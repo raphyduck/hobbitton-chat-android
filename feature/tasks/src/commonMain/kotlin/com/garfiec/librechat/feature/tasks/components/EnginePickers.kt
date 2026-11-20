@@ -44,8 +44,9 @@ import com.garfiec.librechat.core.ui.resources.Res as CoreRes
  * the choice is a choice of ROLE first: « Piloté » (the platform's pilot in service, the éclaireur
  * since 10/11/2026, who consults the penseur for judgment and the savant when a decision is heavy),
  * « Savant » (the strongest model, for a conversation that is all heavy reasoning), and only then
- * « another model », the exception. [piloted] is true when the conversation runs on the pilot
- * (whatever row got it there); [savant] is null when the server names none.
+ * « another model », the exception. [piloted] is true when the pick is « Piloté » itself: a model
+ * picked by hand keeps its own row ticked, the pilot in service included (20/11/2026); [savant]
+ * is null when the server names none.
  */
 @Composable
 internal fun ModelPickerSheet(
