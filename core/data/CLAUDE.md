@@ -21,9 +21,10 @@ The engine's and the portal's data layer, and the app's preferences.
   five tries, a delay on a monotonic clock, `isTooSimple`) over `AppLockStore`;
   `AndroidAppLockStore` (androidMain) keeps a salted PBKDF2 hash in its own encrypted file
   (`eva_lock`). Both bound in `engineModule`.
-- **`speech/`** (11/11/2026; three models since 20/11/2026): the dictation models the phone runs
-  itself, each with Silero's voice detector (`SpeechModels`: Parakeet TDT 0.6B v3, Canary 180M
-  Flash, Canary 1B v2; `SpeechModel`: its `kind`, transducer or Canary, and each file's pinned
+- **`speech/`** (11/11/2026; a choice of models since 20/11/2026, two since 23/11): the dictation
+  models the phone runs itself, each with Silero's voice detector (`SpeechModels`: Parakeet TDT
+  0.6B v3 and Canary 180M Flash; Canary 1B v2 was withdrawn on 23/11/2026, its folder cleared at
+  start, `RETIRED_DIRECTORIES`; `SpeechModel`: its `kind`, transducer or Canary, and each file's pinned
   URL, size and SHA-256), their `SpeechModelState` and one `SpeechModelStore` per model (download,
   cancel, delete; `downloadState` reads the files' downloads). `SpeechModelLibrary` holds the
   stores and the person's choice; `active()` / `activeSpeechModel` give the installed model the

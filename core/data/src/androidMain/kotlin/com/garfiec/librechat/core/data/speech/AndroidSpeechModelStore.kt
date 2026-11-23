@@ -228,7 +228,14 @@ fun androidSpeechModelLibrary(context: Context): SpeechModelLibrary {
         stores = SpeechModels.ALL.map { AndroidSpeechModelStore(context, it) },
         remember = { prefs.edit().putString(AndroidSpeechModelStore.KEY_CHOSEN, it).apply() },
     )
-    CoroutineScope(AppThreads.io).launch { library.restore(prefs.getString(AndroidSpeechModelStore.KEY_CHOSEN, null)) }
+    val app = context.applicationContext
+    CoroutineScope(AppThreads.io).launch {
+        library.restore(prefs.getString(AndroidSpeechModelStore.KEY_CHOSEN, null))
+        // A model withdrawn from the list leaves its files behind, and no row to delete them from.
+        app.getExternalFilesDir(null)?.let { root ->
+            SpeechModels.RETIRED_DIRECTORIES.forEach { File(root, it).deleteRecursively() }
+        }
+    }
     return library
 }
 

@@ -11,11 +11,12 @@ import kotlinx.coroutines.flow.asStateFlow
  * against its SHA-256 before it is used; the voice never leaves the phone. Every export is pinned
  * to one revision: a file changed upstream is not ours.
  *
- * Three since 20/11/2026 (Raphaël: Parakeet « mélange anglais et français allègrement », then
- * « essaie Canary … Ajoute le Canary Flash et pas Flash et je testerai »): Parakeet guesses the
- * language of each stretch of speech and nothing can fix it; NVIDIA's Canary models are told the
- * language they hear and the one they write, French for both here, so their output is French
- * whatever was said.
+ * Two to choose from (20/11/2026, Raphaël: Parakeet « mélange anglais et français allègrement »,
+ * then « essaie Canary … Ajoute le Canary Flash et pas Flash et je testerai »): Parakeet guesses
+ * the language of each stretch of speech and nothing can fix it; NVIDIA's Canary models are told
+ * the language they hear and the one they write, French for both here, so their output is French
+ * whatever was said. Canary 1B v2, the third and heaviest, was withdrawn on 23/11/2026 at his
+ * request (« Retire ça »): Parakeet and Canary 180M Flash remain.
  */
 object SpeechModels {
     private const val VAD_URL = "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/silero_vad.onnx"
@@ -97,45 +98,15 @@ object SpeechModels {
         )
     }
 
-    /**
-     * Canary 1B v2: 25 European languages, the most accurate of the three on French by NVIDIA's
-     * own figures, and the heaviest. Neither NVIDIA nor the sherpa-onnx project publishes its
-     * ONNX export: this one is a community export (bnoordhuis, CC-BY-4.0, made for Android),
-     * taken at one revision and by SHA-256 like the others.
-     */
-    val CANARY_V2: SpeechModel = run {
-        val base = "https://huggingface.co/bnoordhuis/canary-1b-v2-sherpa-onnx-nl-int8" +
-            "/resolve/28a965808e76ab3182c10591338a0f7914d59c0d"
-        SpeechModel(
-            id = "canary-1b-v2",
-            name = "Canary 1B v2",
-            directory = "speech/canary-1b-v2-int8",
-            kind = SpeechModelKind.CANARY,
-            encoder = SpeechModelFile(
-                name = "encoder.int8.onnx",
-                url = "$base/encoder.int8.onnx",
-                bytes = 1_161_643_089,
-                sha256 = "8342623508dcf97c81d48f930655bb26aeb05bae7ae9336cd0001e6f5f544888",
-            ),
-            decoder = SpeechModelFile(
-                name = "decoder.int8.onnx",
-                url = "$base/decoder.int8.onnx",
-                bytes = 223_741_759,
-                sha256 = "ac51ba4975dc058013b041142981a376105874eb267db8a5817952154a3b7e11",
-            ),
-            joiner = null,
-            tokens = SpeechModelFile(
-                name = "tokens.txt",
-                url = "$base/tokens.txt",
-                bytes = 208_022,
-                sha256 = "2c9efe6104fd29522ea27ce0e3aef5d37c690af4e5a4232e643e23ca403ffea3",
-            ),
-            vad = VAD,
-        )
-    }
-
     /** In the order Settings lists them; the first one installed serves until another is chosen. */
-    val ALL: List<SpeechModel> = listOf(PARAKEET, CANARY_FLASH, CANARY_V2)
+    val ALL: List<SpeechModel> = listOf(PARAKEET, CANARY_FLASH)
+
+    /**
+     * Where the models this app no longer offers kept their files: removed from the phone at
+     * start, since nothing in Settings can delete them any more. Canary 1B v2 (1,39 GB, a
+     * community export) was offered from 20/11 to 23/11/2026, when Raphaël had it withdrawn.
+     */
+    val RETIRED_DIRECTORIES: List<String> = listOf("speech/canary-1b-v2-int8")
 }
 
 /** How sherpa-onnx reads a model. */

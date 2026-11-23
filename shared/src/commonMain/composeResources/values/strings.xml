@@ -68,7 +68,6 @@
     <string name="engine_settings_local_dictation_hint">On (default), the phone itself hears you and shows the words as you speak, listening without a break until you tap stop: with the Parakeet model below once downloaded, else with Android's own recognition (Android 13 or later). Off, the mic records until you tap stop and the server transcribes the whole take.</string>
     <string name="engine_settings_speech_model_absent">Transcribed entirely on the phone: your voice never leaves it. Guesses the language (25 of them) and can mix English into French. %1$d MB to download, over Wi-Fi.</string>
     <string name="engine_settings_speech_model_canary_flash">Always writes French, never mixes languages. Small and quick. %1$d MB to download, over Wi-Fi.</string>
-    <string name="engine_settings_speech_model_canary_v2">Always writes French, never mixes languages. More accurate by NVIDIA's figures, heavier and slower. %1$d MB to download, over Wi-Fi.</string>
     <string name="engine_settings_speech_model_downloading">Downloading: %1$d of %2$d MB</string>
     <string name="engine_settings_speech_model_waiting">Waiting for a Wi-Fi network: %1$d of %2$d MB</string>
     <string name="engine_settings_speech_model_verifying">Checking the files…</string>

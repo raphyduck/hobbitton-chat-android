@@ -128,7 +128,6 @@ import com.garfiec.librechat.shared.resources.engine_settings_sign_out_confirm
 import com.garfiec.librechat.shared.resources.engine_settings_sign_out_hint
 import com.garfiec.librechat.shared.resources.engine_settings_speech_model_absent
 import com.garfiec.librechat.shared.resources.engine_settings_speech_model_canary_flash
-import com.garfiec.librechat.shared.resources.engine_settings_speech_model_canary_v2
 import com.garfiec.librechat.shared.resources.engine_settings_speech_model_cancel
 import com.garfiec.librechat.shared.resources.engine_settings_speech_model_delete
 import com.garfiec.librechat.shared.resources.engine_settings_speech_model_download
@@ -698,7 +697,6 @@ internal fun SpeechModelRow(
 /** What a model is, in a line, before it is downloaded. */
 private fun SpeechModel.blurb(): StringResource = when (id) {
     SpeechModels.CANARY_FLASH.id -> Res.string.engine_settings_speech_model_canary_flash
-    SpeechModels.CANARY_V2.id -> Res.string.engine_settings_speech_model_canary_v2
     else -> Res.string.engine_settings_speech_model_absent
 }
 
