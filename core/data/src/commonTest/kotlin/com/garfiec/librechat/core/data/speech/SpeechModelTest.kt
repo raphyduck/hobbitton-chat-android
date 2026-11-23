@@ -7,7 +7,7 @@ import kotlin.test.assertTrue
 import kotlinx.coroutines.flow.MutableStateFlow
 
 /**
- * The dictation models' downloads (11/11/2026; three models and a choice since 20/11/2026): the
+ * The dictation models' downloads (11/11/2026; a choice of models since 20/11/2026, two since 23/11): the
  * files pinned to one revision, the state read off their downloads, and the model in use.
  */
 class SpeechModelTest {
@@ -17,7 +17,6 @@ class SpeechModelTest {
         val pinned = mapOf(
             SpeechModels.PARAKEET to ("ed5d745623472f97cfc2e6c2916ee248798fc5a8" to 671_220_638L),
             SpeechModels.CANARY_FLASH to ("9077164e0d3dd1d5353743e89ceaa1d3a770838c" to 207_813_900L),
-            SpeechModels.CANARY_V2 to ("28a965808e76ab3182c10591338a0f7914d59c0d" to 1_386_236_724L),
         )
         assertEquals(SpeechModels.ALL, pinned.keys.toList())
         pinned.forEach { (model, expected) ->
@@ -39,6 +38,8 @@ class SpeechModelTest {
         SpeechModels.ALL.forEach { model ->
             assertEquals(model.kind == SpeechModelKind.TRANSDUCER, model.joiner != null, model.name)
         }
+        // A withdrawn model's folder is cleared at start: never one a listed model still uses.
+        assertTrue(SpeechModels.RETIRED_DIRECTORIES.none { retired -> SpeechModels.ALL.any { it.directory == retired } })
     }
 
     @Test
@@ -46,12 +47,14 @@ class SpeechModelTest {
         val absent = SpeechModelState.Absent
         val parakeet = ready(SpeechModels.PARAKEET)
         val flash = ready(SpeechModels.CANARY_FLASH)
-        assertNull(activeSpeechModel(chosen = null, states = listOf(absent, absent, absent)))
-        assertEquals(SpeechModels.PARAKEET, activeSpeechModel(null, listOf(parakeet, flash, absent))?.model)
-        assertEquals(SpeechModels.CANARY_FLASH, activeSpeechModel("canary-180m-flash", listOf(parakeet, flash, absent))?.model)
+        assertNull(activeSpeechModel(chosen = null, states = listOf(absent, absent)))
+        assertEquals(SpeechModels.PARAKEET, activeSpeechModel(null, listOf(parakeet, flash))?.model)
+        assertEquals(SpeechModels.CANARY_FLASH, activeSpeechModel("canary-180m-flash", listOf(parakeet, flash))?.model)
         // The chosen one still downloads: the installed one serves meanwhile.
         val downloading = SpeechModelState.Downloading(done = 1, total = 2)
-        assertEquals(SpeechModels.PARAKEET, activeSpeechModel("canary-1b-v2", listOf(parakeet, absent, downloading))?.model)
+        assertEquals(SpeechModels.PARAKEET, activeSpeechModel("canary-180m-flash", listOf(parakeet, downloading))?.model)
+        // A choice kept from a version that offered a model since withdrawn (Canary 1B v2).
+        assertEquals(SpeechModels.PARAKEET, activeSpeechModel("canary-1b-v2", listOf(parakeet, flash))?.model)
     }
 
     @Test

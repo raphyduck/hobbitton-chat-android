@@ -68,7 +68,6 @@
     <string name="engine_settings_local_dictation_hint">Activé (par défaut), le téléphone vous entend lui-même et affiche les mots à mesure, sans s'arrêter avant que vous appuyiez sur stop : avec le modèle Parakeet ci-dessous une fois téléchargé, sinon avec la reconnaissance d'Android (Android 13 ou plus). Désactivé, le micro enregistre jusqu'à stop et le serveur transcrit toute la prise.</string>
     <string name="engine_settings_speech_model_absent">Transcription faite entièrement sur le téléphone : votre voix n'en sort pas. Devine la langue (25 langues) et peut mêler l'anglais au français. %1$d Mo à télécharger, en Wi-Fi.</string>
     <string name="engine_settings_speech_model_canary_flash">Écrit toujours en français, sans mélange de langues. Petit et rapide. %1$d Mo à télécharger, en Wi-Fi.</string>
-    <string name="engine_settings_speech_model_canary_v2">Écrit toujours en français, sans mélange de langues. Plus précis d'après NVIDIA, plus lourd et plus lent. %1$d Mo à télécharger, en Wi-Fi.</string>
     <string name="engine_settings_speech_model_downloading">Téléchargement : %1$d sur %2$d Mo</string>
     <string name="engine_settings_speech_model_waiting">En attente d'un réseau Wi-Fi : %1$d sur %2$d Mo</string>
     <string name="engine_settings_speech_model_verifying">Vérification des fichiers…</string>

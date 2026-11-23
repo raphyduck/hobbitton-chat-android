@@ -269,15 +269,16 @@ that arrives waits for the other to finish. The lock is held by the scheduler (i
   its GitHub release (an `ivy` repository in `settings.gradle.kts`), its classes kept from R8
   (`proguard-rules.pro`), its 32-bit libraries left out of the APK: a 32-bit phone is not offered
   the model (`SpeechModelStore.supported`).
-  **Three models to compare** (20/11/2026, Raphaël: Parakeet « mélange anglais et français
+  **Two models to choose from** (20/11/2026, Raphaël: Parakeet « mélange anglais et français
   allègrement de manière à ce que ça soit incompréhensible », then « essaie Canary … Ajoute le
   Canary Flash et pas Flash et je testerai »). Parakeet v3 guesses the language of each stretch
   and has no setting to fix it. NVIDIA's Canary models take the language heard and the language
   written: both French here (`DICTATION_LANGUAGE`), so the text is French whatever was said
-  (English speech comes out translated). Settings → Dictée lists the three (`SpeechModels`:
-  Parakeet 671 MB, Canary 180M Flash 208 MB from the sherpa-onnx project's export, Canary 1B v2
-  1,39 GB from a community export, `bnoordhuis/canary-1b-v2-sherpa-onnx-nl-int8`, neither NVIDIA
-  nor k2-fsa publishing one; each pinned to a revision and SHA-256), a store per model
+  (English speech comes out translated). Settings → Dictée lists them (`SpeechModels`:
+  Parakeet 671 MB and Canary 180M Flash 208 MB, both from the sherpa-onnx project's exports,
+  each pinned to a revision and SHA-256; Canary 1B v2, 1,39 GB from a community export, was a
+  third from 20/11 to 23/11/2026, when Raphaël had it withdrawn, « Retire ça »: its folder is
+  cleared from the phone at start, `SpeechModels.RETIRED_DIRECTORIES`), a store per model
   (`AndroidSpeechModelStore(context, model)`), and the installed ones carry a radio button: the
   dictation goes through the chosen one, the one last asked for by default
   (`SpeechModelLibrary`, `activeSpeechModel`). `ParakeetEngine` reads a Canary through
