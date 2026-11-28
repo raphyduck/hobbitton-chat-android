@@ -865,13 +865,20 @@ class EngineMissionRepository(
     /**
      * The connectors a mission may be given, as the scheduler declares them.
      *
-     * Cached for the process: the catalogue is a constant of the deployment, it changes when the
-     * platform is reconfigured and not while a phone is open. Fetching it per picker opening would
-     * be a round trip for an answer that cannot have changed — and one more thing to fail while
-     * someone is mid-tick.
+     * Kept [CATALOGUE_TTL_MS], like the engine's providers. It was kept for the whole process
+     * until 28/11/2026, and the process lives for days (the push service holds it): after the
+     * scheduler fused `memoire-ecriture` and `planificateur-ecriture` into `memoire` and
+     * `planificateur` (25/11/2026), a phone still offered the two old connectors, the scheduler
+     * read the session's ticks back under the new names, and the two boxes showed unticked
+     * whenever the screen read its scope again (after a reminder, typically). Raphaël: « les
+     * permissions sautent de façon aléatoire selon les sessions après un rappel ». A
+     * reconfiguration now shows within ten minutes; the picker still opens without a round trip.
      */
-    suspend fun connectors(): ConnectorCatalogue =
-        cachedConnectors ?: scheduler.connectors().also { cachedConnectors = it }
+    suspend fun connectors(): ConnectorCatalogue {
+        val now = Clock.System.now().toEpochMilliseconds()
+        cachedConnectors?.takeIf { now - it.first < CATALOGUE_TTL_MS }?.let { return it.second }
+        return scheduler.connectors().also { cachedConnectors = now to it }
+    }
 
     /**
      * Which connectors a **live** session currently carries, read off the engine.
@@ -950,7 +957,7 @@ class EngineMissionRepository(
     /** What the titulaire's level is asked for on top of what it reaches: the shell, or nothing. */
     private fun shellTick(shell: Boolean): List<String> = if (shell) listOf(SHELL_CONNECTOR) else emptyList()
 
-    private var cachedConnectors: ConnectorCatalogue? = null
+    private var cachedConnectors: Pair<Long, ConnectorCatalogue>? = null
 
     private companion object {
         const val TITLE_LENGTH = 60
@@ -998,7 +1005,10 @@ class EngineMissionRepository(
          */
         const val DECLARED_PROVIDER = "config"
 
-        /** How long the engine's providers are kept: a reconfiguration shows within ten minutes. */
+        /**
+         * How long the engine's providers and the scheduler's connector catalogue are kept: a
+         * reconfiguration shows within ten minutes.
+         */
         const val CATALOGUE_TTL_MS = 10L * 60 * 1000
     }
 }
